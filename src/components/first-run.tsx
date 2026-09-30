@@ -1,10 +1,12 @@
 import QRCode from "qrcode";
+import Image from "next/image";
 
 export async function FirstRun({ setupUrl }: { setupUrl: string }) {
   const qr = await QRCode.toDataURL(setupUrl, { width: 480, margin: 2, color: { dark: "#071316", light: "#ffffff" } });
   return (
     <main className="first-run">
       <section>
+        <Image className="first-run-logo" src="/assets/fitfamily-logo.png" alt="FitFamily Dashboard – Gesund, aktiv, gemeinsam" width={300} height={300} priority />
         <div className="setup-badge">Willkommen</div>
         <h1>FitFamily<br /><span>einrichten.</span></h1>
         <p>Scanne den QR-Code mit einem Handy im selben WLAN. Dort legst du Eltern-PIN und Profildaten sicher fest – ganz ohne Tastatur am Monitor.</p>
