@@ -27,5 +27,12 @@ export default async function Home() {
     return <FirstRun setupUrl={setupUrl} qr={qr} />;
   }
   const profiles = await getDashboardData();
-  return <Dashboard initialProfiles={profiles} version={getRevision()} />;
+  const baseUrl = getMobileReachableBaseUrl();
+  const { default: QRCode } = await import("qrcode");
+  const mobileQr = await QRCode.toDataURL(baseUrl, {
+    width: 360,
+    margin: 1,
+    color: { dark: "#06191d", light: "#ffffff" }
+  });
+  return <Dashboard initialProfiles={profiles} version={getRevision()} mobileQr={mobileQr} mobileUrl={baseUrl} />;
 }

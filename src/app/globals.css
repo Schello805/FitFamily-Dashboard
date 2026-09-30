@@ -87,6 +87,11 @@ body::before {
 .brand-tools { display: flex; align-items: center; gap: 8px; margin-left: 5px; }
 .admin-shortcut, .theme-toggle { width: 42px; height: 42px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 13px; color: var(--muted); background: var(--panel); box-shadow: var(--card-shadow); cursor: pointer; touch-action: manipulation; transition: all .15s ease; }
 .admin-shortcut:hover, .theme-toggle:hover { color: var(--text); border-color: var(--line-strong); background: var(--panel-soft); }
+.header-qr-button { display: flex; align-items: center; gap: 8px; min-height: 42px; height: 42px; padding: 3px 11px 3px 4px; border: 1px solid var(--line); border-radius: 13px; background: var(--panel); box-shadow: var(--card-shadow); color: var(--text); cursor: pointer; touch-action: manipulation; transition: all .15s ease; }
+.header-qr-button:hover { background: var(--panel-soft); border-color: var(--line-strong); color: var(--brand-bright); }
+.header-qr-thumbnail { width: 34px; height: 34px; border-radius: 8px; background: #ffffff; padding: 2px; object-fit: contain; flex: none; }
+.header-qr-label { display: flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 750; white-space: nowrap; }
+.header-qr-label svg { color: var(--brand); }
 .eyebrow, .section-kicker { color: var(--brand); text-transform: uppercase; letter-spacing: .16em; font-size: 11px; font-weight: 800; }
 .brand-block h1 { font-size: 29px; line-height: 1; margin: 5px 0 0; letter-spacing: -.04em; }
 .weather-block { gap: 13px; padding: 12px 18px; border: 1px solid var(--line); border-radius: 22px; background: var(--panel); box-shadow: var(--card-shadow); backdrop-filter: blur(16px); }
@@ -315,6 +320,8 @@ body::before {
   .dashboard-shell { padding: 18px 16px 12px; }
   .topbar { grid-template-columns: 1fr auto; min-height: 84px; }
   .brand-logo { width: 83px; height: 83px; }
+  .header-qr-button { padding: 3px 6px 3px 4px; }
+  .header-qr-label b { display: none; }
   .header-actions { gap: 8px; }
   .clock-block time { font-size: 30px; }
   .clock-block span { font-size: 10px; }
@@ -425,7 +432,7 @@ body::before {
 .qr-modal { width: min(480px, 100%); position: relative; text-align: center; padding: 30px; border-radius: 28px; background: var(--modal-bg); border: 1px solid var(--line-strong); box-shadow: var(--card-shadow); }
 .qr-modal h2 { font-size: 28px; margin: 15px 0 7px; }
 .qr-modal p { color: var(--muted); margin: 0 0 17px; }
-.qr-modal img { width: min(100%, 330px); border-radius: 18px; }
+.qr-modal img, .modal-qr-img { width: min(100%, 300px); height: auto; border-radius: 18px; display: block; margin: 16px auto; box-shadow: 0 10px 30px rgba(0,0,0,.15); background: #ffffff; padding: 8px; }
 .profile-edit-modal { width: min(520px, 100%); max-height: 90vh; overflow-y: auto; position: relative; padding: 30px; border-radius: 26px; background: var(--modal-bg); border: 1px solid var(--line-strong); box-shadow: var(--card-shadow); }
 .profile-edit-modal h2 { margin: 14px 0 18px; font-size: 26px; }
 .profile-edit-preview-row { display: flex; align-items: center; gap: 16px; padding: 12px 14px; border-radius: 16px; background: var(--subtle-bg); border: 1px solid var(--line); margin: 6px 0 14px; }

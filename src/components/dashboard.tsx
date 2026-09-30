@@ -10,6 +10,7 @@ import {
   Dumbbell,
   MapPin,
   Settings,
+  Smartphone,
   Square,
   Trophy
 } from "lucide-react";
@@ -53,11 +54,42 @@ function GoalRing({ value, color, targetMinutes, targetPeriod }: { value: number
   );
 }
 
-export function Dashboard({ initialProfiles, version }: { initialProfiles: DashboardProfile[]; version: string }) {
+export function Dashboard({
+  initialProfiles,
+  version,
+  mobileQr,
+  mobileUrl
+}: {
+  initialProfiles: DashboardProfile[];
+  version: string;
+  mobileQr?: string;
+  mobileUrl?: string;
+}) {
   const [profiles, setProfiles] = useState(initialProfiles);
   const [weather, setWeather] = useState<Weather>(null);
   const clock = useClock();
   const [quietDismissed, setQuietDismissed] = useState(false);
+  const [activeQr, setActiveQr] = useState(mobileQr ?? "");
+  const [activeUrl, setActiveUrl] = useState(mobileUrl ?? "");
+  const [showQrModal, setShowQrModal] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1") {
+      const currentUrl = window.location.origin;
+      if (currentUrl !== activeUrl) {
+        import("qrcode").then(({ default: QRCode }) => {
+          QRCode.toDataURL(currentUrl, {
+            width: 380,
+            margin: 1,
+            color: { dark: "#06191d", light: "#ffffff" }
+          }).then((qrData) => {
+            setActiveQr(qrData);
+            setActiveUrl(currentUrl);
+          });
+        });
+      }
+    }
+  }, [activeUrl]);
 
   const refresh = useCallback(async () => {
     const response = await fetch("/api/dashboard", { cache: "no-store" });
@@ -106,6 +138,28 @@ export function Dashboard({ initialProfiles, version }: { initialProfiles: Dashb
           <div className="brand-tools">
             <Link className="admin-shortcut" href="/verwaltung" aria-label="Verwaltung öffnen"><Settings size={20} /></Link>
             <ThemeToggle />
+            {activeQr && (
+              <button
+                type="button"
+                className="header-qr-button"
+                onClick={() => setShowQrModal(true)}
+                title="Am Smartphone öffnen (Tippen zum Vergrößern)"
+                aria-label="QR-Code zum Öffnen auf dem Smartphone anzeigen"
+              >
+                <Image
+                  src={activeQr}
+                  alt="QR-Code für Smartphone"
+                  width={34}
+                  height={34}
+                  className="header-qr-thumbnail"
+                  unoptimized
+                />
+                <span className="header-qr-label">
+                  <Smartphone size={13} />
+                  <b>Handy</b>
+                </span>
+              </button>
+            )}
           </div>
         </section>
         <section className="weather-block" aria-label="Wetter in Bechhofen">
@@ -164,6 +218,41 @@ export function Dashboard({ initialProfiles, version }: { initialProfiles: Dashb
         <a href="https://github.com/Schello805/FitFamily-Dashboard" target="_blank" rel="noreferrer"><GitHubIcon /> GitHub · Rev. {version}</a>
       </footer>
       {quietActive && <button className="quiet-overlay" onClick={() => setQuietDismissed(true)}><span>{clock.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })}</span><strong>Ruhemodus</strong><small>Zum Aufwecken berühren</small></button>}
+
+      {showQrModal && activeQr && (
+        <div className="modal-backdrop" onClick={() => setShowQrModal(false)}>
+          <div className="qr-modal" onClick={(e) => e.stopPropagation()}>
+            <button
+              type="button"
+              className="modal-close"
+              onClick={() => setShowQrModal(false)}
+              aria-label="Schließen"
+            >
+              ×
+            </button>
+            <div className="pair-icon">
+              <Smartphone size={32} />
+            </div>
+            <span className="setup-badge">Auf dem Smartphone</span>
+            <h2>Mit Handy verbinden</h2>
+            <p>Scanne diesen Code mit der Handykamera, um FitFamily auf deinem Smartphone zu öffnen (im selben WLAN).</p>
+            <Image
+              src={activeQr}
+              alt="QR-Code für Smartphone-Zugriff"
+              width={300}
+              height={300}
+              className="modal-qr-img"
+              unoptimized
+            />
+            {activeUrl && (
+              <div className="qr-caption">
+                <strong>{activeUrl}</strong>
+                <span>Tipp: Im Handy-Browser zu den Lesezeichen oder zum Startbildschirm hinzufügen.</span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </main>
   );
 }
