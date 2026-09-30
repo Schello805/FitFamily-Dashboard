@@ -57,11 +57,13 @@ function GoalRing({ value, color, targetMinutes, targetPeriod }: { value: number
 export function Dashboard({
   initialProfiles,
   version,
+  commitUrl,
   mobileQr,
   mobileUrl
 }: {
   initialProfiles: DashboardProfile[];
   version: string;
+  commitUrl?: string;
   mobileQr?: string;
   mobileUrl?: string;
 }) {
@@ -221,7 +223,7 @@ export function Dashboard({
       <footer className="app-footer">
         <span className="system-online"><i /> Lokal verbunden</span>
         <span>Source Available von Michael Schellenberger</span>
-        <a href="https://github.com/Schello805/FitFamily-Dashboard" target="_blank" rel="noreferrer"><GitHubIcon /> GitHub · Rev. {version}</a>
+        <a href={commitUrl ?? "https://github.com/Schello805/FitFamily-Dashboard"} target="_blank" rel="noreferrer"><GitHubIcon /> GitHub · Rev. {version}</a>
       </footer>
       {quietActive && <button className="quiet-overlay" onClick={() => setQuietDismissed(true)}><span>{clock.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })}</span><strong>Ruhemodus</strong><small>Zum Aufwecken berühren</small></button>}
 

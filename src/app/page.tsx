@@ -1,22 +1,11 @@
-import packageJson from "../../package.json";
-import { execFileSync } from "node:child_process";
 import { getDashboardData } from "@/lib/dashboard";
 import { getSetting } from "@/lib/db";
 import { Dashboard } from "@/components/dashboard";
 import { FirstRun } from "@/components/first-run";
 import { getMobileReachableBaseUrl } from "@/lib/server-url";
+import { getAppRevision } from "@/lib/version";
 
 export const dynamic = "force-dynamic";
-
-function getRevision() {
-  if (process.env.NEXT_PUBLIC_APP_VERSION) return process.env.NEXT_PUBLIC_APP_VERSION;
-  try {
-    const commit = execFileSync("git", ["rev-parse", "--short=7", "HEAD"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
-    return `${packageJson.version}+${commit}`;
-  } catch {
-    return packageJson.version;
-  }
-}
 
 export default async function Home() {
   if ((await getSetting("setup_complete")) !== "true") {
@@ -34,5 +23,6 @@ export default async function Home() {
     margin: 1,
     color: { dark: "#06191d", light: "#ffffff" }
   });
-  return <Dashboard initialProfiles={profiles} version={getRevision()} mobileQr={mobileQr} mobileUrl={baseUrl} />;
+  const revision = getAppRevision();
+  return <Dashboard initialProfiles={profiles} version={revision.version} commitUrl={revision.commitUrl} mobileQr={mobileQr} mobileUrl={baseUrl} />;
 }
