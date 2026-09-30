@@ -772,6 +772,185 @@ body::before {
 .segment-list small { color: var(--muted); font-size: 10px; margin-top: 2px; }
 .session-list article > em { color: var(--muted); font-size: 10px; font-style: normal; display: flex; align-items: center; gap: 5px; }
 .session-list article > em svg { width: 14px; }
+
+.swipe-hint {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--muted);
+  padding: 10px 16px;
+  background: var(--subtle-bg);
+  border: 1px dashed var(--line);
+  border-radius: 14px;
+  margin-bottom: 8px;
+  text-align: center;
+  user-select: none;
+}
+.swipe-hint svg {
+  color: var(--profile, var(--brand));
+  flex-shrink: 0;
+}
+
+.swipeable-session-wrapper {
+  position: relative;
+  overflow: hidden;
+  border-radius: 19px;
+  touch-action: pan-y;
+  user-select: none;
+}
+
+.swipe-action-backdrop {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: stretch;
+  border-radius: 19px;
+  background: #0f172a;
+}
+
+.swipe-action-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 24px;
+  background: linear-gradient(135deg, #0284c7, #0369a1);
+  color: #fff;
+  font-weight: 800;
+  font-size: 14px;
+  border: 0;
+  cursor: pointer;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+  user-select: none;
+}
+
+.swipe-action-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 24px;
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  color: #fff;
+  font-weight: 800;
+  font-size: 14px;
+  border: 0;
+  cursor: pointer;
+  margin-left: auto;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+  user-select: none;
+}
+
+.swipeable-session-card {
+  position: relative;
+  z-index: 2;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 19px;
+  padding: 17px 20px;
+  display: grid;
+  grid-template-columns: 150px 1fr auto;
+  gap: 20px;
+  align-items: center;
+  cursor: grab;
+  user-select: none;
+  touch-action: pan-y;
+}
+
+.swipeable-session-card:active {
+  cursor: grabbing;
+}
+
+.session-card-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.session-card-right > em {
+  color: var(--muted);
+  font-size: 10px;
+  font-style: normal;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+.session-card-right > em svg {
+  width: 14px;
+}
+
+.session-desktop-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.session-action-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--subtle-bg);
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.session-action-icon.edit-icon:hover {
+  background: rgba(2, 132, 199, 0.15);
+  color: #38bdf8;
+  border-color: #0284c7;
+}
+
+.session-action-icon.delete-icon:hover {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+  border-color: #ef4444;
+}
+
+.confirm-delete-box {
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: 14px;
+  padding: 14px;
+  margin: 12px 0 16px;
+}
+
+.confirm-delete-box p {
+  margin: 0;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.delete-submit-btn {
+  margin-top: 20px;
+  width: 100%;
+  min-height: 50px;
+  border: 0;
+  border-radius: 14px;
+  background: #dc2626;
+  color: #fff;
+  font-weight: 800;
+  font-size: 15px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.delete-submit-btn:hover:not(:disabled) {
+  background: #b91c1c;
+}
+
+.delete-submit-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
 .empty-state { padding: 60px 20px; text-align: center; color: var(--muted); }
 .empty-state > svg { width: 54px; height: 54px; color: var(--profile, var(--brand)); }
 .empty-state h2 { color: var(--text); font-size: 27px; margin: 15px 0 4px; }
@@ -807,7 +986,8 @@ body::before {
   .plan-actions > button, .plan-template, .plan-import { flex: 1; }
   .history-stats div { padding: 16px 8px; }
   .history-stats strong { font-size: 24px; }
-  .session-list article { grid-template-columns: 1fr; gap: 10px; }
+  .session-list article, .swipeable-session-card { grid-template-columns: 1fr; gap: 10px; }
+  .session-card-right { justify-content: space-between; width: 100%; border-top: 1px solid var(--line); padding-top: 10px; }
   .week-grid { grid-template-columns: 1fr; }
   .plan-head { flex-direction: column; }
 }
