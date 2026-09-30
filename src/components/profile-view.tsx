@@ -33,7 +33,20 @@ export function ProfileView({ initialProfile, exercises }: { initialProfile: Das
   );
   const [editStartingFitness, setEditStartingFitness] = useState<number>(initialProfile.startingFitness);
   const [profileNotice, setProfileNotice] = useState("");
+  const [isMobile, setIsMobile] = useState(false);
   const router = useRouter();
+
+  useEffect(() => {
+    const checkMobile = () => {
+      const params = new URLSearchParams(window.location.search);
+      const isMobileParam = params.get("mobil") === "1";
+      const isNarrow = window.innerWidth <= 680;
+      setIsMobile(isMobileParam || isNarrow);
+    };
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
 
   const previewProgress = getAvatarProgress(
     editStartingFitness,
@@ -60,6 +73,7 @@ export function ProfileView({ initialProfile, exercises }: { initialProfile: Das
   }, []);
 
   useEffect(() => {
+    if (isMobile) return;
     deadlineRef.current = Date.now() + TOTAL_IDLE_SECONDS * 1000;
     const handleActivity = () => resetTimer();
     const events = ["pointerdown", "keydown", "scroll", "touchstart"] as const;
@@ -82,7 +96,7 @@ export function ProfileView({ initialProfile, exercises }: { initialProfile: Das
       window.clearInterval(interval);
       events.forEach((event) => window.removeEventListener(event, handleActivity));
     };
-  }, [resetTimer, router]);
+  }, [resetTimer, router, isMobile]);
 
   useEffect(() => {
     const interval = window.setInterval(refresh, 5000);
@@ -102,7 +116,7 @@ export function ProfileView({ initialProfile, exercises }: { initialProfile: Das
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(type
-        ? { action: "start", profileId: profile.id, type, exerciseId: exerciseId ?? null, source: "touch" }
+        ? { action: "start", profileId: profile.id, type, exerciseId: exerciseId ?? null, source: isMobile ? "mobile" : "touch" }
         : { action: "stop", profileId: profile.id })
     });
     if (response.ok) playTone(type ? (type === "strength" ? 520 : 660) : 360);
@@ -174,19 +188,23 @@ export function ProfileView({ initialProfile, exercises }: { initialProfile: Das
   const activeType = profile.activeTraining?.type;
   return (
     <main className="profile-shell" style={{ "--profile": profile.color } as React.CSSProperties}>
-      <div className="profile-idle-bar-container" title={`Automatische Rückkehr zum Dashboard in ${secondsLeft}s (Tippen zum Zurücksetzen)`} onClick={resetTimer}>
-        <div className="profile-idle-bar-fill" style={{ width: `${progress}%` }} />
-      </div>
+      {!isMobile && (
+        <div className="profile-idle-bar-container" title={`Automatische Rückkehr zum Dashboard in ${secondsLeft}s (Tippen zum Zurücksetzen)`} onClick={resetTimer}>
+          <div className="profile-idle-bar-fill" style={{ width: `${progress}%` }} />
+        </div>
+      )}
       <header className="profile-topbar">
-        <Link href="/" className="icon-link"><ArrowLeft size={30} /><span>Dashboard</span></Link>
-        <div><span className="eyebrow">Training für</span><h1>{profile.name}</h1></div>
+        <Link href="/" className="icon-link"><ArrowLeft size={isMobile ? 22 : 30} /><span>Dashboard</span></Link>
+        <div className="profile-topbar-title"><span className="eyebrow">Training für</span><h1>{profile.name}</h1></div>
         <div className="profile-topbar-right">
           <ThemeToggle />
-          <div className="profile-idle-badge" onClick={resetTimer} title="Automatische Rückkehr zum Dashboard bei Inaktivität (Tippen zum Verlängern)">
-            <span className="idle-pulse-dot" />
-            <small>Dashboard in</small>
-            <b>{secondsLeft}s</b>
-          </div>
+          {!isMobile && (
+            <div className="profile-idle-badge" onClick={resetTimer} title="Automatische Rückkehr zum Dashboard bei Inaktivität (Tippen zum Verlängern)">
+              <span className="idle-pulse-dot" />
+              <small>Dashboard in</small>
+              <b>{secondsLeft}s</b>
+            </div>
+          )}
           <div className="profile-score"><strong>{profile.score.toLocaleString("de-DE")}</strong><span>Punkte</span></div>
         </div>
       </header>
@@ -241,10 +259,10 @@ export function ProfileView({ initialProfile, exercises }: { initialProfile: Das
         </section>
       )}
 
-      <nav className="profile-nav">
+      <nav className={`profile-nav ${isMobile ? "mobile-nav" : ""}`}>
         <Link href={`/profil/${profile.id}/plan`}><CalendarRange /><span>Trainingsplan</span></Link>
         <Link href={`/profil/${profile.id}/verlauf`}><History /><span>Verlauf</span></Link>
-        <button onClick={openHandoff}><QrCode /><span>Am Handy öffnen</span></button>
+        {!isMobile && <button onClick={openHandoff}><QrCode /><span>Am Handy öffnen</span></button>}
         <button onClick={openProfileEditor}><Settings2 /><span>Profil bearbeiten</span></button>
       </nav>
       {profileNotice && <p className="profile-notice" role="status">{profileNotice}</p>}
