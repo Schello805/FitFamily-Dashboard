@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Check, ChevronRight, LockKeyhole, ShieldCheck } from "lucide-react";
 
@@ -12,6 +12,7 @@ const initialProfiles: SetupProfile[] = [
   { id: "fabian", name: "Fabian", birthDate: "", avatar: "male" },
   { id: "frieda", name: "Frieda", birthDate: "", avatar: "female" }
 ];
+const setupDraftKey = "fitfamily-setup-profiles";
 
 export function SetupForm() {
   const [profiles, setProfiles] = useState(initialProfiles.map((profile) => ({ ...profile })));
@@ -20,20 +21,58 @@ export function SetupForm() {
   const [error, setError] = useState("");
   const [done, setDone] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [draftLoaded, setDraftLoaded] = useState(false);
+
+  useEffect(() => {
+    let savedProfiles: SetupProfile[] | null = null;
+    try {
+      const saved = window.sessionStorage.getItem(setupDraftKey);
+      if (saved) {
+        const draft: unknown = JSON.parse(saved);
+        if (Array.isArray(draft) && draft.length === initialProfiles.length && draft.every((profile) =>
+          profile && typeof profile === "object" &&
+          ["mama", "papa", "fabian", "frieda"].includes(profile.id) &&
+          typeof profile.name === "string" && typeof profile.birthDate === "string" &&
+          ["female", "male", "neutral"].includes(profile.avatar)
+        )) savedProfiles = draft as SetupProfile[];
+      }
+    } catch {
+      // Browser storage can be unavailable; the form remains usable without it.
+    }
+    window.setTimeout(() => {
+      if (savedProfiles) setProfiles(savedProfiles);
+      setDraftLoaded(true);
+    }, 0);
+  }, []);
+
+  useEffect(() => {
+    if (!draftLoaded) return;
+    try {
+      window.sessionStorage.setItem(setupDraftKey, JSON.stringify(profiles));
+    } catch {
+      // Do not block setup if browser storage is unavailable.
+    }
+  }, [profiles, draftLoaded]);
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
     setError("");
     if (pin !== confirmPin) return setError("Die beiden PIN-Eingaben stimmen nicht überein.");
     setBusy(true);
-    const response = await fetch("/api/setup", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ pin, profiles: profiles.map((profile) => ({ ...profile, birthDate: profile.birthDate || null })) })
-    });
-    const result = await response.json();
-    setBusy(false);
-    if (!response.ok) return setError(result.error ?? "Einrichtung konnte nicht gespeichert werden.");
-    setDone(true);
+    try {
+      const response = await fetch("/api/setup", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pin, profiles: profiles.map((profile) => ({ ...profile, birthDate: profile.birthDate || null })) })
+      });
+      const result = await response.json();
+      if (!response.ok) return setError(result.error ?? "Einrichtung konnte nicht gespeichert werden.");
+      try { window.sessionStorage.removeItem(setupDraftKey); } catch { /* Best effort cleanup. */ }
+      setDone(true);
+    } catch {
+      setError("Die Verbindung zum Dashboard wurde unterbrochen. Deine Profildaten sind in diesem Browser-Tab gesichert – bitte erneut versuchen.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   if (done) return <main className="mobile-page"><section className="success-card"><div><Check size={42} /></div><h1>Alles bereit!</h1><p>Das FitFamily Dashboard startet jetzt auf dem Wandmonitor. Diese Seite kann geschlossen werden.</p><Link href="/">Dashboard öffnen</Link></section></main>;
@@ -61,7 +100,7 @@ export function SetupForm() {
         </section>
         {error && <p className="form-error">{error}</p>}
         <button className="primary-submit" disabled={busy}>{busy ? "Wird gespeichert …" : "Dashboard einrichten"}<ChevronRight /></button>
-        <p className="local-hint"><ShieldCheck size={16} /> Profildaten werden ausschließlich lokal gespeichert.</p>
+        <p className="local-hint"><ShieldCheck size={16} /> Profildaten werden lokal gespeichert. Ein Entwurf bleibt bei einem Neuladen in diesem Browser-Tab erhalten; der Eltern-PIN wird nicht zwischengespeichert.</p>
       </form>
     </main>
   );
