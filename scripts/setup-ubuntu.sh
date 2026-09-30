@@ -20,13 +20,13 @@ echo " FitFamily Dashboard – Automatische Ubuntu-Installation "
 echo "========================================================"
 
 echo ""
-echo "-> 1/4: Grundlegende Systempakete aktualisieren..."
+echo "-> 1/3: Grundlegende Systempakete aktualisieren..."
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq
 apt-get install -y -qq curl git openssl ca-certificates
 
 echo ""
-echo "-> 2/4: Node.js 22 LTS prüfen und einrichten..."
+echo "-> 2/3: Node.js 22 LTS prüfen und einrichten..."
 needs_node=false
 if ! command -v node >/dev/null 2>&1; then
   needs_node=true
@@ -45,9 +45,11 @@ fi
 echo "   Node.js $(node -v) und npm $(npm -v) sind einsatzbereit."
 
 echo ""
-echo "-> 3/4: FitFamily Repository nach /opt/fitfamily laden..."
+echo "-> 3/3: FitFamily Repository laden & Installation starten..."
 TARGET_DIR="/opt/fitfamily"
 REPO_URL="https://github.com/Schello805/FitFamily-Dashboard.git"
+
+git config --system --add safe.directory "$TARGET_DIR" 2>/dev/null || true
 
 if [[ ! -d "$TARGET_DIR/.git" ]]; then
   mkdir -p "$TARGET_DIR"
@@ -56,27 +58,8 @@ else
   echo "   Bestehendes Verzeichnis /opt/fitfamily gefunden. Aktualisiere..."
   git -C "$TARGET_DIR" fetch origin main
   git -C "$TARGET_DIR" checkout main
-  git -C "$TARGET_DIR" pull --ff-only origin main || true
+  git -C "$TARGET_DIR" reset --hard origin/main
 fi
 
-echo ""
-echo "-> 4/4: FitFamily Systemdienst einrichten und starten..."
-chmod +x "$TARGET_DIR/scripts/install-ubuntu.sh"
-"$TARGET_DIR/scripts/install-ubuntu.sh"
-
-if [[ -n "${SUDO_USER:-}" && "${SUDO_USER}" != "root" ]]; then
-  echo ""
-  echo "-> Desktop-Icon für Benutzer '$SUDO_USER' anlegen..."
-  chmod +x "$TARGET_DIR/scripts/create-desktop-shortcut.sh"
-  "$TARGET_DIR/scripts/create-desktop-shortcut.sh" || true
-fi
-
-echo ""
-echo "========================================================"
-echo " Fertig! FitFamily läuft jetzt im Hintergrund."
-echo " Am PC öffnen: http://localhost:3000"
-LAN_IP="$(hostname -I | awk '{print $1}')"
-if [[ -n "$LAN_IP" ]]; then
-  echo " Im Heimnetz (z. B. Handy): http://$LAN_IP:3000"
-fi
-echo "========================================================"
+chmod +x "$TARGET_DIR/scripts/"*.sh
+exec "$TARGET_DIR/scripts/install-ubuntu.sh"
