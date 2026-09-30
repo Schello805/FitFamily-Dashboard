@@ -9,6 +9,22 @@ Diese Anleitung richtet FitFamily auf dem Lenovo All-in-One ein. Der PC ist dabe
 - Verbindung zum Heimrouter, möglichst per Ethernet
 - Touchmonitor oder Maus/Tastatur für die Ersteinrichtung
 
+## Schnellinstallation (One-Liner)
+
+Auf dem Ubuntu-PC ein Terminal öffnen und folgenden Befehl ausführen. Er installiert automatisch alle Voraussetzungen (Node.js 22, Git, OpenSSL), lädt FitFamily nach `/opt/fitfamily`, richtet die lokale Konfiguration ein und startet FitFamily dauerhaft als Hintergrunddienst:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Schello805/FitFamily-Dashboard/main/scripts/setup-ubuntu.sh | sudo bash
+```
+
+Danach läuft FitFamily automatisch und ist sofort unter `http://localhost:3000` erreichbar.
+
+---
+
+## Manuelle Schritt-für-Schritt-Installation
+
+Alternativ zur Schnellinstallation können die Schritte auch einzeln ausgeführt werden:
+
 ## 1. Benötigte Pakete installieren
 
 Terminal öffnen und Git, curl und OpenSSL installieren:

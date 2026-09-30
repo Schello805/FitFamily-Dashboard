@@ -16,7 +16,7 @@ RestartSec=5
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
-ReadWritePaths=/opt/fitfamily/data /opt/fitfamily/backups /mnt/nas/fitfamily
+ReadWritePaths=/opt/fitfamily/data /opt/fitfamily/backups -/opt/fitfamily/.next -/mnt/nas/fitfamily
 
 [Install]
 WantedBy=multi-user.target
