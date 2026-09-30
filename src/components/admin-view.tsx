@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { ArrowLeft, Bot, CheckCircle2, Database, Download, HardDrive, Plus, RefreshCw, RotateCcw, ShieldCheck, Sparkles } from "lucide-react";
+import { TouchPinpad } from "@/components/touch-pinpad";
 
 type AiUsage = { requests: number; inputTokens: number; outputTokens: number; estimateUsd: number; updatedAt: string | null };
 type Status = { openai: boolean; gemini: boolean; nas: boolean; models: { openai: string; gemini: string }; usage: { openai: AiUsage; gemini: AiUsage } };
@@ -12,6 +13,7 @@ type UpdateInfo = { currentCommit: string; latestCommit: string; latestMessage: 
 
 export function AdminView({ profiles, exercises, equipment }: { profiles: { id: string; name: string; score: number }[]; exercises: ExerciseMedia[]; equipment: EquipmentItem[] }) {
   const [pin, setPin] = useState("");
+  const [verifying, setVerifying] = useState(false);
   const [status, setStatus] = useState<Status | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -82,13 +84,30 @@ export function AdminView({ profiles, exercises, equipment }: { profiles: { id: 
     }
   }
 
-  async function unlock(event: React.FormEvent) {
-    event.preventDefault(); setError("");
-    const response = await fetch("/api/admin/verify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pin }) });
-    const result = await response.json();
-    if (!response.ok) return setError(result.error);
-    setStatus({ ...result.providers, usage: result.usage, models: result.models, nas: result.nas });
-    void checkUpdate(pin);
+  async function unlock(event?: React.FormEvent) {
+    if (event) event.preventDefault();
+    if (!pin || pin.length < 4) return;
+    setVerifying(true);
+    setError("");
+    try {
+      const response = await fetch("/api/admin/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pin })
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        setError(result.error ?? "Eltern-PIN ist falsch");
+        setVerifying(false);
+        return;
+      }
+      setStatus({ ...result.providers, usage: result.usage, models: result.models, nas: result.nas });
+      void checkUpdate(pin);
+    } catch {
+      setError("Verbindungsfehler beim Prüfen der PIN");
+    } finally {
+      setVerifying(false);
+    }
   }
 
   async function manageApiKey(provider: "openai" | "gemini", action: "save" | "remove" | "test") {
@@ -180,7 +199,47 @@ export function AdminView({ profiles, exercises, equipment }: { profiles: { id: 
     }
   }
 
-  if (!status) return <main className="mobile-page"><form className="admin-login" onSubmit={unlock}><div className="pair-icon"><ShieldCheck /></div><span className="setup-badge">Geschützter Bereich</span><h1>Verwaltung</h1><p>Einstellungen, Exporte und Löschungen sind mit dem Eltern-PIN geschützt.</p><label>Eltern-PIN<input autoFocus type="password" inputMode="numeric" value={pin} onChange={(event) => setPin(event.target.value)} /></label>{error && <p className="form-error">{error}</p>}<button className="primary-submit">Entsperren</button><Link href="/"><ArrowLeft /> Dashboard</Link></form></main>;
+  if (!status) {
+    return (
+      <main className="mobile-page">
+        <form className="admin-login" onSubmit={unlock}>
+          <div className="pair-icon">
+            <ShieldCheck />
+          </div>
+          <span className="setup-badge">Geschützter Bereich</span>
+          <h1>Verwaltung</h1>
+          <p>Einstellungen, Exporte und Updates sind mit dem Eltern-PIN geschützt.</p>
+
+          <TouchPinpad
+            value={pin}
+            onChange={(val) => {
+              setPin(val);
+              if (error) setError("");
+            }}
+            disabled={verifying}
+          />
+
+          <input
+            type="password"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            aria-label="Eltern-PIN"
+            style={{ position: "absolute", opacity: 0, pointerEvents: "none", height: 0, width: 0 }}
+            value={pin}
+            onChange={(event) => setPin(event.target.value.replace(/\D/g, "").slice(0, 8))}
+          />
+
+          {error && <p className="form-error">{error}</p>}
+          <button className="primary-submit" disabled={verifying || pin.length < 4}>
+            {verifying ? "Wird geprüft …" : "Entsperren"}
+          </button>
+          <Link href="/">
+            <ArrowLeft /> Dashboard
+          </Link>
+        </form>
+      </main>
+    );
+  }
 
   return <main className="admin-page"><header><Link href="/"><ArrowLeft /> Dashboard</Link><div><span>Elternbereich</span><h1>Verwaltung</h1></div></header>{notice && <p className="notice">{notice}</p>}
     <section className="admin-grid"><article><div className="admin-title"><Database /><div><h2>Meine Daten</h2><p>Vollständiger lokaler Datenbestand</p></div></div><ul><li><CheckCircle2 /> Profildaten und Geburtsdaten</li><li><CheckCircle2 /> Trainings- und Punkteverlauf</li><li><CheckCircle2 /> Pläne und Änderungsprotokoll</li></ul><button onClick={download}><Download /> JSON herunterladen</button></article>

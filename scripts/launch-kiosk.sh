@@ -12,13 +12,15 @@ for _ in {1..10}; do
   sleep 1
 done
 
-# Browser im Kiosk-Modus starten (bevorzugt Chromium/Chrome mit optimierten Touch-Flags)
+# Browser im Kiosk-Modus starten (bevorzugt Chromium/Chrome mit optimierten Touch- und Tastatur-Flags)
+KIOSK_FLAGS="--kiosk --noerrdialogs --disable-infobars --check-for-update-interval=31536000 --overscroll-history-navigation=0 --enable-virtual-keyboard --touch-events=enabled"
+
 if command -v chromium-browser >/dev/null 2>&1; then
-  exec chromium-browser --kiosk --noerrdialogs --disable-infobars --check-for-update-interval=31536000 --overscroll-history-navigation=0 "$URL"
+  exec chromium-browser $KIOSK_FLAGS "$URL"
 elif command -v chromium >/dev/null 2>&1; then
-  exec chromium --kiosk --noerrdialogs --disable-infobars --check-for-update-interval=31536000 --overscroll-history-navigation=0 "$URL"
+  exec chromium $KIOSK_FLAGS "$URL"
 elif command -v google-chrome >/dev/null 2>&1; then
-  exec google-chrome --kiosk --noerrdialogs --disable-infobars --overscroll-history-navigation=0 "$URL"
+  exec google-chrome $KIOSK_FLAGS "$URL"
 elif command -v firefox >/dev/null 2>&1; then
   exec firefox --kiosk "$URL"
 else
