@@ -20,6 +20,13 @@ function getClient() {
 }
 
 async function createSchema(client: Client) {
+  try {
+    await client.execute("PRAGMA busy_timeout = 10000");
+    await client.execute("PRAGMA journal_mode = WAL");
+  } catch {
+    // ignore for remote database drivers
+  }
+
   const statements = [
     `CREATE TABLE IF NOT EXISTS profiles (
       id TEXT PRIMARY KEY,
