@@ -5,10 +5,19 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { Activity, ArrowLeft, CalendarRange, Dumbbell, History, QrCode, Settings2, Square } from "lucide-react";
-import { GOALS, type DashboardProfile, type TrainingType } from "@/lib/domain";
-import { AVATAR_IDS, type AvatarId } from "@/lib/domain";
+import {
+  AVATAR_IDS,
+  FITNESS_STAGES,
+  GOALS,
+  getAvatarProgress,
+  physiqueLabel,
+  type AvatarId,
+  type DashboardProfile,
+  type TrainingType
+} from "@/lib/domain";
 import { LiveDuration } from "@/components/live-duration";
 import { AvatarPicker } from "@/components/avatar-picker";
+import { Avatar } from "@/components/avatar";
 
 type Exercise = { id: string; name: string; type: string; equipment: string };
 
@@ -18,8 +27,18 @@ export function ProfileView({ initialProfile, exercises }: { initialProfile: Das
   const [handoff, setHandoff] = useState<{ qr: string; expiresAt: string } | null>(null);
   const [longRunning, setLongRunning] = useState(false);
   const [editingProfile, setEditingProfile] = useState(false);
+  const [editAvatar, setEditAvatar] = useState<AvatarId>(
+    AVATAR_IDS.includes(initialProfile.avatar as AvatarId) ? (initialProfile.avatar as AvatarId) : (initialProfile.id as AvatarId)
+  );
+  const [editStartingFitness, setEditStartingFitness] = useState<number>(initialProfile.startingFitness);
   const [profileNotice, setProfileNotice] = useState("");
   const router = useRouter();
+
+  const previewProgress = getAvatarProgress(
+    editStartingFitness,
+    profile.strengthMinutes,
+    profile.enduranceMinutes
+  );
 
   const refresh = useCallback(async () => {
     const response = await fetch("/api/dashboard", { cache: "no-store" });
@@ -95,7 +114,14 @@ export function ProfileView({ initialProfile, exercises }: { initialProfile: Das
     try {
       const response = await fetch(`/api/profiles/${profile.id}`, {
         method: "PATCH", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: form.get("name"), birthDate: form.get("birthDate") || null, avatar: form.get("avatar"), goal: form.get("goal"), pin: form.get("pin") })
+        body: JSON.stringify({
+          name: form.get("name"),
+          birthDate: form.get("birthDate") || null,
+          avatar: editAvatar,
+          startingFitness: Number(editStartingFitness),
+          goal: form.get("goal"),
+          pin: form.get("pin")
+        })
       });
       const result = await response.json();
       if (!response.ok) return setProfileNotice(result.error ?? "Profil konnte nicht gespeichert werden.");
@@ -108,7 +134,12 @@ export function ProfileView({ initialProfile, exercises }: { initialProfile: Das
   }
 
   function openProfileEditor() {
-    setProfileNotice(""); setEditingProfile(true);
+    setProfileNotice("");
+    setEditAvatar(
+      AVATAR_IDS.includes(profile.avatar as AvatarId) ? (profile.avatar as AvatarId) : (profile.id as AvatarId)
+    );
+    setEditStartingFitness(profile.startingFitness);
+    setEditingProfile(true);
   }
 
   const activeType = profile.activeTraining?.type;
@@ -121,10 +152,20 @@ export function ProfileView({ initialProfile, exercises }: { initialProfile: Das
       </header>
 
       <section className="training-hero">
-        <div className="training-copy">
-          <span className="section-kicker">Was möchtest du tun?</span>
-          <h2>{profile.activeTraining ? "Dein Training läuft" : "Bereit, wenn du es bist."}</h2>
-          <p>Starte direkt oder setze deinen persönlichen Trainingsplan fort.</p>
+        <div className="profile-hero-left">
+          <Avatar profile={profile} size="large" />
+          <div className="training-copy">
+            <span className="section-kicker">Was möchtest du tun?</span>
+            <h2>{profile.activeTraining ? "Dein Training läuft" : "Bereit, wenn du es bist."}</h2>
+            <p>Starte direkt oder setze deinen persönlichen Trainingsplan fort.</p>
+            <div className="avatar-meta-pills">
+              <span className="avatar-pill stage">Stufe {profile.fitnessStage} von 5</span>
+              <span className={`avatar-pill physique ${profile.physique}`}>{physiqueLabel(profile.physique)}</span>
+              <span className="avatar-pill minutes">
+                {Math.round(profile.strengthMinutes)}m Kraft · {Math.round(profile.enduranceMinutes)}m Ausdauer
+              </span>
+            </div>
+          </div>
         </div>
         {profile.activeTraining && (
           <div className="running-clock">
@@ -170,9 +211,37 @@ export function ProfileView({ initialProfile, exercises }: { initialProfile: Das
       {editingProfile && <div className="modal-backdrop" onClick={() => setEditingProfile(false)}><form className="profile-edit-modal" onSubmit={saveProfile} onClick={(event) => event.stopPropagation()}>
         <button type="button" className="modal-close" onClick={() => setEditingProfile(false)}>×</button>
         <span className="setup-badge">Profil bearbeiten</span><h2>Angaben für {profile.name}</h2>
+        <div className="profile-edit-preview-row">
+          <Avatar
+            id={profile.id}
+            avatar={editAvatar}
+            color={profile.color}
+            fitnessStage={previewProgress.fitnessStage}
+            physique={previewProgress.physique}
+            name={profile.name}
+            size="medium"
+          />
+          <div className="preview-info">
+            <strong>Vorschau: {physiqueLabel(previewProgress.physique)} (Stufe {previewProgress.fitnessStage} von 5)</strong>
+            <p>Basiert auf {Math.round(profile.strengthMinutes)} Min. Kraft und {Math.round(profile.enduranceMinutes)} Min. Ausdauer.</p>
+          </div>
+        </div>
         <label>Anzeigename<input name="name" required maxLength={30} defaultValue={profile.name} /></label>
         <label>Geburtsdatum<input name="birthDate" type="date" defaultValue={profile.birthDate ?? ""} /></label>
-        <div className="avatar-choice"><span>Figur im Dashboard</span><AvatarPicker value={AVATAR_IDS.includes(profile.avatar as AvatarId) ? profile.avatar as AvatarId : profile.id as AvatarId} /></div>
+        <div className="avatar-choice">
+          <span>Figur im Dashboard</span>
+          <AvatarPicker value={editAvatar} onChange={setEditAvatar} />
+        </div>
+        <label>Start-Fitness
+          <select name="startingFitness" value={editStartingFitness} onChange={(e) => setEditStartingFitness(Number(e.target.value))}>
+            {FITNESS_STAGES.map((st) => (
+              <option key={st.stage} value={st.stage}>{st.label} ({st.description})</option>
+            ))}
+          </select>
+        </label>
+        <p className="field-hint">
+          Startstufe 1–5 legt das Ausgangslevel fest. Alle 15 Trainingsstunden (900 Min.) steigt die Stufe automatisch um 1 an (maximal Stufe 5). Das Verhältnis von Kraft zu Ausdauer bestimmt den Fokus.
+        </p>
         <label>Trainingsziel<select name="goal" defaultValue={profile.goal}>{GOALS.map((goal) => <option key={goal}>{goal}</option>)}</select></label>
         <label>Eltern-PIN<input name="pin" type="password" inputMode="numeric" autoComplete="current-password" minLength={4} maxLength={8} pattern="[0-9]{4,8}" required /></label>
         {profileNotice && <p className="form-error" role="alert">{profileNotice}</p>}

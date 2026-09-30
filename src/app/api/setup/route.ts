@@ -8,7 +8,8 @@ const profileSchema = z.object({
   id: z.enum(["mama", "papa", "fabian", "frieda"]),
   name: z.string().min(1).max(30),
   birthDate: z.string().date().nullable(),
-  avatar: z.enum([...AVATAR_IDS, "female", "male", "neutral"])
+  avatar: z.enum([...AVATAR_IDS, "female", "male", "neutral"]),
+  startingFitness: z.number().int().min(1).max(5)
 });
 const schema = z.object({
   pin: z.string().regex(/^\d{4,8}$/),
@@ -25,8 +26,8 @@ export async function POST(request: Request) {
   const client = await db();
   await client.batch([
     ...body.data.profiles.map((profile) => ({
-      sql: "UPDATE profiles SET name = ?, birth_date = ?, avatar = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-      args: [profile.name, profile.birthDate, profile.avatar, profile.id]
+      sql: "UPDATE profiles SET name = ?, birth_date = ?, avatar = ?, starting_fitness = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+      args: [profile.name, profile.birthDate, profile.avatar, profile.startingFitness, profile.id]
     })),
     {
       sql: `INSERT INTO settings (key, value, updated_at) VALUES ('setup_complete', 'true', CURRENT_TIMESTAMP)

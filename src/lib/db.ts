@@ -26,6 +26,7 @@ async function createSchema(client: Client) {
       name TEXT NOT NULL,
       color TEXT NOT NULL,
       avatar TEXT NOT NULL,
+      starting_fitness INTEGER NOT NULL DEFAULT 3 CHECK(starting_fitness BETWEEN 1 AND 5),
       birth_date TEXT,
       score_baseline REAL NOT NULL DEFAULT 0,
       goal TEXT NOT NULL DEFAULT 'Allgemeine Fitness',
@@ -110,12 +111,17 @@ async function createSchema(client: Client) {
 
   await client.batch(statements.map((sql) => ({ sql })), "write");
 
+  const profileColumns = await client.execute("PRAGMA table_info(profiles)");
+  if (!profileColumns.rows.some((row) => String(row.name) === "starting_fitness")) {
+    await client.execute("ALTER TABLE profiles ADD COLUMN starting_fitness INTEGER NOT NULL DEFAULT 3");
+  }
+
   for (const profile of PROFILE_SEEDS) {
     await client.execute({
       sql: `INSERT OR IGNORE INTO profiles
-        (id, name, color, avatar, birth_date, score_baseline, goal)
-        VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      args: [profile.id, profile.name, profile.color, profile.avatar, profile.birthDate, profile.scoreBaseline, profile.goal]
+        (id, name, color, avatar, starting_fitness, birth_date, score_baseline, goal)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      args: [profile.id, profile.name, profile.color, profile.avatar, profile.startingFitness, profile.birthDate, profile.scoreBaseline, profile.goal]
     });
   }
 

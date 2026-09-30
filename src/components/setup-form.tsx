@@ -3,16 +3,16 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Check, ChevronRight, LockKeyhole, ShieldCheck } from "lucide-react";
-import { AVATAR_IDS, type AvatarId, type ProfileAvatar } from "@/lib/domain";
+import { AVATAR_IDS, FITNESS_STAGES, type AvatarId, type ProfileAvatar } from "@/lib/domain";
 import { AvatarPicker } from "@/components/avatar-picker";
 
-type SetupProfile = { id: AvatarId; name: string; birthDate: string; avatar: ProfileAvatar };
+type SetupProfile = { id: AvatarId; name: string; birthDate: string; avatar: ProfileAvatar; startingFitness: number };
 
 const initialProfiles: SetupProfile[] = [
-  { id: "mama", name: "Mama", birthDate: "1980-01-01", avatar: "mama" },
-  { id: "papa", name: "Papa", birthDate: "1980-01-01", avatar: "papa" },
-  { id: "fabian", name: "Fabian", birthDate: "2012-01-01", avatar: "fabian" },
-  { id: "frieda", name: "Frieda", birthDate: "2012-01-01", avatar: "frieda" }
+  { id: "mama", name: "Mama", birthDate: "1980-01-01", avatar: "mama", startingFitness: 3 },
+  { id: "papa", name: "Papa", birthDate: "1980-01-01", avatar: "papa", startingFitness: 3 },
+  { id: "fabian", name: "Fabian", birthDate: "2012-01-01", avatar: "fabian", startingFitness: 2 },
+  { id: "frieda", name: "Frieda", birthDate: "2012-01-01", avatar: "frieda", startingFitness: 2 }
 ];
 const setupDraftKey = "fitfamily-setup-profiles";
 
@@ -39,7 +39,8 @@ export function SetupForm() {
         )) savedProfiles = (draft as SetupProfile[]).map((profile) => ({
           ...profile,
           birthDate: profile.birthDate || initialProfiles.find((item) => item.id === profile.id)?.birthDate || "",
-          avatar: AVATAR_IDS.includes(profile.avatar as AvatarId) ? profile.avatar : profile.id
+          avatar: AVATAR_IDS.includes(profile.avatar as AvatarId) ? profile.avatar : profile.id,
+          startingFitness: Number.isInteger(profile.startingFitness) && profile.startingFitness >= 1 && profile.startingFitness <= 5 ? profile.startingFitness : initialProfiles.find((item) => item.id === profile.id)?.startingFitness ?? 3
         }));
       }
     } catch {
@@ -95,6 +96,14 @@ export function SetupForm() {
               <legend>{profile.name}</legend>
               <label>Anzeigename<input required maxLength={30} value={profile.name} onChange={(event) => setProfiles((items) => items.map((item, itemIndex) => itemIndex === index ? { ...item, name: event.target.value } : item))} /></label>
               <label>Geburtsdatum (Tag und Monat bitte prüfen)<input required type="date" value={profile.birthDate} onChange={(event) => setProfiles((items) => items.map((item, itemIndex) => itemIndex === index ? { ...item, birthDate: event.target.value } : item))} /></label>
+              <label>Start-Fitness
+                <select value={profile.startingFitness} onChange={(event) => setProfiles((items) => items.map((item, itemIndex) => itemIndex === index ? { ...item, startingFitness: Number(event.target.value) } : item))}>
+                  {FITNESS_STAGES.map((st) => (
+                    <option key={st.stage} value={st.stage}>{st.label} ({st.description})</option>
+                  ))}
+                </select>
+              </label>
+              <p className="field-hint">Startstufe 1–5 für den Avatar. Steigt mit je 15 Stunden Training an; das Verhältnis aus Kraft und Ausdauer formt die Figur.</p>
               <div className="avatar-choice"><span>Figur im Dashboard</span><AvatarPicker value={AVATAR_IDS.includes(profile.avatar as AvatarId) ? profile.avatar as AvatarId : profile.id} onChange={(avatar) => setProfiles((items) => items.map((item, itemIndex) => itemIndex === index ? { ...item, avatar } : item))} name={`avatar-${profile.id}`} /></div>
             </fieldset>
           ))}

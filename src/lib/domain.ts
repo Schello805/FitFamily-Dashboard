@@ -2,12 +2,14 @@ export type TrainingType = "strength" | "endurance";
 export const AVATAR_IDS = ["mama", "papa", "fabian", "frieda"] as const;
 export type AvatarId = typeof AVATAR_IDS[number];
 export type ProfileAvatar = AvatarId | "female" | "male" | "neutral";
+export type AvatarPhysique = "balanced" | "endurance" | "strength";
 
 export type Profile = {
   id: string;
   name: string;
   color: string;
   avatar: ProfileAvatar;
+  startingFitness: number;
   birthDate: string | null;
   scoreBaseline: number;
   goal: string;
@@ -15,6 +17,35 @@ export type Profile = {
 
 export function avatarAssetForProfile(profileId: string, avatar: ProfileAvatar) {
   return AVATAR_IDS.includes(avatar as AvatarId) ? avatar : AVATAR_IDS.includes(profileId as AvatarId) ? profileId as AvatarId : "neutral";
+}
+
+export function physiqueLabel(physique: AvatarPhysique): string {
+  switch (physique) {
+    case "strength":
+      return "Kraftbetont";
+    case "endurance":
+      return "Ausdauerbetont";
+    case "balanced":
+      return "Ausgewogen";
+  }
+}
+
+export const FITNESS_STAGES = [
+  { stage: 1, label: "1 · Gerade am Anfang", description: "Sanfter Einstieg in mehr Bewegung" },
+  { stage: 2, label: "2 · Einsteiger", description: "Gelegentliche Bewegung und Workouts" },
+  { stage: 3, label: "3 · Aktiv", description: "Regelmäßiges, ausgewogenes Training" },
+  { stage: 4, label: "4 · Fit", description: "Ambitioniertes, kontinuierliches Training" },
+  { stage: 5, label: "5 · Sehr fit", description: "Hohes Trainingspensum und Routine" }
+] as const;
+
+export function getAvatarProgress(startingFitness: number, strengthMinutes: number, enduranceMinutes: number) {
+  const strength = Math.max(0, strengthMinutes);
+  const endurance = Math.max(0, enduranceMinutes);
+  const trainingMinutes = strength + endurance;
+  const fitnessStage = Math.max(1, Math.min(5, Math.round(startingFitness) + Math.floor(trainingMinutes / 900)));
+  const strengthShare = trainingMinutes ? strength / trainingMinutes : 0.5;
+  const physique: AvatarPhysique = strengthShare >= 0.62 ? "strength" : strengthShare <= 0.38 ? "endurance" : "balanced";
+  return { fitnessStage, physique, strengthShare, trainingMinutes, strengthMinutes: strength, enduranceMinutes: endurance };
 }
 
 export type ActiveTraining = {
@@ -28,6 +59,12 @@ export type ActiveTraining = {
 };
 
 export type DashboardProfile = Profile & {
+  strengthMinutes: number;
+  enduranceMinutes: number;
+  fitnessStage: number;
+  physique: AvatarPhysique;
+  strengthShare: number;
+  trainingMinutes: number;
   score: number;
   totalMinutes: number;
   todayMinutes: number;
@@ -50,10 +87,10 @@ export const SCORE_MULTIPLIER: Record<TrainingType, number> = {
 };
 
 export const PROFILE_SEEDS: Profile[] = [
-  { id: "mama", name: "Mama", color: "#a78bfa", avatar: "female", birthDate: null, scoreBaseline: 0, goal: "Allgemeine Fitness" },
-  { id: "papa", name: "Papa", color: "#22d3ee", avatar: "male", birthDate: null, scoreBaseline: 0, goal: "Allgemeine Fitness" },
-  { id: "fabian", name: "Fabian", color: "#fb923c", avatar: "male", birthDate: null, scoreBaseline: 0, goal: "Allgemeine Fitness" },
-  { id: "frieda", name: "Frieda", color: "#4ade80", avatar: "female", birthDate: null, scoreBaseline: 0, goal: "Allgemeine Fitness" }
+  { id: "mama", name: "Mama", color: "#a78bfa", avatar: "female", startingFitness: 3, birthDate: null, scoreBaseline: 0, goal: "Allgemeine Fitness" },
+  { id: "papa", name: "Papa", color: "#22d3ee", avatar: "male", startingFitness: 3, birthDate: null, scoreBaseline: 0, goal: "Allgemeine Fitness" },
+  { id: "fabian", name: "Fabian", color: "#fb923c", avatar: "male", startingFitness: 2, birthDate: null, scoreBaseline: 0, goal: "Allgemeine Fitness" },
+  { id: "frieda", name: "Frieda", color: "#4ade80", avatar: "female", startingFitness: 2, birthDate: null, scoreBaseline: 0, goal: "Allgemeine Fitness" }
 ];
 
 export const GOALS = [

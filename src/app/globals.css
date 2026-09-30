@@ -62,9 +62,37 @@ body::before {
 .avatar-head { width: 32px; height: 35px; z-index: 2; border-radius: 48% 48% 44% 44%; background: #d6a57e; position: relative; box-shadow: inset 0 8px 0 #3f2a24; }
 .avatar-head span { position: absolute; width: 4px; height: 4px; background: #33201c; border-radius: 50%; top: 17px; left: 8px; box-shadow: 12px 0 #33201c; }
 .avatar-body { width: 54px; height: 42px; margin-top: -2px; border-radius: 19px 19px 12px 12px; display: grid; place-items: center; color: #071316; background: var(--profile); z-index: 1; }
-.avatar-body.female { border-radius: 21px 21px 9px 9px; width: 58px; }
 .level-chip { position: absolute; right: 3px; bottom: 3px; z-index: 3; font-size: 10px; font-weight: 800; padding: 4px 7px; border-radius: 9px; background: #f7fffe; color: #092024; box-shadow: 0 4px 14px rgba(0,0,0,.28); }
-.avatar-generated { width: 88px; height: 120px; flex: none; overflow: hidden; border-radius: 24px; isolation: isolate; background: color-mix(in srgb, var(--profile) 12%, rgba(255,255,255,.04)); }
+.avatar-generated { width: 88px; height: 120px; flex: none; overflow: hidden; border-radius: 24px; isolation: isolate; background: color-mix(in srgb, var(--profile) 12%, rgba(255,255,255,.04)); transition: box-shadow .2s ease, transform .2s ease; }
+.avatar-large { width: 110px; height: 148px; border-radius: 28px; }
+.avatar-large .level-chip { font-size: 11px; padding: 5px 9px; border-radius: 11px; right: 5px; bottom: 5px; }
+.avatar-small { width: 58px; height: 80px; border-radius: 18px; }
+.avatar-small .level-chip { font-size: 9px; padding: 2px 5px; border-radius: 7px; right: 2px; bottom: 2px; }
+
+.avatar-physique-strength {
+  box-shadow: 0 0 0 1.5px rgba(251, 146, 60, 0.42), 0 8px 24px rgba(251, 146, 60, 0.16);
+}
+.avatar-physique-strength .level-chip {
+  background: #ffedd5;
+  color: #9a3412;
+}
+.avatar-physique-endurance {
+  box-shadow: 0 0 0 1.5px rgba(34, 211, 238, 0.42), 0 8px 24px rgba(34, 211, 238, 0.16);
+}
+.avatar-physique-endurance .level-chip {
+  background: #cffafe;
+  color: #155e75;
+}
+.avatar-physique-balanced {
+  box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--profile) 35%, transparent), 0 8px 24px color-mix(in srgb, var(--profile) 10%, transparent);
+}
+.avatar-generated[data-fitness-stage="4"] {
+  border: 1px solid color-mix(in srgb, var(--profile) 40%, rgba(255,255,255,.15));
+}
+.avatar-generated[data-fitness-stage="5"] {
+  border: 1.5px solid color-mix(in srgb, var(--profile) 60%, rgba(255,255,255,.3));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--profile) 50%, transparent), 0 10px 28px color-mix(in srgb, var(--profile) 25%, transparent);
+}
 .avatar-sprite { position: absolute; z-index: 2; inset: 0; width: 100%; height: 100%; object-fit: contain; object-position: center bottom; filter: drop-shadow(0 5px 6px rgba(0,0,0,.24)); pointer-events: none; }
 .goal-ring { --progress: 0deg; width: 75px; height: 75px; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; background: conic-gradient(var(--profile) var(--progress), rgba(255,255,255,.08) 0); }
 .goal-ring::after { content: ""; position: absolute; inset: 7px; border-radius: 50%; background: #0e2227; }
@@ -163,8 +191,15 @@ body::before {
 .icon-link { display: flex; align-items: center; gap: 9px; width: fit-content; min-height: 52px; padding: 0 17px; border-radius: 16px; background: var(--panel-soft); border: 1px solid var(--line); font-weight: 700; }
 .profile-score { justify-self: end; text-align: right; }
 .profile-score strong { display: block; font-size: 28px; }
-.profile-score span { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .1em; }
 .training-hero { min-height: 160px; margin: 26px 0 18px; padding: 28px 31px; border: 1px solid var(--line); border-radius: var(--radius); background: linear-gradient(120deg, color-mix(in srgb, var(--profile) 11%, var(--panel)), var(--panel)); display: flex; align-items: center; justify-content: space-between; }
+.profile-hero-left { display: flex; align-items: center; gap: 26px; min-width: 0; }
+.avatar-meta-pills { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 10px; }
+.avatar-pill { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 999px; font-size: 11px; font-weight: 700; line-height: 1; border: 1px solid var(--line); background: rgba(255,255,255,.04); color: var(--text); }
+.avatar-pill.stage { background: color-mix(in srgb, var(--profile) 16%, transparent); border-color: color-mix(in srgb, var(--profile) 42%, transparent); color: #fff; }
+.avatar-pill.physique.strength { background: rgba(251,146,60,.14); border-color: rgba(251,146,60,.4); color: #fdba74; }
+.avatar-pill.physique.endurance { background: rgba(34,211,238,.14); border-color: rgba(34,211,238,.4); color: #67e8f9; }
+.avatar-pill.physique.balanced { background: rgba(74,222,128,.14); border-color: rgba(74,222,128,.4); color: #86efac; }
+.avatar-pill.minutes { color: var(--muted); font-weight: 500; font-size: 10px; }
 .training-copy h2 { margin: 7px 0 7px; font-size: clamp(31px, 4vw, 54px); letter-spacing: -.055em; }
 .training-copy p { color: var(--muted); margin: 0; }
 .running-clock { min-width: 260px; text-align: right; padding-left: 28px; border-left: 1px solid var(--line); }
@@ -224,6 +259,7 @@ body::before {
   .profile-topbar { grid-template-columns: 1fr 1fr; }
   .profile-topbar > div:nth-child(2) { display: none; }
   .training-hero { align-items: flex-start; flex-direction: column; }
+  .profile-hero-left { flex-direction: column; align-items: flex-start; gap: 16px; }
   .running-clock { border: 0; padding: 20px 0 0; text-align: left; }
   .training-actions { grid-template-columns: 1fr; }
   .training-button { min-height: 125px; }
@@ -317,6 +353,10 @@ body::before {
 .qr-modal img { width: min(100%, 330px); border-radius: 18px; }
 .profile-edit-modal { width: min(520px, 100%); max-height: 90vh; overflow-y: auto; position: relative; padding: 30px; border-radius: 26px; background: #102226; border: 1px solid var(--line); box-shadow: 0 30px 100px #000; }
 .profile-edit-modal h2 { margin: 14px 0 18px; font-size: 26px; }
+.profile-edit-preview-row { display: flex; align-items: center; gap: 16px; padding: 12px 14px; border-radius: 16px; background: rgba(255,255,255,.03); border: 1px solid var(--line); margin: 6px 0 14px; }
+.profile-edit-preview-row .preview-info strong { display: block; font-size: 13px; color: var(--text); }
+.profile-edit-preview-row .preview-info p { margin: 4px 0 0; color: var(--muted); font-size: 11px; }
+.field-hint { font-size: 11px; color: var(--muted); line-height: 1.4; margin: 5px 0 10px; }
 .profile-edit-modal label { display: grid; gap: 6px; margin-top: 12px; color: var(--muted); font-size: 11px; font-weight: 750; }
 .profile-edit-modal input, .profile-edit-modal select { width: 100%; height: 49px; padding: 0 12px; border: 1px solid var(--line); border-radius: 12px; color: var(--text); background: rgba(0,0,0,.2); }
 .avatar-choice { min-width: 0; display: grid; gap: 7px; margin-top: 12px; color: var(--muted); font-size: 11px; font-weight: 750; }

@@ -10,6 +10,7 @@ const schema = z.object({
   name: z.string().trim().min(1).max(30),
   birthDate: z.string().date().nullable(),
   avatar: z.enum([...AVATAR_IDS, "female", "male", "neutral"]),
+  startingFitness: z.number().int().min(1).max(5),
   goal: z.string().min(1).max(100),
   pin: z.string().regex(/^\d{4,8}$/)
 });
@@ -26,7 +27,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ pr
 
   const client = await db();
   await client.batch([
-    { sql: "UPDATE profiles SET name = ?, birth_date = ?, avatar = ?, goal = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", args: [body.data.name, body.data.birthDate, body.data.avatar, body.data.goal, profileId] },
+    { sql: "UPDATE profiles SET name = ?, birth_date = ?, avatar = ?, starting_fitness = ?, goal = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", args: [body.data.name, body.data.birthDate, body.data.avatar, body.data.startingFitness, body.data.goal, profileId] },
     { sql: "INSERT INTO audit_log (id, action, profile_id, details) VALUES (?, 'profile.update', ?, ?)", args: [randomUUID(), profileId, JSON.stringify({ fields: ["name", "birthDate", "avatar", "goal"] })] }
   ], "write");
   return NextResponse.json({ ok: true });

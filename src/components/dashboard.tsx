@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import type { DashboardProfile } from "@/lib/domain";
 import { LiveDuration } from "@/components/live-duration";
-import { avatarAssetForProfile } from "@/lib/domain";
+import { Avatar } from "@/components/avatar";
 
 type Weather = { temperature: number; apparent: number; code: number; updatedAt: string } | null;
 
@@ -42,15 +42,6 @@ function useClock() {
   return date;
 }
 
-function Avatar({ profile }: { profile: DashboardProfile }) {
-  const level = Math.max(1, Math.floor(profile.score / 500) + 1);
-  return (
-    <div className="avatar avatar-generated" style={{ "--profile": profile.color } as React.CSSProperties} aria-label={`Avatar von ${profile.name}`}>
-      <Image className="avatar-sprite" src={`/assets/avatars/${avatarAssetForProfile(profile.id, profile.avatar)}.webp`} alt="" width={222} height={444} unoptimized draggable={false} />
-      <div className="level-chip">Lvl {level}</div>
-    </div>
-  );
-}
 
 function GoalRing({ value, color, targetMinutes, targetPeriod }: { value: number; color: string; targetMinutes: number; targetPeriod: "Tag" | "Woche" }) {
   return (

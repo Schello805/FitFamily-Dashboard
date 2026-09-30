@@ -1,6 +1,6 @@
 import { asNumber, asString, db } from "@/lib/db";
 import type { DashboardProfile, Profile, TrainingType } from "@/lib/domain";
-import { movementTargetForAge, SCORE_MULTIPLIER } from "@/lib/domain";
+import { getAvatarProgress, movementTargetForAge, SCORE_MULTIPLIER } from "@/lib/domain";
 
 function durationSeconds(start: string, end: string | null) {
   return Math.max(0, (new Date(end ?? Date.now()).getTime() - new Date(start).getTime()) / 1000);
@@ -36,6 +36,8 @@ export async function getDashboardData(): Promise<DashboardProfile[]> {
     let totalSeconds = 0;
     let todaySeconds = 0;
     let weekSeconds = 0;
+    let strengthMinutes = 0;
+    let enduranceMinutes = 0;
 
     for (const segment of profileSegments) {
       const start = String(segment.started_at);
@@ -43,6 +45,8 @@ export async function getDashboardData(): Promise<DashboardProfile[]> {
       const seconds = durationSeconds(start, end);
       const type = String(segment.type) as TrainingType;
       totalSeconds += seconds;
+      if (type === "strength") strengthMinutes += seconds / 60;
+      else enduranceMinutes += seconds / 60;
       points += (seconds / 60) * SCORE_MULTIPLIER[type];
       const startTime = new Date(start).getTime();
       const endTime = new Date(end ?? Date.now()).getTime();
@@ -57,6 +61,7 @@ export async function getDashboardData(): Promise<DashboardProfile[]> {
       name: String(row.name),
       color: String(row.color),
       avatar: String(row.avatar) as Profile["avatar"],
+      startingFitness: asNumber(row.starting_fitness) || 3,
       birthDate: asString(row.birth_date),
       scoreBaseline: asNumber(row.score_baseline),
       goal: String(row.goal)
@@ -65,10 +70,12 @@ export async function getDashboardData(): Promise<DashboardProfile[]> {
       ? Math.floor((now.getTime() - new Date(profile.birthDate).getTime()) / (365.2425 * 24 * 60 * 60 * 1000))
       : (["fabian", "frieda"].includes(profile.id) ? 17 : 30);
     const target = movementTargetForAge(age);
+    const avatarProgress = getAvatarProgress(profile.startingFitness, strengthMinutes, enduranceMinutes);
     const targetActualMinutes = (target.period === "Tag" ? todaySeconds : weekSeconds) / 60;
 
     return {
       ...profile,
+      ...avatarProgress,
       score: Math.floor(profile.scoreBaseline + points),
       totalMinutes: Math.floor(totalSeconds / 60),
       todayMinutes: Math.floor(todaySeconds / 60),

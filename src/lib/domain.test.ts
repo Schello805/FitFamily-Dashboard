@@ -1,5 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { avatarAssetForProfile, EQUIPMENT_SEEDS, EXERCISE_SEEDS, movementTargetForAge, PROFILE_SEEDS, SCORE_MULTIPLIER } from "@/lib/domain";
+import {
+  avatarAssetForProfile,
+  EQUIPMENT_SEEDS,
+  EXERCISE_SEEDS,
+  FITNESS_STAGES,
+  getAvatarProgress,
+  movementTargetForAge,
+  physiqueLabel,
+  PROFILE_SEEDS,
+  SCORE_MULTIPLIER
+} from "@/lib/domain";
 import { isAllowedVideoUrl } from "@/lib/exercise-video";
 
 describe("FitFamily-Domänenregeln", () => {
@@ -15,6 +25,24 @@ describe("FitFamily-Domänenregeln", () => {
   it("verwendet konfigurierbare Figuren und erhält bestehende Geschlechtswerte kompatibel", () => {
     expect(avatarAssetForProfile("mama", "papa")).toBe("papa");
     expect(avatarAssetForProfile("fabian", "male")).toBe("fabian");
+  });
+
+  it("entwickelt den Avatar anhand des gewählten Starts und getrennter Kraft-/Ausdauerminuten", () => {
+    expect(getAvatarProgress(1, 0, 0)).toMatchObject({ fitnessStage: 1, physique: "balanced" });
+    expect(getAvatarProgress(2, 1_000, 0)).toMatchObject({ fitnessStage: 3, physique: "strength" });
+    expect(getAvatarProgress(2, 0, 1_000)).toMatchObject({ fitnessStage: 3, physique: "endurance" });
+    expect(getAvatarProgress(3, 500, 500)).toMatchObject({ fitnessStage: 4, physique: "balanced" });
+    expect(getAvatarProgress(0, -10, -50)).toMatchObject({ fitnessStage: 1, physique: "balanced" });
+    expect(getAvatarProgress(5, 20_000, 20_000).fitnessStage).toBe(5);
+  });
+
+  it("liefert verständliche Bezeichnungen für Ausprägungen und 5 transparente Fitnessstufen", () => {
+    expect(physiqueLabel("strength")).toBe("Kraftbetont");
+    expect(physiqueLabel("endurance")).toBe("Ausdauerbetont");
+    expect(physiqueLabel("balanced")).toBe("Ausgewogen");
+    expect(FITNESS_STAGES).toHaveLength(5);
+    expect(FITNESS_STAGES[0].stage).toBe(1);
+    expect(FITNESS_STAGES[4].stage).toBe(5);
   });
 
   it("unterscheidet Übungen an Multifunktionsgeräten", () => {

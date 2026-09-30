@@ -10,6 +10,18 @@
 - Elternbereich, Datenübersicht, Wiederherstellung und Ein-Klick-Updates
 - Verschlüsselte NAS-Backups und vollständiger Export
 
+## Offene Punkte – Profil- und Avatar-Kernfunktion
+
+- [ ] Kontomodell festlegen: lokale Familienprofile oder persönliche Konten mit E-Mail-Adresse. Dabei klären, wie E-Mail-Bestätigung, Passwort-Wiederherstellung, Datenschutz und der Betrieb ohne Internet zusammenpassen.
+- [x] Avatar-Erstellung in den Einrichtungsablauf integrieren: Person/Stil und selbst eingeschätzte Start-Fitness auswählen; Geburtsdatum und Profilzuordnung berücksichtigen.
+- [ ] Für jedes Avatar-Design passende Einzelbilder bzw. Bildstufen bereitstellen, damit keine anderen Figuren im Bildausschnitt erscheinen.
+- [x] Avatar-Entwicklung aus Trainingsdaten umsetzen: Ausdauer und Kraft getrennt auswerten; eine ausdauerbetonte, schlanke und eine kraftbetonte, muskulöse Entwicklung sichtbar unterscheiden.
+- [x] Start-Fitness und Entwicklung in verständliche Stufen übersetzen; die Regeln transparent und ohne medizinische Aussagen oder abwertende Körperlabels darstellen.
+- [x] Avatar-Vorschau und Einstellungen im Profil anbieten, einschließlich späterer Anpassung der Start-Fitness.
+- [x] Entwicklungsstufe auf Dashboard und Profil konsistent anzeigen und nach gespeicherten Trainings aktualisieren.
+- [x] Migration und Standardwerte für bestehende Profile absichern; Setup, Profilbearbeitung, Avatar-Stufen und historische Trainingsdaten testen.
+- [ ] Bildgenerierung bzw. benötigte Bildrechte und den Asset-Workflow festlegen, bevor fehlende Avatar-Varianten erstellt werden.
+
 ## Version 2.0 – Apple Health
 
 Dieser Punkt ist bewusst festgehalten und darf nicht stillschweigend entfallen:
