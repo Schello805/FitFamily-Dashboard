@@ -56,26 +56,105 @@ function localPlan(input: z.infer<typeof schema>, equipment: string[]) {
   };
 }
 
+import { normalizePlanJson } from "@/lib/plan-normalizer";
+
 async function callOpenAI(input: z.infer<typeof schema>, equipment: string[]) {
   const apiKey = await getAiApiKey("openai");
   if (!apiKey) return null;
-  const prompt = `Erstelle einen sicheren deutschsprachigen Trainingsplan als JSON. Anonymisierte Daten: Ziel ${input.goal}; Niveau ${input.level}; ${input.sessionsPerWeek} Einheiten pro Woche; ${input.minutesPerSession} Minuten je Einheit; Zieltermin ${input.targetDate ?? "offenes Ende"}; Geräte: ${equipment.join(", ")}. Keine medizinischen Versprechen. Fokus auf korrekte Technik.`;
-  const response = await fetch("https://api.openai.com/v1/responses", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ model: process.env.OPENAI_MODEL ?? "gpt-5.6-luna", store: false, input: prompt, text: { format: { type: "json_object" } } })
-  });
-  if (!response.ok) throw new Error(`OpenAI API: ${response.status}`);
-  const data = await response.json();
-  if (data.usage) await recordAiUsage("openai", Number(data.usage.input_tokens ?? 0), Number(data.usage.output_tokens ?? 0));
-  const text = data.output?.flatMap((item: { content?: { text?: string }[] }) => item.content ?? []).find((item: { text?: string }) => item.text)?.text;
-  return text ? JSON.parse(text) : null;
+
+  const model = process.env.OPENAI_MODEL && process.env.OPENAI_MODEL !== "gpt-5.6-luna"
+    ? process.env.OPENAI_MODEL
+    : "gpt-4o-mini";
+
+  const systemPrompt = `Du bist ein professioneller Fitnesstrainer. Erstelle einen strukturierten, sicheren 4-Wochen-Trainingsplan als valides JSON.
+WICHTIG: Antworte AUSSCHLIESSLICH im folgenden JSON-Format mit genau 4 Wochen und je ${input.sessionsPerWeek} Einheiten pro Woche:
+{
+  "summary": "Kurze Zusammenfassung des Trainingsplans (1-2 Sätze)",
+  "weeks": [
+    {
+      "week": 1,
+      "sessions": [
+        {
+          "title": "Überschrift der Einheit",
+          "type": "strength",
+          "minutes": ${input.minutesPerSession},
+          "exercises": ["Übung 1", "Übung 2"]
+        }
+      ]
+    }
+  ]
+}
+Verwende zwingend die englischen Schlüssel: summary, weeks, week, sessions, title, type, minutes, exercises. Type darf nur "strength" oder "endurance" sein.`;
+
+  const userPrompt = `Ziel: ${input.goal}; Niveau: ${input.level}; ${input.sessionsPerWeek} Einheiten/Woche; ${input.minutesPerSession} Minuten je Einheit; Zieltermin: ${input.targetDate ?? "offenes Ende"}; Verfügbare Geräte: ${equipment.length ? equipment.join(", ") : "Eigengewicht / ohne Geräte"}.`;
+
+  try {
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt }
+        ],
+        response_format: { type: "json_object" }
+      })
+    });
+    if (response.ok) {
+      const data = await response.json();
+      if (data.usage) await recordAiUsage("openai", Number(data.usage.prompt_tokens ?? 0), Number(data.usage.completion_tokens ?? 0));
+      const content = data.choices?.[0]?.message?.content;
+      if (content) return JSON.parse(content);
+    }
+  } catch {}
+
+  try {
+    const response = await fetch("https://api.openai.com/v1/responses", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model,
+        store: false,
+        input: `${systemPrompt}\n\n${userPrompt}`,
+        text: { format: { type: "json_object" } }
+      })
+    });
+    if (response.ok) {
+      const data = await response.json();
+      if (data.usage) await recordAiUsage("openai", Number(data.usage.input_tokens ?? 0), Number(data.usage.output_tokens ?? 0));
+      const text = data.output?.flatMap((item: { content?: { text?: string }[] }) => item.content ?? []).find((item: { text?: string }) => item.text)?.text;
+      if (text) return JSON.parse(text);
+    }
+  } catch {}
+
+  return null;
 }
 
 async function callGemini(input: z.infer<typeof schema>, equipment: string[]) {
   const apiKey = await getAiApiKey("gemini");
   if (!apiKey) return null;
-  const prompt = `Erstelle ausschließlich JSON für einen sicheren deutschen Trainingsplan. Ziel: ${input.goal}; Niveau: ${input.level}; Einheiten/Woche: ${input.sessionsPerWeek}; Minuten: ${input.minutesPerSession}; Zieltermin: ${input.targetDate ?? "offen"}; Geräte: ${equipment.join(", ")}.`;
+
+  const prompt = `Du bist ein Fitnesstrainer. Erstelle einen sicheren 4-Wochen-Trainingsplan als valides JSON.
+Struktur:
+{
+  "summary": "Kurze Zusammenfassung",
+  "weeks": [
+    {
+      "week": 1,
+      "sessions": [
+        {
+          "title": "Einheitentitel",
+          "type": "strength",
+          "minutes": ${input.minutesPerSession},
+          "exercises": ["Übung 1", "Übung 2"]
+        }
+      ]
+    }
+  ]
+}
+Ziel: ${input.goal}; Niveau: ${input.level}; ${input.sessionsPerWeek} Einheiten/Woche; ${input.minutesPerSession} Minuten/Einheit; Zieltermin: ${input.targetDate ?? "offen"}; Geräte: ${equipment.length ? equipment.join(", ") : "Eigengewicht"}.`;
+
   const model = process.env.GEMINI_MODEL ?? "gemini-2.5-flash";
   const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`, {
     method: "POST", headers: { "Content-Type": "application/json" },
@@ -129,16 +208,32 @@ export async function POST(request: Request) {
     console.error(error);
   }
   if (!plan) { plan = localPlan(body.data, equipment); usedProvider = "local"; }
+  const normalizedPlan = normalizePlanJson(plan, body.data.minutesPerSession);
   const id = randomUUID();
   await client.batch([
     { sql: "UPDATE training_plans SET status = 'archived', updated_at = CURRENT_TIMESTAMP WHERE profile_id = ? AND status = 'active'", args: [body.data.profileId] },
     {
       sql: `INSERT INTO training_plans (id, profile_id, title, goal, target_date, status, plan_json)
         VALUES (?, ?, ?, ?, ?, 'active', ?)`,
-      args: [id, body.data.profileId, body.data.goal, body.data.goal, body.data.targetDate, JSON.stringify({ ...plan, provider: usedProvider, input: { level: body.data.level, sessionsPerWeek: body.data.sessionsPerWeek, minutesPerSession: body.data.minutesPerSession } })]
+      args: [
+        id,
+        body.data.profileId,
+        body.data.goal,
+        body.data.goal,
+        body.data.targetDate,
+        JSON.stringify({
+          ...normalizedPlan,
+          provider: usedProvider,
+          input: {
+            level: body.data.level,
+            sessionsPerWeek: body.data.sessionsPerWeek,
+            minutesPerSession: body.data.minutesPerSession
+          }
+        })
+      ]
     }
   ], "write");
-  return NextResponse.json({ id, plan, provider: usedProvider });
+  return NextResponse.json({ id, plan: normalizedPlan, provider: usedProvider });
 }
 
 export async function GET(request: Request) {
@@ -146,5 +241,16 @@ export async function GET(request: Request) {
   if (!profileId) return NextResponse.json({ error: "Profil fehlt" }, { status: 400 });
   const client = await db();
   const result = await client.execute({ sql: "SELECT * FROM training_plans WHERE profile_id = ? ORDER BY created_at DESC", args: [profileId] });
-  return NextResponse.json({ plans: result.rows.map((row) => ({ ...row, plan_json: JSON.parse(String(row.plan_json)) })) });
+  return NextResponse.json({
+    plans: result.rows.map((row) => {
+      let parsed: unknown = {};
+      try {
+        parsed = JSON.parse(String(row.plan_json));
+      } catch {}
+      return {
+        ...row,
+        plan_json: normalizePlanJson(parsed)
+      };
+    })
+  });
 }

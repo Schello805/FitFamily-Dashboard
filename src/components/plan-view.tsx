@@ -5,17 +5,26 @@ import { useEffect, useState } from "react";
 import { ArrowLeft, CalendarDays, CheckCircle2, Cpu, Download, Sparkles, Upload } from "lucide-react";
 import type { DashboardProfile } from "@/lib/domain";
 import { showToast } from "@/components/toast";
+import { normalizePlanJson, type NormalizedPlan } from "@/lib/plan-normalizer";
 
-type Plan = { id: string; title: string; goal: string; target_date: string | null; status: string; plan_json: { summary?: string; provider?: string; weeks?: { week: number; sessions: { date?: string; title: string; type: string; minutes: number; distanceKm?: number; exercises: string[] }[] }[] } };
+type Plan = {
+  id: string;
+  title: string;
+  goal: string;
+  target_date: string | null;
+  status: string;
+  plan_json: NormalizedPlan | Record<string, unknown>;
+};
 
 export function PlanView({ profile, goals }: { profile: DashboardProfile; goals: string[] }) {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [creating, setCreating] = useState(false);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
-  const load = () => fetch(`/api/plans?profileId=${profile.id}`).then((response) => response.json()).then((data) => setPlans(data.plans));
+  const load = () => fetch(`/api/plans?profileId=${profile.id}`).then((response) => response.json()).then((data) => setPlans(data.plans || []));
   useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const active = plans.find((plan) => plan.status === "active");
+  const activePlanJson = active ? normalizePlanJson(active.plan_json) : null;
 
   async function create(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault(); setBusy(true); setNotice(""); const form = new FormData(event.currentTarget);
@@ -62,9 +71,61 @@ export function PlanView({ profile, goals }: { profile: DashboardProfile; goals:
   return <main className="subpage" style={{ "--profile": profile.color } as React.CSSProperties}>
     <header><Link href={`/profil/${profile.id}`}><ArrowLeft /> Zurück</Link><div><span>Persönlicher Plan</span><h1>{profile.name}</h1></div><div className="plan-actions"><a className="plan-template" href="/assets/trainingsplan-vorlage.json" download><Download /> Vorlage</a><label className="plan-import"> <Upload /> JSON laden<input type="file" accept="application/json,.json" onChange={importJson} disabled={busy} /></label><button onClick={() => setCreating(true)}><Sparkles /> Neuer Plan</button></div></header>
     {notice && <p className="notice">{notice}</p>}
-    {active ? <section className="plan-document"><div className="plan-head"><div><span className="setup-badge">Aktiver Plan</span><h2>{active.title}</h2><p>{active.plan_json.summary}</p></div><div className="plan-meta"><CalendarDays />{active.target_date ? new Date(active.target_date).toLocaleDateString("de-DE") : "Offenes Ende"}<small>{active.plan_json.provider === "local" ? "Lokaler Vorschlag" : `Erstellt mit ${active.plan_json.provider}`}</small></div></div>
-      <div className="week-grid">{active.plan_json.weeks?.map((week) => <article key={week.week}><h3>Woche {week.week}</h3>{week.sessions.map((session, index) => <div key={index}><CheckCircle2 /><span><b>{session.title}</b><small>{session.date ? `${new Date(`${session.date}T12:00:00`).toLocaleDateString("de-DE")} · ` : ""}{session.minutes} Min.{session.distanceKm ? ` · ${session.distanceKm} km` : ""} · {session.exercises.join(" · ")}</small></span></div>)}</article>)}</div>
-    </section> : <section className="empty-state large"><Cpu /><h2>Noch kein Trainingsplan</h2><p>Erstelle einen einfachen, auf eure Geräte abgestimmten Vorschlag.</p><button onClick={() => setCreating(true)}>Plan erstellen</button></section>}
+    {active ? (
+      <section className="plan-document">
+        <div className="plan-head">
+          <div>
+            <span className="setup-badge">Aktiver Plan</span>
+            <h2>{active.title}</h2>
+            <p>{activePlanJson?.summary || "Persönlicher Trainingsplan"}</p>
+          </div>
+          <div className="plan-meta">
+            <CalendarDays />
+            {active.target_date ? new Date(active.target_date).toLocaleDateString("de-DE") : "Offenes Ende"}
+            <small>
+              {activePlanJson?.provider === "local"
+                ? "Lokaler Vorschlag"
+                : activePlanJson?.provider
+                  ? `Erstellt mit ${activePlanJson.provider}`
+                  : "Aktiv"}
+            </small>
+          </div>
+        </div>
+
+        {activePlanJson && activePlanJson.weeks.length > 0 ? (
+          <div className="week-grid">
+            {activePlanJson.weeks.map((week) => (
+              <article key={week.week}>
+                <h3>Woche {week.week}</h3>
+                {week.sessions.map((session, index) => (
+                  <div key={index}>
+                    <CheckCircle2 />
+                    <span>
+                      <b>{session.title}</b>
+                      <small>
+                        {session.date ? `${new Date(`${session.date}T12:00:00`).toLocaleDateString("de-DE")} · ` : ""}
+                        {session.minutes} Min.
+                        {session.distanceKm ? ` · ${session.distanceKm} km` : ""}
+                        {Array.isArray(session.exercises) && session.exercises.length > 0
+                          ? ` · ${session.exercises.join(" · ")}`
+                          : ""}
+                      </small>
+                    </span>
+                  </div>
+                ))}
+              </article>
+            ))}
+          </div>
+        ) : (
+          <div className="empty-state" style={{ marginTop: "1.5rem" }}>
+            <p>Für diesen Plan konnten keine Einheiten angezeigt werden.</p>
+            <button onClick={() => setCreating(true)} style={{ marginTop: "0.5rem" }}>
+              <Sparkles /> Neuen Plan generieren
+            </button>
+          </div>
+        )}
+      </section>
+    ) : <section className="empty-state large"><Cpu /><h2>Noch kein Trainingsplan</h2><p>Erstelle einen einfachen, auf eure Geräte abgestimmten Vorschlag.</p><button onClick={() => setCreating(true)}>Plan erstellen</button></section>}
     {creating && (() => {
       const defaultLevel = profile.fitnessStage <= 2 ? "Einsteiger" : profile.fitnessStage <= 4 ? "Fortgeschritten" : "Erfahren";
       return (

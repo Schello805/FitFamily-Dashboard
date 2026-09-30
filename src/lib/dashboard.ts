@@ -2,6 +2,7 @@ import { asNumber, asString, db } from "@/lib/db";
 import type { DashboardProfile, Profile, TrainingType } from "@/lib/domain";
 import { getAvatarProgress, movementTargetForAge, SCORE_MULTIPLIER } from "@/lib/domain";
 import { enforceSafetyPauses } from "@/lib/training";
+import { normalizePlanJson } from "@/lib/plan-normalizer";
 
 function durationSeconds(start: string, end: string | null) {
   return Math.max(0, (new Date(end ?? Date.now()).getTime() - new Date(start).getTime()) / 1000);
@@ -78,12 +79,13 @@ export async function getDashboardData(): Promise<DashboardProfile[]> {
     let nextTrainingText: string | null = null;
     if (plan) {
       try {
-        const planJson = typeof plan.plan_json === "string" ? JSON.parse(plan.plan_json) : plan.plan_json;
+        const rawJson = typeof plan.plan_json === "string" ? JSON.parse(plan.plan_json) : plan.plan_json;
+        const planJson = normalizePlanJson(rawJson);
         const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
         let todaySession: { title: string; minutes: number } | null = null;
         let upcomingSession: { title: string; minutes: number; date?: string } | null = null;
 
-        if (Array.isArray(planJson?.weeks)) {
+        if (Array.isArray(planJson.weeks)) {
           for (const week of planJson.weeks) {
             if (Array.isArray(week.sessions)) {
               for (const session of week.sessions) {
