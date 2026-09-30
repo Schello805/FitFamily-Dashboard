@@ -83,19 +83,30 @@ Auf dem Handy im selben WLAN die Adresse `http://192.168.1.42:3000` öffnen (mit
 
 Die Verbindung ist im Standardaufbau unverschlüsseltes HTTP. FitFamily deshalb nur im eigenen, vertrauenswürdigen WLAN verwenden und den Port 3000 nicht im Router zum Internet freigeben. Wenn die Ubuntu-Firewall aktiv ist, den Zugriff auf Port 3000 auf das private Heimnetz beschränken.
 
-## 5. Desktop-Icon & Kiosk-Modus (Vollbild)
+## 5. Vollbild-Kiosk & Autostart beim PC-Start
 
-Ein Klick auf das Desktop-Icon startet FitFamily direkt im Vollbild-Kiosk-Modus (ohne Adressleiste oder Browser-Tabs; Wischgesten für Vor/Zurück sind für Touchscreens deaktiviert).
+FitFamily kann so eingerichtet werden, dass sich der PC nach dem Einschalten **vollautomatisch anmeldet** (ohne Passworteingabe) und das Dashboard **sofort im Vollbild-Kiosk-Modus** startet.
 
-Falls das Desktop-Icon noch nicht auf deinem Schreibtisch liegt, erstelle es mit folgendem Befehl:
+### Kiosk & Autostart mit einem Befehl aktivieren:
+
+Öffne ein Terminal auf dem Ubuntu-PC und führe aus:
 
 ```bash
-sudo /opt/fitfamily/scripts/create-desktop-shortcut.sh
+sudo /opt/fitfamily/scripts/setup-kiosk-autostart.sh
 ```
 
-- **Starten:** Doppelklick auf das „FitFamily Dashboard“-Icon auf dem Desktop oder im Ubuntu-Anwendungsmenü (Super-Taste).
-- **Kiosk-Modus beenden:** `Alt + F4` oder `F11`.
-- **Hinweis unter GNOME:** Falls das Icon auf dem Schreibtisch noch gesperrt wirkt, mit der rechten Maustaste auf das Icon klicken und **„Starten erlauben“** (*Allow Launching*) anklicken.
+Dieses Skript richtet vollautomatisch ein:
+1. **Automatischer Login (Auto-Login):** Ubuntu bootet direkt auf die Benutzeroberfläche, ohne am Sperrbildschirm auf ein Passwort zu warten.
+2. **Kiosk-Autostart:** Sobald der Desktop geladen ist, startet der Kiosk-Launcher automatisch und wartet, bis der Hintergrunddienst bereit ist.
+3. **Optimierter Touch-Kiosk:** Chromium/Chrome öffnet sich im Vollbild ohne störende Leisten, Wischgesten oder Absturzwarnungen.
+4. **Dauerhafter Bildschirm:** Das automatische Abschalten des Monitors nach 5 Minuten Inaktivität wird deaktiviert.
+5. **Desktop-Shortcut:** Legt ein anklickbares FitFamily-Icon auf dem Desktop und im Anwendungsmenü ab.
+
+### Bedienung im Alltag:
+- **PC einschalten:** Nach dem Hochfahren erscheint direkt das FitFamily Dashboard im Vollbild.
+- **Kiosk-Modus beenden / minimieren:** `Alt + F4` oder `F11` auf der Tastatur drücken.
+- **Kiosk manuell starten:** Doppelklick auf das „FitFamily Dashboard“-Icon auf dem Schreibtisch.
+- **Hinweis unter GNOME:** Falls das Schreibtisch-Icon gesperrt wirkt, Rechtsklick darauf und **„Starten erlauben“** (*Allow Launching*) wählen.
 
 Radio läuft über den Standard-Audioausgang des Lenovo. PC-Lautsprecher oder später angeschlossene externe Lautsprecher sollten in Ubuntu unter **Einstellungen → Ton** als Ausgabe ausgewählt sein. Der Player bietet sechs Livestreams und einen Link zu den Sportschau-Audioreportagen an Spieltagen; eine Musik-Upload-Funktion gibt es nicht. Zum Radiohören muss der PC mit dem Internet verbunden sein.
 

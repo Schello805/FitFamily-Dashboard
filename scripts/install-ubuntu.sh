@@ -114,6 +114,10 @@ install -m 0644 "$APP_DIR/deploy/systemd/fitfamily.service" /etc/systemd/system/
 systemctl daemon-reload
 systemctl enable --now fitfamily.service
 
+if [[ -n "${SUDO_USER:-}" && "${SUDO_USER}" != "root" ]]; then
+  "$APP_DIR/scripts/create-desktop-shortcut.sh" || true
+fi
+
 effective_url="$(grep -E '^APP_URL=' "$APP_DIR/.env.local" | cut -d= -f2- || true)"
 echo ""
 echo "=========================================================="

@@ -73,6 +73,11 @@ if [[ -f "$APP_DIR/.env.local" ]]; then
   chmod 0600 "$APP_DIR/.env.local"
 fi
 
+# Desktop-Icon & Autostart sicherstellen
+if [[ -n "${SUDO_USER:-}" && "${SUDO_USER}" != "root" ]]; then
+  "$APP_DIR/scripts/create-desktop-shortcut.sh" || true
+fi
+
 echo ""
 echo "-> 5/6: Firewall prüfen (Port 3000)..."
 if command -v ufw >/dev/null 2>&1; then

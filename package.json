@@ -13,6 +13,7 @@
     "backup": "node --env-file-if-exists=.env.local scripts/backup.mjs",
     "update": "bash scripts/update.sh",
     "repair": "bash scripts/repair.sh",
+    "kiosk:setup": "bash scripts/setup-kiosk-autostart.sh",
     "verify": "npm run lint && npm run typecheck && npm run test && npm run build"
   },
   "dependencies": {

@@ -81,6 +81,11 @@ chmod +x "$APP_DIR/scripts/"*.sh || true
 chown -R "$APP_USER:$APP_USER" "$APP_DIR"
 chmod 0600 "$APP_DIR/.env.local"
 
+# Desktop-Icon & Autostart sicherstellen
+if [[ -n "${SUDO_USER:-}" && "${SUDO_USER}" != "root" ]]; then
+  "$APP_DIR/scripts/create-desktop-shortcut.sh" || true
+fi
+
 # 6. Firewall für Heimnetz freigeben
 echo "-> 6/7: Firewall prüfen (Port 3000)..."
 if command -v ufw >/dev/null 2>&1; then
