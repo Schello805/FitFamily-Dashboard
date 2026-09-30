@@ -10,6 +10,17 @@ type Status = { openai: boolean; gemini: boolean; nas: boolean; models: { openai
 type ExerciseMedia = { id: string; name: string; equipment: string; videoUrl: string | null };
 type EquipmentItem = { id: string; name: string; quantity: number; available: boolean };
 type UpdateInfo = { currentCommit: string; latestCommit: string; latestMessage: string; hasUpdate: boolean; version: string };
+type BackupInfo = { name: string; sizeBytes: number; sizeFormatted: string; date: string };
+type BackupStatus = {
+  configured: boolean;
+  path: string;
+  hasEncryptionKey: boolean;
+  accessible: boolean;
+  writable: boolean;
+  statusMessage: string;
+  backupCount: number;
+  lastBackup: BackupInfo | null;
+};
 
 export function AdminView({ profiles, exercises, equipment }: { profiles: { id: string; name: string; score: number }[]; exercises: ExerciseMedia[]; equipment: EquipmentItem[] }) {
   const [pin, setPin] = useState("");
@@ -26,6 +37,14 @@ export function AdminView({ profiles, exercises, equipment }: { profiles: { id: 
   const [newEquipmentQuantity, setNewEquipmentQuantity] = useState(1);
   const [apiKeys, setApiKeys] = useState({ openai: "", gemini: "" });
   const [savingApi, setSavingApi] = useState<string | null>(null);
+
+  const [backupStatus, setBackupStatus] = useState<BackupStatus | null>(null);
+  const [nasPathInput, setNasPathInput] = useState("");
+  const [nasKeyInput, setNasKeyInput] = useState("");
+  const [showAdvancedNas, setShowAdvancedNas] = useState(false);
+  const [savingNas, setSavingNas] = useState(false);
+  const [testingNas, setTestingNas] = useState(false);
+  const [runningBackup, setRunningBackup] = useState(false);
 
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
   const [checkingUpdate, setCheckingUpdate] = useState(false);
@@ -102,11 +121,109 @@ export function AdminView({ profiles, exercises, equipment }: { profiles: { id: 
         return;
       }
       setStatus({ ...result.providers, usage: result.usage, models: result.models, nas: result.nas });
+      if (result.backup) {
+        setBackupStatus(result.backup);
+        setNasPathInput(result.backup.path || "");
+      }
       void checkUpdate(pin);
     } catch {
       setError("Verbindungsfehler beim Prüfen der PIN");
     } finally {
       setVerifying(false);
+    }
+  }
+
+  async function saveNasBackupPath() {
+    setSavingNas(true);
+    setNotice("");
+    try {
+      const response = await fetch("/api/admin/backup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          pin,
+          action: "save",
+          path: nasPathInput,
+          key: nasKeyInput || undefined
+        })
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        setNotice(data.error ?? "Fehler beim Speichern des NAS-Pfads.");
+      } else {
+        setBackupStatus(data.status);
+        if (data.status?.path) setNasPathInput(data.status.path);
+        if (nasKeyInput) setNasKeyInput("");
+        setStatus((cur) => (cur ? { ...cur, nas: Boolean(data.status?.writable) } : cur));
+        setNotice(data.message ?? "NAS-Pfad erfolgreich gespeichert.");
+      }
+    } catch {
+      setNotice("Keine Verbindung zum Dashboard. Bitte Heimnetz prüfen.");
+    } finally {
+      setSavingNas(false);
+    }
+  }
+
+  async function testNasBackupConnection() {
+    setTestingNas(true);
+    setNotice("");
+    try {
+      const response = await fetch("/api/admin/backup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          pin,
+          action: "test",
+          path: nasPathInput,
+          key: nasKeyInput || undefined
+        })
+      });
+      const data = await response.json();
+      if (data.status) {
+        setBackupStatus(data.status);
+        setStatus((cur) => (cur ? { ...cur, nas: Boolean(data.status.writable) } : cur));
+      }
+      if (!response.ok || !data.ok) {
+        setNotice(data.error ?? "Verbindung zum NAS-Ordner fehlgeschlagen.");
+      } else {
+        setNotice(data.message ?? "Verbindung erfolgreich! Der NAS-Ordner ist beschreibbar.");
+      }
+    } catch {
+      setNotice("Keine Verbindung zum Dashboard. Bitte Heimnetz prüfen.");
+    } finally {
+      setTestingNas(false);
+    }
+  }
+
+  async function runNasBackupNow() {
+    if (!window.confirm("Jetzt sofort ein verschlüsseltes Backup der SQLite-Datenbank auf das NAS schreiben?")) return;
+    setRunningBackup(true);
+    setNotice("Sicherung wird erstellt und verschlüsselt auf das NAS übertragen …");
+    try {
+      const response = await fetch("/api/admin/backup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          pin,
+          action: "backup",
+          path: nasPathInput,
+          key: nasKeyInput || undefined
+        })
+      });
+      const data = await response.json();
+      if (data.status) {
+        setBackupStatus(data.status);
+        setStatus((cur) => (cur ? { ...cur, nas: Boolean(data.status.writable) } : cur));
+      }
+      if (!response.ok) {
+        setNotice(data.error ?? "Backup fehlgeschlagen.");
+      } else {
+        setNotice(data.message ?? "Backup erfolgreich erstellt!");
+      }
+    } catch {
+      setNotice("Fehler beim Erstellen des Backups. Bitte Verbindung prüfen.");
+    } finally {
+      setRunningBackup(false);
     }
   }
 
@@ -276,7 +393,118 @@ export function AdminView({ profiles, exercises, equipment }: { profiles: { id: 
         })}
         <p className="data-text">Die Verbrauchserfassung beginnt ab jetzt und umfasst nur KI-Pläne, die über diese App erstellt werden. Die Kostenschätzung nutzt die erfassten Token und aktuelle Standardpreise; sie kann von der Anbieterabrechnung abweichen und zeigt keine frühere Nutzung. <a href="https://developers.openai.com/api/docs/pricing" target="_blank" rel="noreferrer">OpenAI-Preise</a> · <a href="https://ai.google.dev/gemini-api/docs/pricing" target="_blank" rel="noreferrer">Gemini-Preise</a>.</p>
       </article>
-      <article><div className="admin-title"><HardDrive /><div><h2>NAS-Backup</h2><p>Speicherort</p></div></div><div className="status-row"><span>Verbindung</span><b className={status.nas ? "ok" : "off"}>{status.nas ? "Bereit" : "Nicht eingerichtet"}</b></div></article>
+      <article className="wide backup-card">
+        <div className="admin-title">
+          <HardDrive className={runningBackup || testingNas ? "spin" : ""} />
+          <div>
+            <h2>NAS-Datensicherung</h2>
+            <p>Automatisches und manuelles Backup der Datenbank auf deine Netzwerkfreigabe</p>
+          </div>
+        </div>
+
+        <div className="update-status-grid">
+          <div className="update-meta-box">
+            <span>Status</span>
+            <b className={
+              backupStatus?.writable
+                ? "backup-status-tag-ok"
+                : (backupStatus?.configured ? "backup-status-tag-error" : "backup-status-tag-off")
+            }>
+              {backupStatus?.writable
+                ? "Bereit & Beschreibbar"
+                : (backupStatus?.configured ? "Pfad nicht beschreibbar" : "Nicht eingerichtet")}
+            </b>
+            <small style={{ display: "block", marginTop: "4px", fontSize: "11px", color: "var(--muted)" }}>
+              {backupStatus?.statusMessage ?? "Kein Pfad hinterlegt."}
+            </small>
+          </div>
+
+          <div className="update-meta-box">
+            <span>Letztes Backup</span>
+            <b>
+              {backupStatus?.lastBackup
+                ? `${backupStatus.lastBackup.sizeFormatted}`
+                : "Noch keins vorhanden"}
+            </b>
+            <small style={{ display: "block", marginTop: "4px", fontSize: "11px", color: "var(--muted)" }}>
+              {backupStatus?.lastBackup
+                ? `${backupStatus.lastBackup.name} (${new Date(backupStatus.lastBackup.date).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })})`
+                : `${backupStatus?.backupCount ?? 0} Sicherungen`}
+            </small>
+          </div>
+        </div>
+
+        <label className="api-key-field" style={{ marginTop: "16px" }}>
+          NAS-Sicherungspfad (lokaler Einhängepfad)
+          <input
+            type="text"
+            placeholder="/mnt/nas/fitfamily oder /volume1/backup/fitfamily"
+            value={nasPathInput}
+            onChange={(e) => setNasPathInput(e.target.value)}
+          />
+        </label>
+
+        <div className="update-action-row">
+          <button
+            type="button"
+            className="update-secondary-btn"
+            disabled={savingNas || testingNas || runningBackup}
+            onClick={() => void saveNasBackupPath()}
+          >
+            {savingNas ? "Speichert …" : "Pfad speichern"}
+          </button>
+
+          <button
+            type="button"
+            className="update-secondary-btn"
+            disabled={savingNas || testingNas || runningBackup || !nasPathInput.trim()}
+            onClick={() => void testNasBackupConnection()}
+          >
+            <RefreshCw className={testingNas ? "spin" : ""} />
+            {testingNas ? "Prüfe Zugriff …" : "Verbindung testen"}
+          </button>
+
+          <button
+            type="button"
+            className="primary-update-btn"
+            disabled={savingNas || testingNas || runningBackup || !backupStatus?.writable}
+            onClick={() => void runNasBackupNow()}
+          >
+            <HardDrive className={runningBackup ? "spin" : ""} />
+            {runningBackup ? "Backup wird erstellt …" : "Jetzt sichern"}
+          </button>
+        </div>
+
+        <button
+          type="button"
+          className="backup-advanced-toggle"
+          onClick={() => setShowAdvancedNas((prev) => !prev)}
+        >
+          {showAdvancedNas ? "▾" : "▸"} Verschlüsselung (AES-256-GCM) anpassen
+        </button>
+
+        {showAdvancedNas && (
+          <div style={{ marginTop: "10px", padding: "12px", border: "1px solid var(--line)", borderRadius: "12px", background: "var(--subtle-bg)" }}>
+            <label className="api-key-field" style={{ marginTop: 0 }}>
+              Backup-Passphrase (mindestens 16 Zeichen)
+              <input
+                type="password"
+                autoComplete="new-password"
+                placeholder={backupStatus?.hasEncryptionKey ? "Schlüssel aktiv (leer lassen zum Beibehalten)" : "Optionaler eigener Schlüssel"}
+                value={nasKeyInput}
+                onChange={(e) => setNasKeyInput(e.target.value)}
+              />
+            </label>
+            <p className="data-text" style={{ fontSize: "11px", marginTop: "6px" }}>
+              Backups werden standardmäßig mit einem sicheren AES-256-GCM-Schlüssel verschlüsselt. Wenn du hier einen eigenen Schlüssel einträgst, wird dieser für künftige Sicherungen genutzt.
+            </p>
+          </div>
+        )}
+
+        <p className="data-text" style={{ marginTop: "14px" }}>
+          Sichert den vollständigen Datenbestand verschlüsselt ab. Alte Stände werden automatisch nach 7 Tagen, 4 Wochen und 12 Monaten rotiert.
+        </p>
+      </article>
       <article className="wide"><div className="admin-title"><RotateCcw /><div><h2>Scores zurücksetzen</h2><p>Der vollständige Trainingsverlauf bleibt erhalten.</p></div></div><div className="reset-list">{profiles.map((profile) => <div key={profile.id}><span>{profile.name}<small>{profile.score} Punkte</small></span><button onClick={() => reset(profile.id)}>Auf 0 setzen</button></div>)}</div></article>
       <article className="wide"><div className="admin-title"><HardDrive /><div><h2>Speicherorte</h2><p>Transparenz über vorhandene Daten</p></div></div><p className="data-text">Stammdaten, Training und Pläne: lokale SQLite-Datenbank · Backups: {status.nas ? "verschlüsselt auf NAS" : "noch nicht eingerichtet"} · Wetter: Open-Meteo · KI: nur bei bewusster Planerstellung.</p></article>
       <article className="wide"><div className="admin-title"><Database /><div><h2>Geräte im Sportraum</h2><p>Stückzahl und Verfügbarkeit für Übungsauswahl und neue Trainingspläne</p></div></div><div className="inventory-list">{equipmentItems.map((item) => { const edit = equipmentEdits[item.id] ?? item; return <div className="inventory-row" key={item.id}><label>Gerätename<input value={edit.name} maxLength={60} onChange={(event) => setEquipmentEdits((values) => ({ ...values, [item.id]: { ...edit, name: event.target.value } }))} /></label><label className="quantity-field">Anzahl<input type="number" min={1} max={8} value={edit.quantity} onChange={(event) => setEquipmentEdits((values) => ({ ...values, [item.id]: { ...edit, quantity: Number(event.target.value) } }))} /></label><label className="inventory-toggle"><input type="checkbox" checked={edit.available} onChange={(event) => setEquipmentEdits((values) => ({ ...values, [item.id]: { ...edit, available: event.target.checked } }))} /> Verfügbar</label><button disabled={savingEquipment === item.id} onClick={() => saveEquipment(item.id)}>{savingEquipment === item.id ? "Speichert …" : "Speichern"}</button></div>; })}</div><form className="inventory-add" onSubmit={addEquipment}><label>Weiteres Gerät<input required minLength={2} maxLength={60} placeholder="z. B. Hantelbank" value={newEquipmentName} onChange={(event) => setNewEquipmentName(event.target.value)} /></label><label className="quantity-field">Anzahl<input type="number" min={1} max={8} value={newEquipmentQuantity} onChange={(event) => setNewEquipmentQuantity(Number(event.target.value))} /></label><button><Plus /> Gerät ergänzen</button></form><p className="data-text">Deaktivierte Geräte bleiben im bisherigen Trainingsverlauf erhalten, werden aber künftig nicht zur Auswahl angeboten.</p></article>

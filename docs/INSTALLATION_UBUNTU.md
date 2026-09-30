@@ -144,3 +144,14 @@ Das Skript führt vollautomatisch folgende Schritte durch:
 5. Hintergrunddienst neu starten (`systemctl restart fitfamily`)
 
 Deine Einstellungen in `.env.local` und alle Trainingsdaten bleiben dabei vollständig erhalten.
+
+## NAS-Backups & Datensicherung
+
+Die NAS-Verbindung für Backups wird nicht mehr über die CLI oder Konfigurationsdateien eingerichtet, sondern bequem und intuitiv direkt im Dashboard:
+
+1. Öffne die **Verwaltung** (`/verwaltung`) und gib deinen Eltern-PIN ein.
+2. Im Bereich **„NAS-Datensicherung“** gibst du deinen lokalen Einhängepfad ein (z. B. `/mnt/nas/fitfamily` oder einen gemounteten SMB/NFS-Share).
+3. Mit **„Verbindung testen“** prüfst du direkt die Schreibrechte.
+4. Mit **„Jetzt sichern“** kannst du jederzeit eine verschlüsselte Sicherung (AES-256-GCM) anstoßen.
+5. Vorhandene Backups werden automatisch nach dem Rotationsprinzip (7 Tage, 4 Wochen, 12 Monate) gepflegt.
+

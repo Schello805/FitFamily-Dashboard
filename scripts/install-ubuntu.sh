@@ -133,14 +133,15 @@ echo "=========================================================="
 existing_openai="$(grep -E '^OPENAI_API_KEY=' "$APP_DIR/.env.local" 2>/dev/null | cut -d= -f2- || true)"
 existing_gemini="$(grep -E '^GEMINI_API_KEY=' "$APP_DIR/.env.local" 2>/dev/null | cut -d= -f2- || true)"
 existing_nas="$(grep -E '^NAS_BACKUP_PATH=' "$APP_DIR/.env.local" 2>/dev/null | cut -d= -f2- || true)"
+NAS_BACKUP_PATH="$existing_nas"
 
-read -r -p " 1. NAS-Backup-Pfad (z. B. /mnt/nas/fitfamily) [${existing_nas:-keins}]: " input_nas
-NAS_BACKUP_PATH="${input_nas:-$existing_nas}"
-
-read -r -p " 2. OpenAI API-Key für KI-Trainingspläne [${existing_openai:+(bereits gesetzt)}]: " input_openai
+echo " (Hinweis: NAS-Backups & KI-Schlüssel können jederzeit bequem"
+echo "  in der Web-Verwaltung unter '/verwaltung' eingerichtet werden.)"
+echo ""
+read -r -p " 1. OpenAI API-Key für KI-Trainingspläne [${existing_openai:+(bereits gesetzt)}]: " input_openai
 OPENAI_API_KEY="${input_openai:-$existing_openai}"
 
-read -r -p " 3. Google Gemini API-Key (Alternative zu OpenAI) [${existing_gemini:+(bereits gesetzt)}]: " input_gemini
+read -r -p " 2. Google Gemini API-Key (Alternative zu OpenAI) [${existing_gemini:+(bereits gesetzt)}]: " input_gemini
 GEMINI_API_KEY="${input_gemini:-$existing_gemini}"
 
 # Geheimes Session-Token beibehalten oder neu generieren

@@ -2,12 +2,42 @@ import { createCipheriv, createHash, randomBytes } from "node:crypto";
 import { mkdir, readdir, readFile, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 
-const source = process.env.DATABASE_URL?.replace(/^file:/, "") ?? "./data/fitfamily.db";
-const target = process.env.NAS_BACKUP_PATH;
-const secret = process.env.BACKUP_ENCRYPTION_KEY;
+import { createClient } from "@libsql/client";
 
-if (!target) throw new Error("NAS_BACKUP_PATH fehlt.");
-if (!secret || secret.length < 16) throw new Error("BACKUP_ENCRYPTION_KEY muss mindestens 16 Zeichen lang sein.");
+const source = process.env.DATABASE_URL?.replace(/^file:/, "") ?? "./data/fitfamily.db";
+let target = process.env.NAS_BACKUP_PATH;
+let secret = process.env.BACKUP_ENCRYPTION_KEY;
+
+// Fallback: Settings aus der SQLite-Datenbank laden (wenn über die Web-Oberfläche konfiguriert)
+if (!target || !secret) {
+  try {
+    const client = createClient({ url: process.env.DATABASE_URL ?? "file:./data/fitfamily.db" });
+    const result = await client.execute("SELECT key, value FROM settings WHERE key IN ('nas_backup_path', 'nas_backup_key')");
+    for (const row of result.rows) {
+      if (row.key === "nas_backup_path" && !target && row.value) target = String(row.value).trim();
+      if (row.key === "nas_backup_key" && !secret && row.value) secret = String(row.value).trim();
+    }
+  } catch {
+    // Datenbank noch nicht initialisiert oder Tabelle fehlt
+  }
+}
+
+if (!target) {
+  console.log("Hinweis: Kein NAS_BACKUP_PATH konfiguriert (weder in .env.local noch in den Einstellungen unter /verwaltung). Überspringe Backup.");
+  process.exit(0);
+}
+
+if (!secret || secret.length < 16) {
+  // Wenn kein Schlüssel existiert, erzeuge einen sicheren Schlüssel und sichere ihn
+  secret = randomBytes(24).toString("hex");
+  try {
+    const client = createClient({ url: process.env.DATABASE_URL ?? "file:./data/fitfamily.db" });
+    await client.execute({
+      sql: "INSERT INTO settings (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP",
+      args: ["nas_backup_key", secret]
+    });
+  } catch {}
+}
 
 const absoluteSource = path.resolve(source);
 await mkdir(target, { recursive: true });
