@@ -371,18 +371,41 @@ export function ProfileView({ initialProfile, exercises }: { initialProfile: Das
         </div>
       )}
       <header className="profile-topbar">
-        <Link href="/" className="icon-link"><ArrowLeft size={isMobile ? 22 : 30} /><span>Dashboard</span></Link>
-        <div className="profile-topbar-title"><span className="eyebrow">Training für</span><h1>{profile.name}</h1></div>
+        <Link href="/" className="icon-link">
+          <ArrowLeft size={isMobile ? 20 : 26} />
+          <span>Dashboard</span>
+        </Link>
+        <div className="profile-topbar-title">
+          <span className="eyebrow">Training für</span>
+          <h1>{profile.name}</h1>
+        </div>
         <div className="profile-topbar-right">
-          <ThemeToggle />
+          <ThemeToggle showLabel={!isMobile} />
           {!isMobile && (
-            <div className="profile-idle-badge" onClick={resetTimer} title="Automatische Rückkehr zum Dashboard bei Inaktivität (Tippen zum Verlängern)">
+            <div
+              className="profile-idle-badge"
+              onClick={resetTimer}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  resetTimer();
+                }
+              }}
+              title="Automatische Rückkehr zum Dashboard bei Inaktivität (Tippen zum Verlängern)"
+              role="button"
+              tabIndex={0}
+            >
               <span className="idle-pulse-dot" />
-              <small>Dashboard in</small>
-              <b>{secondsLeft}s</b>
+              <div className="profile-idle-badge-text">
+                <small>Dashboard in</small>
+                <b>{secondsLeft}s</b>
+              </div>
             </div>
           )}
-          <div className="profile-score"><strong>{profile.score.toLocaleString("de-DE")}</strong><span>Punkte</span></div>
+          <div className="profile-score">
+            <strong>{profile.score.toLocaleString("de-DE")}</strong>
+            <span>Punkte</span>
+          </div>
         </div>
       </header>
 
