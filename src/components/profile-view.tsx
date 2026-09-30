@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Activity, ArrowLeft, CalendarRange, Dumbbell, History, QrCode, Settings2, Square } from "lucide-react";
+import { Activity, ArrowLeft, CalendarRange, CheckCircle2, Dumbbell, History, QrCode, Settings2, Smartphone, Square } from "lucide-react";
 import {
   AVATAR_IDS,
   FITNESS_STAGES,
@@ -19,13 +19,15 @@ import { LiveDuration } from "@/components/live-duration";
 import { AvatarPicker } from "@/components/avatar-picker";
 import { Avatar } from "@/components/avatar";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { showToast } from "@/components/toast";
 
 type Exercise = { id: string; name: string; type: string; equipment: string };
 
 export function ProfileView({ initialProfile, exercises }: { initialProfile: DashboardProfile; exercises: Exercise[] }) {
   const [profile, setProfile] = useState(initialProfile);
   const [busy, setBusy] = useState(false);
-  const [handoff, setHandoff] = useState<{ qr: string; url?: string; expiresAt: string } | null>(null);
+  const [handoff, setHandoff] = useState<{ qr: string; url?: string; expiresAt: string; token?: string } | null>(null);
+  const [handoffScanned, setHandoffScanned] = useState(false);
   const [longRunning, setLongRunning] = useState(false);
   const [editingProfile, setEditingProfile] = useState(false);
   const [editAvatar, setEditAvatar] = useState<AvatarId>(
@@ -42,11 +44,46 @@ export function ProfileView({ initialProfile, exercises }: { initialProfile: Das
       const isMobileParam = params.get("mobil") === "1";
       const isNarrow = window.innerWidth <= 680;
       setIsMobile(isMobileParam || isNarrow);
+
+      // Feedback when connected via QR code
+      if (params.get("verbunden") === "1" || params.get("gekoppelt") === "1") {
+        showToast({
+          type: "success",
+          title: "📱 Smartphone erfolgreich verbunden!",
+          message: `Willkommen, ${initialProfile.name}! Du kannst dein Training jetzt direkt hier auf dem Handy steuern.`
+        });
+        const cleanUrl = window.location.pathname + (isMobileParam ? "?mobil=1" : "");
+        window.history.replaceState({}, "", cleanUrl);
+      }
     };
     checkMobile();
     window.addEventListener("resize", checkMobile);
     return () => window.removeEventListener("resize", checkMobile);
-  }, []);
+  }, [initialProfile.name]);
+
+  // Poll handoff token status when QR modal is open
+  useEffect(() => {
+    if (!handoff?.token || handoffScanned) return;
+    const interval = window.setInterval(async () => {
+      try {
+        const response = await fetch(`/api/handoff?token=${encodeURIComponent(handoff.token!)}`);
+        const data = await response.json();
+        if (data.scanned) {
+          setHandoffScanned(true);
+          showToast({
+            type: "success",
+            title: "Smartphone verbunden!",
+            message: `${profile.name} steuert das Training jetzt auf dem Handy.`
+          });
+          setTimeout(() => {
+            setHandoff(null);
+            setHandoffScanned(false);
+          }, 2400);
+        }
+      } catch {}
+    }, 1200);
+    return () => window.clearInterval(interval);
+  }, [handoff?.token, handoffScanned, profile.name]);
 
   const previewProgress = getAvatarProgress(
     editStartingFitness,
@@ -119,7 +156,29 @@ export function ProfileView({ initialProfile, exercises }: { initialProfile: Das
         ? { action: "start", profileId: profile.id, type, exerciseId: exerciseId ?? null, source: isMobile ? "mobile" : "touch" }
         : { action: "stop", profileId: profile.id })
     });
-    if (response.ok) playTone(type ? (type === "strength" ? 520 : 660) : 360);
+    if (response.ok) {
+      playTone(type ? (type === "strength" ? 520 : 660) : 360);
+      if (type === "strength") {
+        const ex = exerciseId ? exercises.find((e) => e.id === exerciseId) : null;
+        showToast({
+          type: "success",
+          title: "💪 Krafttraining gestartet",
+          message: ex ? `Übung: ${ex.name} (+1 Punkt/Minute)` : "Trainingszeit läuft (+1 Punkt je Minute)."
+        });
+      } else if (type === "endurance") {
+        showToast({
+          type: "success",
+          title: "🏃 Ausdauertraining gestartet",
+          message: "Trainingszeit läuft (+2 Punkte je Minute)."
+        });
+      } else {
+        showToast({
+          type: "info",
+          title: "✓ Training beendet & gespeichert",
+          message: "Klasse Einsatz! Punkte und Trainingszeit wurden gutgeschrieben."
+        });
+      }
+    }
     await refresh();
     setBusy(false);
     if (exerciseId) router.push(`/uebung/${exerciseId}?profil=${profile.id}`);
@@ -168,7 +227,13 @@ export function ProfileView({ initialProfile, exercises }: { initialProfile: Das
       });
       const result = await response.json();
       if (!response.ok) return setProfileNotice(result.error ?? "Profil konnte nicht gespeichert werden.");
-      setEditingProfile(false); setProfileNotice("Profil wurde gespeichert."); await refresh();
+      setEditingProfile(false);
+      showToast({
+        type: "success",
+        title: "Profil aktualisiert",
+        message: `Angaben für ${profile.name} wurden gespeichert.`
+      });
+      await refresh();
     } catch {
       setProfileNotice("Keine Verbindung. Bitte prüfe das Heimnetz und versuche es erneut.");
     } finally {
@@ -208,6 +273,13 @@ export function ProfileView({ initialProfile, exercises }: { initialProfile: Das
           <div className="profile-score"><strong>{profile.score.toLocaleString("de-DE")}</strong><span>Punkte</span></div>
         </div>
       </header>
+
+      {isMobile && (
+        <div className="mobile-connected-banner">
+          <Smartphone size={16} />
+          <span>Handy-Steuerung aktiv · Live mit Dashboard synchronisiert</span>
+        </div>
+      )}
 
       <section className="training-hero">
         <div className="profile-hero-left">
@@ -305,12 +377,28 @@ export function ProfileView({ initialProfile, exercises }: { initialProfile: Das
         {profileNotice && <p className="form-error" role="alert">{profileNotice}</p>}
         <button className="primary-submit" disabled={busy}>{busy ? "Wird gespeichert …" : "Änderungen speichern"}</button>
       </form></div>}
-      {handoff && <div className="modal-backdrop" onClick={() => setHandoff(null)}><section className="qr-modal" onClick={(event) => event.stopPropagation()}>
-        <button className="modal-close" onClick={() => setHandoff(null)}>×</button>
-        <span className="setup-badge">Sicherer Übergang</span><h2>Auf dem Handy fortfahren</h2><p>Scanne den Code. Er ist zehn Minuten und genau einmal gültig.</p>
-        <Image src={handoff.qr} alt="QR-Code zum Öffnen des Profils auf dem Handy" width={330} height={330} unoptimized />
-        {handoff.url && <p style={{ wordBreak: "break-all", fontSize: "12px", color: "var(--muted)", margin: "12px 0 0", textAlign: "center" }}><code>{handoff.url}</code></p>}
-      </section></div>}
+      {handoff && (
+        <div className="modal-backdrop" onClick={() => { setHandoff(null); setHandoffScanned(false); }}>
+          <section className="qr-modal" onClick={(event) => event.stopPropagation()}>
+            <button className="modal-close" onClick={() => { setHandoff(null); setHandoffScanned(false); }}>×</button>
+            {handoffScanned ? (
+              <div className="qr-modal-scanned">
+                <div className="qr-modal-scanned-icon"><CheckCircle2 size={38} /></div>
+                <h3>Smartphone verbunden!</h3>
+                <p>{profile.name} ist jetzt auf dem Smartphone aktiv.</p>
+              </div>
+            ) : (
+              <>
+                <span className="setup-badge">Sicherer Übergang</span>
+                <h2>Auf dem Handy fortfahren</h2>
+                <p>Scanne den Code mit deiner Smartphone-Kamera. Er ist zehn Minuten gültig.</p>
+                <Image src={handoff.qr} alt="QR-Code zum Öffnen des Profils auf dem Handy" width={330} height={330} unoptimized />
+                {handoff.url && <p style={{ wordBreak: "break-all", fontSize: "12px", color: "var(--muted)", margin: "12px 0 0", textAlign: "center" }}><code>{handoff.url}</code></p>}
+              </>
+            )}
+          </section>
+        </div>
+      )}
     </main>
   );
 }

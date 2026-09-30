@@ -39,8 +39,27 @@ export async function POST(request: Request) {
 
   const url = `${origin.replace(/\/$/, "")}/handoff/${token}`;
   return NextResponse.json({
+    token,
     url,
     qr: await QRCode.toDataURL(url, { width: 420, margin: 2, color: { dark: "#071316", light: "#ffffff" } }),
     expiresAt
   });
+}
+
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const token = searchParams.get("token");
+  if (!token) return NextResponse.json({ scanned: false });
+
+  const client = await db();
+  const result = await client.execute({
+    sql: "SELECT used_at FROM handoff_tokens WHERE token_hash = ? LIMIT 1",
+    args: [hashToken(token)]
+  });
+
+  if (result.rows[0] && result.rows[0].used_at != null) {
+    return NextResponse.json({ scanned: true });
+  }
+
+  return NextResponse.json({ scanned: false });
 }

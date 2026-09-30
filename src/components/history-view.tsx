@@ -9,6 +9,8 @@ import { TouchPinpad } from "@/components/touch-pinpad";
 type Segment = { id: string; type: "strength" | "endurance"; exerciseName: string | null; startedAt: string; endedAt: string | null };
 type Session = { id: string; startedAt: string; endedAt: string | null; status: string; source: string; edited: boolean; segments: Segment[] };
 
+import { showToast } from "@/components/toast";
+
 function minutes(start: string, end: string | null) { return Math.max(0, Math.round((new Date(end ?? Date.now()).getTime() - new Date(start).getTime()) / 60000)); }
 
 export function HistoryView({ profile }: { profile: DashboardProfile }) {
@@ -28,8 +30,14 @@ export function HistoryView({ profile }: { profile: DashboardProfile }) {
       pin: data.get("pin"), profileId: profile.id, type: data.get("type"), startedAt: new Date(`${date}T${start}`).toISOString(), endedAt: new Date(`${date}T${end}`).toISOString(), exerciseId: null
     }) });
     const result = await response.json();
-    if (!response.ok) return setError(result.error ?? "Eintrag konnte nicht gespeichert werden");
+    if (!response.ok) {
+      const msg = result.error ?? "Eintrag konnte nicht gespeichert werden";
+      setError(msg);
+      showToast({ type: "error", title: "Fehler beim Nachtragen", message: msg });
+      return;
+    }
     setManual(false); setManualPin(""); load();
+    showToast({ type: "success", title: "Training nachgetragen", message: "Einheit wurde erfolgreich im Verlauf gespeichert." });
   }
 
   return <main className="subpage" style={{ "--profile": profile.color } as React.CSSProperties}>

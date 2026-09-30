@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { ArrowLeft, CalendarDays, CheckCircle2, Cpu, Download, Sparkles, Upload } from "lucide-react";
 import type { DashboardProfile } from "@/lib/domain";
+import { showToast } from "@/components/toast";
 
 type Plan = { id: string; title: string; goal: string; target_date: string | null; status: string; plan_json: { summary?: string; provider?: string; weeks?: { week: number; sessions: { date?: string; title: string; type: string; minutes: number; distanceKm?: number; exercises: string[] }[] }[] } };
 
@@ -23,7 +24,13 @@ export function PlanView({ profile, goals }: { profile: DashboardProfile; goals:
     }) });
     const result = await response.json(); setBusy(false);
     if (!response.ok) return setNotice(result.error ?? "Plan konnte nicht erstellt werden");
-    setNotice(result.provider === "local" ? "Plan erstellt. Es war kein KI-Schlüssel eingerichtet; verwendet wurde die lokale Vorlage." : `Plan mit ${result.provider === "openai" ? "OpenAI" : "Gemini"} erstellt.`);
+    const msg = result.provider === "local" ? "Plan erstellt (lokale Vorlage)." : `Plan mit ${result.provider === "openai" ? "OpenAI" : "Gemini"} erstellt.`;
+    setNotice(msg);
+    showToast({
+      type: "sparkles",
+      title: "Neuer Trainingsplan bereit",
+      message: msg
+    });
     setCreating(false); load();
   }
 
@@ -39,6 +46,11 @@ export function PlanView({ profile, goals }: { profile: DashboardProfile; goals:
       const result = await response.json();
       if (!response.ok) return setNotice(result.error ?? "Der Trainingsplan konnte nicht importiert werden.");
       setNotice("Trainingsplan importiert. Der vorherige aktive Plan wurde archiviert.");
+      showToast({
+        type: "success",
+        title: "Trainingsplan importiert",
+        message: "Der importierte Plan ist ab jetzt aktiv."
+      });
       await load();
     } catch {
       setNotice("Die Datei enthält kein gültiges JSON. Nutze am besten die FitFamily-Vorlage.");

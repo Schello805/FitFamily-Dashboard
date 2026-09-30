@@ -19,5 +19,5 @@ export async function GET(request: Request, { params }: { params: Promise<{ toke
     sql: "UPDATE handoff_tokens SET used_at = ? WHERE token_hash = ?",
     args: [new Date().toISOString(), hashToken(token)]
   });
-  return NextResponse.redirect(createReachableUrl(`/profil/${profileId}?mobil=1`, request));
+  return NextResponse.redirect(createReachableUrl(`/profil/${profileId}?mobil=1&verbunden=1`, request));
 }

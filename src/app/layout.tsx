@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { ServiceWorker } from "@/components/service-worker";
 import { PersistentMusicPlayer } from "@/components/persistent-music-player";
+import { ToastContainer } from "@/components/toast";
 
 export const metadata: Metadata = {
   title: "FitFamily Dashboard",
@@ -34,7 +35,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           }}
         />
       </head>
-      <body><ServiceWorker /><PersistentMusicPlayer />{children}</body>
+      <body><ServiceWorker /><PersistentMusicPlayer /><ToastContainer />{children}</body>
     </html>
   );
 }

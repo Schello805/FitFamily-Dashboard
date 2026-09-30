@@ -18,6 +18,7 @@ import type { DashboardProfile } from "@/lib/domain";
 import { LiveDuration } from "@/components/live-duration";
 import { Avatar } from "@/components/avatar";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { showToast } from "@/components/toast";
 
 type Weather = { temperature: number; apparent: number; code: number; updatedAt: string } | null;
 
@@ -124,10 +125,16 @@ export function Dashboard({
   async function stop(event: React.MouseEvent, profileId: string) {
     event.preventDefault();
     event.stopPropagation();
+    const prof = profiles.find((p) => p.id === profileId);
     await fetch("/api/training", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "stop", profileId })
+    });
+    showToast({
+      type: "info",
+      title: "Training beendet & gespeichert",
+      message: prof ? `Das Training für ${prof.name} wurde gestoppt.` : "Training wurde gestoppt."
     });
     await refresh();
   }

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { ArrowLeft, Bot, CheckCircle2, Database, Download, HardDrive, Plus, RefreshCw, RotateCcw, ShieldCheck, Sparkles } from "lucide-react";
 import { TouchPinpad } from "@/components/touch-pinpad";
+import { showToast } from "@/components/toast";
 
 type AiUsage = { requests: number; inputTokens: number; outputTokens: number; estimateUsd: number; updatedAt: string | null };
 type Status = { openai: boolean; gemini: boolean; nas: boolean; models: { openai: string; gemini: string }; usage: { openai: AiUsage; gemini: AiUsage } };
@@ -149,16 +150,22 @@ export function AdminView({ profiles, exercises, equipment }: { profiles: { id: 
       });
       const data = await response.json();
       if (!response.ok) {
-        setNotice(data.error ?? "Fehler beim Speichern des NAS-Pfads.");
+        const msg = data.error ?? "Fehler beim Speichern des NAS-Pfads.";
+        setNotice(msg);
+        showToast({ type: "error", title: "NAS-Pfad Fehler", message: msg });
       } else {
         setBackupStatus(data.status);
         if (data.status?.path) setNasPathInput(data.status.path);
         if (nasKeyInput) setNasKeyInput("");
         setStatus((cur) => (cur ? { ...cur, nas: Boolean(data.status?.writable) } : cur));
-        setNotice(data.message ?? "NAS-Pfad erfolgreich gespeichert.");
+        const msg = data.message ?? "NAS-Pfad erfolgreich gespeichert.";
+        setNotice(msg);
+        showToast({ type: "success", title: "NAS-Pfad gespeichert", message: msg });
       }
     } catch {
-      setNotice("Keine Verbindung zum Dashboard. Bitte Heimnetz prüfen.");
+      const msg = "Keine Verbindung zum Dashboard. Bitte Heimnetz prüfen.";
+      setNotice(msg);
+      showToast({ type: "error", title: "Verbindungsfehler", message: msg });
     } finally {
       setSavingNas(false);
     }
@@ -184,12 +191,18 @@ export function AdminView({ profiles, exercises, equipment }: { profiles: { id: 
         setStatus((cur) => (cur ? { ...cur, nas: Boolean(data.status.writable) } : cur));
       }
       if (!response.ok || !data.ok) {
-        setNotice(data.error ?? "Verbindung zum NAS-Ordner fehlgeschlagen.");
+        const msg = data.error ?? "Verbindung zum NAS-Ordner fehlgeschlagen.";
+        setNotice(msg);
+        showToast({ type: "error", title: "NAS-Test fehlgeschlagen", message: msg });
       } else {
-        setNotice(data.message ?? "Verbindung erfolgreich! Der NAS-Ordner ist beschreibbar.");
+        const msg = data.message ?? "Verbindung erfolgreich! Der NAS-Ordner ist beschreibbar.";
+        setNotice(msg);
+        showToast({ type: "success", title: "NAS-Verbindung erfolgreich", message: msg });
       }
     } catch {
-      setNotice("Keine Verbindung zum Dashboard. Bitte Heimnetz prüfen.");
+      const msg = "Keine Verbindung zum Dashboard. Bitte Heimnetz prüfen.";
+      setNotice(msg);
+      showToast({ type: "error", title: "Verbindungsfehler", message: msg });
     } finally {
       setTestingNas(false);
     }
@@ -199,6 +212,7 @@ export function AdminView({ profiles, exercises, equipment }: { profiles: { id: 
     if (!window.confirm("Jetzt sofort ein verschlüsseltes Backup der SQLite-Datenbank auf das NAS schreiben?")) return;
     setRunningBackup(true);
     setNotice("Sicherung wird erstellt und verschlüsselt auf das NAS übertragen …");
+    showToast({ type: "info", title: "Backup läuft …", message: "Verschlüsseltes Backup wird übertragen." });
     try {
       const response = await fetch("/api/admin/backup", {
         method: "POST",
@@ -216,12 +230,18 @@ export function AdminView({ profiles, exercises, equipment }: { profiles: { id: 
         setStatus((cur) => (cur ? { ...cur, nas: Boolean(data.status.writable) } : cur));
       }
       if (!response.ok) {
-        setNotice(data.error ?? "Backup fehlgeschlagen.");
+        const msg = data.error ?? "Backup fehlgeschlagen.";
+        setNotice(msg);
+        showToast({ type: "error", title: "Backup fehlgeschlagen", message: msg });
       } else {
-        setNotice(data.message ?? "Backup erfolgreich erstellt!");
+        const msg = data.message ?? "Backup erfolgreich erstellt!";
+        setNotice(msg);
+        showToast({ type: "success", title: "Backup erstellt", message: msg });
       }
     } catch {
-      setNotice("Fehler beim Erstellen des Backups. Bitte Verbindung prüfen.");
+      const msg = "Fehler beim Erstellen des Backups. Bitte Verbindung prüfen.";
+      setNotice(msg);
+      showToast({ type: "error", title: "Backup-Fehler", message: msg });
     } finally {
       setRunningBackup(false);
     }
@@ -235,15 +255,27 @@ export function AdminView({ profiles, exercises, equipment }: { profiles: { id: 
         body: JSON.stringify({ pin, provider, action, apiKey: apiKeys[provider] || undefined })
       });
       const result = await response.json();
-      if (!response.ok) return setNotice(result.error ?? "API-Einstellung konnte nicht verarbeitet werden.");
-      if (action === "test") setNotice(result.message ?? "API-Schlüssel ist gültig.");
-      else {
+      if (!response.ok) {
+        const msg = result.error ?? "API-Einstellung konnte nicht verarbeitet werden.";
+        setNotice(msg);
+        showToast({ type: "error", title: "KI-Fehler", message: msg });
+        return;
+      }
+      if (action === "test") {
+        const msg = result.message ?? "API-Schlüssel ist gültig.";
+        setNotice(msg);
+        showToast({ type: "success", title: "API-Test erfolgreich", message: msg });
+      } else {
         setStatus((current) => current ? { ...current, ...result.status, nas: current.nas } : current);
         if (action === "save") setApiKeys((current) => ({ ...current, [provider]: "" }));
-        setNotice(action === "save" ? "API-Schlüssel wurde lokal gespeichert." : "API-Schlüssel wurde entfernt.");
+        const msg = action === "save" ? "API-Schlüssel wurde lokal gespeichert." : "API-Schlüssel wurde entfernt.";
+        setNotice(msg);
+        showToast({ type: "success", title: "KI-Einstellung aktualisiert", message: msg });
       }
     } catch {
-      setNotice("Keine Verbindung zum Dashboard. Bitte Heimnetz prüfen und erneut versuchen.");
+      const msg = "Keine Verbindung zum Dashboard. Bitte Heimnetz prüfen und erneut versuchen.";
+      setNotice(msg);
+      showToast({ type: "error", title: "Verbindungsfehler", message: msg });
     } finally {
       setSavingApi(null);
     }
@@ -251,16 +283,27 @@ export function AdminView({ profiles, exercises, equipment }: { profiles: { id: 
 
   async function download() {
     const response = await fetch("/api/export", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pin }) });
-    if (!response.ok) return setNotice("Export fehlgeschlagen.");
+    if (!response.ok) {
+      setNotice("Export fehlgeschlagen.");
+      showToast({ type: "error", title: "Export fehlgeschlagen", message: "Daten konnten nicht exportiert werden." });
+      return;
+    }
     const blob = await response.blob(); const url = URL.createObjectURL(blob); const anchor = document.createElement("a");
     anchor.href = url; anchor.download = `fitfamily-${new Date().toISOString().slice(0,10)}.json`; anchor.click(); URL.revokeObjectURL(url);
     setNotice("Export wurde heruntergeladen.");
+    showToast({ type: "success", title: "Export erfolgreich", message: "fitfamily.json wurde heruntergeladen." });
   }
 
   async function reset(profileId: string) {
     if (!window.confirm("Nur den sichtbaren Score auf 0 setzen? Der Verlauf bleibt erhalten.")) return;
     const response = await fetch("/api/admin/reset-score", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pin, profileId }) });
-    setNotice(response.ok ? "Score wurde zurückgesetzt. Der Verlauf blieb erhalten." : "Zurücksetzen fehlgeschlagen.");
+    if (response.ok) {
+      setNotice("Score wurde zurückgesetzt. Der Verlauf blieb erhalten.");
+      showToast({ type: "info", title: "Score zurückgesetzt", message: "Punkte wurden auf 0 gesetzt. Verlauf bleibt erhalten." });
+    } else {
+      setNotice("Zurücksetzen fehlgeschlagen.");
+      showToast({ type: "error", title: "Fehler beim Zurücksetzen", message: "Score konnte nicht zurückgesetzt werden." });
+    }
   }
 
   async function saveVideo(exerciseId: string) {
@@ -271,9 +314,17 @@ export function AdminView({ profiles, exercises, equipment }: { profiles: { id: 
         body: JSON.stringify({ pin, videoUrl: videoUrls[exerciseId]?.trim() || null })
       });
       const result = await response.json();
-      setNotice(response.ok ? "Video-Link gespeichert." : result.error ?? "Video-Link konnte nicht gespeichert werden.");
+      if (response.ok) {
+        setNotice("Video-Link gespeichert.");
+        showToast({ type: "success", title: "Video gespeichert", message: "Übungsvideo wurde aktualisiert." });
+      } else {
+        const msg = result.error ?? "Video-Link konnte nicht gespeichert werden.";
+        setNotice(msg);
+        showToast({ type: "error", title: "Fehler beim Speichern", message: msg });
+      }
     } catch {
       setNotice("Keine Verbindung. Bitte Heimnetz prüfen und erneut versuchen.");
+      showToast({ type: "error", title: "Verbindungsfehler", message: "Keine Verbindung zum Dashboard." });
     } finally {
       setSavingVideo(null);
     }
@@ -288,12 +339,19 @@ export function AdminView({ profiles, exercises, equipment }: { profiles: { id: 
         body: JSON.stringify({ pin, name: item.name, quantity: item.quantity, available: item.available })
       });
       const result = await response.json();
-      if (!response.ok) return setNotice(result.error ?? "Gerät konnte nicht gespeichert werden.");
+      if (!response.ok) {
+        const msg = result.error ?? "Gerät konnte nicht gespeichert werden.";
+        setNotice(msg);
+        showToast({ type: "error", title: "Fehler", message: msg });
+        return;
+      }
       setEquipmentItems((items) => items.map((entry) => entry.id === id ? result.equipment : entry));
       setEquipmentEdits((values) => ({ ...values, [id]: result.equipment }));
       setNotice("Gerätebestand gespeichert.");
+      showToast({ type: "success", title: "Gerätebestand gespeichert", message: `${item.name} aktualisiert.` });
     } catch {
       setNotice("Keine Verbindung. Bitte Heimnetz prüfen und erneut versuchen.");
+      showToast({ type: "error", title: "Verbindungsfehler", message: "Keine Verbindung zum Dashboard." });
     } finally {
       setSavingEquipment(null);
     }
@@ -307,12 +365,20 @@ export function AdminView({ profiles, exercises, equipment }: { profiles: { id: 
         body: JSON.stringify({ pin, name: newEquipmentName, quantity: newEquipmentQuantity })
       });
       const result = await response.json();
-      if (!response.ok) return setNotice(result.error ?? "Gerät konnte nicht ergänzt werden.");
+      if (!response.ok) {
+        const msg = result.error ?? "Gerät konnte nicht ergänzt werden.";
+        setNotice(msg);
+        showToast({ type: "error", title: "Fehler", message: msg });
+        return;
+      }
       setEquipmentItems((items) => [...items, result.equipment].sort((a, b) => a.name.localeCompare(b.name, "de")));
       setEquipmentEdits((values) => ({ ...values, [result.equipment.id]: result.equipment }));
+      const addedName = newEquipmentName;
       setNewEquipmentName(""); setNewEquipmentQuantity(1); setNotice("Gerät wurde ergänzt.");
+      showToast({ type: "success", title: "Gerät hinzugefügt", message: `${addedName} ist nun verfügbar.` });
     } catch {
       setNotice("Keine Verbindung. Bitte Heimnetz prüfen und erneut versuchen.");
+      showToast({ type: "error", title: "Verbindungsfehler", message: "Keine Verbindung zum Dashboard." });
     }
   }
 
