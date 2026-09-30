@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { EXERCISE_SEEDS, movementTargetForAge, PROFILE_SEEDS, SCORE_MULTIPLIER } from "@/lib/domain";
+import { isAllowedVideoUrl } from "@/lib/exercise-video";
 
 describe("FitFamily-Domänenregeln", () => {
   it("bewertet Ausdauer doppelt so hoch wie Kraft", () => {
@@ -20,5 +21,13 @@ describe("FitFamily-Domänenregeln", () => {
     expect(movementTargetForAge(8)).toEqual({ minutes: 90, period: "Tag" });
     expect(movementTargetForAge(14)).toEqual({ minutes: 90, period: "Tag" });
     expect(movementTargetForAge(35)).toEqual({ minutes: 150, period: "Woche" });
+  });
+
+  it("erlaubt sichere HTTPS-Videolinks nur von YouTube", () => {
+    expect(isAllowedVideoUrl("https://youtu.be/abc123")).toBe(true);
+    expect(isAllowedVideoUrl("https://www.youtube.com/watch?v=abc123")).toBe(true);
+    expect(isAllowedVideoUrl("https://youtube.com.evil.example/watch?v=abc123")).toBe(false);
+    expect(isAllowedVideoUrl("http://youtube.com/watch?v=abc123")).toBe(false);
+    expect(isAllowedVideoUrl(null)).toBe(true);
   });
 });

@@ -19,7 +19,7 @@ Lokale Musikdateien werden weder exportiert noch in NAS-Backups aufgenommen, dam
 
 - Wetter: geografische Koordinaten von Bechhofen an Open-Meteo
 - KI-Planung: nur Altersgruppe, Ziel, Niveau, Zeitbudget und Geräte an den ausgewählten Anbieter
-- Anleitungsvideos: beim Öffnen gelten die Datenschutzregeln des jeweiligen Videodienstes
+- Übungsvideos werden nicht eingebettet. Erst beim bewussten Öffnen eines Links oder einer YouTube-Suche wird YouTube aufgerufen; dann gelten die Datenschutzregeln des Videodienstes.
 
 Nicht an KI-Anbieter übertragen werden Namen, exakte Geburtstage, Gerätekennungen, Apple-Health-Rohdaten oder der vollständige Trainingsverlauf. OpenAI-Anfragen werden mit deaktivierter Antwortspeicherung (`store: false`) versendet.
 

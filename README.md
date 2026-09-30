@@ -15,6 +15,7 @@ Das lokale Familien-Fitnessdashboard für den Touchmonitor im Sportraum. FitFami
 - NFC-Endpunkte pro Gerät oder Übung
 - Persönlicher Verlauf und geschütztes Nachtragen
 - Trainingspläne mit OpenAI, Gemini, lokaler Vorlage oder JSON-Import
+- Übungsanleitungen mit sicher hinterlegbaren YouTube-Links
 - Wetter für Bechhofen, Ruhemodus-Konzept und installierbare Web-App
 - Lokaler Musikplayer mit Playlist, Lautstärke und Upload eigener Audiodateien
 - Lokale SQLite-Datenbank, JSON-Export und verschlüsselte NAS-Backups
