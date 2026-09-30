@@ -26,6 +26,7 @@ fi
 
 echo ""
 echo "-> 2/5: Neueste Änderungen von GitHub laden..."
+git config --system --add safe.directory "$APP_DIR" 2>/dev/null || git config --global --add safe.directory "$APP_DIR" 2>/dev/null || true
 git fetch origin main
 git checkout main
 git pull --ff-only origin main

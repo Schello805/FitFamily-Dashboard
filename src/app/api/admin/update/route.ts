@@ -33,11 +33,13 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Eltern-PIN ist nicht richtig" }, { status: 401 });
   }
 
+  const cwd = process.cwd();
   const currentCommit = getGitCommit("git rev-parse --short HEAD") ?? "unbekannt";
   
   // Versuche, den Remote-Stand zu prüfen (ohne langes Warten, falls offline)
   try {
-    execSync("git fetch origin main", { cwd: process.cwd(), timeout: 6000, stdio: "ignore" });
+    execSync(`git config --global --add safe.directory "${cwd}" || true`, { cwd, timeout: 2000 });
+    execSync("git fetch origin main", { cwd, timeout: 6000, stdio: "ignore" });
   } catch {
     // Offline oder Netzwerk nicht erreichbar
   }
@@ -86,7 +88,7 @@ export async function POST(request: Request) {
 
   // 2. Git Pull, npm ci und Build ausführen
   try {
-    execSync("git fetch origin main && git checkout main && git pull --ff-only origin main", {
+    execSync(`git config --global --add safe.directory "${cwd}" || true; git fetch origin main && git checkout main && git pull --ff-only origin main`, {
       cwd,
       timeout: 30000,
       encoding: "utf-8"
