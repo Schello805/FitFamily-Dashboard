@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Activity, Apple, ArrowLeft, CalendarRange, Check, CheckCircle2, Copy, Download, Dumbbell, History, QrCode, Settings2, Smartphone, Square, Zap } from "lucide-react";
+import { Activity, Apple, ArrowLeft, CalendarRange, Check, CheckCircle2, Copy, Download, Dumbbell, History, QrCode, Settings2, Smartphone, Square, XCircle, Zap } from "lucide-react";
 import {
   AVATAR_IDS,
   FITNESS_STAGES,
@@ -33,6 +33,11 @@ export function ProfileView({ initialProfile, exercises }: { initialProfile: Das
   const [healthModal, setHealthModal] = useState(false);
   const [copiedWebhook, setCopiedWebhook] = useState(false);
   const [testingHealth, setTestingHealth] = useState(false);
+  const [prepCountdown, setPrepCountdown] = useState<{
+    type: TrainingType;
+    exerciseId?: string | null;
+    secondsLeft: number;
+  } | null>(null);
   const [editAvatar, setEditAvatar] = useState<AvatarId>(
     AVATAR_IDS.includes(initialProfile.avatar as AvatarId) ? (initialProfile.avatar as AvatarId) : (initialProfile.id as AvatarId)
   );
@@ -120,7 +125,7 @@ export function ProfileView({ initialProfile, exercises }: { initialProfile: Das
     events.forEach((event) => window.addEventListener(event, handleActivity, { passive: true }));
 
     const interval = window.setInterval(() => {
-      if (!deadlineRef.current || editingProfile || handoff !== null || healthModal) return;
+      if (!deadlineRef.current || editingProfile || handoff !== null || healthModal || prepCountdown !== null) return;
       const remainingMs = Math.max(0, deadlineRef.current - Date.now());
       const remainingSec = Math.ceil(remainingMs / 1000);
       setSecondsLeft(remainingSec);
@@ -136,7 +141,7 @@ export function ProfileView({ initialProfile, exercises }: { initialProfile: Das
       window.clearInterval(interval);
       events.forEach((event) => window.removeEventListener(event, handleActivity));
     };
-  }, [resetTimer, router, isMobile, editingProfile, handoff, healthModal]);
+  }, [resetTimer, router, isMobile, editingProfile, handoff, healthModal, prepCountdown]);
 
   useEffect(() => {
     const interval = window.setInterval(refresh, 5000);
@@ -149,6 +154,30 @@ export function ProfileView({ initialProfile, exercises }: { initialProfile: Das
     const timer = window.setInterval(update, 60_000);
     return () => window.clearInterval(timer);
   }, [profile.activeTraining]);
+
+  useEffect(() => {
+    if (!prepCountdown) return;
+
+    if (prepCountdown.secondsLeft <= 0) {
+      const { type, exerciseId } = prepCountdown;
+      const timeout = window.setTimeout(() => {
+        setPrepCountdown(null);
+        void action(type, exerciseId ?? undefined);
+      }, 450);
+      return () => window.clearTimeout(timeout);
+    }
+
+    const timer = window.setTimeout(() => {
+      if (prepCountdown.secondsLeft <= 4 && prepCountdown.secondsLeft > 1) {
+        playTone(660);
+      } else if (prepCountdown.secondsLeft === 1) {
+        playTone(880);
+      }
+      setPrepCountdown((prev) => prev ? { ...prev, secondsLeft: prev.secondsLeft - 1 } : null);
+    }, 1000);
+
+    return () => window.clearTimeout(timer);
+  }, [prepCountdown]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function action(type?: TrainingType, exerciseId?: string) {
     setBusy(true);
@@ -185,6 +214,34 @@ export function ProfileView({ initialProfile, exercises }: { initialProfile: Das
     await refresh();
     setBusy(false);
     if (exerciseId) router.push(`/uebung/${exerciseId}?profil=${profile.id}`);
+  }
+
+  function requestTrainingStart(type: TrainingType, exerciseId?: string) {
+    if (activeType === type && (!exerciseId || profile.activeTraining?.exerciseId === exerciseId)) {
+      return;
+    }
+    playTone(520);
+    setPrepCountdown({
+      type,
+      exerciseId: exerciseId ?? null,
+      secondsLeft: 10
+    });
+  }
+
+  function cancelCountdown() {
+    setPrepCountdown(null);
+    showToast({
+      type: "info",
+      title: "Start abgebrochen",
+      message: "Kein Training gestartet."
+    });
+  }
+
+  function instantStart() {
+    if (!prepCountdown) return;
+    const { type, exerciseId } = prepCountdown;
+    setPrepCountdown(null);
+    void action(type, exerciseId ?? undefined);
   }
 
   function playTone(frequency: number) {
@@ -376,10 +433,10 @@ export function ProfileView({ initialProfile, exercises }: { initialProfile: Das
       </section>
 
       <section className="training-actions">
-        <button disabled={busy} className={`training-button strength ${activeType === "strength" ? "selected" : ""}`} onClick={() => action("strength")}>
+        <button disabled={busy} className={`training-button strength ${activeType === "strength" ? "selected" : ""}`} onClick={() => requestTrainingStart("strength")}>
           <span className="button-icon"><Dumbbell size={46} /></span><span><small>{activeType === "strength" ? "Läuft gerade" : "Starten"}</small><strong>Kraft</strong><em>1 Punkt je Minute</em></span>
         </button>
-        <button disabled={busy} className={`training-button endurance ${activeType === "endurance" ? "selected" : ""}`} onClick={() => action("endurance")}>
+        <button disabled={busy} className={`training-button endurance ${activeType === "endurance" ? "selected" : ""}`} onClick={() => requestTrainingStart("endurance")}>
           <span className="button-icon"><Activity size={46} /></span><span><small>{activeType === "endurance" ? "Läuft gerade" : "Starten"}</small><strong>Ausdauer</strong><em>2 Punkte je Minute</em></span>
         </button>
         <button disabled={busy || !profile.activeTraining} className="training-button stop" onClick={() => action()}>
@@ -392,7 +449,7 @@ export function ProfileView({ initialProfile, exercises }: { initialProfile: Das
           <div><span className="section-kicker">Optional genauer erfassen</span><h3>Aktuelle Übung</h3></div>
           <div className="exercise-scroll">
             {exercises.filter((exercise) => exercise.type === "strength").map((exercise) => (
-              <button key={exercise.id} className={profile.activeTraining?.exerciseId === exercise.id ? "active" : ""} onClick={() => action("strength", exercise.id)}>
+              <button key={exercise.id} className={profile.activeTraining?.exerciseId === exercise.id ? "active" : ""} onClick={() => requestTrainingStart("strength", exercise.id)}>
                 <Dumbbell size={20} /><span>{exercise.name}<small>{exercise.equipment}</small></span>
               </button>
             ))}
@@ -505,6 +562,71 @@ export function ProfileView({ initialProfile, exercises }: { initialProfile: Das
                 <li><strong>Zugriff erlauben:</strong> Beim ersten Ausführen die Berechtigung für HealthKit (<em>„Trainings lesen“</em>) bestätigen.</li>
                 <li><strong>Automatisieren (Empfohlen):</strong> In der Kurzbefehle-App auf den Reiter <em>„Automation“</em> tippen &rarr; <em>„Neue Automation erstellen“</em> &rarr; <em>„Apple Watch Training beendet“</em> auswählen &rarr; <em>Diesen Kurzbefehl ausführen</em>. Fertig!</li>
               </ol>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {prepCountdown && (
+        <div className="prep-countdown-overlay" onClick={cancelCountdown}>
+          <div className="prep-countdown-card" onClick={(event) => event.stopPropagation()}>
+            <div className="prep-countdown-badge">
+              {prepCountdown.type === "strength" ? <Dumbbell size={16} /> : <Activity size={16} />}
+              <span>{prepCountdown.type === "strength" ? "Krafttraining" : "Ausdauertraining"}</span>
+            </div>
+
+            <h2 className="prep-countdown-title">
+              {prepCountdown.secondsLeft === 0 ? "LOS GEHT'S!" : "Bereitmachen!"}
+            </h2>
+            <p className="prep-countdown-subtitle">
+              {prepCountdown.exerciseId
+                ? exercises.find((e) => e.id === prepCountdown.exerciseId)?.name ?? "Übung startet gleich"
+                : prepCountdown.type === "strength"
+                  ? "Trainingszeit startet in wenigen Sekunden (+1 Punkt/Min.)"
+                  : "Trainingszeit startet in wenigen Sekunden (+2 Punkte/Min.)"}
+            </p>
+
+            <div className="prep-countdown-ring-wrap">
+              <svg className="prep-countdown-svg" viewBox="0 0 200 200">
+                <circle className="prep-ring-track" cx="100" cy="100" r="86" />
+                <circle
+                  className="prep-ring-progress"
+                  cx="100"
+                  cy="100"
+                  r="86"
+                  style={{
+                    strokeDasharray: 540.35,
+                    strokeDashoffset: 540.35 * (1 - prepCountdown.secondsLeft / 10),
+                    stroke: prepCountdown.type === "strength" ? "#a78bfa" : "#2dd4bf"
+                  }}
+                />
+              </svg>
+              {prepCountdown.secondsLeft === 0 ? (
+                <span className="prep-countdown-go">GO!</span>
+              ) : (
+                <span key={prepCountdown.secondsLeft} className="prep-countdown-number">
+                  {prepCountdown.secondsLeft}
+                </span>
+              )}
+            </div>
+
+            <div className="prep-countdown-actions">
+              <button
+                type="button"
+                className="prep-cancel-btn"
+                onClick={cancelCountdown}
+              >
+                <XCircle size={22} />
+                <span>Abbrechen (Verklickt?)</span>
+              </button>
+              <button
+                type="button"
+                className="prep-instant-btn"
+                onClick={instantStart}
+              >
+                <Zap size={18} />
+                <span>Sofort starten (Überspringen)</span>
+              </button>
             </div>
           </div>
         </div>

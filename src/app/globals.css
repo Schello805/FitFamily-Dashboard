@@ -1578,3 +1578,181 @@ body::before {
 [data-theme="dark"] .apple-source {
   color: #fb7185 !important;
 }
+
+/* 10-Sekunden Countdown Overlay */
+.prep-countdown-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--modal-backdrop);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  padding: 20px;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.prep-countdown-card {
+  width: 95%;
+  max-width: 480px;
+  background: var(--panel);
+  border: 2px solid var(--line-strong);
+  border-radius: 32px;
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.45);
+  padding: 34px 26px 28px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+  animation: scaleUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.prep-countdown-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 6px;
+  background: linear-gradient(90deg, var(--brand), #e11d48, var(--brand));
+  background-size: 200% 100%;
+}
+
+.prep-countdown-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--subtle-bg);
+  border: 1px solid var(--line);
+  font-size: 13px;
+  font-weight: 750;
+  color: var(--muted);
+  margin-bottom: 12px;
+}
+
+.prep-countdown-title {
+  font-size: 26px;
+  font-weight: 900;
+  margin: 0 0 6px;
+  letter-spacing: -0.02em;
+}
+
+.prep-countdown-subtitle {
+  font-size: 14px;
+  color: var(--muted);
+  margin: 0 0 20px;
+}
+
+.prep-countdown-ring-wrap {
+  position: relative;
+  width: 190px;
+  height: 190px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 24px;
+}
+
+.prep-countdown-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.prep-ring-track {
+  fill: none;
+  stroke: var(--ring-track);
+  stroke-width: 12;
+}
+
+.prep-ring-progress {
+  fill: none;
+  stroke: var(--brand);
+  stroke-width: 12;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.95s linear, stroke 0.3s ease;
+}
+
+.prep-countdown-number {
+  font-size: 76px;
+  font-weight: 950;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  color: var(--text);
+  animation: numPop 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.prep-countdown-go {
+  font-size: 54px;
+  font-weight: 950;
+  color: #16a34a;
+  letter-spacing: 0.04em;
+  animation: numPop 0.3s ease-out;
+}
+
+@keyframes numPop {
+  0% { transform: scale(0.6); opacity: 0.3; }
+  60% { transform: scale(1.15); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.prep-countdown-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+
+.prep-cancel-btn {
+  width: 100%;
+  padding: 15px;
+  border-radius: 16px;
+  border: 2px solid var(--danger);
+  background: rgba(225, 29, 72, 0.08);
+  color: var(--danger);
+  font-size: 16px;
+  font-weight: 850;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: all .15s ease;
+}
+
+.prep-cancel-btn:hover {
+  background: var(--danger);
+  color: #fff;
+  transform: translateY(-1px);
+}
+
+.prep-instant-btn {
+  width: 100%;
+  padding: 12px;
+  border-radius: 13px;
+  border: 1px solid var(--line);
+  background: var(--subtle-bg);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 750;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: all .15s ease;
+}
+
+.prep-instant-btn:hover {
+  background: var(--subtle-bg-hover);
+}
+
