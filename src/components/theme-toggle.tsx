@@ -29,7 +29,7 @@ function getServerSnapshot(): "light" | "dark" {
   return "light";
 }
 
-export function ThemeToggle({ className }: { className?: string }) {
+export function ThemeToggle({ className, showLabel = false }: { className?: string; showLabel?: boolean }) {
   const theme = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 
   function toggle() {
@@ -50,7 +50,8 @@ export function ThemeToggle({ className }: { className?: string }) {
       title={theme === "light" ? "Dunkles Design aktivieren" : "Helles Design aktivieren (Blendfrei)"}
       aria-label={theme === "light" ? "Auf dunkles Design umschalten" : "Auf helles blendfreies Design umschalten"}
     >
-      {theme === "light" ? <Moon size={20} /> : <Sun size={20} />}
+      {theme === "light" ? <Moon size={showLabel ? 26 : 20} /> : <Sun size={showLabel ? 26 : 20} />}
+      {showLabel && <span className="tool-label">{theme === "light" ? "Dunkel" : "Hell"}</span>}
     </button>
   );
 }

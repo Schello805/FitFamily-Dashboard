@@ -143,7 +143,7 @@ export function MusicPlayer() {
   return <>
     <audio ref={audioRef} onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)} onError={() => { setPlaying(false); setNotice("Dieser Stream ist momentan nicht erreichbar."); }} preload="none" />
     <button ref={launchButtonRef} className={`music-launch ${playing ? "is-playing" : ""}`} onClick={() => setOpen((value) => !value)} aria-expanded={open} aria-label={`Radiosteuerung öffnen${playing ? `, ${currentStation.name}${trackTitle ? `: ${trackTitle}` : ""}` : ""}`}>
-      <Music2 size={20} /><span>{playing ? <><b>{currentStation.name}</b><small>{trackTitle || currentStation.description}</small></> : "Radio"}</span>{playing && <i />}
+      <Music2 size={24} /><span>{playing ? <><b>{currentStation.name}</b><small>{trackTitle || currentStation.description}</small></> : <><b>Radio</b><small>Livestream & Sport</small></>}</span>{playing && <i />}
     </button>
     {open && <>
       <div className="music-backdrop" onClick={() => setOpen(false)} aria-hidden="true" />

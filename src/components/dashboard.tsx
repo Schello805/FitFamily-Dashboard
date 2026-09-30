@@ -136,8 +136,11 @@ export function Dashboard({
         <section className="brand-block">
           <Image className="brand-logo" src="/assets/fitfamily-logo.png" alt="FitFamily Dashboard – Gesund, aktiv, gemeinsam" width={112} height={112} priority unoptimized />
           <div className="brand-tools">
-            <Link className="admin-shortcut" href="/verwaltung" aria-label="Verwaltung öffnen"><Settings size={20} /></Link>
-            <ThemeToggle />
+            <Link className="admin-shortcut" href="/verwaltung" aria-label="Verwaltung öffnen">
+              <Settings size={26} />
+              <span className="tool-label">Setup</span>
+            </Link>
+            <ThemeToggle showLabel={true} />
             {activeQr && (
               <button
                 type="button"
@@ -149,14 +152,17 @@ export function Dashboard({
                 <Image
                   src={activeQr}
                   alt="QR-Code für Smartphone"
-                  width={34}
-                  height={34}
+                  width={92}
+                  height={92}
                   className="header-qr-thumbnail"
                   unoptimized
                 />
                 <span className="header-qr-label">
-                  <Smartphone size={13} />
-                  <b>Handy</b>
+                  <Smartphone size={18} />
+                  <span className="header-qr-texts">
+                    <b>Handy</b>
+                    <small>Scannen</small>
+                  </span>
                 </span>
               </button>
             )}
