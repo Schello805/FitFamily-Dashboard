@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { ArrowLeft, Bot, CheckCircle2, Database, Download, HardDrive, Plus, RotateCcw, ShieldCheck } from "lucide-react";
+import { ArrowLeft, Bot, CheckCircle2, Database, Download, HardDrive, Plus, RefreshCw, RotateCcw, ShieldCheck, Sparkles } from "lucide-react";
 
 type AiUsage = { requests: number; inputTokens: number; outputTokens: number; estimateUsd: number; updatedAt: string | null };
 type Status = { openai: boolean; gemini: boolean; nas: boolean; models: { openai: string; gemini: string }; usage: { openai: AiUsage; gemini: AiUsage } };
 type ExerciseMedia = { id: string; name: string; equipment: string; videoUrl: string | null };
 type EquipmentItem = { id: string; name: string; quantity: number; available: boolean };
+type UpdateInfo = { currentCommit: string; latestCommit: string; latestMessage: string; hasUpdate: boolean; version: string };
 
 export function AdminView({ profiles, exercises, equipment }: { profiles: { id: string; name: string; score: number }[]; exercises: ExerciseMedia[]; equipment: EquipmentItem[] }) {
   const [pin, setPin] = useState("");
@@ -24,12 +25,70 @@ export function AdminView({ profiles, exercises, equipment }: { profiles: { id: 
   const [apiKeys, setApiKeys] = useState({ openai: "", gemini: "" });
   const [savingApi, setSavingApi] = useState<string | null>(null);
 
+  const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
+  const [checkingUpdate, setCheckingUpdate] = useState(false);
+  const [runningUpdate, setRunningUpdate] = useState(false);
+  const [updateCountdown, setUpdateCountdown] = useState<number | null>(null);
+
+  async function checkUpdate(effectivePin?: string) {
+    const pinToUse = effectivePin || pin;
+    if (!pinToUse) return;
+    setCheckingUpdate(true);
+    try {
+      const response = await fetch(`/api/admin/update?pin=${encodeURIComponent(pinToUse)}`);
+      const data = await response.json();
+      if (response.ok) {
+        setUpdateInfo(data);
+      } else {
+        setNotice(data.error ?? "Update-Prüfung fehlgeschlagen.");
+      }
+    } catch {
+      setNotice("Update-Server konnte nicht erreicht werden.");
+    } finally {
+      setCheckingUpdate(false);
+    }
+  }
+
+  async function applyUpdate() {
+    if (!window.confirm("Jetzt das Update einspielen? Ein Sicherheits-Backup der Datenbank wird automatisch erstellt, der neueste Stand wird geladen, gebaut und das Dashboard neu gestartet.")) return;
+    setRunningUpdate(true);
+    setNotice("Update wird ausgeführt: Neueste Version wird geladen und kompiliert. Bitte warten …");
+    try {
+      const response = await fetch("/api/admin/update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pin })
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        setNotice(data.error ?? "Update fehlgeschlagen.");
+        setRunningUpdate(false);
+        return;
+      }
+      setNotice("Update erfolgreich abgeschlossen! Dashboard startet neu …");
+      let countdown = 6;
+      setUpdateCountdown(countdown);
+      const timer = setInterval(() => {
+        countdown -= 1;
+        setUpdateCountdown(countdown);
+        if (countdown <= 0) {
+          clearInterval(timer);
+          window.location.reload();
+        }
+      }, 1000);
+    } catch {
+      setNotice("Verbindung wird neu aufgebaut … Dashboard lädt in Kürze neu.");
+      setTimeout(() => window.location.reload(), 4000);
+    }
+  }
+
   async function unlock(event: React.FormEvent) {
     event.preventDefault(); setError("");
     const response = await fetch("/api/admin/verify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pin }) });
     const result = await response.json();
     if (!response.ok) return setError(result.error);
     setStatus({ ...result.providers, usage: result.usage, models: result.models, nas: result.nas });
+    void checkUpdate(pin);
   }
 
   async function manageApiKey(provider: "openai" | "gemini", action: "save" | "remove" | "test") {
@@ -125,6 +184,26 @@ export function AdminView({ profiles, exercises, equipment }: { profiles: { id: 
 
   return <main className="admin-page"><header><Link href="/"><ArrowLeft /> Dashboard</Link><div><span>Elternbereich</span><h1>Verwaltung</h1></div></header>{notice && <p className="notice">{notice}</p>}
     <section className="admin-grid"><article><div className="admin-title"><Database /><div><h2>Meine Daten</h2><p>Vollständiger lokaler Datenbestand</p></div></div><ul><li><CheckCircle2 /> Profildaten und Geburtsdaten</li><li><CheckCircle2 /> Trainings- und Punkteverlauf</li><li><CheckCircle2 /> Pläne und Änderungsprotokoll</li></ul><button onClick={download}><Download /> JSON herunterladen</button></article>
+      <article className="wide update-card">
+        <div className="admin-title"><RefreshCw className={checkingUpdate || runningUpdate ? "spin" : ""} /><div><h2>Software-Update</h2><p>Dashboard auf den neuesten Stand von GitHub bringen</p></div></div>
+        <div className="update-status-grid">
+          <div className="update-meta-box"><span>Installierte Version</span><b>v{updateInfo?.version ?? "0.1.0"} {updateInfo ? `(${updateInfo.currentCommit})` : ""}</b></div>
+          <div className="update-meta-box"><span>GitHub Repository</span><b className={updateInfo?.hasUpdate ? "update-tag-new" : "update-tag-current"}>{updateInfo ? (updateInfo.hasUpdate ? `Neues Update verfügbar (${updateInfo.latestCommit})` : `Aktuell (${updateInfo.latestCommit})`) : (checkingUpdate ? "Prüfung läuft …" : "Noch nicht geprüft")}</b></div>
+        </div>
+        {updateInfo?.hasUpdate && (
+          <div className="update-alert-banner"><Sparkles /><div><b>Neues Update bereit zur Installation</b><p className="update-commit-log">&bdquo;{updateInfo.latestMessage}&ldquo;</p></div></div>
+        )}
+        <div className="update-action-row">
+          <button type="button" className="update-secondary-btn" disabled={checkingUpdate || runningUpdate} onClick={() => void checkUpdate()}><RefreshCw className={checkingUpdate ? "spin" : ""} />{checkingUpdate ? "Prüfe …" : "Jetzt prüfen"}</button>
+          {updateInfo?.hasUpdate && (
+            <button type="button" className="primary-update-btn" disabled={runningUpdate} onClick={() => void applyUpdate()}>{runningUpdate ? (<><RefreshCw className="spin" />Wird aktualisiert & neu gebaut …</>) : (<><Sparkles />1-Click Update einspielen</>)}</button>
+          )}
+        </div>
+        {updateCountdown !== null && (
+          <div className="update-countdown-alert">Dienst wurde neu gestartet. Das Dashboard lädt neu in <b>{updateCountdown}</b> Sekunden …</div>
+        )}
+        <p className="data-text">Vor dem Einspielen wird automatisch ein SQLite-Backup unter <code>backups/</code> angelegt. Alternativ im Terminal per <code>sudo /opt/fitfamily/scripts/update.sh</code> oder <code>npm run update</code>.</p>
+      </article>
       <article className="wide"><div className="admin-title"><Bot /><div><h2>KI-Integrationen</h2><p>API-Schlüssel lokal auf diesem Gerät speichern – ohne Code oder Serverdatei.</p></div></div>
         {(["openai", "gemini"] as const).map((provider) => {
           const usage = status.usage[provider];

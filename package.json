@@ -11,6 +11,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "backup": "node --env-file-if-exists=.env.local scripts/backup.mjs",
+    "update": "bash scripts/update.sh",
     "verify": "npm run lint && npm run typecheck && npm run test && npm run build"
   },
   "dependencies": {

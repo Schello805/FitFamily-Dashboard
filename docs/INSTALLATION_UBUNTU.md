@@ -107,17 +107,29 @@ sudo systemctl restart fitfamily
 sudo journalctl -u fitfamily -n 100 --no-pager
 ```
 
-## Aktualisieren
+## Aktualisieren (Updates einspielen)
 
-Vor Updates zuerst eine Sicherung der Datenbank erstellen. Danach im Terminal:
+FitFamily bietet zwei bequeme Möglichkeiten für Updates. Bei beiden Methoden wird **vorab automatisch eine Sicherungskopie der SQLite-Datenbank** unter `backups/` gespeichert.
+
+### Methode 1: Direkt im Browser (1-Click Update)
+1. Öffne das Dashboard und wechsle zu **Verwaltung** (`/verwaltung`).
+2. Entsperre den Bereich mit deinem Eltern-PIN.
+3. Im Bereich **„Software-Update“** siehst du sofort, ob eine neue Version auf GitHub verfügbar ist.
+4. Klicke auf **„1-Click Update einspielen“**. Die Änderungen werden im Hintergrund geladen, installiert, gebaut und der Dienst startet nahtlos neu.
+
+### Methode 2: Über das Terminal (Automatisiert)
+Im Terminal des Ubuntu-PCs einfach folgenden Einzeiler ausführen:
 
 ```bash
-cd /opt/fitfamily
-sudo -u fitfamily git pull --ff-only
-sudo -u fitfamily npm ci
-sudo -u fitfamily npm run verify
-sudo -u fitfamily npm run build
-sudo systemctl restart fitfamily
+sudo /opt/fitfamily/scripts/update.sh
 ```
+*(Alternativ im Projektordner: `npm run update`)*
 
-Bei einem fehlgeschlagenen Test oder Build den Dienst nicht neu starten; so bleibt die laufende Version aktiv.
+Das Skript führt vollautomatisch folgende Schritte durch:
+1. Datenbank-Backup anlegen (`backups/fitfamily-backup-pre-update-*.db`)
+2. Neueste Version von GitHub laden (`git pull --ff-only origin main`)
+3. Abhängigkeiten aktualisieren (`npm ci`)
+4. Dashboard neu bauen (`npm run build`)
+5. Hintergrunddienst neu starten (`systemctl restart fitfamily`)
+
+Deine Einstellungen in `.env.local` und alle Trainingsdaten bleiben dabei vollständig erhalten.

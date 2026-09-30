@@ -13,10 +13,9 @@ Environment=NODE_ENV=production
 ExecStart=/usr/bin/npm start -- --hostname 0.0.0.0 --port 3000
 Restart=on-failure
 RestartSec=5
-NoNewPrivileges=true
 PrivateTmp=true
-ProtectSystem=strict
-ReadWritePaths=/opt/fitfamily/data /opt/fitfamily/backups -/opt/fitfamily/.next -/mnt/nas/fitfamily
+ProtectSystem=full
+ReadWritePaths=/opt/fitfamily -/mnt/nas/fitfamily
 
 [Install]
 WantedBy=multi-user.target

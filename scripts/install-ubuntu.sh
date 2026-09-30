@@ -95,8 +95,16 @@ EOF
   echo "-> .env.local wurde erfolgreich eingerichtet."
 fi
 
+chmod +x "$APP_DIR/scripts/"*.sh || true
 chown -R "$APP_USER:$APP_USER" "$APP_DIR"
 chmod 0600 "$APP_DIR/.env.local"
+
+# Sudoers-Berechtigung einrichten (erlaubt 1-Click-Web-Update und automatisches Service-Restart)
+cat > /etc/sudoers.d/fitfamily << 'EOF'
+fitfamily ALL=(ALL) NOPASSWD: /bin/systemctl restart fitfamily, /usr/bin/systemctl restart fitfamily, /opt/fitfamily/scripts/update.sh
+EOF
+chmod 0440 /etc/sudoers.d/fitfamily
+
 cd "$APP_DIR"
 sudo -u "$APP_USER" npm ci
 sudo -u "$APP_USER" npm run build
@@ -113,4 +121,8 @@ echo " Monitor (lokal):  http://localhost:3000"
 if [[ -n "$effective_url" ]]; then
   echo " Mobil (Heimnetz): $effective_url"
 fi
+echo ""
+echo " Updates:"
+echo " - Im Browser: /verwaltung (1-Click Update)"
+echo " - Im Terminal: sudo /opt/fitfamily/scripts/update.sh"
 echo "=========================================================="
