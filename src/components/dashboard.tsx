@@ -47,7 +47,7 @@ function Avatar({ profile }: { profile: DashboardProfile }) {
   return (
     <div className="avatar avatar-generated" style={{ "--profile": profile.color } as React.CSSProperties} aria-label={`Avatar von ${profile.name}`}>
       <div className="avatar-glow" />
-      <div className={`avatar-sprite ${profile.id}`} />
+      <Image className="avatar-sprite" src={`/assets/avatars/${profile.id}.webp`} alt="" width={222} height={444} unoptimized draggable={false} />
       <div className="level-chip">Lvl {level}</div>
     </div>
   );
