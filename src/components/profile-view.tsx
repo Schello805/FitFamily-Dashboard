@@ -18,6 +18,7 @@ import {
 import { LiveDuration } from "@/components/live-duration";
 import { AvatarPicker } from "@/components/avatar-picker";
 import { Avatar } from "@/components/avatar";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 type Exercise = { id: string; name: string; type: string; equipment: string };
 
@@ -173,6 +174,7 @@ export function ProfileView({ initialProfile, exercises }: { initialProfile: Das
         <Link href="/" className="icon-link"><ArrowLeft size={30} /><span>Dashboard</span></Link>
         <div><span className="eyebrow">Training für</span><h1>{profile.name}</h1></div>
         <div className="profile-topbar-right">
+          <ThemeToggle />
           <div className="profile-idle-badge" onClick={resetTimer} title="Automatische Rückkehr zum Dashboard bei Inaktivität (Tippen zum Verlängern)">
             <span className="idle-pulse-dot" />
             <small>Dashboard in</small>

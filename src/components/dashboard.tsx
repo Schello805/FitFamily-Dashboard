@@ -16,6 +16,7 @@ import {
 import type { DashboardProfile } from "@/lib/domain";
 import { LiveDuration } from "@/components/live-duration";
 import { Avatar } from "@/components/avatar";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 type Weather = { temperature: number; apparent: number; code: number; updatedAt: string } | null;
 
@@ -102,7 +103,10 @@ export function Dashboard({ initialProfiles, version }: { initialProfiles: Dashb
       <header className="topbar">
         <section className="brand-block">
           <Image className="brand-logo" src="/assets/fitfamily-logo.png" alt="FitFamily Dashboard – Gesund, aktiv, gemeinsam" width={112} height={112} priority unoptimized />
-          <Link className="admin-shortcut" href="/verwaltung" aria-label="Verwaltung öffnen"><Settings size={20} /></Link>
+          <div className="brand-tools">
+            <Link className="admin-shortcut" href="/verwaltung" aria-label="Verwaltung öffnen"><Settings size={20} /></Link>
+            <ThemeToggle />
+          </div>
         </section>
         <section className="weather-block" aria-label="Wetter in Bechhofen">
           <CloudSun size={36} />
