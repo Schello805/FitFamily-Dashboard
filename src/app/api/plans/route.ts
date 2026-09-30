@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
+import { getAiApiKey, recordAiUsage } from "@/lib/ai-config";
 
 const schema = z.object({
   profileId: z.string(), goal: z.string().min(2).max(100), level: z.enum(["Einsteiger", "Fortgeschritten", "Erfahren"]),
@@ -56,29 +57,33 @@ function localPlan(input: z.infer<typeof schema>, equipment: string[]) {
 }
 
 async function callOpenAI(input: z.infer<typeof schema>, equipment: string[]) {
-  if (!process.env.OPENAI_API_KEY) return null;
+  const apiKey = await getAiApiKey("openai");
+  if (!apiKey) return null;
   const prompt = `Erstelle einen sicheren deutschsprachigen Trainingsplan als JSON. Anonymisierte Daten: Ziel ${input.goal}; Niveau ${input.level}; ${input.sessionsPerWeek} Einheiten pro Woche; ${input.minutesPerSession} Minuten je Einheit; Zieltermin ${input.targetDate ?? "offenes Ende"}; Geräte: ${equipment.join(", ")}. Keine medizinischen Versprechen. Fokus auf korrekte Technik.`;
   const response = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
-    headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}`, "Content-Type": "application/json" },
+    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
     body: JSON.stringify({ model: process.env.OPENAI_MODEL ?? "gpt-5.6-luna", store: false, input: prompt, text: { format: { type: "json_object" } } })
   });
   if (!response.ok) throw new Error(`OpenAI API: ${response.status}`);
   const data = await response.json();
+  if (data.usage) await recordAiUsage("openai", Number(data.usage.input_tokens ?? 0), Number(data.usage.output_tokens ?? 0));
   const text = data.output?.flatMap((item: { content?: { text?: string }[] }) => item.content ?? []).find((item: { text?: string }) => item.text)?.text;
   return text ? JSON.parse(text) : null;
 }
 
 async function callGemini(input: z.infer<typeof schema>, equipment: string[]) {
-  if (!process.env.GEMINI_API_KEY) return null;
+  const apiKey = await getAiApiKey("gemini");
+  if (!apiKey) return null;
   const prompt = `Erstelle ausschließlich JSON für einen sicheren deutschen Trainingsplan. Ziel: ${input.goal}; Niveau: ${input.level}; Einheiten/Woche: ${input.sessionsPerWeek}; Minuten: ${input.minutesPerSession}; Zieltermin: ${input.targetDate ?? "offen"}; Geräte: ${equipment.join(", ")}.`;
   const model = process.env.GEMINI_MODEL ?? "gemini-2.5-flash";
-  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${process.env.GEMINI_API_KEY}`, {
+  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`, {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json" } })
   });
   if (!response.ok) throw new Error(`Gemini API: ${response.status}`);
   const data = await response.json();
+  if (data.usageMetadata) await recordAiUsage("gemini", Number(data.usageMetadata.promptTokenCount ?? 0), Number(data.usageMetadata.candidatesTokenCount ?? 0) + Number(data.usageMetadata.thoughtsTokenCount ?? 0));
   const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
   return text ? JSON.parse(text) : null;
 }

@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useState } from "react";
 import { ArrowLeft, Bot, CheckCircle2, Database, Download, HardDrive, Plus, RotateCcw, ShieldCheck } from "lucide-react";
 
-type Status = { openai: boolean; gemini: boolean; nas: boolean };
+type AiUsage = { requests: number; inputTokens: number; outputTokens: number; estimateUsd: number; updatedAt: string | null };
+type Status = { openai: boolean; gemini: boolean; nas: boolean; models: { openai: string; gemini: string }; usage: { openai: AiUsage; gemini: AiUsage } };
 type ExerciseMedia = { id: string; name: string; equipment: string; videoUrl: string | null };
 type EquipmentItem = { id: string; name: string; quantity: number; available: boolean };
 
@@ -20,13 +21,37 @@ export function AdminView({ profiles, exercises, equipment }: { profiles: { id: 
   const [savingEquipment, setSavingEquipment] = useState<string | null>(null);
   const [newEquipmentName, setNewEquipmentName] = useState("");
   const [newEquipmentQuantity, setNewEquipmentQuantity] = useState(1);
+  const [apiKeys, setApiKeys] = useState({ openai: "", gemini: "" });
+  const [savingApi, setSavingApi] = useState<string | null>(null);
 
   async function unlock(event: React.FormEvent) {
     event.preventDefault(); setError("");
     const response = await fetch("/api/admin/verify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pin }) });
     const result = await response.json();
     if (!response.ok) return setError(result.error);
-    setStatus({ ...result.providers, nas: result.nas });
+    setStatus({ ...result.providers, usage: result.usage, models: result.models, nas: result.nas });
+  }
+
+  async function manageApiKey(provider: "openai" | "gemini", action: "save" | "remove" | "test") {
+    setSavingApi(`${provider}-${action}`); setNotice("");
+    try {
+      const response = await fetch("/api/admin/ai-settings", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pin, provider, action, apiKey: apiKeys[provider] || undefined })
+      });
+      const result = await response.json();
+      if (!response.ok) return setNotice(result.error ?? "API-Einstellung konnte nicht verarbeitet werden.");
+      if (action === "test") setNotice(result.message ?? "API-Schlüssel ist gültig.");
+      else {
+        setStatus((current) => current ? { ...current, ...result.status, nas: current.nas } : current);
+        if (action === "save") setApiKeys((current) => ({ ...current, [provider]: "" }));
+        setNotice(action === "save" ? "API-Schlüssel wurde lokal gespeichert." : "API-Schlüssel wurde entfernt.");
+      }
+    } catch {
+      setNotice("Keine Verbindung zum Dashboard. Bitte Heimnetz prüfen und erneut versuchen.");
+    } finally {
+      setSavingApi(null);
+    }
   }
 
   async function download() {
@@ -100,7 +125,20 @@ export function AdminView({ profiles, exercises, equipment }: { profiles: { id: 
 
   return <main className="admin-page"><header><Link href="/"><ArrowLeft /> Dashboard</Link><div><span>Elternbereich</span><h1>Verwaltung</h1></div></header>{notice && <p className="notice">{notice}</p>}
     <section className="admin-grid"><article><div className="admin-title"><Database /><div><h2>Meine Daten</h2><p>Vollständiger lokaler Datenbestand</p></div></div><ul><li><CheckCircle2 /> Profildaten und Geburtsdaten</li><li><CheckCircle2 /> Trainings- und Punkteverlauf</li><li><CheckCircle2 /> Pläne und Änderungsprotokoll</li></ul><button onClick={download}><Download /> JSON herunterladen</button></article>
-      <article><div className="admin-title"><Bot /><div><h2>Integrationen</h2><p>Schlüssel bleiben auf diesem Gerät</p></div></div><div className="status-row"><span>OpenAI</span><b className={status.openai ? "ok" : "off"}>{status.openai ? "Bereit" : "Nicht eingerichtet"}</b></div><div className="status-row"><span>Google Gemini</span><b className={status.gemini ? "ok" : "off"}>{status.gemini ? "Bereit" : "Nicht eingerichtet"}</b></div><div className="status-row"><span>NAS-Backup</span><b className={status.nas ? "ok" : "off"}>{status.nas ? "Bereit" : "Nicht eingerichtet"}</b></div></article>
+      <article className="wide"><div className="admin-title"><Bot /><div><h2>KI-Integrationen</h2><p>API-Schlüssel lokal auf diesem Gerät speichern – ohne Code oder Serverdatei.</p></div></div>
+        {(["openai", "gemini"] as const).map((provider) => {
+          const usage = status.usage[provider];
+          const label = provider === "openai" ? "OpenAI" : "Google Gemini";
+          return <section className="ai-provider" key={provider}>
+            <div className="ai-provider-heading"><div><b>{label}</b><small>{status.models[provider]}</small></div><b className={status[provider] ? "ok" : "off"}>{status[provider] ? "Eingerichtet" : "Nicht eingerichtet"}</b></div>
+            <label className="api-key-field">API-Schlüssel<input type="password" autoComplete="new-password" placeholder={status[provider] ? "Gespeichert – leer lassen, um ihn beizubehalten" : "Schlüssel hier einfügen"} value={apiKeys[provider]} onChange={(event) => setApiKeys((current) => ({ ...current, [provider]: event.target.value }))} /></label>
+            <div className="api-key-actions"><button disabled={Boolean(savingApi)} onClick={() => manageApiKey(provider, "save")}>Schlüssel speichern</button><button disabled={Boolean(savingApi)} onClick={() => manageApiKey(provider, "test")}>Schlüssel testen</button>{status[provider] && <button className="api-remove" disabled={Boolean(savingApi)} onClick={() => manageApiKey(provider, "remove")}>Entfernen</button>}</div>
+            <div className="ai-usage"><b>{usage.estimateUsd.toLocaleString("de-DE", { style: "currency", currency: "USD", minimumFractionDigits: 4, maximumFractionDigits: 4 })}</b><span>geschätzte API-Kosten · {usage.requests} Anfragen · {(usage.inputTokens + usage.outputTokens).toLocaleString("de-DE")} Token</span></div>
+          </section>;
+        })}
+        <p className="data-text">Die Verbrauchserfassung beginnt ab jetzt und umfasst nur KI-Pläne, die über diese App erstellt werden. Die Kostenschätzung nutzt die erfassten Token und aktuelle Standardpreise; sie kann von der Anbieterabrechnung abweichen und zeigt keine frühere Nutzung. <a href="https://developers.openai.com/api/docs/pricing" target="_blank" rel="noreferrer">OpenAI-Preise</a> · <a href="https://ai.google.dev/gemini-api/docs/pricing" target="_blank" rel="noreferrer">Gemini-Preise</a>.</p>
+      </article>
+      <article><div className="admin-title"><HardDrive /><div><h2>NAS-Backup</h2><p>Speicherort</p></div></div><div className="status-row"><span>Verbindung</span><b className={status.nas ? "ok" : "off"}>{status.nas ? "Bereit" : "Nicht eingerichtet"}</b></div></article>
       <article className="wide"><div className="admin-title"><RotateCcw /><div><h2>Scores zurücksetzen</h2><p>Der vollständige Trainingsverlauf bleibt erhalten.</p></div></div><div className="reset-list">{profiles.map((profile) => <div key={profile.id}><span>{profile.name}<small>{profile.score} Punkte</small></span><button onClick={() => reset(profile.id)}>Auf 0 setzen</button></div>)}</div></article>
       <article className="wide"><div className="admin-title"><HardDrive /><div><h2>Speicherorte</h2><p>Transparenz über vorhandene Daten</p></div></div><p className="data-text">Stammdaten, Training und Pläne: lokale SQLite-Datenbank · Backups: {status.nas ? "verschlüsselt auf NAS" : "noch nicht eingerichtet"} · Wetter: Open-Meteo · KI: nur bei bewusster Planerstellung.</p></article>
       <article className="wide"><div className="admin-title"><Database /><div><h2>Geräte im Sportraum</h2><p>Stückzahl und Verfügbarkeit für Übungsauswahl und neue Trainingspläne</p></div></div><div className="inventory-list">{equipmentItems.map((item) => { const edit = equipmentEdits[item.id] ?? item; return <div className="inventory-row" key={item.id}><label>Gerätename<input value={edit.name} maxLength={60} onChange={(event) => setEquipmentEdits((values) => ({ ...values, [item.id]: { ...edit, name: event.target.value } }))} /></label><label className="quantity-field">Anzahl<input type="number" min={1} max={8} value={edit.quantity} onChange={(event) => setEquipmentEdits((values) => ({ ...values, [item.id]: { ...edit, quantity: Number(event.target.value) } }))} /></label><label className="inventory-toggle"><input type="checkbox" checked={edit.available} onChange={(event) => setEquipmentEdits((values) => ({ ...values, [item.id]: { ...edit, available: event.target.checked } }))} /> Verfügbar</label><button disabled={savingEquipment === item.id} onClick={() => saveEquipment(item.id)}>{savingEquipment === item.id ? "Speichert …" : "Speichern"}</button></div>; })}</div><form className="inventory-add" onSubmit={addEquipment}><label>Weiteres Gerät<input required minLength={2} maxLength={60} placeholder="z. B. Hantelbank" value={newEquipmentName} onChange={(event) => setNewEquipmentName(event.target.value)} /></label><label className="quantity-field">Anzahl<input type="number" min={1} max={8} value={newEquipmentQuantity} onChange={(event) => setNewEquipmentQuantity(Number(event.target.value))} /></label><button><Plus /> Gerät ergänzen</button></form><p className="data-text">Deaktivierte Geräte bleiben im bisherigen Trainingsverlauf erhalten, werden aber künftig nicht zur Auswahl angeboten.</p></article>

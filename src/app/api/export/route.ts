@@ -14,7 +14,7 @@ export async function POST(request: Request) {
   const tableNames = ["profiles", "exercises", "training_sessions", "training_segments", "training_plans", "audit_log"] as const;
   const data: Record<string, unknown> = {};
   for (const table of tableNames) data[table] = (await client.execute(`SELECT * FROM ${table}`)).rows;
-  const settings = await client.execute("SELECT key, value, updated_at FROM settings WHERE key NOT IN ('admin_pin_hash')");
+  const settings = await client.execute("SELECT key, value, updated_at FROM settings WHERE key NOT IN ('admin_pin_hash') AND key NOT LIKE 'ai_key_%'");
   data.settings = settings.rows;
   const date = new Date().toISOString().slice(0, 10);
   return new NextResponse(JSON.stringify({ format: "fitfamily-export", version: 1, exportedAt: new Date().toISOString(), data }, null, 2), {

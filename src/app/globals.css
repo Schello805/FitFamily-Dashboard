@@ -432,6 +432,22 @@ body::before {
 .status-row b { font-size: 11px; }
 .status-row b.ok { color: #4ade80; }
 .status-row b.off { color: var(--muted); }
+.ai-provider { margin-top: 16px; padding: 15px; border: 1px solid var(--line); border-radius: 15px; background: rgba(0,0,0,.12); }
+.ai-provider-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.ai-provider-heading > div b, .ai-provider-heading small { display: block; }
+.ai-provider-heading small { margin-top: 4px; color: var(--muted); font-size: 11px; }
+.ai-provider-heading > b { font-size: 11px; }
+.api-key-field { display: grid; gap: 6px; margin-top: 13px; color: var(--muted); font-size: 11px; font-weight: 750; }
+.api-key-field input { width: 100%; height: 46px; padding: 0 12px; border: 1px solid var(--line); border-radius: 11px; color: var(--text); background: rgba(0,0,0,.22); }
+.api-key-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.api-key-actions button { min-height: 44px; padding: 0 13px; border: 1px solid var(--line); border-radius: 11px; color: var(--text); background: rgba(255,255,255,.04); font-size: 12px; font-weight: 750; cursor: pointer; touch-action: manipulation; }
+.api-key-actions button:first-child { border-color: transparent; color: #05201d; background: var(--brand); }
+.api-key-actions button.api-remove { color: #fda4af; border-color: rgba(251,113,133,.25); }
+.api-key-actions button:disabled { opacity: .55; }
+.ai-usage { display: flex; flex-wrap: wrap; align-items: baseline; gap: 9px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
+.ai-usage > b { color: var(--brand-bright); font-size: 18px; font-variant-numeric: tabular-nums; }
+.ai-usage > span { color: var(--muted); font-size: 11px; }
+.data-text a { color: var(--brand-bright); text-decoration: underline; text-underline-offset: 2px; }
 .reset-list { margin-top: 15px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 9px; }
 .reset-list > div { display: flex; align-items: center; justify-content: space-between; padding: 11px 13px; border: 1px solid var(--line); border-radius: 13px; }
 .reset-list span { font-weight: 800; }

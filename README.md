@@ -40,7 +40,7 @@ Für deinen Lenovo All-in-One ist Ubuntu Desktop als Hauptrechner geeignet; ein 
 
 ## KI-Anbieter
 
-KI ist optional. Ohne Schlüssel erstellt FitFamily lokale Vorlagen. Schlüssel gehören ausschließlich in `.env.local` auf dem Gerät, auf dem FitFamily läuft:
+KI ist optional. Ohne Schlüssel erstellt FitFamily lokale Vorlagen. API-Schlüssel lassen sich im Elternbereich unter **Verwaltung → KI-Integrationen** direkt eingeben, testen, speichern oder entfernen. Sie werden serverseitig in der lokalen FitFamily-Datenbank abgelegt, im Browser nicht erneut angezeigt und beim JSON-Export ausgeschlossen. Alternativ können sie weiterhin in `.env.local` auf dem Gerät hinterlegt werden:
 
 ```dotenv
 OPENAI_API_KEY=
@@ -50,6 +50,8 @@ GEMINI_MODEL=gemini-2.5-flash
 ```
 
 An Anbieter werden nur anonymisierte Planparameter übermittelt. Namen, Geburtstage und Apple-Health-Daten verlassen das Gerät nicht. Mehr dazu in [DATENSCHUTZ.md](DATENSCHUTZ.md).
+
+Die Verwaltung erfasst ab Aktivierung die von KI-Plananfragen gemeldeten Token und berechnet daraus eine ungefähre Summe in US-Dollar. Das ist keine Anbieterabrechnung; frühere Nutzung und mögliche Gratis-Kontingente werden nicht berücksichtigt. Aktuelle Berechnungsgrundlage: [OpenAI-Preise](https://developers.openai.com/api/docs/pricing) und [Gemini-Preise](https://ai.google.dev/gemini-api/docs/pricing).
 
 ## NFC
 
