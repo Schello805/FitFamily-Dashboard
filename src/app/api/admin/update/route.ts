@@ -86,15 +86,31 @@ export async function POST(request: Request) {
     );
   }
 
-  // 2. Git Pull, npm ci und Build ausführen
+  // 2. Git Fetch & Reset --hard, npm install und Build ausführen
   try {
-    execSync(`git config --global --add safe.directory "${cwd}" || true; git fetch origin main && git checkout main && git pull --ff-only origin main`, {
-      cwd,
-      timeout: 30000,
-      encoding: "utf-8"
-    });
-    execSync("npm ci", { cwd, timeout: 120000, encoding: "utf-8" });
-    execSync("npm run build", { cwd, timeout: 180000, encoding: "utf-8" });
+    let updatedViaScript = false;
+    const scriptPath = path.join(cwd, "scripts", "update.sh");
+    if (existsSync(scriptPath)) {
+      try {
+        execSync("sudo -n /opt/fitfamily/scripts/update.sh || sudo -n bash scripts/update.sh", {
+          cwd,
+          timeout: 180000,
+          encoding: "utf-8"
+        });
+        updatedViaScript = true;
+      } catch {
+        updatedViaScript = false;
+      }
+    }
+
+    if (!updatedViaScript) {
+      execSync(
+        `git config --system --add safe.directory "${cwd}" 2>/dev/null || git config --global --add safe.directory "${cwd}" 2>/dev/null || true; git fetch origin main && git checkout -f main && git reset --hard origin/main`,
+        { cwd, timeout: 35000, encoding: "utf-8" }
+      );
+      execSync("npm install --prefer-offline --no-audit --no-fund", { cwd, timeout: 120000, encoding: "utf-8" });
+      execSync("npm run build", { cwd, timeout: 180000, encoding: "utf-8" });
+    }
   } catch (err) {
     return NextResponse.json(
       {

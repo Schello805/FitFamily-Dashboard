@@ -69,14 +69,26 @@ const pkgPath = path.join(rootDir, "package.json");
 const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf8"));
 const git = getGitInfo();
 
-const versionData = {
-  version: pkg.version || "0.1.0",
-  commit: git.commit,
-  fullCommit: git.fullCommit,
-  displayVersion: git.commit !== "aktuell" ? git.commit : (pkg.version || "0.1.0"),
-  builtAt: new Date().toISOString()
-};
-
 const targetPath = path.join(rootDir, "src", "lib", "version.json");
-fs.writeFileSync(targetPath, JSON.stringify(versionData, null, 2) + "\n");
-console.log(`[FitFamily] Revisionsdatei aktualisiert: Rev. ${versionData.displayVersion} (${versionData.builtAt})`);
+let shouldWrite = true;
+try {
+  if (fs.existsSync(targetPath)) {
+    const existing = JSON.parse(fs.readFileSync(targetPath, "utf8"));
+    if (existing.commit === git.commit && existing.version === pkg.version) {
+      shouldWrite = false;
+    }
+  }
+} catch {}
+
+if (shouldWrite) {
+  const versionData = {
+    version: pkg.version || "0.1.0",
+    commit: git.commit,
+    fullCommit: git.fullCommit,
+    displayVersion: git.commit !== "aktuell" ? git.commit : (pkg.version || "0.1.0")
+  };
+  fs.writeFileSync(targetPath, JSON.stringify(versionData, null, 2) + "\n");
+  console.log(`[FitFamily] Revisionsdatei aktualisiert: Rev. ${versionData.displayVersion}`);
+} else {
+  console.log(`[FitFamily] Revisionsdatei unverändert: Rev. ${git.commit}`);
+}

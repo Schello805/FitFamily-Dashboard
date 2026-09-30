@@ -138,10 +138,13 @@ sudo /opt/fitfamily/scripts/update.sh
 
 Das Skript führt vollautomatisch folgende Schritte durch:
 1. Datenbank-Backup anlegen (`backups/fitfamily-backup-pre-update-*.db`)
-2. Neueste Version von GitHub laden (`git pull --ff-only origin main`)
-3. Abhängigkeiten aktualisieren (`npm ci`)
+2. Neueste Version von GitHub laden (`git fetch origin main && git reset --hard origin/main`)
+3. Abhängigkeiten aktualisieren (`npm install`)
 4. Dashboard neu bauen (`npm run build`)
 5. Hintergrunddienst neu starten (`systemctl restart fitfamily`)
+
+> [!TIP]
+> **Falls ein Server auf einer alten Revision festhängt:** Einmalig im Terminal `sudo /opt/fitfamily/scripts/repair.sh` ausführen, um veraltete Sperren aufzuheben.
 
 Deine Einstellungen in `.env.local` und alle Trainingsdaten bleiben dabei vollständig erhalten.
 

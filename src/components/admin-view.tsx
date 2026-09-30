@@ -83,11 +83,14 @@ export function AdminView({ profiles, exercises, equipment }: { profiles: { id: 
       });
       const data = await response.json();
       if (!response.ok) {
-        setNotice(data.error ?? "Update fehlgeschlagen.");
+        const errorMsg = data.error ?? "Update fehlgeschlagen.";
+        setNotice(errorMsg);
+        showToast({ type: "error", title: "Update fehlgeschlagen", message: errorMsg });
         setRunningUpdate(false);
         return;
       }
       setNotice("Update erfolgreich abgeschlossen! Dashboard startet neu …");
+      showToast({ type: "success", title: "Update installiert", message: "Das Dashboard wird neu geladen." });
       let countdown = 6;
       setUpdateCountdown(countdown);
       const timer = setInterval(() => {
@@ -99,8 +102,9 @@ export function AdminView({ profiles, exercises, equipment }: { profiles: { id: 
         }
       }, 1000);
     } catch {
-      setNotice("Verbindung wird neu aufgebaut … Dashboard lädt in Kürze neu.");
-      setTimeout(() => window.location.reload(), 4000);
+      setNotice("Dashboard-Dienst wird neu gestartet … Seite lädt gleich neu.");
+      showToast({ type: "info", title: "Dashboard startet neu", message: "Verbindung wird neu aufgebaut." });
+      setTimeout(() => window.location.reload(), 6000);
     }
   }
 

@@ -35,12 +35,12 @@ echo ""
 echo "-> 2/6: Neueste Änderungen von GitHub laden..."
 git config --system --add safe.directory "$APP_DIR" 2>/dev/null || git config --global --add safe.directory "$APP_DIR" 2>/dev/null || true
 git fetch origin main
-git checkout main
-git pull --ff-only origin main
+git checkout -f main
+git reset --hard origin/main
 
 echo ""
 echo "-> 3/6: Abhängigkeiten & Dashboard bauen..."
-npm ci
+npm install --prefer-offline --no-audit --no-fund
 npm run build
 
 echo ""
