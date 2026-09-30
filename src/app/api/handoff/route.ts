@@ -17,8 +17,9 @@ export async function POST(request: Request) {
   const token = createToken(24);
   const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
   const client = await db();
+  const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
   await client.batch([
-    { sql: "DELETE FROM handoff_tokens WHERE expires_at < ? OR used_at IS NOT NULL", args: [new Date().toISOString()] },
+    { sql: "DELETE FROM handoff_tokens WHERE expires_at < ? OR (used_at IS NOT NULL AND used_at < ?)", args: [new Date().toISOString(), fiveMinutesAgo] },
     {
       sql: "INSERT INTO handoff_tokens (token_hash, profile_id, expires_at) VALUES (?, ?, ?)",
       args: [hashToken(token), body.data.profileId, expiresAt]

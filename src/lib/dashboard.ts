@@ -1,12 +1,14 @@
 import { asNumber, asString, db } from "@/lib/db";
 import type { DashboardProfile, Profile, TrainingType } from "@/lib/domain";
 import { getAvatarProgress, movementTargetForAge, SCORE_MULTIPLIER } from "@/lib/domain";
+import { enforceSafetyPauses } from "@/lib/training";
 
 function durationSeconds(start: string, end: string | null) {
   return Math.max(0, (new Date(end ?? Date.now()).getTime() - new Date(start).getTime()) / 1000);
 }
 
 export async function getDashboardData(): Promise<DashboardProfile[]> {
+  await enforceSafetyPauses();
   const client = await db();
   const [profilesResult, segmentsResult, activeResult, plansResult] = await Promise.all([
     client.execute("SELECT * FROM profiles ORDER BY CASE id WHEN 'mama' THEN 1 WHEN 'papa' THEN 2 WHEN 'fabian' THEN 3 ELSE 4 END"),
@@ -65,8 +67,9 @@ export async function getDashboardData(): Promise<DashboardProfile[]> {
       scoreBaseline: asNumber(row.score_baseline),
       goal: String(row.goal)
     };
-    const age = profile.birthDate
-      ? Math.floor((now.getTime() - new Date(profile.birthDate).getTime()) / (365.2425 * 24 * 60 * 60 * 1000))
+    const birthTime = profile.birthDate ? new Date(profile.birthDate).getTime() : NaN;
+    const age = !isNaN(birthTime)
+      ? Math.floor((now.getTime() - birthTime) / (365.2425 * 24 * 60 * 60 * 1000))
       : (["fabian", "frieda"].includes(profile.id) ? 17 : 30);
     const target = movementTargetForAge(age);
     const targetActualMinutes = (target.period === "Tag" ? todaySeconds : weekSeconds) / 60;
@@ -78,7 +81,7 @@ export async function getDashboardData(): Promise<DashboardProfile[]> {
         const planJson = typeof plan.plan_json === "string" ? JSON.parse(plan.plan_json) : plan.plan_json;
         const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
         let todaySession: { title: string; minutes: number } | null = null;
-        let upcomingSession: { title: string; minutes: number } | null = null;
+        let upcomingSession: { title: string; minutes: number; date?: string } | null = null;
 
         if (Array.isArray(planJson?.weeks)) {
           for (const week of planJson.weeks) {
@@ -88,8 +91,10 @@ export async function getDashboardData(): Promise<DashboardProfile[]> {
                   todaySession = session;
                   break;
                 }
-                if (!upcomingSession) {
-                  upcomingSession = session;
+                if (session.date && session.date > todayStr) {
+                  if (!upcomingSession || !upcomingSession.date || session.date < upcomingSession.date) {
+                    upcomingSession = session;
+                  }
                 }
               }
             }
@@ -98,7 +103,7 @@ export async function getDashboardData(): Promise<DashboardProfile[]> {
         }
 
         if (todaySession) {
-          nextTrainingText = `${todaySession.title} (${todaySession.minutes} Min.)`;
+          nextTrainingText = `${todaySession.title} (${todaySession.minutes} Min. heute)`;
         } else if (upcomingSession) {
           nextTrainingText = `${upcomingSession.title} (${upcomingSession.minutes} Min.)`;
         } else {

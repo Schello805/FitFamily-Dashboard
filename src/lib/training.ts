@@ -65,20 +65,27 @@ export async function stopTraining(profileId: string) {
   const client = await db();
   const now = new Date().toISOString();
   const active = await client.execute({
-    sql: "SELECT id FROM training_sessions WHERE profile_id = ? AND status = 'active' LIMIT 1",
+    sql: "SELECT id FROM training_sessions WHERE profile_id = ? AND status = 'active'",
     args: [profileId]
   });
-  if (!active.rows[0]) return { changed: false };
-  const sessionId = String(active.rows[0].id);
-  await client.batch([
-    { sql: "UPDATE training_segments SET ended_at = ? WHERE session_id = ? AND ended_at IS NULL", args: [now, sessionId] },
-    { sql: "UPDATE training_sessions SET ended_at = ?, status = 'completed' WHERE id = ?", args: [now, sessionId] },
+  if (!active.rows.length) return { changed: false };
+  const sessionIds = active.rows.map((row) => String(row.id));
+  const statements = [
+    {
+      sql: `UPDATE training_segments SET ended_at = ? WHERE session_id IN (${sessionIds.map(() => "?").join(",")}) AND ended_at IS NULL`,
+      args: [now, ...sessionIds]
+    },
+    {
+      sql: `UPDATE training_sessions SET ended_at = ?, status = 'completed' WHERE id IN (${sessionIds.map(() => "?").join(",")})`,
+      args: [now, ...sessionIds]
+    },
     {
       sql: "INSERT INTO audit_log (id, action, profile_id, details) VALUES (?, 'training.stop', ?, ?)",
-      args: [randomUUID(), profileId, JSON.stringify({ sessionId })]
+      args: [randomUUID(), profileId, JSON.stringify({ sessionIds })]
     }
-  ], "write");
-  return { changed: true, sessionId };
+  ];
+  await client.batch(statements, "write");
+  return { changed: true, sessionId: sessionIds[0] };
 }
 
 export async function enforceSafetyPauses() {

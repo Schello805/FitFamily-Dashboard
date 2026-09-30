@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { Activity, ArrowLeft, Dumbbell, PencilLine, Plus } from "lucide-react";
+import { Activity, Apple, ArrowLeft, Dumbbell, PencilLine, Plus } from "lucide-react";
 import type { DashboardProfile } from "@/lib/domain";
 import { TouchPinpad } from "@/components/touch-pinpad";
 
@@ -47,6 +47,7 @@ export function HistoryView({ profile }: { profile: DashboardProfile }) {
       <div className="session-date"><strong>{new Date(session.startedAt).toLocaleDateString("de-DE", { day: "2-digit", month: "short" })}</strong><span>{new Date(session.startedAt).toLocaleDateString("de-DE", { weekday: "long", year: "numeric" })}</span></div>
       <div className="segment-list">{session.segments.map((segment) => <div key={segment.id}>{segment.type === "strength" ? <Dumbbell /> : <Activity />}<span><b>{segment.exerciseName ?? (segment.type === "strength" ? "Krafttraining" : "Ausdauertraining")}</b><small>{new Date(segment.startedAt).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })} · {minutes(segment.startedAt, segment.endedAt)} Minuten</small></span></div>)}</div>
       {(session.edited || session.source === "manual") && <em><PencilLine /> Manuell bearbeitet</em>}
+      {session.source === "apple_health" && <em className="apple-source"><Apple size={14} /> Apple Health Sync</em>}
     </article>)}</section>
     {manual && (
       <div className="modal-backdrop">

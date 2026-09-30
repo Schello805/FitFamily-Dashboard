@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Activity, ArrowLeft, CalendarRange, CheckCircle2, Dumbbell, History, QrCode, Settings2, Smartphone, Square } from "lucide-react";
+import { Activity, Apple, ArrowLeft, CalendarRange, Check, CheckCircle2, Copy, Download, Dumbbell, History, QrCode, Settings2, Smartphone, Square, Zap } from "lucide-react";
 import {
   AVATAR_IDS,
   FITNESS_STAGES,
@@ -30,6 +30,9 @@ export function ProfileView({ initialProfile, exercises }: { initialProfile: Das
   const [handoffScanned, setHandoffScanned] = useState(false);
   const [longRunning, setLongRunning] = useState(false);
   const [editingProfile, setEditingProfile] = useState(false);
+  const [healthModal, setHealthModal] = useState(false);
+  const [copiedWebhook, setCopiedWebhook] = useState(false);
+  const [testingHealth, setTestingHealth] = useState(false);
   const [editAvatar, setEditAvatar] = useState<AvatarId>(
     AVATAR_IDS.includes(initialProfile.avatar as AvatarId) ? (initialProfile.avatar as AvatarId) : (initialProfile.id as AvatarId)
   );
@@ -117,7 +120,7 @@ export function ProfileView({ initialProfile, exercises }: { initialProfile: Das
     events.forEach((event) => window.addEventListener(event, handleActivity, { passive: true }));
 
     const interval = window.setInterval(() => {
-      if (!deadlineRef.current) return;
+      if (!deadlineRef.current || editingProfile || handoff !== null || healthModal) return;
       const remainingMs = Math.max(0, deadlineRef.current - Date.now());
       const remainingSec = Math.ceil(remainingMs / 1000);
       setSecondsLeft(remainingSec);
@@ -133,7 +136,7 @@ export function ProfileView({ initialProfile, exercises }: { initialProfile: Das
       window.clearInterval(interval);
       events.forEach((event) => window.removeEventListener(event, handleActivity));
     };
-  }, [resetTimer, router, isMobile]);
+  }, [resetTimer, router, isMobile, editingProfile, handoff, healthModal]);
 
   useEffect(() => {
     const interval = window.setInterval(refresh, 5000);
@@ -241,6 +244,58 @@ export function ProfileView({ initialProfile, exercises }: { initialProfile: Das
     }
   }
 
+  async function copyWebhookUrl() {
+    const url = `${window.location.origin}/api/sync/apple-health`;
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopiedWebhook(true);
+      showToast({ type: "info", title: "URL kopiert", message: "Webhook-URL in Zwischenablage kopiert." });
+      setTimeout(() => setCopiedWebhook(false), 2000);
+    } catch {
+      showToast({ type: "info", title: "Webhook-URL", message: url });
+    }
+  }
+
+  async function testHealthSync() {
+    setTestingHealth(true);
+    try {
+      const response = await fetch("/api/sync/apple-health", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          profileId: profile.id,
+          title: "Apple Health Test-Lauf",
+          type: "endurance",
+          durationMinutes: 30,
+          calories: 260
+        })
+      });
+      const data = await response.json();
+      if (response.ok) {
+        showToast({
+          type: "sparkles",
+          title: "Apple Health synchronisiert! 🍎",
+          message: data.message ?? "30 Min. Test-Lauf erfolgreich gutgeschrieben."
+        });
+        await refresh();
+      } else {
+        showToast({
+          type: "error",
+          title: "Sync-Fehler",
+          message: data.error ?? "Fehler beim Testen des Apple Health Syncs."
+        });
+      }
+    } catch {
+      showToast({
+        type: "error",
+        title: "Verbindungsfehler",
+        message: "Konnte nicht mit dem Dashboard synchronisieren."
+      });
+    } finally {
+      setTestingHealth(false);
+    }
+  }
+
   function openProfileEditor() {
     setProfileNotice("");
     setEditAvatar(
@@ -275,10 +330,24 @@ export function ProfileView({ initialProfile, exercises }: { initialProfile: Das
       </header>
 
       {isMobile && (
-        <div className="mobile-connected-banner">
-          <Smartphone size={16} />
-          <span>Handy-Steuerung aktiv · Live mit Dashboard synchronisiert</span>
-        </div>
+        <>
+          <div className="mobile-connected-banner">
+            <Smartphone size={16} />
+            <span>Handy-Steuerung aktiv · Live mit Dashboard synchronisiert</span>
+          </div>
+          <div className="mobile-health-card">
+            <div className="mobile-health-info">
+              <div className="health-badge-icon"><Apple size={22} /></div>
+              <div>
+                <strong>Apple Health Kurzbefehl</strong>
+                <p>Trainings von Apple Watch / iPhone übertragen</p>
+              </div>
+            </div>
+            <button type="button" className="health-connect-btn" onClick={() => setHealthModal(true)}>
+              Einrichten
+            </button>
+          </div>
+        </>
       )}
 
       <section className="training-hero">
@@ -335,7 +404,8 @@ export function ProfileView({ initialProfile, exercises }: { initialProfile: Das
         <Link href={`/profil/${profile.id}/plan`}><CalendarRange /><span>Trainingsplan</span></Link>
         <Link href={`/profil/${profile.id}/verlauf`}><History /><span>Verlauf</span></Link>
         {!isMobile && <button onClick={openHandoff}><QrCode /><span>Am Handy öffnen</span></button>}
-        <button onClick={openProfileEditor}><Settings2 /><span>Profil bearbeiten</span></button>
+        <button type="button" onClick={() => setHealthModal(true)}><Apple size={20} /><span>Apple Health</span></button>
+        <button type="button" onClick={openProfileEditor}><Settings2 /><span>Profil bearbeiten</span></button>
       </nav>
       {profileNotice && <p className="profile-notice" role="status">{profileNotice}</p>}
       {editingProfile && <div className="modal-backdrop" onClick={() => setEditingProfile(false)}><form className="profile-edit-modal" onSubmit={saveProfile} onClick={(event) => event.stopPropagation()}>
@@ -377,6 +447,69 @@ export function ProfileView({ initialProfile, exercises }: { initialProfile: Das
         {profileNotice && <p className="form-error" role="alert">{profileNotice}</p>}
         <button className="primary-submit" disabled={busy}>{busy ? "Wird gespeichert …" : "Änderungen speichern"}</button>
       </form></div>}
+
+      {healthModal && (
+        <div className="modal-backdrop" onClick={() => setHealthModal(false)}>
+          <div className="health-modal" onClick={(event) => event.stopPropagation()}>
+            <button type="button" className="modal-close" onClick={() => setHealthModal(false)}>×</button>
+            <div className="health-modal-header">
+              <div className="health-apple-circle"><Apple size={30} /></div>
+              <div>
+                <span className="setup-badge">iOS Kurzbefehle</span>
+                <h2>Apple Health für {profile.name}</h2>
+              </div>
+            </div>
+
+            <p className="health-modal-desc">
+              Synchronisiere deine Trainings (Laufen, Radfahren, Krafttraining, etc.) direkt aus Apple Health mit deinem FitFamily Profil. Jeder Lauf und jedes Workout schreibt dir automatisch Punkte gut!
+            </p>
+
+            <div className="health-action-row">
+              <a
+                href={`/api/shortcuts/${profile.id}?download=1`}
+                className="health-primary-btn"
+                download={`FitFamily_Sync_${profile.name}.shortcut`}
+              >
+                <Download size={18} />
+                <span>Kurzbefehl herunterladen</span>
+              </a>
+              <button
+                type="button"
+                className="health-secondary-btn"
+                disabled={testingHealth}
+                onClick={testHealthSync}
+              >
+                <Zap size={18} />
+                <span>{testingHealth ? "Übertrage …" : "Test-Lauf übertragen (30 Min.)"}</span>
+              </button>
+            </div>
+
+            <div className="health-url-box">
+              <label>Persönliche Webhook-Adresse</label>
+              <div className="health-url-input-wrap">
+                <input
+                  readOnly
+                  value={typeof window !== "undefined" ? `${window.location.origin}/api/sync/apple-health` : ""}
+                />
+                <button type="button" className="health-copy-btn" onClick={copyWebhookUrl}>
+                  {copiedWebhook ? <Check size={16} /> : <Copy size={16} />}
+                  <span>{copiedWebhook ? "Kopiert!" : "Kopieren"}</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="health-steps-card">
+              <h4>So funktioniert die Einrichtung auf dem iPhone:</h4>
+              <ol>
+                <li><strong>Kurzbefehl installieren:</strong> Tippe oben auf <em>„Kurzbefehl herunterladen“</em> und öffne die Datei in der iOS <strong>Kurzbefehle</strong>-App.</li>
+                <li><strong>Zugriff erlauben:</strong> Beim ersten Ausführen die Berechtigung für HealthKit (<em>„Trainings lesen“</em>) bestätigen.</li>
+                <li><strong>Automatisieren (Empfohlen):</strong> In der Kurzbefehle-App auf den Reiter <em>„Automation“</em> tippen &rarr; <em>„Neue Automation erstellen“</em> &rarr; <em>„Apple Watch Training beendet“</em> auswählen &rarr; <em>Diesen Kurzbefehl ausführen</em>. Fertig!</li>
+              </ol>
+            </div>
+          </div>
+        </div>
+      )}
+
       {handoff && (
         <div className="modal-backdrop" onClick={() => { setHandoff(null); setHandoffScanned(false); }}>
           <section className="qr-modal" onClick={(event) => event.stopPropagation()}>
