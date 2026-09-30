@@ -9,6 +9,30 @@ const schema = z.object({
   targetDate: z.string().date().nullable(), provider: z.enum(["openai", "gemini", "local"])
 });
 
+const importedPlanSchema = z.object({
+  title: z.string().min(2).max(100),
+  goal: z.string().min(2).max(100).optional(),
+  targetDate: z.string().date().nullable().optional(),
+  summary: z.string().max(1000).optional(),
+  weeks: z.array(z.object({
+    week: z.number().int().min(1).max(52),
+    sessions: z.array(z.object({
+      date: z.string().date().optional(),
+      title: z.string().min(2).max(100),
+      type: z.enum(["strength", "endurance"]),
+      minutes: z.number().int().min(1).max(300),
+      distanceKm: z.number().positive().max(100).optional(),
+      exercises: z.array(z.string().min(1).max(100)).max(12)
+    })).min(1).max(14)
+  })).min(1).max(52)
+});
+
+const importRequestSchema = z.object({
+  action: z.literal("import"),
+  profileId: z.enum(["mama", "papa", "fabian", "frieda"]),
+  plan: importedPlanSchema
+});
+
 const equipment = ["Klimmzugstation", "Kraftstation mit Butterfly und Latzug", "Laufband", "Vibrationsplatte", "Boxsack", "Fahrrad"];
 
 function localPlan(input: z.infer<typeof schema>) {
@@ -59,7 +83,34 @@ async function callGemini(input: z.infer<typeof schema>) {
 }
 
 export async function POST(request: Request) {
-  const body = schema.safeParse(await request.json());
+  const rawBody = await request.text();
+  if (new TextEncoder().encode(rawBody).byteLength > 512 * 1024) {
+    return NextResponse.json({ error: "Die Plan-Datei darf höchstens 512 KB groß sein." }, { status: 413 });
+  }
+  let payload: unknown;
+  try {
+    payload = JSON.parse(rawBody);
+  } catch {
+    return NextResponse.json({ error: "Die Anfrage enthält kein gültiges JSON." }, { status: 400 });
+  }
+  if (payload && typeof payload === "object" && "action" in payload && payload.action === "import") {
+    const imported = importRequestSchema.safeParse(payload);
+    if (!imported.success) return NextResponse.json({ error: "Die JSON-Datei passt nicht zur FitFamily-Planvorlage. Bitte prüfe Datum, Minuten und Einheiten." }, { status: 400 });
+    const client = await db();
+    const id = randomUUID();
+    const goal = imported.data.plan.goal ?? imported.data.plan.title;
+    await client.batch([
+      { sql: "UPDATE training_plans SET status = 'archived', updated_at = CURRENT_TIMESTAMP WHERE profile_id = ? AND status = 'active'", args: [imported.data.profileId] },
+      {
+        sql: `INSERT INTO training_plans (id, profile_id, title, goal, target_date, status, plan_json)
+          VALUES (?, ?, ?, ?, ?, 'active', ?)`,
+        args: [id, imported.data.profileId, imported.data.plan.title, goal, imported.data.plan.targetDate ?? null, JSON.stringify({ ...imported.data.plan, summary: imported.data.plan.summary ?? "Importierter Trainingsplan", provider: "Import" })]
+      }
+    ], "write");
+    return NextResponse.json({ id, provider: "import" }, { status: 201 });
+  }
+
+  const body = schema.safeParse(payload);
   if (!body.success) return NextResponse.json({ error: "Bitte Planangaben prüfen" }, { status: 400 });
   let plan;
   let usedProvider = body.data.provider;

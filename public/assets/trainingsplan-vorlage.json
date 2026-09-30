@@ -1,0 +1,41 @@
+{
+  "title": "Mein Beispiel-Trainingsplan",
+  "goal": "Allgemeine Fitness",
+  "targetDate": null,
+  "summary": "Beispiel zum Anpassen. Ersetze Termine, Dauer und Übungen durch deinen persönlichen Plan.",
+  "weeks": [
+    {
+      "week": 1,
+      "sessions": [
+        {
+          "date": "2026-10-02",
+          "title": "Laufband – lockerer Einstieg",
+          "type": "endurance",
+          "minutes": 25,
+          "distanceKm": 3,
+          "exercises": ["Laufband", "Locker laufen oder zügig gehen"]
+        },
+        {
+          "date": "2026-10-04",
+          "title": "Kraft – Ganzkörper",
+          "type": "strength",
+          "minutes": 30,
+          "exercises": ["Butterfly", "Latzug", "Liegestütze"]
+        }
+      ]
+    },
+    {
+      "week": 2,
+      "sessions": [
+        {
+          "date": "2026-10-09",
+          "title": "Fahrrad – gleichmäßig",
+          "type": "endurance",
+          "minutes": 30,
+          "distanceKm": 8,
+          "exercises": ["Fahrrad", "Gleichmäßiges Tempo"]
+        }
+      ]
+    }
+  ]
+}

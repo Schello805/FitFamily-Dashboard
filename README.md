@@ -14,7 +14,7 @@ Das lokale Familien-Fitnessdashboard für den Touchmonitor im Sportraum. FitFami
 - Handy-Übergabe über einmalige QR-Codes
 - NFC-Endpunkte pro Gerät oder Übung
 - Persönlicher Verlauf und geschütztes Nachtragen
-- Trainingspläne mit OpenAI, Gemini oder lokaler Vorlage
+- Trainingspläne mit OpenAI, Gemini, lokaler Vorlage oder JSON-Import
 - Wetter für Bechhofen, Ruhemodus-Konzept und installierbare Web-App
 - Lokaler Musikplayer mit Playlist, Lautstärke und Upload eigener Audiodateien
 - Lokale SQLite-Datenbank, JSON-Export und verschlüsselte NAS-Backups
@@ -80,6 +80,7 @@ Der Befehl prüft ESLint, TypeScript, Tests und den Produktions-Build.
 Das Markenlogo liegt unter `public/assets/fitfamily-logo.png`. Die Fußzeile zeigt Projektinhaber, GitHub-Verweis und die Release-Version.
 
 Die technischen Entscheidungen erklärt [ARCHITEKTUR.md](ARCHITEKTUR.md).
+Eigene Trainingspläne lassen sich über eine JSON-Vorlage importieren; das Format erklärt [docs/TRAININGSPLAN_JSON.md](docs/TRAININGSPLAN_JSON.md).
 
 ## Gesundheitshinweis
 
