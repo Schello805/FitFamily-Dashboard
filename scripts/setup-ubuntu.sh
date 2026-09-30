@@ -10,6 +10,11 @@ if [[ "$(id -u)" -ne 0 ]]; then
   exit 1
 fi
 
+# Terminal-Eingabe für interaktive Prompts sicherstellen (auch bei curl | sudo bash)
+if [[ ! -t 0 && -e /dev/tty ]]; then
+  exec < /dev/tty
+fi
+
 echo "========================================================"
 echo " FitFamily Dashboard – Automatische Ubuntu-Installation "
 echo "========================================================"

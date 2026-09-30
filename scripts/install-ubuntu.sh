@@ -34,15 +34,65 @@ if ! id "$APP_USER" >/dev/null 2>&1; then
   useradd --system --home "$APP_DIR" --shell /usr/sbin/nologin "$APP_USER"
 fi
 
+# Terminal-Eingabe sicherstellen (auch bei curl | bash)
+if [[ ! -t 0 && -e /dev/tty ]]; then
+  exec < /dev/tty
+fi
+
 mkdir -p "$APP_DIR/data" "$APP_DIR/backups"
-if [[ ! -f "$APP_DIR/.env.local" ]]; then
-  install -m 0600 "$APP_DIR/.env.example" "$APP_DIR/.env.local"
-  session_secret="$(openssl rand -hex 32)"
-  sed -i "s|^SESSION_SECRET=.*|SESSION_SECRET=$session_secret|" "$APP_DIR/.env.local"
-  lan_ip="$(hostname -I | awk '{print $1}')"
-  if [[ -n "$lan_ip" ]]; then
-    sed -i "s|^APP_URL=.*|APP_URL=http://$lan_ip:3000|" "$APP_DIR/.env.local"
+
+echo ""
+echo "=== FitFamily Konfiguration (.env.local) ==="
+reconfigure=true
+if [[ -f "$APP_DIR/.env.local" ]]; then
+  existing_url="$(grep -E '^APP_URL=' "$APP_DIR/.env.local" | cut -d= -f2- || true)"
+  echo "Bestehende Konfiguration (.env.local) gefunden (APP_URL: ${existing_url:-nicht gesetzt})."
+  read -r -p "Möchtest du diese Einstellungen beibehalten? [J/n]: " keep_existing
+  if [[ ! "$keep_existing" =~ ^[nN] ]]; then
+    reconfigure=false
+    echo "-> Bestehende Konfiguration bleibt unverändert."
   fi
+fi
+
+if [[ "$reconfigure" == true ]]; then
+  detected_ip="$(hostname -I 2>/dev/null | awk '{print $1}')"
+  if [[ -n "$detected_ip" ]]; then
+    default_url="http://$detected_ip:3000"
+  else
+    default_url="http://localhost:3000"
+  fi
+
+  echo ""
+  echo "1. Heimnetz-Adresse (APP_URL) für Handys & QR-Code:"
+  read -r -p "   Adresse [$default_url]: " input_url
+  app_url="${input_url:-$default_url}"
+
+  echo ""
+  echo "2. KI-Integrationen (optional, Enter zum Überspringen):"
+  read -r -p "   OpenAI API-Key (optional): " input_openai
+  read -r -p "   Google Gemini API-Key (optional): " input_gemini
+
+  echo ""
+  echo "3. Datensicherung (optional, Enter zum Überspringen):"
+  read -r -p "   NAS-Backuppfad (z. B. /mnt/nas/fitfamily): " input_nas
+
+  existing_secret="$(grep -E '^SESSION_SECRET=' "$APP_DIR/.env.local" 2>/dev/null | cut -d= -f2- || true)"
+  if [[ -n "$existing_secret" && "$existing_secret" != "change-me-with-at-least-32-random-characters" ]]; then
+    session_secret="$existing_secret"
+  else
+    session_secret="$(openssl rand -hex 32)"
+  fi
+
+  cat <<EOF > "$APP_DIR/.env.local"
+# FitFamily Konfiguration – Lokale Umgebungsvariablen
+DATABASE_URL=file:./data/fitfamily.db
+APP_URL=$app_url
+SESSION_SECRET=$session_secret
+OPENAI_API_KEY=$input_openai
+GEMINI_API_KEY=$input_gemini
+NAS_BACKUP_PATH=$input_nas
+EOF
+  echo "-> .env.local wurde erfolgreich eingerichtet."
 fi
 
 chown -R "$APP_USER:$APP_USER" "$APP_DIR"
@@ -55,5 +105,12 @@ install -m 0644 "$APP_DIR/deploy/systemd/fitfamily.service" /etc/systemd/system/
 systemctl daemon-reload
 systemctl enable --now fitfamily.service
 
-echo "FitFamily läuft als lokaler Dienst unter http://localhost:3000."
-echo "Für Handys im Heimnetz in .env.local APP_URL auf die LAN-Adresse dieses PCs setzen."
+effective_url="$(grep -E '^APP_URL=' "$APP_DIR/.env.local" | cut -d= -f2- || true)"
+echo ""
+echo "=========================================================="
+echo " FitFamily läuft jetzt als lokaler Dienst im Hintergrund!"
+echo " Monitor (lokal):  http://localhost:3000"
+if [[ -n "$effective_url" ]]; then
+  echo " Mobil (Heimnetz): $effective_url"
+fi
+echo "=========================================================="
