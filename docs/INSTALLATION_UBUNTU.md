@@ -57,7 +57,7 @@ Am PC im Terminal die lokale IPv4-Adresse ermitteln:
 hostname -I
 ```
 
-In `/opt/fitfamily/.env.local` die Zeile `APP_URL` auf diese Adresse setzen, zum Beispiel `APP_URL=http://192.168.1.42:3000`. Im Router sollte für den PC eine feste DHCP-Zuweisung eingerichtet werden, damit die Adresse gleich bleibt. Danach den Dienst neu starten:
+Der Einrichtungs-QR-Code verwendet automatisch die Adresse, unter der der Monitor geöffnet wurde. Wenn du den Monitor z. B. unter `http://192.168.1.42:3000` öffnest, zeigt der QR-Code dieselbe IP-Adresse. Alternativ kannst du in `/opt/fitfamily/.env.local` `APP_URL=http://192.168.1.42:3000` als feste Adresse setzen. Im Router sollte für den PC eine feste DHCP-Zuweisung eingerichtet werden, damit die IP gleich bleibt. Nach einer Änderung an `.env.local` den Dienst neu starten:
 
 ```bash
 sudo systemctl restart fitfamily
