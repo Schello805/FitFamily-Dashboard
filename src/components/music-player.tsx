@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ExternalLink, Headphones, Music2, Pause, Play, Radio, Volume2, X } from "lucide-react";
+import { ExternalLink, Headphones, Minus, Music2, Pause, Play, Plus, Radio, Volume2, X } from "lucide-react";
 import { RADIO_STATIONS, SPORTS_RADIO_PAGE } from "@/lib/radio";
 
 export function MusicPlayer() {
@@ -59,6 +59,10 @@ export function MusicPlayer() {
     }
   }
 
+  function adjustVolume(amount: number) {
+    setVolume((current) => Math.max(0, Math.min(100, current + amount)));
+  }
+
   return <>
     <button className={`music-launch ${playing ? "is-playing" : ""}`} onClick={() => setOpen((value) => !value)} aria-expanded={open} aria-label="Radiosteuerung öffnen">
       <Music2 size={20} /><span>{playing ? "Radio läuft" : "Radio"}</span>{playing && <i />}
@@ -73,7 +77,13 @@ export function MusicPlayer() {
         </button>)}
       </div>
       <a className="sports-radio-link" href={SPORTS_RADIO_PAGE} target="_blank" rel="noreferrer"><span><b>Sportschau Live</b><small>Fußball-Audioreportagen an Spieltagen</small></span><ExternalLink /></a>
-      <label className="volume-control"><Volume2 /><input type="range" min="0" max="100" value={volume} onChange={(event) => setVolume(Number(event.target.value))} aria-label="Lautstärke" /><span>{volume}%</span></label>
+      <div className="volume-control" role="group" aria-label="Lautstärke einstellen">
+        <Volume2 aria-hidden="true" />
+        <button className="volume-step" onClick={() => adjustVolume(-5)} aria-label="Lautstärke um 5 Prozent verringern" disabled={volume === 0}><Minus /></button>
+        <input id="radio-volume" type="range" min="0" max="100" step="1" value={volume} style={{ "--volume-progress": `${volume}%` } as React.CSSProperties} onChange={(event) => setVolume(Number(event.target.value))} aria-label="Lautstärke" aria-valuetext={`${volume} Prozent`} />
+        <button className="volume-step" onClick={() => adjustVolume(5)} aria-label="Lautstärke um 5 Prozent erhöhen" disabled={volume === 100}><Plus /></button>
+        <output htmlFor="radio-volume">{volume}%</output>
+      </div>
       {notice && <p className="music-notice" role="status">{notice}</p>}
       <p className="music-footnote">Die Sender werden live über das Internet abgespielt. Sportschau-Liveübertragungen gibt es zu ausgewählten Spielen.</p>
     </section>}
