@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Activity, ArrowLeft, CalendarRange, Dumbbell, History, QrCode, Settings2, Square } from "lucide-react";
 import {
   AVATAR_IDS,
@@ -47,20 +47,41 @@ export function ProfileView({ initialProfile, exercises }: { initialProfile: Das
     if (current) setProfile(current);
   }, [profile.id]);
 
+  const TOTAL_IDLE_SECONDS = 60;
+  const [secondsLeft, setSecondsLeft] = useState(TOTAL_IDLE_SECONDS);
+  const [progress, setProgress] = useState(100);
+  const deadlineRef = useRef<number | null>(null);
+
+  const resetTimer = useCallback(() => {
+    deadlineRef.current = Date.now() + TOTAL_IDLE_SECONDS * 1000;
+    setSecondsLeft(TOTAL_IDLE_SECONDS);
+    setProgress(100);
+  }, []);
+
   useEffect(() => {
-    let timeout: number;
-    const reset = () => {
-      window.clearTimeout(timeout);
-      timeout = window.setTimeout(() => router.push("/"), 120_000);
-    };
-    const events = ["pointerdown", "keydown", "scroll"] as const;
-    events.forEach((event) => window.addEventListener(event, reset, { passive: true }));
-    reset();
+    deadlineRef.current = Date.now() + TOTAL_IDLE_SECONDS * 1000;
+    const handleActivity = () => resetTimer();
+    const events = ["pointerdown", "keydown", "scroll", "touchstart"] as const;
+    events.forEach((event) => window.addEventListener(event, handleActivity, { passive: true }));
+
+    const interval = window.setInterval(() => {
+      if (!deadlineRef.current) return;
+      const remainingMs = Math.max(0, deadlineRef.current - Date.now());
+      const remainingSec = Math.ceil(remainingMs / 1000);
+      setSecondsLeft(remainingSec);
+      setProgress((remainingMs / (TOTAL_IDLE_SECONDS * 1000)) * 100);
+
+      if (remainingMs <= 0) {
+        window.clearInterval(interval);
+        router.push("/");
+      }
+    }, 250);
+
     return () => {
-      window.clearTimeout(timeout);
-      events.forEach((event) => window.removeEventListener(event, reset));
+      window.clearInterval(interval);
+      events.forEach((event) => window.removeEventListener(event, handleActivity));
     };
-  }, [router]);
+  }, [resetTimer, router]);
 
   useEffect(() => {
     const interval = window.setInterval(refresh, 5000);
@@ -145,10 +166,20 @@ export function ProfileView({ initialProfile, exercises }: { initialProfile: Das
   const activeType = profile.activeTraining?.type;
   return (
     <main className="profile-shell" style={{ "--profile": profile.color } as React.CSSProperties}>
+      <div className="profile-idle-bar-container" title={`Automatische Rückkehr zum Dashboard in ${secondsLeft}s (Tippen zum Zurücksetzen)`} onClick={resetTimer}>
+        <div className="profile-idle-bar-fill" style={{ width: `${progress}%` }} />
+      </div>
       <header className="profile-topbar">
         <Link href="/" className="icon-link"><ArrowLeft size={30} /><span>Dashboard</span></Link>
         <div><span className="eyebrow">Training für</span><h1>{profile.name}</h1></div>
-        <div className="profile-score"><strong>{profile.score.toLocaleString("de-DE")}</strong><span>Punkte</span></div>
+        <div className="profile-topbar-right">
+          <div className="profile-idle-badge" onClick={resetTimer} title="Automatische Rückkehr zum Dashboard bei Inaktivität (Tippen zum Verlängern)">
+            <span className="idle-pulse-dot" />
+            <small>Dashboard in</small>
+            <b>{secondsLeft}s</b>
+          </div>
+          <div className="profile-score"><strong>{profile.score.toLocaleString("de-DE")}</strong><span>Punkte</span></div>
+        </div>
       </header>
 
       <section className="training-hero">
