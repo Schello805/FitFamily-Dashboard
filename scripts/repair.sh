@@ -55,6 +55,13 @@ EOF
   echo "   Neue .env.local mit Standard-PIN 1234 angelegt."
 fi
 
+if grep -q "APP_URL=http://0.0.0.0" "$APP_DIR/.env.local" 2>/dev/null; then
+  REAL_LAN_IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
+  if [[ -n "$REAL_LAN_IP" && "$REAL_LAN_IP" != "0.0.0.0" ]]; then
+    sed -i "s|APP_URL=http://0.0.0.0:3000|APP_URL=http://${REAL_LAN_IP}:3000|g" "$APP_DIR/.env.local"
+  fi
+fi
+
 # 4. Abhängigkeiten & Build
 echo "-> 4/7: Abhängigkeiten installieren & Dashboard bauen..."
 npm ci

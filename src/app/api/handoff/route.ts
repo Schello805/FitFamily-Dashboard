@@ -5,6 +5,8 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { createToken, hashToken } from "@/lib/security";
 
+import { getMobileReachableBaseUrl } from "@/lib/server-url";
+
 const schema = z.object({ profileId: z.string().min(1) });
 
 export async function POST(request: Request) {
@@ -24,7 +26,7 @@ export async function POST(request: Request) {
       args: [randomUUID(), body.data.profileId, JSON.stringify({ expiresAt })]
     }
   ], "write");
-  const origin = process.env.APP_URL || new URL(request.url).origin;
+  const origin = getMobileReachableBaseUrl(request);
   const url = `${origin.replace(/\/$/, "")}/handoff/${token}`;
   return NextResponse.json({ url, qr: await QRCode.toDataURL(url, { width: 420, margin: 2, color: { dark: "#071316", light: "#ffffff" } }), expiresAt });
 }

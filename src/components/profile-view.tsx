@@ -24,7 +24,7 @@ type Exercise = { id: string; name: string; type: string; equipment: string };
 export function ProfileView({ initialProfile, exercises }: { initialProfile: DashboardProfile; exercises: Exercise[] }) {
   const [profile, setProfile] = useState(initialProfile);
   const [busy, setBusy] = useState(false);
-  const [handoff, setHandoff] = useState<{ qr: string; expiresAt: string } | null>(null);
+  const [handoff, setHandoff] = useState<{ qr: string; url?: string; expiresAt: string } | null>(null);
   const [longRunning, setLongRunning] = useState(false);
   const [editingProfile, setEditingProfile] = useState(false);
   const [editAvatar, setEditAvatar] = useState<AvatarId>(
@@ -282,6 +282,7 @@ export function ProfileView({ initialProfile, exercises }: { initialProfile: Das
         <button className="modal-close" onClick={() => setHandoff(null)}>×</button>
         <span className="setup-badge">Sicherer Übergang</span><h2>Auf dem Handy fortfahren</h2><p>Scanne den Code. Er ist zehn Minuten und genau einmal gültig.</p>
         <Image src={handoff.qr} alt="QR-Code zum Öffnen des Profils auf dem Handy" width={330} height={330} unoptimized />
+        {handoff.url && <p style={{ wordBreak: "break-all", fontSize: "12px", color: "var(--muted)", margin: "12px 0 0", textAlign: "center" }}><code>{handoff.url}</code></p>}
       </section></div>}
     </main>
   );

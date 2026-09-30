@@ -4,7 +4,7 @@ import { getDashboardData } from "@/lib/dashboard";
 import { getSetting } from "@/lib/db";
 import { Dashboard } from "@/components/dashboard";
 import { FirstRun } from "@/components/first-run";
-import { headers } from "next/headers";
+import { getMobileReachableBaseUrl } from "@/lib/server-url";
 
 export const dynamic = "force-dynamic";
 
@@ -20,11 +20,7 @@ function getRevision() {
 
 export default async function Home() {
   if ((await getSetting("setup_complete")) !== "true") {
-    const requestHeaders = await headers();
-    const host = requestHeaders.get("x-forwarded-host") ?? requestHeaders.get("host") ?? "localhost:3000";
-    const protocol = requestHeaders.get("x-forwarded-proto") ?? "http";
-    const configuredUrl = process.env.APP_URL?.trim().replace(/\/$/, "");
-    const baseUrl = configuredUrl || `${protocol}://${host}`;
+    const baseUrl = getMobileReachableBaseUrl();
     const setupUrl = `${baseUrl}/einrichtung`;
     const { default: QRCode } = await import("qrcode");
     const qr = await QRCode.toDataURL(setupUrl, { width: 480, margin: 2, color: { dark: "#071316", light: "#ffffff" } });

@@ -64,6 +64,12 @@ chmod 0440 /etc/sudoers.d/fitfamily
 chmod +x "$APP_DIR/scripts/"*.sh || true
 chown -R "$APP_USER:$APP_USER" "$APP_DIR"
 if [[ -f "$APP_DIR/.env.local" ]]; then
+  if grep -q "APP_URL=http://0.0.0.0" "$APP_DIR/.env.local" 2>/dev/null; then
+    REAL_LAN_IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
+    if [[ -n "$REAL_LAN_IP" && "$REAL_LAN_IP" != "0.0.0.0" ]]; then
+      sed -i "s|APP_URL=http://0.0.0.0:3000|APP_URL=http://${REAL_LAN_IP}:3000|g" "$APP_DIR/.env.local"
+    fi
+  fi
   chmod 0600 "$APP_DIR/.env.local"
 fi
 
