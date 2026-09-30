@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowLeft, Bot, CheckCircle2, Database, Download, HardDrive, Plus, RefreshCw, RotateCcw, ShieldCheck, Sparkles } from "lucide-react";
 import { TouchPinpad } from "@/components/touch-pinpad";
 import { showToast } from "@/components/toast";
@@ -24,7 +24,14 @@ type BackupStatus = {
 };
 
 export function AdminView({ profiles, exercises, equipment }: { profiles: { id: string; name: string; score: number }[]; exercises: ExerciseMedia[]; equipment: EquipmentItem[] }) {
-  const [pin, setPin] = useState("");
+  const [pin, setPin] = useState(() => {
+    if (typeof window !== "undefined") {
+      try {
+        return sessionStorage.getItem("fitfamily_admin_pin") || "";
+      } catch {}
+    }
+    return "";
+  });
   const [verifying, setVerifying] = useState(false);
   const [status, setStatus] = useState<Status | null>(null);
   const [error, setError] = useState("");
@@ -74,7 +81,7 @@ export function AdminView({ profiles, exercises, equipment }: { profiles: { id: 
   async function applyUpdate() {
     if (!window.confirm("Jetzt das Update einspielen? Ein Sicherheits-Backup der Datenbank wird automatisch erstellt, der neueste Stand wird geladen, gebaut und das Dashboard neu gestartet.")) return;
     setRunningUpdate(true);
-    setNotice("Update wird ausgeführt: Neueste Version wird geladen und kompiliert. Bitte warten …");
+    setNotice("Update wird ausgeführt: Neueste Version wird geladen und neu gebaut. Bitte kurz warten …");
     try {
       const response = await fetch("/api/admin/update", {
         method: "POST",
@@ -108,34 +115,52 @@ export function AdminView({ profiles, exercises, equipment }: { profiles: { id: 
     }
   }
 
-  async function unlock(event?: React.FormEvent) {
-    if (event) event.preventDefault();
-    if (!pin || pin.length < 4) return;
+  async function performUnlock(pinToTest: string) {
+    if (!pinToTest || pinToTest.length < 4) return;
     setVerifying(true);
     setError("");
     try {
       const response = await fetch("/api/admin/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pin })
+        body: JSON.stringify({ pin: pinToTest })
       });
       const result = await response.json();
       if (!response.ok) {
         setError(result.error ?? "Eltern-PIN ist falsch");
+        sessionStorage.removeItem("fitfamily_admin_pin");
         setVerifying(false);
         return;
       }
+      sessionStorage.setItem("fitfamily_admin_pin", pinToTest);
       setStatus({ ...result.providers, usage: result.usage, models: result.models, nas: result.nas });
       if (result.backup) {
         setBackupStatus(result.backup);
         setNasPathInput(result.backup.path || "");
       }
-      void checkUpdate(pin);
+      void checkUpdate(pinToTest);
     } catch {
       setError("Verbindungsfehler beim Prüfen der PIN");
     } finally {
       setVerifying(false);
     }
+  }
+
+  useEffect(() => {
+    try {
+      const savedPin = sessionStorage.getItem("fitfamily_admin_pin");
+      if (savedPin && savedPin.length >= 4) {
+        const timer = setTimeout(() => {
+          void performUnlock(savedPin);
+        }, 50);
+        return () => clearTimeout(timer);
+      }
+    } catch {}
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function unlock(event?: React.FormEvent) {
+    if (event) event.preventDefault();
+    await performUnlock(pin);
   }
 
   async function saveNasBackupPath() {

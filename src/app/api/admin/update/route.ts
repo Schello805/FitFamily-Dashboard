@@ -5,11 +5,14 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { verifyAdminPin } from "@/lib/security";
 
+import { getAppRevision } from "@/lib/version";
+
 export const dynamic = "force-dynamic";
 
 function getGitCommit(cmd: string): string | null {
   try {
-    return execSync(cmd, { cwd: process.cwd(), encoding: "utf-8", timeout: 4000 }).trim();
+    const cwd = process.cwd();
+    return execSync(`git -c safe.directory='*' ${cmd}`, { cwd, encoding: "utf-8", timeout: 4000 }).trim();
   } catch {
     return null;
   }
@@ -34,21 +37,24 @@ export async function GET(request: Request) {
   }
 
   const cwd = process.cwd();
-  const currentCommit = getGitCommit("git rev-parse --short HEAD") ?? "unbekannt";
+  let currentCommit = getGitCommit("rev-parse --short HEAD");
+  if (!currentCommit) {
+    const rev = getAppRevision();
+    currentCommit = rev.commit || "unbekannt";
+  }
   
   // Versuche, den Remote-Stand zu prüfen (ohne langes Warten, falls offline)
   try {
-    execSync(`git config --global --add safe.directory "${cwd}" || true`, { cwd, timeout: 2000 });
-    execSync("git fetch origin main", { cwd, timeout: 6000, stdio: "ignore" });
+    execSync("git -c safe.directory='*' fetch origin main", { cwd, timeout: 6000, stdio: "ignore" });
   } catch {
     // Offline oder Netzwerk nicht erreichbar
   }
 
-  const latestCommit = getGitCommit("git rev-parse --short origin/main");
-  const latestMessage = getGitCommit("git log -1 --format=%s origin/main");
+  const latestCommit = getGitCommit("rev-parse --short origin/main");
+  const latestMessage = getGitCommit("log -1 --format=%s origin/main");
   const version = getPackageVersion();
 
-  const hasUpdate = Boolean(latestCommit && currentCommit !== latestCommit);
+  const hasUpdate = Boolean(latestCommit && currentCommit !== "unbekannt" && currentCommit !== latestCommit);
 
   return NextResponse.json({
     ok: true,
@@ -92,7 +98,7 @@ export async function POST(request: Request) {
     const scriptPath = path.join(cwd, "scripts", "update.sh");
     if (existsSync(scriptPath)) {
       try {
-        execSync("sudo -n /opt/fitfamily/scripts/update.sh || sudo -n bash scripts/update.sh", {
+        execSync("sudo -n /opt/fitfamily/scripts/update.sh --no-restart 2>&1 || sudo -n bash scripts/update.sh --no-restart 2>&1", {
           cwd,
           timeout: 180000,
           encoding: "utf-8"
@@ -105,7 +111,7 @@ export async function POST(request: Request) {
 
     if (!updatedViaScript) {
       execSync(
-        `git config --system --add safe.directory "${cwd}" 2>/dev/null || git config --global --add safe.directory "${cwd}" 2>/dev/null || true; git fetch origin main && git checkout -f main && git reset --hard origin/main`,
+        "git -c safe.directory='*' fetch origin main && git -c safe.directory='*' checkout -f main && git -c safe.directory='*' reset --hard origin/main",
         { cwd, timeout: 35000, encoding: "utf-8" }
       );
       execSync("npm install --prefer-offline --no-audit --no-fund", { cwd, timeout: 120000, encoding: "utf-8" });
@@ -120,11 +126,11 @@ export async function POST(request: Request) {
     );
   }
 
-  const newCommit = getGitCommit("git rev-parse --short HEAD") ?? "aktuell";
+  const newCommit = getGitCommit("rev-parse --short HEAD") ?? getAppRevision().commit ?? "aktuell";
 
   // 3. Dienst nach kurzer Verzögerung neu starten, damit die HTTP-Antwort noch sauber ankommt
   setTimeout(() => {
-    exec("sudo systemctl restart fitfamily || systemctl restart fitfamily", { cwd }, () => undefined);
+    exec("sudo -n systemctl restart fitfamily || sudo systemctl restart fitfamily || systemctl restart fitfamily", { cwd }, () => undefined);
   }, 1500);
 
   return NextResponse.json({

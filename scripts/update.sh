@@ -4,6 +4,13 @@ set -euo pipefail
 # FitFamily Dashboard – Automatisches Update- & Self-Healing-Skript
 # Kann im Terminal aufgerufen werden: sudo /opt/fitfamily/scripts/update.sh oder npm run update
 
+NO_RESTART=0
+for arg in "$@"; do
+  if [[ "$arg" == "--no-restart" ]]; then
+    NO_RESTART=1
+  fi
+done
+
 if [[ $EUID -ne 0 ]]; then
   echo "Für Updates und Dienst-Neustart sind Root-Rechte erforderlich."
   exec sudo bash "$0" "$@"
@@ -34,9 +41,9 @@ fi
 echo ""
 echo "-> 2/6: Neueste Änderungen von GitHub laden..."
 git config --system --add safe.directory "$APP_DIR" 2>/dev/null || git config --global --add safe.directory "$APP_DIR" 2>/dev/null || true
-git fetch origin main
-git checkout -f main
-git reset --hard origin/main
+git -c safe.directory='*' fetch origin main
+git -c safe.directory='*' checkout -f main
+git -c safe.directory='*' reset --hard origin/main
 
 echo ""
 echo "-> 3/6: Abhängigkeiten & Dashboard bauen..."
@@ -57,7 +64,7 @@ fi
 
 # Sudoers für 1-Click Update
 cat > /etc/sudoers.d/fitfamily << 'EOF'
-fitfamily ALL=(ALL) NOPASSWD: /bin/systemctl restart fitfamily, /usr/bin/systemctl restart fitfamily, /opt/fitfamily/scripts/update.sh, /opt/fitfamily/scripts/repair.sh
+fitfamily ALL=(ALL) NOPASSWD: /bin/systemctl restart fitfamily, /usr/bin/systemctl restart fitfamily, /opt/fitfamily/scripts/update.sh, /bin/bash /opt/fitfamily/scripts/update.sh, /usr/bin/bash /opt/fitfamily/scripts/update.sh, /opt/fitfamily/scripts/repair.sh, /bin/bash /opt/fitfamily/scripts/repair.sh, /usr/bin/bash /opt/fitfamily/scripts/repair.sh
 EOF
 chmod 0440 /etc/sudoers.d/fitfamily
 
@@ -82,6 +89,12 @@ echo ""
 echo "-> 5/6: Firewall prüfen (Port 3000)..."
 if command -v ufw >/dev/null 2>&1; then
   ufw allow 3000/tcp comment 'FitFamily Dashboard' >/dev/null 2>&1 || true
+fi
+
+if [[ "$NO_RESTART" -eq 1 ]]; then
+  echo ""
+  echo "-> 6/6: Update erfolgreich abgeschlossen! (Neustart wird vom aufrufenden Prozess durchgeführt)"
+  exit 0
 fi
 
 echo ""
