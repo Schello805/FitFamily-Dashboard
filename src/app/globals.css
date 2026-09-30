@@ -138,6 +138,7 @@ body::before {
 .music-launch.is-playing { border-color: rgba(45,212,191,.35); color: var(--brand-bright); }
 .music-launch i { width: 7px; height: 7px; background: var(--brand); border-radius: 50%; animation: pulse-audio 1.1s infinite alternate; }
 @keyframes pulse-audio { to { opacity: .35; transform: scale(.7); } }
+.music-backdrop { position: fixed; inset: 0; z-index: 38; background: rgba(0,0,0,.22); backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px); cursor: pointer; }
 .music-panel { position: fixed; z-index: 40; right: 26px; top: 111px; width: min(390px, calc(100vw - 28px)); max-height: min(720px, calc(100vh - 130px)); overflow-y: auto; padding: 17px; border: 1px solid rgba(186,230,235,.17); border-radius: 22px; background: rgba(10,25,29,.98); box-shadow: 0 26px 90px rgba(0,0,0,.56); backdrop-filter: blur(18px); }
 .music-panel > header { display: flex; justify-content: space-between; align-items: center; }
 .music-panel > header > div { display: flex; align-items: center; gap: 10px; }

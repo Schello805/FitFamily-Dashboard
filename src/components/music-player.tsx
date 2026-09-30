@@ -13,7 +13,38 @@ export function MusicPlayer() {
   const [trackTitle, setTrackTitle] = useState("");
   const audioRef = useRef<HTMLAudioElement>(null);
   const metadataRequestRef = useRef<AbortController | null>(null);
+  const panelRef = useRef<HTMLElement>(null);
+  const launchButtonRef = useRef<HTMLButtonElement>(null);
   const currentStation = RADIO_STATIONS.find((station) => station.id === selectedStationId) ?? RADIO_STATIONS[0];
+
+  useEffect(() => {
+    if (!open) return;
+
+    function handlePointerDown(event: PointerEvent) {
+      const target = event.target as Node;
+      if (
+        panelRef.current &&
+        !panelRef.current.contains(target) &&
+        launchButtonRef.current &&
+        !launchButtonRef.current.contains(target)
+      ) {
+        setOpen(false);
+      }
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setOpen(false);
+      }
+    }
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [open]);
 
   useEffect(() => {
     if (audioRef.current) audioRef.current.volume = volume / 100;
@@ -93,11 +124,13 @@ export function MusicPlayer() {
 
   return <>
     <audio ref={audioRef} onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)} onError={() => { setPlaying(false); setNotice("Dieser Stream ist momentan nicht erreichbar."); }} preload="none" />
-    <button className={`music-launch ${playing ? "is-playing" : ""}`} onClick={() => setOpen((value) => !value)} aria-expanded={open} aria-label={`Radiosteuerung öffnen${playing ? `, ${currentStation.name}${trackTitle ? `: ${trackTitle}` : ""}` : ""}`}>
+    <button ref={launchButtonRef} className={`music-launch ${playing ? "is-playing" : ""}`} onClick={() => setOpen((value) => !value)} aria-expanded={open} aria-label={`Radiosteuerung öffnen${playing ? `, ${currentStation.name}${trackTitle ? `: ${trackTitle}` : ""}` : ""}`}>
       <Music2 size={20} /><span>{playing ? <><b>{currentStation.name}</b><small>{trackTitle || currentStation.description}</small></> : "Radio"}</span>{playing && <i />}
     </button>
-    {open && <section className="music-panel" aria-label="Radio-Player">
-      <header><div><Radio /><span><b>Radio im Sportraum</b><small>{playing ? `Jetzt läuft · ${currentStation.name}` : "Sender auswählen und starten"}</small></span></div><button onClick={() => setOpen(false)} aria-label="Radiosteuerung schließen"><X /></button></header>
+    {open && <>
+      <div className="music-backdrop" onClick={() => setOpen(false)} aria-hidden="true" />
+      <section ref={panelRef} className="music-panel" aria-label="Radio-Player">
+        <header><div><Radio /><span><b>Radio im Sportraum</b><small>{playing ? `Jetzt läuft · ${currentStation.name}` : "Sender auswählen und starten"}</small></span></div><button onClick={() => setOpen(false)} aria-label="Radiosteuerung schließen"><X /></button></header>
       <div className="radio-now"><Headphones /><div><b>{currentStation.name}</b><small>{playing ? trackTitle || currentStation.description : "Ausgewählt · Senderliste zum Wechseln antippen"}</small></div><button className="play-button" onClick={togglePlayback} aria-label={playing ? "Radio pausieren" : "Radio starten"}>{playing ? <Pause fill="currentColor" /> : <Play fill="currentColor" />}</button></div>
       <div className="radio-list" aria-label="Radiosender">
         {RADIO_STATIONS.map((station) => <button key={station.id} className={station.id === selectedStationId ? "selected" : ""} onClick={() => void playStation(station.id)} aria-pressed={station.id === selectedStationId && playing}>
@@ -114,6 +147,6 @@ export function MusicPlayer() {
       </div>
       {notice && <p className="music-notice" role="status">{notice}</p>}
       <p className="music-footnote">Die Sender werden live über das Internet abgespielt. Sportschau-Liveübertragungen gibt es zu ausgewählten Spielen.</p>
-    </section>}
+    </section></>}
     </>;
 }
