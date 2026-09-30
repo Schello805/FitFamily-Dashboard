@@ -28,7 +28,7 @@ if [[ ! -d "$APP_DIR/.git" ]]; then
 else
   git fetch origin main
   git checkout main
-  git pull --ff-only origin main
+  git reset --hard origin/main
 fi
 
 # 2. Systembenutzer anlegen falls fehlend

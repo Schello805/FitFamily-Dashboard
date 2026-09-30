@@ -20,7 +20,7 @@ if [[ -d "$APP_DIR/.git" ]]; then
   git config --system --add safe.directory "$APP_DIR" 2>/dev/null || true
   git -C "$APP_DIR" fetch origin main 2>/dev/null || true
   git -C "$APP_DIR" checkout main 2>/dev/null || true
-  git -C "$APP_DIR" pull --ff-only origin main 2>/dev/null || true
+  git -C "$APP_DIR" reset --hard origin/main 2>/dev/null || true
 fi
 
 echo "=========================================================="
