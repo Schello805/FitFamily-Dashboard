@@ -18,7 +18,7 @@ export async function getDashboardData(): Promise<DashboardProfile[]> {
       JOIN training_segments sg ON sg.session_id = ts.id AND sg.ended_at IS NULL
       LEFT JOIN exercises ex ON ex.id = sg.exercise_id
       WHERE ts.status = 'active'`),
-    client.execute(`SELECT profile_id, title, target_date FROM training_plans
+    client.execute(`SELECT profile_id, title, target_date, plan_json FROM training_plans
       WHERE status = 'active' ORDER BY COALESCE(target_date, '9999-12-31') ASC`)
   ]);
 
@@ -55,7 +55,6 @@ export async function getDashboardData(): Promise<DashboardProfile[]> {
     }
 
     const active = activeResult.rows.find((entry) => String(entry.profile_id) === profileId);
-    const plan = plansResult.rows.find((entry) => String(entry.profile_id) === profileId);
     const profile: Profile = {
       id: profileId,
       name: String(row.name),
@@ -70,8 +69,45 @@ export async function getDashboardData(): Promise<DashboardProfile[]> {
       ? Math.floor((now.getTime() - new Date(profile.birthDate).getTime()) / (365.2425 * 24 * 60 * 60 * 1000))
       : (["fabian", "frieda"].includes(profile.id) ? 17 : 30);
     const target = movementTargetForAge(age);
-    const avatarProgress = getAvatarProgress(profile.startingFitness, strengthMinutes, enduranceMinutes);
     const targetActualMinutes = (target.period === "Tag" ? todaySeconds : weekSeconds) / 60;
+    const avatarProgress = getAvatarProgress(profile.startingFitness, strengthMinutes, enduranceMinutes);
+    const plan = plansResult.rows.find((item) => String(item.profile_id) === profileId);
+    let nextTrainingText: string | null = null;
+    if (plan) {
+      try {
+        const planJson = typeof plan.plan_json === "string" ? JSON.parse(plan.plan_json) : plan.plan_json;
+        const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+        let todaySession: { title: string; minutes: number } | null = null;
+        let upcomingSession: { title: string; minutes: number } | null = null;
+
+        if (Array.isArray(planJson?.weeks)) {
+          for (const week of planJson.weeks) {
+            if (Array.isArray(week.sessions)) {
+              for (const session of week.sessions) {
+                if (session.date === todayStr) {
+                  todaySession = session;
+                  break;
+                }
+                if (!upcomingSession) {
+                  upcomingSession = session;
+                }
+              }
+            }
+            if (todaySession) break;
+          }
+        }
+
+        if (todaySession) {
+          nextTrainingText = `${todaySession.title} (${todaySession.minutes} Min.)`;
+        } else if (upcomingSession) {
+          nextTrainingText = `${upcomingSession.title} (${upcomingSession.minutes} Min.)`;
+        } else {
+          nextTrainingText = String(plan.title);
+        }
+      } catch {
+        nextTrainingText = String(plan.title);
+      }
+    }
 
     return {
       ...profile,
@@ -82,7 +118,7 @@ export async function getDashboardData(): Promise<DashboardProfile[]> {
       targetPercent: Math.min(100, Math.round((targetActualMinutes / target.minutes) * 100)),
       targetMinutes: target.minutes,
       targetPeriod: target.period,
-      nextTraining: plan ? String(plan.title) : null,
+      nextTraining: nextTrainingText,
       activeTraining: active
         ? {
             sessionId: String(active.session_id),

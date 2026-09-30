@@ -111,6 +111,8 @@ body::before {
 .pulse-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--profile); box-shadow: 0 0 0 7px color-mix(in srgb, var(--profile) 15%, transparent); animation: pulse 1.5s infinite; }
 @keyframes pulse { 50% { box-shadow: 0 0 0 2px color-mix(in srgb, var(--profile) 8%, transparent); } }
 .active-strip > div:nth-of-type(2) { flex: 1; }
+.active-strip-title { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+.long-running-badge { font-size: 9px; font-weight: 800; padding: 2px 6px; border-radius: 6px; background: rgba(251,191,36,.2); border: 1px solid rgba(251,191,36,.45); color: #fbbf24; text-transform: uppercase; letter-spacing: .05em; }
 .active-strip span { color: var(--muted); font-size: 11px; display: block; }
 .active-strip strong { font-size: 20px; font-variant-numeric: tabular-nums; }
 .stop-button { width: 48px; height: 48px; border-radius: 14px; border: 0; background: rgba(251,113,133,.15); color: var(--danger); display: grid; place-items: center; cursor: pointer; }

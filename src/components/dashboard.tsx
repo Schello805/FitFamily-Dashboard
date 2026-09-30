@@ -136,7 +136,15 @@ export function Dashboard({ initialProfiles, version }: { initialProfiles: Dashb
               <div className="active-strip">
                 <div className="pulse-dot" />
                 {profile.activeTraining.type === "strength" ? <Dumbbell size={22} /> : <Activity size={22} />}
-                <div><span>{profile.activeTraining.exerciseName ?? (profile.activeTraining.type === "strength" ? "Krafttraining" : "Ausdauertraining")}</span><strong><LiveDuration since={profile.activeTraining.segmentStartedAt} /></strong></div>
+                <div>
+                  <div className="active-strip-title">
+                    <span>{profile.activeTraining.exerciseName ?? (profile.activeTraining.type === "strength" ? "Krafttraining" : "Ausdauertraining")}</span>
+                    {clock.getTime() - new Date(profile.activeTraining.startedAt).getTime() > 2 * 60 * 60 * 1000 && (
+                      <span className="long-running-badge" title="Training läuft seit über 2 Stunden. Automatische Pause nach 4 Stunden.">Läuft &gt;2h</span>
+                    )}
+                  </div>
+                  <strong><LiveDuration since={profile.activeTraining.segmentStartedAt} /></strong>
+                </div>
                 <button className="stop-button" onClick={(event) => stop(event, profile.id)} aria-label={`Training von ${profile.name} stoppen`}><Square size={19} fill="currentColor" /></button>
               </div>
             ) : (
