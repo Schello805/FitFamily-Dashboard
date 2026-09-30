@@ -10,7 +10,9 @@ export function MusicPlayer() {
   const [playing, setPlaying] = useState(false);
   const [volume, setVolume] = useState(65);
   const [notice, setNotice] = useState("");
+  const [trackTitle, setTrackTitle] = useState("");
   const audioRef = useRef<HTMLAudioElement>(null);
+  const metadataRequestRef = useRef<AbortController | null>(null);
   const currentStation = RADIO_STATIONS.find((station) => station.id === selectedStationId) ?? RADIO_STATIONS[0];
 
   useEffect(() => {
@@ -28,6 +30,7 @@ export function MusicPlayer() {
       return;
     }
     if (selectedStationId !== stationId || audio.src !== station.streamUrl) {
+      setTrackTitle("");
       audio.src = station.streamUrl;
       setSelectedStationId(station.id);
     }
@@ -59,18 +62,43 @@ export function MusicPlayer() {
     }
   }
 
+  useEffect(() => {
+    if (!playing) return;
+    const controller = new AbortController();
+    metadataRequestRef.current?.abort();
+    metadataRequestRef.current = controller;
+
+    async function refreshMetadata() {
+      try {
+        const response = await fetch(`/api/radio/now-playing?station=${encodeURIComponent(currentStation.id)}`, { signal: controller.signal, cache: "no-store" });
+        if (!response.ok) return;
+        const data = await response.json() as { title?: string | null };
+        setTrackTitle(data.title?.trim() ?? "");
+      } catch (error) {
+        if (error instanceof Error && error.name !== "AbortError") setTrackTitle("");
+      }
+    }
+
+    void refreshMetadata();
+    const interval = window.setInterval(() => void refreshMetadata(), 30_000);
+    return () => {
+      window.clearInterval(interval);
+      controller.abort();
+    };
+  }, [currentStation.id, playing]);
+
   function adjustVolume(amount: number) {
     setVolume((current) => Math.max(0, Math.min(100, current + amount)));
   }
 
   return <>
-    <button className={`music-launch ${playing ? "is-playing" : ""}`} onClick={() => setOpen((value) => !value)} aria-expanded={open} aria-label="Radiosteuerung öffnen">
-      <Music2 size={20} /><span>{playing ? "Radio läuft" : "Radio"}</span>{playing && <i />}
+    <audio ref={audioRef} onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)} onError={() => { setPlaying(false); setNotice("Dieser Stream ist momentan nicht erreichbar."); }} preload="none" />
+    <button className={`music-launch ${playing ? "is-playing" : ""}`} onClick={() => setOpen((value) => !value)} aria-expanded={open} aria-label={`Radiosteuerung öffnen${playing ? `, ${currentStation.name}${trackTitle ? `: ${trackTitle}` : ""}` : ""}`}>
+      <Music2 size={20} /><span>{playing ? <><b>{currentStation.name}</b><small>{trackTitle || currentStation.description}</small></> : "Radio"}</span>{playing && <i />}
     </button>
     {open && <section className="music-panel" aria-label="Radio-Player">
       <header><div><Radio /><span><b>Radio im Sportraum</b><small>{playing ? `Jetzt läuft · ${currentStation.name}` : "Sender auswählen und starten"}</small></span></div><button onClick={() => setOpen(false)} aria-label="Radiosteuerung schließen"><X /></button></header>
-      <div className="radio-now"><Headphones /><div><b>{currentStation.name}</b><small>{playing ? currentStation.description : "Ausgewählt · Senderliste zum Wechseln antippen"}</small></div><button className="play-button" onClick={togglePlayback} aria-label={playing ? "Radio pausieren" : "Radio starten"}>{playing ? <Pause fill="currentColor" /> : <Play fill="currentColor" />}</button></div>
-      <audio ref={audioRef} onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)} onError={() => { setPlaying(false); setNotice("Dieser Stream ist momentan nicht erreichbar."); }} preload="none" />
+      <div className="radio-now"><Headphones /><div><b>{currentStation.name}</b><small>{playing ? trackTitle || currentStation.description : "Ausgewählt · Senderliste zum Wechseln antippen"}</small></div><button className="play-button" onClick={togglePlayback} aria-label={playing ? "Radio pausieren" : "Radio starten"}>{playing ? <Pause fill="currentColor" /> : <Play fill="currentColor" />}</button></div>
       <div className="radio-list" aria-label="Radiosender">
         {RADIO_STATIONS.map((station) => <button key={station.id} className={station.id === selectedStationId ? "selected" : ""} onClick={() => void playStation(station.id)} aria-pressed={station.id === selectedStationId && playing}>
           <span className="radio-list-icon"><Radio /></span><span className="radio-label"><b>{station.name}</b><small>{station.description}</small></span>{station.id === selectedStationId && playing ? <Pause className="radio-state-icon" /> : <Play className="radio-state-icon" />}
@@ -87,5 +115,5 @@ export function MusicPlayer() {
       {notice && <p className="music-notice" role="status">{notice}</p>}
       <p className="music-footnote">Die Sender werden live über das Internet abgespielt. Sportschau-Liveübertragungen gibt es zu ausgewählten Spielen.</p>
     </section>}
-  </>;
+    </>;
 }

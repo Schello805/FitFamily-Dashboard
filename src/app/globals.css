@@ -98,7 +98,10 @@ body::before {
 .quiet-overlay span { font-size: clamp(80px, 14vw, 190px); line-height: .9; font-weight: 850; letter-spacing: -.07em; color: #d8e9e7; }
 .quiet-overlay strong { margin-top: 28px; color: var(--brand); text-transform: uppercase; letter-spacing: .18em; }
 .quiet-overlay small { color: #516366; margin-top: 10px; }
-.music-launch { position: relative; display: inline-flex; align-items: center; gap: 9px; min-height: 49px; padding: 0 15px; border: 1px solid var(--line); border-radius: 16px; background: rgba(12,28,32,.85); color: var(--text); font-weight: 750; cursor: pointer; touch-action: manipulation; }
+.music-launch { position: relative; display: inline-flex; align-items: center; gap: 9px; min-height: 49px; max-width: min(290px, 32vw); padding: 0 15px; border: 1px solid var(--line); border-radius: 16px; background: rgba(12,28,32,.85); color: var(--text); font-weight: 750; cursor: pointer; touch-action: manipulation; }
+.music-launch > span { min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; }
+.music-launch > span b { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+.music-launch > span small { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: 9px; font-weight: 600; }
 .music-launch > svg { color: var(--brand); }
 .music-launch.is-playing { border-color: rgba(45,212,191,.35); color: var(--brand-bright); }
 .music-launch i { width: 7px; height: 7px; background: var(--brand); border-radius: 50%; animation: pulse-audio 1.1s infinite alternate; }
@@ -204,8 +207,9 @@ body::before {
   .header-actions { gap: 8px; }
   .clock-block time { font-size: 30px; }
   .clock-block span { font-size: 10px; }
-  .music-launch { min-width: 48px; min-height: 48px; padding: 0 12px; border-radius: 14px; }
-  .music-launch span { display: none; }
+  .music-launch { min-width: 48px; min-height: 48px; max-width: min(210px, 40vw); padding: 0 10px; border-radius: 14px; }
+  .music-launch > span b { font-size: 10px; }
+  .music-launch > span small { font-size: 8px; }
   .music-panel { top: 86px; right: 12px; }
   .weather-block { display: none; }
   .profile-grid { grid-template-columns: 1fr; grid-template-rows: none; }

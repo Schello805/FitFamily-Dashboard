@@ -52,3 +52,7 @@ export const RADIO_STATIONS: RadioStation[] = [
 ];
 
 export const SPORTS_RADIO_PAGE = "https://www.sportschau.de/fussball/bundesliga-und-2-bundesliga-live-bei-der-sportschau,how-to-audio-netcast-100.html";
+
+export function getRadioStation(stationId: string) {
+  return RADIO_STATIONS.find((station) => station.id === stationId);
+}
