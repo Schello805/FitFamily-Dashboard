@@ -59,14 +59,12 @@ body::before {
 .profile-name h2 { margin: 3px 0 2px; font-size: clamp(26px, 2.1vw, 38px); letter-spacing: -.045em; line-height: 1; }
 .profile-name p { margin: 7px 0 0; color: var(--muted); font-size: 13px; }
 .avatar { width: 78px; height: 88px; position: relative; display: flex; align-items: center; justify-content: flex-end; flex-direction: column; }
-.avatar-glow { position: absolute; inset: 14px 1px 0; border-radius: 28px; background: var(--profile); opacity: .12; }
 .avatar-head { width: 32px; height: 35px; z-index: 2; border-radius: 48% 48% 44% 44%; background: #d6a57e; position: relative; box-shadow: inset 0 8px 0 #3f2a24; }
 .avatar-head span { position: absolute; width: 4px; height: 4px; background: #33201c; border-radius: 50%; top: 17px; left: 8px; box-shadow: 12px 0 #33201c; }
 .avatar-body { width: 54px; height: 42px; margin-top: -2px; border-radius: 19px 19px 12px 12px; display: grid; place-items: center; color: #071316; background: var(--profile); z-index: 1; }
 .avatar-body.female { border-radius: 21px 21px 9px 9px; width: 58px; }
 .level-chip { position: absolute; right: 3px; bottom: 3px; z-index: 3; font-size: 10px; font-weight: 800; padding: 4px 7px; border-radius: 9px; background: #f7fffe; color: #092024; box-shadow: 0 4px 14px rgba(0,0,0,.28); }
 .avatar-generated { width: 88px; height: 120px; flex: none; overflow: hidden; border-radius: 24px; isolation: isolate; background: color-mix(in srgb, var(--profile) 12%, rgba(255,255,255,.04)); }
-.avatar-generated .avatar-glow { inset: 10px 0 0; border-radius: inherit; }
 .avatar-sprite { position: absolute; z-index: 2; inset: 0; width: 100%; height: 100%; object-fit: contain; object-position: center bottom; filter: drop-shadow(0 5px 6px rgba(0,0,0,.24)); pointer-events: none; }
 .goal-ring { --progress: 0deg; width: 75px; height: 75px; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; background: conic-gradient(var(--profile) var(--progress), rgba(255,255,255,.08) 0); }
 .goal-ring::after { content: ""; position: absolute; inset: 7px; border-radius: 50%; background: #0e2227; }
