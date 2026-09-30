@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Check, ChevronRight, LockKeyhole, ShieldCheck } from "lucide-react";
 import { AVATAR_IDS, FITNESS_STAGES, type AvatarId, type ProfileAvatar } from "@/lib/domain";
 import { AvatarPicker } from "@/components/avatar-picker";
@@ -17,6 +17,7 @@ const initialProfiles: SetupProfile[] = [
 const setupDraftKey = "fitfamily-setup-profiles";
 
 export function SetupForm() {
+  const router = useRouter();
   const [profiles, setProfiles] = useState(initialProfiles.map((profile) => ({ ...profile })));
   const [pin, setPin] = useState("");
   const [confirmPin, setConfirmPin] = useState("");
@@ -75,6 +76,10 @@ export function SetupForm() {
       if (!response.ok) return setError(result.error ?? "Einrichtung konnte nicht gespeichert werden.");
       try { window.sessionStorage.removeItem(setupDraftKey); } catch { /* Best effort cleanup. */ }
       setDone(true);
+      setTimeout(() => {
+        router.push("/");
+        router.refresh();
+      }, 1500);
     } catch {
       setError("Die Verbindung zum Dashboard wurde unterbrochen. Deine Profildaten sind in diesem Browser-Tab gesichert – bitte erneut versuchen.");
     } finally {
@@ -82,7 +87,7 @@ export function SetupForm() {
     }
   }
 
-  if (done) return <main className="mobile-page"><section className="success-card"><div><Check size={42} /></div><h1>Alles bereit!</h1><p>Das FitFamily Dashboard startet jetzt auf dem Wandmonitor. Diese Seite kann geschlossen werden.</p><Link href="/">Dashboard öffnen</Link></section></main>;
+  if (done) return <main className="mobile-page"><section className="success-card"><div><Check size={42} /></div><h1>Alles bereit!</h1><p>Das FitFamily Dashboard startet jetzt auf dem Monitor (Weiterleitung in Kürze …).</p><button type="button" className="primary-submit" onClick={() => { router.push("/"); router.refresh(); }}>Dashboard jetzt öffnen</button></section></main>;
 
   return (
     <main className="mobile-page">

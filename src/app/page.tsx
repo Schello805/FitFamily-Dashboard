@@ -25,7 +25,10 @@ export default async function Home() {
     const protocol = requestHeaders.get("x-forwarded-proto") ?? "http";
     const configuredUrl = process.env.APP_URL?.trim().replace(/\/$/, "");
     const baseUrl = configuredUrl || `${protocol}://${host}`;
-    return <FirstRun setupUrl={`${baseUrl}/einrichtung`} />;
+    const setupUrl = `${baseUrl}/einrichtung`;
+    const { default: QRCode } = await import("qrcode");
+    const qr = await QRCode.toDataURL(setupUrl, { width: 480, margin: 2, color: { dark: "#071316", light: "#ffffff" } });
+    return <FirstRun setupUrl={setupUrl} qr={qr} />;
   }
   const profiles = await getDashboardData();
   return <Dashboard initialProfiles={profiles} version={getRevision()} />;

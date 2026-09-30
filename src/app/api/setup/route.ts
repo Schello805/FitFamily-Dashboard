@@ -16,6 +16,13 @@ const schema = z.object({
   profiles: z.array(profileSchema).length(4)
 });
 
+export const dynamic = "force-dynamic";
+
+export async function GET() {
+  const complete = (await getSetting("setup_complete")) === "true";
+  return NextResponse.json({ setupComplete: complete });
+}
+
 export async function POST(request: Request) {
   if ((await getSetting("setup_complete")) === "true") {
     return NextResponse.json({ error: "Die Ersteinrichtung ist bereits abgeschlossen." }, { status: 409 });
