@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Find target user
+TARGET_USER="${SUDO_USER:-$USER}"
+USER_HOME="$(getent passwd "$TARGET_USER" | cut -d: -f6)"
+APP_DIR="/opt/fitfamily"
+DESKTOP_DIR="$USER_HOME/Desktop"
+APPS_DIR="$USER_HOME/.local/share/applications"
+
+# Standardverzeichnis für Desktop-Icons prüfen (falls XDG anders konfiguriert)
+if command -v xdg-user-dir >/dev/null 2>&1; then
+  CUSTOM_DESKTOP="$(sudo -u "$TARGET_USER" xdg-user-dir DESKTOP 2>/dev/null || true)"
+  if [[ -n "$CUSTOM_DESKTOP" && -d "$CUSTOM_DESKTOP" ]]; then
+    DESKTOP_DIR="$CUSTOM_DESKTOP"
+  fi
+fi
+
+mkdir -p "$DESKTOP_DIR" "$APPS_DIR"
+
+SHORTCUT_FILE="$DESKTOP_DIR/fitfamily.desktop"
+MENU_FILE="$APPS_DIR/fitfamily.desktop"
+
+# Desktop-Datei kopieren
+install -m 0755 "$APP_DIR/deploy/desktop/fitfamily.desktop" "$SHORTCUT_FILE"
+install -m 0644 "$APP_DIR/deploy/desktop/fitfamily.desktop" "$MENU_FILE"
+
+chown "$TARGET_USER:$TARGET_USER" "$SHORTCUT_FILE" "$MENU_FILE"
+
+# Unter GNOME das Desktop-Icon als vertrauenswürdig markieren
+if command -v gio >/dev/null 2>&1; then
+  sudo -u "$TARGET_USER" gio set "$SHORTCUT_FILE" metadata::trusted true 2>/dev/null || true
+fi
+
+echo "FitFamily Desktop-Icon erfolgreich angelegt:"
+echo " - Desktop: $SHORTCUT_FILE"
+echo " - Anwendungsmenü: $MENU_FILE"

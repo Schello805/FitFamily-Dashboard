@@ -59,6 +59,13 @@ echo "-> 4/4: FitFamily Systemdienst einrichten und starten..."
 chmod +x "$TARGET_DIR/scripts/install-ubuntu.sh"
 "$TARGET_DIR/scripts/install-ubuntu.sh"
 
+if [[ -n "${SUDO_USER:-}" && "${SUDO_USER}" != "root" ]]; then
+  echo ""
+  echo "-> Desktop-Icon für Benutzer '$SUDO_USER' anlegen..."
+  chmod +x "$TARGET_DIR/scripts/create-desktop-shortcut.sh"
+  "$TARGET_DIR/scripts/create-desktop-shortcut.sh" || true
+fi
+
 echo ""
 echo "========================================================"
 echo " Fertig! FitFamily läuft jetzt im Hintergrund."

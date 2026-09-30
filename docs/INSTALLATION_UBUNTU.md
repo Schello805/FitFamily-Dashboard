@@ -83,9 +83,19 @@ Auf dem Handy im selben WLAN die Adresse `http://192.168.1.42:3000` öffnen (mit
 
 Die Verbindung ist im Standardaufbau unverschlüsseltes HTTP. FitFamily deshalb nur im eigenen, vertrauenswürdigen WLAN verwenden und den Port 3000 nicht im Router zum Internet freigeben. Wenn die Ubuntu-Firewall aktiv ist, den Zugriff auf Port 3000 auf das private Heimnetz beschränken.
 
-## 5. Touchmonitor, Autostart und Musik
+## 5. Desktop-Icon & Kiosk-Modus (Vollbild)
 
-Für die erste Einrichtung genügt der normale Ubuntu-Browser. Im Vollbildmodus blendet `F11` die Browserleisten aus. Optional lässt sich Chromium mit `--kiosk http://localhost:3000` als Anwendungsstart einrichten.
+Ein Klick auf das Desktop-Icon startet FitFamily direkt im Vollbild-Kiosk-Modus (ohne Adressleiste oder Browser-Tabs; Wischgesten für Vor/Zurück sind für Touchscreens deaktiviert).
+
+Falls das Desktop-Icon noch nicht auf deinem Schreibtisch liegt, erstelle es mit folgendem Befehl:
+
+```bash
+sudo /opt/fitfamily/scripts/create-desktop-shortcut.sh
+```
+
+- **Starten:** Doppelklick auf das „FitFamily Dashboard“-Icon auf dem Desktop oder im Ubuntu-Anwendungsmenü (Super-Taste).
+- **Kiosk-Modus beenden:** `Alt + F4` oder `F11`.
+- **Hinweis unter GNOME:** Falls das Icon auf dem Schreibtisch noch gesperrt wirkt, mit der rechten Maustaste auf das Icon klicken und **„Starten erlauben“** (*Allow Launching*) anklicken.
 
 Radio läuft über den Standard-Audioausgang des Lenovo. PC-Lautsprecher oder später angeschlossene externe Lautsprecher sollten in Ubuntu unter **Einstellungen → Ton** als Ausgabe ausgewählt sein. Der Player bietet sechs Livestreams und einen Link zu den Sportschau-Audioreportagen an Spieltagen; eine Musik-Upload-Funktion gibt es nicht. Zum Radiohören muss der PC mit dem Internet verbunden sein.
 

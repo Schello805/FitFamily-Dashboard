@@ -1,0 +1,16 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=FitFamily Dashboard
+GenericName=Fitness Dashboard
+Comment=FitFamily Dashboard im Vollbild-Kiosk-Modus starten
+Exec=/opt/fitfamily/scripts/launch-kiosk.sh
+Icon=/opt/fitfamily/public/assets/fitfamily-logo.png
+Terminal=false
+Categories=Sports;Health;Utility;
+StartupNotify=true
+Actions=StandardBrowser;
+
+[Desktop Action StandardBrowser]
+Name=Im Standard-Browser öffnen
+Exec=xdg-open http://localhost:3000
