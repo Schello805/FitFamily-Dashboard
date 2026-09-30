@@ -23,9 +23,9 @@ Eine `training_session` gehört zu genau einem Profil und enthält beliebig viel
 - QR-Übergaben sind einmalig und zehn Minuten gültig.
 - NFC-URLs identifizieren eine Übung; das gekoppelte Handy identifiziert die Person.
 
-## Skalierung
+## Skalierung & Kontomodell
 
-Die aktuelle SQLite-Datenbank ist für einen Familienhaushalt ausreichend und minimiert Wartung. Domänenlogik und API sind von der Oberfläche getrennt, sodass später native Apps oder eine andere Datenbank ergänzt werden können.
+Die aktuelle SQLite-Datenbank ist für einen Familienhaushalt ausreichend und minimiert Wartung. Domänenlogik und API sind von der Oberfläche getrennt, sodass später native Apps oder eine andere Datenbank ergänzt werden können. Das Profil- und Avatarmodell arbeitet vollständig lokal ohne E-Mail-Adressen oder Cloud-Zwang ([docs/KONTOMODELL_UND_AVATARE.md](docs/KONTOMODELL_UND_AVATARE.md)).
 
 ## Release-Version
 
