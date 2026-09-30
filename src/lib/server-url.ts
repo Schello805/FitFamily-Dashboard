@@ -10,7 +10,14 @@ export function getLanIpAddress(): string | null {
 
   for (const name of Object.keys(interfaces)) {
     for (const iface of interfaces[name] || []) {
-      if (iface.family === "IPv4" && !iface.internal && iface.address !== "0.0.0.0") {
+      const family = String(iface.family);
+      if (
+        (family === "IPv4" || family === "4") &&
+        !iface.internal &&
+        iface.address &&
+        iface.address !== "0.0.0.0" &&
+        iface.address !== "127.0.0.1"
+      ) {
         // Heimnetz-Bereiche bevorzugen: 192.168.x.x, 10.x.x.x, 172.16-31.x.x
         if (
           iface.address.startsWith("192.168.") ||
@@ -61,10 +68,19 @@ export function getMobileReachableBaseUrl(request?: Request): string {
 
   // 3. Echte LAN-IP der Netzwerkkarte automatisch ermitteln
   const lanIp = getLanIpAddress();
-  if (lanIp) {
+  if (lanIp && lanIp !== "0.0.0.0" && lanIp !== "127.0.0.1") {
     return `http://${lanIp}:${port}`;
   }
 
   // 4. Notfall-Fallback
   return `http://localhost:${port}`;
+}
+
+/**
+ * Erstellt eine saubere, für mobile Endgeräte erreichbare Weiterleitungs-URL (niemals 0.0.0.0).
+ */
+export function createReachableUrl(path: string, request?: Request): URL {
+  const base = getMobileReachableBaseUrl(request).replace(/\/$/, "");
+  const cleanPath = path.startsWith("/") ? path : `/${path}`;
+  return new URL(`${base}${cleanPath}`);
 }

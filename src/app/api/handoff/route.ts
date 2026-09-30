@@ -4,10 +4,12 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { createToken, hashToken } from "@/lib/security";
-
 import { getMobileReachableBaseUrl } from "@/lib/server-url";
 
-const schema = z.object({ profileId: z.string().min(1) });
+const schema = z.object({
+  profileId: z.string().min(1),
+  clientOrigin: z.string().url().optional()
+});
 
 export async function POST(request: Request) {
   const body = schema.safeParse(await request.json());
@@ -26,7 +28,19 @@ export async function POST(request: Request) {
       args: [randomUUID(), body.data.profileId, JSON.stringify({ expiresAt })]
     }
   ], "write");
-  const origin = getMobileReachableBaseUrl(request);
+
+  let origin = getMobileReachableBaseUrl(request);
+  if (body.data.clientOrigin) {
+    const testOrigin = body.data.clientOrigin.trim().replace(/\/$/, "");
+    if (!testOrigin.includes("0.0.0.0") && !testOrigin.includes("localhost") && !testOrigin.includes("127.0.0.1")) {
+      origin = testOrigin;
+    }
+  }
+
   const url = `${origin.replace(/\/$/, "")}/handoff/${token}`;
-  return NextResponse.json({ url, qr: await QRCode.toDataURL(url, { width: 420, margin: 2, color: { dark: "#071316", light: "#ffffff" } }), expiresAt });
+  return NextResponse.json({
+    url,
+    qr: await QRCode.toDataURL(url, { width: 420, margin: 2, color: { dark: "#071316", light: "#ffffff" } }),
+    expiresAt
+  });
 }

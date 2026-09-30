@@ -125,7 +125,14 @@ export function ProfileView({ initialProfile, exercises }: { initialProfile: Das
   }
 
   async function openHandoff() {
-    const response = await fetch("/api/handoff", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ profileId: profile.id }) });
+    const clientOrigin = typeof window !== "undefined" && !window.location.origin.includes("0.0.0.0") && !window.location.origin.includes("localhost") && !window.location.origin.includes("127.0.0.1")
+      ? window.location.origin
+      : undefined;
+    const response = await fetch("/api/handoff", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ profileId: profile.id, clientOrigin })
+    });
     if (response.ok) setHandoff(await response.json());
   }
 
