@@ -8,7 +8,7 @@ export async function FirstRun({ setupUrl }: { setupUrl: string }) {
         <div className="setup-badge">Willkommen</div>
         <h1>FitFamily<br /><span>einrichten.</span></h1>
         <p>Scanne den QR-Code mit einem Handy im selben WLAN. Dort legst du Eltern-PIN und Profildaten sicher fest – ganz ohne Tastatur am Monitor.</p>
-        <div className="privacy-note"><b>Alles unter einem Dach.</b><span>Deine Familien- und Trainingsdaten bleiben auf diesem Raspberry Pi.</span></div>
+        <div className="privacy-note"><b>Alles unter einem Dach.</b><span>Deine Familien- und Trainingsdaten bleiben lokal auf diesem FitFamily-Gerät.</span></div>
       </section>
       <section className="qr-panel">
         {/* eslint-disable-next-line @next/next/no-img-element */}

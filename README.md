@@ -1,6 +1,6 @@
 # FitFamily Dashboard
 
-Das lokale Familien-Fitnessdashboard für einen Touchmonitor im Sportraum. FitFamily läuft auf einem Raspberry Pi, erfasst parallele Kraft- und Ausdauertrainings und lässt sich ohne Cloud-Konto am Monitor oder Handy bedienen.
+Das lokale Familien-Fitnessdashboard für den Touchmonitor im Sportraum. FitFamily kann auf einem Ubuntu-Desktop-PC (z. B. Lenovo All-in-One) oder Raspberry Pi laufen, erfasst parallele Kraft- und Ausdauertrainings und lässt sich am Monitor oder Handy im Heimnetz bedienen.
 
 > Status: frühe Version 0.1.0. Kernfunktionen sind nutzbar; die Roadmap bis Version 1.0 ist in [ROADMAP.md](ROADMAP.md) dokumentiert.
 
@@ -31,13 +31,13 @@ npm run dev
 
 Danach `http://localhost:3000` öffnen. Beim ersten Start führt ein QR-Code zur mobilen Einrichtung.
 
-## Raspberry Pi
+## Ubuntu-Desktop-PC oder Raspberry Pi
 
-Unterstützt werden Raspberry Pi 4 (empfohlen) und Raspberry Pi 3B mit reduzierten Animationen. Die vollständige Einrichtung inklusive Kioskmodus und automatischem Start beschreibt [docs/INSTALLATION_RASPBERRY_PI.md](docs/INSTALLATION_RASPBERRY_PI.md).
+Für deinen Lenovo All-in-One ist Ubuntu Desktop als Hauptrechner geeignet; ein separater Server ist nicht nötig. Der PC muss eingeschaltet und mit dem Heimnetz verbunden sein, wenn Handys darauf zugreifen sollen. Die Ubuntu-Anleitung steht in [docs/INSTALLATION_UBUNTU.md](docs/INSTALLATION_UBUNTU.md). Raspberry Pi 4 und 3B bleiben ebenfalls möglich; Hinweise dazu stehen in [docs/INSTALLATION_RASPBERRY_PI.md](docs/INSTALLATION_RASPBERRY_PI.md).
 
 ## KI-Anbieter
 
-KI ist optional. Ohne Schlüssel erstellt FitFamily lokale Vorlagen. Schlüssel gehören ausschließlich in `.env.local` auf dem Raspberry Pi:
+KI ist optional. Ohne Schlüssel erstellt FitFamily lokale Vorlagen. Schlüssel gehören ausschließlich in `.env.local` auf dem Gerät, auf dem FitFamily läuft:
 
 ```dotenv
 OPENAI_API_KEY=
@@ -69,7 +69,7 @@ Der Befehl prüft ESLint, TypeScript, Tests und den Produktions-Build.
 - `src/app` – Seiten und lokale API-Endpunkte
 - `src/components` – Touch- und Handyoberflächen
 - `src/lib` – Datenbank, Sicherheit und Trainingslogik
-- `scripts` – Backup und Raspberry-Pi-Betrieb
+- `scripts` – Backup und Geräteinstallation
 - `docs` – Installation und Betrieb
 
 Das Markenlogo liegt unter `public/assets/fitfamily-logo.png`. Die Fußzeile zeigt Projektinhaber, GitHub-Verweis und die Release-Version.
