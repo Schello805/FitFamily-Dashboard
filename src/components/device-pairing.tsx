@@ -1,0 +1,31 @@
+"use client";
+
+import { useState } from "react";
+import { Smartphone, ShieldCheck } from "lucide-react";
+
+export function DevicePairing({ profiles, nextPath }: { profiles: { id: string; name: string; color: string }[]; nextPath: string }) {
+  const [profileId, setProfileId] = useState("");
+  const [pin, setPin] = useState("");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  async function pair() {
+    setBusy(true); setError("");
+    const response = await fetch("/api/device/pair", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ profileId, pin, label: navigator.userAgent.includes("iPhone") ? "iPhone" : "Mobilgerät" })
+    });
+    const result = await response.json();
+    if (!response.ok) { setBusy(false); setError(result.error ?? "Kopplung fehlgeschlagen"); return; }
+    window.location.href = nextPath;
+  }
+
+  return <main className="mobile-page"><section className="pair-card">
+    <div className="pair-icon"><Smartphone /></div><span className="setup-badge">Neues Gerät</span><h1>Wem gehört<br />dieses Handy?</h1><p>Die Auswahl wird sicher im Browser gespeichert und kann später widerrufen werden.</p>
+    <div className="profile-choice">{profiles.map((profile) => <button key={profile.id} onClick={() => setProfileId(profile.id)} className={profileId === profile.id ? "selected" : ""} style={{ "--profile": profile.color } as React.CSSProperties}><i />{profile.name}</button>)}</div>
+    <label>Eltern-PIN<input inputMode="numeric" type="password" value={pin} onChange={(event) => setPin(event.target.value)} /></label>
+    {error && <p className="form-error">{error}</p>}
+    <button className="primary-submit" disabled={busy || !profileId || pin.length < 4} onClick={pair}>{busy ? "Wird gekoppelt …" : "Handy koppeln"}</button>
+    <small><ShieldCheck size={15} /> Nur im lokalen Familiennetzwerk</small>
+  </section></main>;
+}

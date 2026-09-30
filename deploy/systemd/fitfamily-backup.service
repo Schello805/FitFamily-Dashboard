@@ -1,0 +1,11 @@
+[Unit]
+Description=FitFamily verschlüsseltes NAS-Backup
+After=network-online.target fitfamily.service
+
+[Service]
+Type=oneshot
+User=fitfamily
+Group=fitfamily
+WorkingDirectory=/opt/fitfamily
+ExecStart=/usr/bin/npm run backup
+Nice=10

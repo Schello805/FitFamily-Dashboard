@@ -1,0 +1,90 @@
+import { asNumber, asString, db } from "@/lib/db";
+import type { DashboardProfile, Profile, TrainingType } from "@/lib/domain";
+import { SCORE_MULTIPLIER } from "@/lib/domain";
+
+function durationSeconds(start: string, end: string | null) {
+  return Math.max(0, (new Date(end ?? Date.now()).getTime() - new Date(start).getTime()) / 1000);
+}
+
+export async function getDashboardData(): Promise<DashboardProfile[]> {
+  const client = await db();
+  const [profilesResult, segmentsResult, activeResult, plansResult] = await Promise.all([
+    client.execute("SELECT * FROM profiles ORDER BY CASE id WHEN 'mama' THEN 1 WHEN 'papa' THEN 2 WHEN 'fabian' THEN 3 ELSE 4 END"),
+    client.execute(`SELECT ts.profile_id, sg.type, sg.started_at, sg.ended_at
+      FROM training_segments sg JOIN training_sessions ts ON ts.id = sg.session_id`),
+    client.execute(`SELECT ts.profile_id, ts.id session_id, ts.started_at session_started_at,
+      sg.id segment_id, sg.type, sg.exercise_id, sg.started_at segment_started_at, ex.name exercise_name
+      FROM training_sessions ts
+      JOIN training_segments sg ON sg.session_id = ts.id AND sg.ended_at IS NULL
+      LEFT JOIN exercises ex ON ex.id = sg.exercise_id
+      WHERE ts.status = 'active'`),
+    client.execute(`SELECT profile_id, title, target_date FROM training_plans
+      WHERE status = 'active' ORDER BY COALESCE(target_date, '9999-12-31') ASC`)
+  ]);
+
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const weekStartDate = new Date(todayStart);
+  const weekday = weekStartDate.getDay() || 7;
+  weekStartDate.setDate(weekStartDate.getDate() - weekday + 1);
+  const weekStart = weekStartDate.getTime();
+
+  return profilesResult.rows.map((row) => {
+    const profileId = String(row.id);
+    const profileSegments = segmentsResult.rows.filter((segment) => String(segment.profile_id) === profileId);
+    let points = 0;
+    let totalSeconds = 0;
+    let todaySeconds = 0;
+    let weekSeconds = 0;
+
+    for (const segment of profileSegments) {
+      const start = String(segment.started_at);
+      const end = asString(segment.ended_at);
+      const seconds = durationSeconds(start, end);
+      const type = String(segment.type) as TrainingType;
+      totalSeconds += seconds;
+      points += (seconds / 60) * SCORE_MULTIPLIER[type];
+      const startTime = new Date(start).getTime();
+      const endTime = new Date(end ?? Date.now()).getTime();
+      if (endTime >= todayStart) todaySeconds += Math.max(0, (endTime - Math.max(startTime, todayStart)) / 1000);
+      if (endTime >= weekStart) weekSeconds += Math.max(0, (endTime - Math.max(startTime, weekStart)) / 1000);
+    }
+
+    const active = activeResult.rows.find((entry) => String(entry.profile_id) === profileId);
+    const plan = plansResult.rows.find((entry) => String(entry.profile_id) === profileId);
+    const profile: Profile = {
+      id: profileId,
+      name: String(row.name),
+      color: String(row.color),
+      avatar: String(row.avatar) as Profile["avatar"],
+      birthDate: asString(row.birth_date),
+      scoreBaseline: asNumber(row.score_baseline),
+      goal: String(row.goal)
+    };
+    const age = profile.birthDate
+      ? Math.floor((now.getTime() - new Date(profile.birthDate).getTime()) / (365.2425 * 24 * 60 * 60 * 1000))
+      : (["fabian", "frieda"].includes(profile.id) ? 17 : 30);
+    const targetMinutes = age < 18 ? 90 : 150;
+    const targetActualMinutes = (age < 18 ? todaySeconds : weekSeconds) / 60;
+
+    return {
+      ...profile,
+      score: Math.floor(profile.scoreBaseline + points),
+      totalMinutes: Math.floor(totalSeconds / 60),
+      todayMinutes: Math.floor(todaySeconds / 60),
+      targetPercent: Math.min(100, Math.round((targetActualMinutes / targetMinutes) * 100)),
+      nextTraining: plan ? String(plan.title) : null,
+      activeTraining: active
+        ? {
+            sessionId: String(active.session_id),
+            segmentId: String(active.segment_id),
+            type: String(active.type) as TrainingType,
+            exerciseId: asString(active.exercise_id),
+            exerciseName: asString(active.exercise_name),
+            startedAt: String(active.session_started_at),
+            segmentStartedAt: String(active.segment_started_at)
+          }
+        : null
+    };
+  });
+}

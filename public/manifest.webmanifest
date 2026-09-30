@@ -1,0 +1,11 @@
+{
+  "name": "FitFamily Dashboard",
+  "short_name": "FitFamily",
+  "description": "Das lokale Familien-Fitnessdashboard",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#061013",
+  "theme_color": "#071316",
+  "lang": "de",
+  "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
+}
