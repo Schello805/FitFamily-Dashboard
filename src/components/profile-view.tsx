@@ -23,7 +23,15 @@ import { showToast } from "@/components/toast";
 
 type Exercise = { id: string; name: string; type: string; equipment: string };
 
-export function ProfileView({ initialProfile, exercises }: { initialProfile: DashboardProfile; exercises: Exercise[] }) {
+export function ProfileView({
+  initialProfile,
+  exercises,
+  serverBaseUrl
+}: {
+  initialProfile: DashboardProfile;
+  exercises: Exercise[];
+  serverBaseUrl?: string;
+}) {
   const [profile, setProfile] = useState(initialProfile);
   const [busy, setBusy] = useState(false);
   const [handoff, setHandoff] = useState<{ qr: string; url?: string; expiresAt: string; token?: string } | null>(null);
@@ -301,8 +309,15 @@ export function ProfileView({ initialProfile, exercises }: { initialProfile: Das
     }
   }
 
+  function getWebhookUrl() {
+    if (serverBaseUrl && typeof window !== "undefined" && (window.location.origin.includes("localhost") || window.location.origin.includes("127.0.0.1"))) {
+      return `${serverBaseUrl.replace(/\/$/, "")}/api/sync/apple-health`;
+    }
+    return typeof window !== "undefined" ? `${window.location.origin}/api/sync/apple-health` : "";
+  }
+
   async function copyWebhookUrl() {
-    const url = `${window.location.origin}/api/sync/apple-health`;
+    const url = getWebhookUrl();
     try {
       await navigator.clipboard.writeText(url);
       setCopiedWebhook(true);
@@ -544,6 +559,11 @@ export function ProfileView({ initialProfile, exercises }: { initialProfile: Das
               Synchronisiere deine Trainings (Laufen, Radfahren, Krafttraining, etc.) direkt aus Apple Health mit deinem FitFamily Profil. Jeder Lauf und jedes Workout schreibt dir automatisch Punkte gut!
             </p>
 
+            <div style={{ margin: "0 0 16px", padding: "10px 14px", borderRadius: "12px", background: "var(--subtle-bg)", border: "1px solid var(--line)", fontSize: "12px", color: "var(--muted)", display: "flex", alignItems: "center", gap: "10px" }}>
+              <span style={{ fontSize: "16px" }}>💡</span>
+              <span><strong>Kompatibel mit Gymondo & Fitness-Apps:</strong> Auch Workouts aus Gymondo, Strava, Garmin oder Nike Training Club werden automatisch übernommen, sobald sie in Apple Health gespeichert sind.</span>
+            </div>
+
             <div className="health-action-row">
               <a
                 href={`/api/shortcuts/${profile.id}?download=1`}
@@ -569,7 +589,7 @@ export function ProfileView({ initialProfile, exercises }: { initialProfile: Das
               <div className="health-url-input-wrap">
                 <input
                   readOnly
-                  value={typeof window !== "undefined" ? `${window.location.origin}/api/sync/apple-health` : ""}
+                  value={getWebhookUrl()}
                 />
                 <button type="button" className="health-copy-btn" onClick={copyWebhookUrl}>
                   {copiedWebhook ? <Check size={16} /> : <Copy size={16} />}

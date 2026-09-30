@@ -29,7 +29,10 @@ const deleteSchema = z.object({
 
 export async function POST(request: Request) {
   const body = postSchema.safeParse(await request.json());
-  if (!body.success) return NextResponse.json({ error: "Zeitangaben sind ungültig" }, { status: 400 });
+  if (!body.success) {
+    const errorMsg = body.error.issues[0]?.message || "Zeitangaben sind ungültig";
+    return NextResponse.json({ error: errorMsg }, { status: 400 });
+  }
   if (!(await verifyAdminPin(body.data.pin))) return NextResponse.json({ error: "Eltern-PIN ist nicht richtig" }, { status: 401 });
   const sessionId = randomUUID();
   const client = await db();
@@ -54,7 +57,10 @@ export async function POST(request: Request) {
 
 export async function PUT(request: Request) {
   const body = editSchema.safeParse(await request.json());
-  if (!body.success) return NextResponse.json({ error: "Zeitangaben oder Eingaben sind ungültig" }, { status: 400 });
+  if (!body.success) {
+    const errorMsg = body.error.issues[0]?.message || "Zeitangaben oder Eingaben sind ungültig";
+    return NextResponse.json({ error: errorMsg }, { status: 400 });
+  }
   if (!(await verifyAdminPin(body.data.pin))) return NextResponse.json({ error: "Eltern-PIN ist nicht richtig" }, { status: 401 });
 
   const client = await db();

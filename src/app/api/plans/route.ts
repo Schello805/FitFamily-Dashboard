@@ -30,7 +30,7 @@ const importedPlanSchema = z.object({
 
 const importRequestSchema = z.object({
   action: z.literal("import"),
-  profileId: z.enum(["mama", "papa", "fabian", "frieda"]),
+  profileId: z.string().min(1),
   plan: importedPlanSchema
 });
 

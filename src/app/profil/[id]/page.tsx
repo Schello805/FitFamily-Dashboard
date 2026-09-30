@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { getDashboardData } from "@/lib/dashboard";
 import { ProfileView } from "@/components/profile-view";
 import { db } from "@/lib/db";
+import { getMobileReachableBaseUrl } from "@/lib/server-url";
 
 export const dynamic = "force-dynamic";
 
@@ -14,5 +15,6 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
     JOIN equipment_inventory inv ON inv.name = ex.equipment AND inv.available = 1
     ORDER BY ex.equipment, ex.name`);
   const exercises = result.rows.map((row) => ({ id: String(row.id), name: String(row.name), type: String(row.type), equipment: String(row.equipment) }));
-  return <ProfileView initialProfile={profile} exercises={exercises} />;
+  const serverBaseUrl = getMobileReachableBaseUrl();
+  return <ProfileView initialProfile={profile} exercises={exercises} serverBaseUrl={serverBaseUrl} />;
 }

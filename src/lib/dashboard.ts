@@ -12,7 +12,7 @@ export async function getDashboardData(): Promise<DashboardProfile[]> {
   await enforceSafetyPauses();
   const client = await db();
   const [profilesResult, segmentsResult, activeResult, plansResult] = await Promise.all([
-    client.execute("SELECT * FROM profiles ORDER BY CASE id WHEN 'mama' THEN 1 WHEN 'papa' THEN 2 WHEN 'fabian' THEN 3 ELSE 4 END"),
+    client.execute("SELECT * FROM profiles ORDER BY CASE id WHEN 'mama' THEN 1 WHEN 'papa' THEN 2 WHEN 'fabian' THEN 3 WHEN 'frieda' THEN 4 ELSE 5 END, name ASC"),
     client.execute(`SELECT ts.profile_id, sg.type, sg.started_at, sg.ended_at
       FROM training_segments sg JOIN training_sessions ts ON ts.id = sg.session_id`),
     client.execute(`SELECT ts.profile_id, ts.id session_id, ts.started_at session_started_at,

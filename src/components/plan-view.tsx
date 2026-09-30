@@ -33,7 +33,10 @@ export function PlanView({ profile, goals }: { profile: DashboardProfile; goals:
     }) });
     const result = await response.json(); setBusy(false);
     if (!response.ok) return setNotice(result.error ?? "Plan konnte nicht erstellt werden");
-    const msg = result.provider === "local" ? "Plan erstellt (lokale Vorlage)." : `Plan mit ${result.provider === "openai" ? "OpenAI" : "Gemini"} erstellt.`;
+    const selectedProvider = form.get("provider");
+    const msg = result.provider === "local"
+      ? (selectedProvider !== "local" ? "Plan als lokale Vorlage erstellt (Kein aktiver KI-Schlüssel hinterlegt)." : "Plan erstellt (lokale Vorlage).")
+      : `Plan mit ${result.provider === "openai" ? "OpenAI" : "Gemini"} erstellt.`;
     setNotice(msg);
     showToast({
       type: "sparkles",
