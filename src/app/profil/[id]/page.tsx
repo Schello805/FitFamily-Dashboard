@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { getDashboardData } from "@/lib/dashboard";
 import { ProfileView } from "@/components/profile-view";
-import { EXERCISE_SEEDS } from "@/lib/domain";
+import { db } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
@@ -9,6 +9,10 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
   const { id } = await params;
   const profile = (await getDashboardData()).find((item) => item.id === id);
   if (!profile) notFound();
-  const exercises = EXERCISE_SEEDS.map(([exerciseId, name, type, equipment]) => ({ id: exerciseId, name, type, equipment }));
+  const client = await db();
+  const result = await client.execute(`SELECT ex.id, ex.name, ex.type, ex.equipment FROM exercises ex
+    JOIN equipment_inventory inv ON inv.name = ex.equipment AND inv.available = 1
+    ORDER BY ex.equipment, ex.name`);
+  const exercises = result.rows.map((row) => ({ id: String(row.id), name: String(row.name), type: String(row.type), equipment: String(row.equipment) }));
   return <ProfileView initialProfile={profile} exercises={exercises} />;
 }

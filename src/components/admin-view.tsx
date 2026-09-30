@@ -2,18 +2,24 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { ArrowLeft, Bot, CheckCircle2, Database, Download, HardDrive, RotateCcw, ShieldCheck } from "lucide-react";
+import { ArrowLeft, Bot, CheckCircle2, Database, Download, HardDrive, Plus, RotateCcw, ShieldCheck } from "lucide-react";
 
 type Status = { openai: boolean; gemini: boolean; nas: boolean };
 type ExerciseMedia = { id: string; name: string; equipment: string; videoUrl: string | null };
+type EquipmentItem = { id: string; name: string; quantity: number; available: boolean };
 
-export function AdminView({ profiles, exercises }: { profiles: { id: string; name: string; score: number }[]; exercises: ExerciseMedia[] }) {
+export function AdminView({ profiles, exercises, equipment }: { profiles: { id: string; name: string; score: number }[]; exercises: ExerciseMedia[]; equipment: EquipmentItem[] }) {
   const [pin, setPin] = useState("");
   const [status, setStatus] = useState<Status | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [videoUrls, setVideoUrls] = useState<Record<string, string>>(() => Object.fromEntries(exercises.map((exercise) => [exercise.id, exercise.videoUrl ?? ""])));
   const [savingVideo, setSavingVideo] = useState<string | null>(null);
+  const [equipmentItems, setEquipmentItems] = useState(equipment);
+  const [equipmentEdits, setEquipmentEdits] = useState<Record<string, EquipmentItem>>(() => Object.fromEntries(equipment.map((item) => [item.id, item])));
+  const [savingEquipment, setSavingEquipment] = useState<string | null>(null);
+  const [newEquipmentName, setNewEquipmentName] = useState("");
+  const [newEquipmentQuantity, setNewEquipmentQuantity] = useState(1);
 
   async function unlock(event: React.FormEvent) {
     event.preventDefault(); setError("");
@@ -53,6 +59,43 @@ export function AdminView({ profiles, exercises }: { profiles: { id: string; nam
     }
   }
 
+  async function saveEquipment(id: string) {
+    const item = equipmentEdits[id];
+    setSavingEquipment(id); setNotice("");
+    try {
+      const response = await fetch(`/api/equipment/${encodeURIComponent(id)}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pin, name: item.name, quantity: item.quantity, available: item.available })
+      });
+      const result = await response.json();
+      if (!response.ok) return setNotice(result.error ?? "Gerät konnte nicht gespeichert werden.");
+      setEquipmentItems((items) => items.map((entry) => entry.id === id ? result.equipment : entry));
+      setEquipmentEdits((values) => ({ ...values, [id]: result.equipment }));
+      setNotice("Gerätebestand gespeichert.");
+    } catch {
+      setNotice("Keine Verbindung. Bitte Heimnetz prüfen und erneut versuchen.");
+    } finally {
+      setSavingEquipment(null);
+    }
+  }
+
+  async function addEquipment(event: React.FormEvent) {
+    event.preventDefault(); setNotice("");
+    try {
+      const response = await fetch("/api/equipment", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pin, name: newEquipmentName, quantity: newEquipmentQuantity })
+      });
+      const result = await response.json();
+      if (!response.ok) return setNotice(result.error ?? "Gerät konnte nicht ergänzt werden.");
+      setEquipmentItems((items) => [...items, result.equipment].sort((a, b) => a.name.localeCompare(b.name, "de")));
+      setEquipmentEdits((values) => ({ ...values, [result.equipment.id]: result.equipment }));
+      setNewEquipmentName(""); setNewEquipmentQuantity(1); setNotice("Gerät wurde ergänzt.");
+    } catch {
+      setNotice("Keine Verbindung. Bitte Heimnetz prüfen und erneut versuchen.");
+    }
+  }
+
   if (!status) return <main className="mobile-page"><form className="admin-login" onSubmit={unlock}><div className="pair-icon"><ShieldCheck /></div><span className="setup-badge">Geschützter Bereich</span><h1>Verwaltung</h1><p>Einstellungen, Exporte und Löschungen sind mit dem Eltern-PIN geschützt.</p><label>Eltern-PIN<input autoFocus type="password" inputMode="numeric" value={pin} onChange={(event) => setPin(event.target.value)} /></label>{error && <p className="form-error">{error}</p>}<button className="primary-submit">Entsperren</button><Link href="/"><ArrowLeft /> Dashboard</Link></form></main>;
 
   return <main className="admin-page"><header><Link href="/"><ArrowLeft /> Dashboard</Link><div><span>Elternbereich</span><h1>Verwaltung</h1></div></header>{notice && <p className="notice">{notice}</p>}
@@ -60,6 +103,7 @@ export function AdminView({ profiles, exercises }: { profiles: { id: string; nam
       <article><div className="admin-title"><Bot /><div><h2>Integrationen</h2><p>Schlüssel bleiben auf diesem Gerät</p></div></div><div className="status-row"><span>OpenAI</span><b className={status.openai ? "ok" : "off"}>{status.openai ? "Bereit" : "Nicht eingerichtet"}</b></div><div className="status-row"><span>Google Gemini</span><b className={status.gemini ? "ok" : "off"}>{status.gemini ? "Bereit" : "Nicht eingerichtet"}</b></div><div className="status-row"><span>NAS-Backup</span><b className={status.nas ? "ok" : "off"}>{status.nas ? "Bereit" : "Nicht eingerichtet"}</b></div></article>
       <article className="wide"><div className="admin-title"><RotateCcw /><div><h2>Scores zurücksetzen</h2><p>Der vollständige Trainingsverlauf bleibt erhalten.</p></div></div><div className="reset-list">{profiles.map((profile) => <div key={profile.id}><span>{profile.name}<small>{profile.score} Punkte</small></span><button onClick={() => reset(profile.id)}>Auf 0 setzen</button></div>)}</div></article>
       <article className="wide"><div className="admin-title"><HardDrive /><div><h2>Speicherorte</h2><p>Transparenz über vorhandene Daten</p></div></div><p className="data-text">Stammdaten, Training und Pläne: lokale SQLite-Datenbank · Backups: {status.nas ? "verschlüsselt auf NAS" : "noch nicht eingerichtet"} · Wetter: Open-Meteo · KI: nur bei bewusster Planerstellung.</p></article>
+      <article className="wide"><div className="admin-title"><Database /><div><h2>Geräte im Sportraum</h2><p>Stückzahl und Verfügbarkeit für Übungsauswahl und neue Trainingspläne</p></div></div><div className="inventory-list">{equipmentItems.map((item) => { const edit = equipmentEdits[item.id] ?? item; return <div className="inventory-row" key={item.id}><label>Gerätename<input value={edit.name} maxLength={60} onChange={(event) => setEquipmentEdits((values) => ({ ...values, [item.id]: { ...edit, name: event.target.value } }))} /></label><label className="quantity-field">Anzahl<input type="number" min={1} max={8} value={edit.quantity} onChange={(event) => setEquipmentEdits((values) => ({ ...values, [item.id]: { ...edit, quantity: Number(event.target.value) } }))} /></label><label className="inventory-toggle"><input type="checkbox" checked={edit.available} onChange={(event) => setEquipmentEdits((values) => ({ ...values, [item.id]: { ...edit, available: event.target.checked } }))} /> Verfügbar</label><button disabled={savingEquipment === item.id} onClick={() => saveEquipment(item.id)}>{savingEquipment === item.id ? "Speichert …" : "Speichern"}</button></div>; })}</div><form className="inventory-add" onSubmit={addEquipment}><label>Weiteres Gerät<input required minLength={2} maxLength={60} placeholder="z. B. Hantelbank" value={newEquipmentName} onChange={(event) => setNewEquipmentName(event.target.value)} /></label><label className="quantity-field">Anzahl<input type="number" min={1} max={8} value={newEquipmentQuantity} onChange={(event) => setNewEquipmentQuantity(Number(event.target.value))} /></label><button><Plus /> Gerät ergänzen</button></form><p className="data-text">Deaktivierte Geräte bleiben im bisherigen Trainingsverlauf erhalten, werden aber künftig nicht zur Auswahl angeboten.</p></article>
       <article className="wide"><div className="admin-title"><CheckCircle2 /><div><h2>Übungsvideos</h2><p>Eigene YouTube-Anleitungen pro Übung hinterlegen; leere Felder zeigen eine YouTube-Suche.</p></div></div><div className="exercise-media-list">{exercises.map((exercise) => <div key={exercise.id}><label><span>{exercise.name}<small>{exercise.equipment}</small></span><input type="url" inputMode="url" placeholder="https://youtube.com/..." value={videoUrls[exercise.id] ?? ""} onChange={(event) => setVideoUrls((values) => ({ ...values, [exercise.id]: event.target.value }))} /></label><button disabled={savingVideo === exercise.id} onClick={() => saveVideo(exercise.id)}>{savingVideo === exercise.id ? "Speichert …" : "Speichern"}</button></div>)}</div></article>
     </section>
   </main>;

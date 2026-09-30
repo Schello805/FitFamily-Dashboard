@@ -12,7 +12,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ exer
     return NextResponse.redirect(new URL(`/geraet-koppeln?weiter=${target}`, request.url));
   }
   const client = await db();
-  const exercise = await client.execute({ sql: "SELECT type FROM exercises WHERE id = ? LIMIT 1", args: [exerciseId] });
+  const exercise = await client.execute({ sql: `SELECT ex.type FROM exercises ex JOIN equipment_inventory inventory
+    ON inventory.name = ex.equipment AND inventory.available = 1 WHERE ex.id = ? LIMIT 1`, args: [exerciseId] });
   if (!exercise.rows[0]) return NextResponse.redirect(new URL(`/profil/${profileId}?fehler=unbekannte-uebung`, request.url));
   await startOrSwitchTraining({
     profileId,

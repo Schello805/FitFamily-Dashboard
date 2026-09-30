@@ -1,7 +1,7 @@
 import { createClient, type Client } from "@libsql/client";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
-import { EXERCISE_SEEDS, PROFILE_SEEDS } from "@/lib/domain";
+import { EQUIPMENT_SEEDS, EXERCISE_SEEDS, PROFILE_SEEDS } from "@/lib/domain";
 
 const globalDb = globalThis as typeof globalThis & {
   fitFamilyDb?: Client;
@@ -40,6 +40,14 @@ async function createSchema(client: Client) {
       instructions TEXT,
       safety_notes TEXT,
       video_url TEXT
+    )`,
+    `CREATE TABLE IF NOT EXISTS equipment_inventory (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL UNIQUE,
+      quantity INTEGER NOT NULL DEFAULT 1 CHECK(quantity BETWEEN 1 AND 8),
+      available INTEGER NOT NULL DEFAULT 1 CHECK(available IN (0,1)),
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     )`,
     `CREATE TABLE IF NOT EXISTS training_sessions (
       id TEXT PRIMARY KEY,
@@ -115,6 +123,13 @@ async function createSchema(client: Client) {
     await client.execute({
       sql: "INSERT OR IGNORE INTO exercises (id, name, type, equipment) VALUES (?, ?, ?, ?)",
       args: [id, name, type, equipment]
+    });
+  }
+
+  for (const [id, name, quantity] of EQUIPMENT_SEEDS) {
+    await client.execute({
+      sql: "INSERT OR IGNORE INTO equipment_inventory (id, name, quantity) VALUES (?, ?, ?)",
+      args: [id, name, quantity]
     });
   }
 

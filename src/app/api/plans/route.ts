@@ -33,10 +33,11 @@ const importRequestSchema = z.object({
   plan: importedPlanSchema
 });
 
-const equipment = ["Klimmzugstation", "Kraftstation mit Butterfly und Latzug", "Laufband", "Vibrationsplatte", "Boxsack", "Fahrrad"];
-
-function localPlan(input: z.infer<typeof schema>) {
+function localPlan(input: z.infer<typeof schema>, equipment: string[]) {
   const enduranceGoal = /Lauf|Marathon|Ausdauer|Box/i.test(input.goal);
+  const enduranceEquipment = equipment.filter((name) => /laufband|fahrrad|boxsack/i.test(name));
+  const strengthEquipment = equipment.filter((name) => /klimmzug|kraftstation|vibrationsplatte|hantel|gewicht/i.test(name));
+  const anyEquipment = equipment.length ? equipment : ["Bewegung ohne Gerät"];
   return {
     summary: `${input.sessionsPerWeek} Einheiten pro Woche für ${input.goal}`,
     safety: ["Saubere Technik geht immer vor Tempo.", "Bei Schmerz, Schwindel oder Unwohlsein Training beenden."],
@@ -47,14 +48,14 @@ function localPlan(input: z.infer<typeof schema>) {
         type: enduranceGoal && index % 2 === 0 ? "endurance" : "strength",
         minutes: input.minutesPerSession,
         exercises: enduranceGoal && index % 2 === 0
-          ? ["Laufband oder Fahrrad", "Tempo so wählen, dass Sprechen noch möglich ist"]
-          : ["Klimmzugstation", "Butterfly oder Latzug", "Rumpftraining"]
+          ? [enduranceEquipment[0] ?? anyEquipment[0], "Tempo so wählen, dass Sprechen noch möglich ist"]
+          : [strengthEquipment[0] ?? anyEquipment[0], strengthEquipment[1] ?? "Rumpftraining"]
       }))
     }))
   };
 }
 
-async function callOpenAI(input: z.infer<typeof schema>) {
+async function callOpenAI(input: z.infer<typeof schema>, equipment: string[]) {
   if (!process.env.OPENAI_API_KEY) return null;
   const prompt = `Erstelle einen sicheren deutschsprachigen Trainingsplan als JSON. Anonymisierte Daten: Ziel ${input.goal}; Niveau ${input.level}; ${input.sessionsPerWeek} Einheiten pro Woche; ${input.minutesPerSession} Minuten je Einheit; Zieltermin ${input.targetDate ?? "offenes Ende"}; Geräte: ${equipment.join(", ")}. Keine medizinischen Versprechen. Fokus auf korrekte Technik.`;
   const response = await fetch("https://api.openai.com/v1/responses", {
@@ -68,7 +69,7 @@ async function callOpenAI(input: z.infer<typeof schema>) {
   return text ? JSON.parse(text) : null;
 }
 
-async function callGemini(input: z.infer<typeof schema>) {
+async function callGemini(input: z.infer<typeof schema>, equipment: string[]) {
   if (!process.env.GEMINI_API_KEY) return null;
   const prompt = `Erstelle ausschließlich JSON für einen sicheren deutschen Trainingsplan. Ziel: ${input.goal}; Niveau: ${input.level}; Einheiten/Woche: ${input.sessionsPerWeek}; Minuten: ${input.minutesPerSession}; Zieltermin: ${input.targetDate ?? "offen"}; Geräte: ${equipment.join(", ")}.`;
   const model = process.env.GEMINI_MODEL ?? "gemini-2.5-flash";
@@ -112,16 +113,18 @@ export async function POST(request: Request) {
 
   const body = schema.safeParse(payload);
   if (!body.success) return NextResponse.json({ error: "Bitte Planangaben prüfen" }, { status: 400 });
+  const client = await db();
+  const inventory = await client.execute("SELECT name FROM equipment_inventory WHERE available = 1 ORDER BY name");
+  const equipment = inventory.rows.map((row) => String(row.name));
   let plan;
   let usedProvider = body.data.provider;
   try {
-    plan = body.data.provider === "openai" ? await callOpenAI(body.data) : body.data.provider === "gemini" ? await callGemini(body.data) : null;
+    plan = body.data.provider === "openai" ? await callOpenAI(body.data, equipment) : body.data.provider === "gemini" ? await callGemini(body.data, equipment) : null;
   } catch (error) {
     console.error(error);
   }
-  if (!plan) { plan = localPlan(body.data); usedProvider = "local"; }
+  if (!plan) { plan = localPlan(body.data, equipment); usedProvider = "local"; }
   const id = randomUUID();
-  const client = await db();
   await client.batch([
     { sql: "UPDATE training_plans SET status = 'archived', updated_at = CURRENT_TIMESTAMP WHERE profile_id = ? AND status = 'active'", args: [body.data.profileId] },
     {

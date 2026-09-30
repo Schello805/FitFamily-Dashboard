@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { EXERCISE_SEEDS, movementTargetForAge, PROFILE_SEEDS, SCORE_MULTIPLIER } from "@/lib/domain";
+import { EQUIPMENT_SEEDS, EXERCISE_SEEDS, movementTargetForAge, PROFILE_SEEDS, SCORE_MULTIPLIER } from "@/lib/domain";
 import { isAllowedVideoUrl } from "@/lib/exercise-video";
 
 describe("FitFamily-Domänenregeln", () => {
@@ -15,6 +15,11 @@ describe("FitFamily-Domänenregeln", () => {
   it("unterscheidet Übungen an Multifunktionsgeräten", () => {
     const pullupStation = EXERCISE_SEEDS.filter((exercise) => exercise[3] === "Klimmzugstation");
     expect(pullupStation).toHaveLength(4);
+  });
+
+  it("fasst gleichartige Laufbänder mit gemeinsamer Stückzahl zusammen", () => {
+    expect(EQUIPMENT_SEEDS.filter(([, name]) => name === "Laufband")).toHaveLength(1);
+    expect(EQUIPMENT_SEEDS.find(([, name]) => name === "Laufband")?.[2]).toBe(2);
   });
 
   it("zeigt altersgerechte Bewegungsziele nach der DOSB-Orientierung", () => {

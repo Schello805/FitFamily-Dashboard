@@ -76,3 +76,12 @@ export const EXERCISE_SEEDS = [
   ["punchbag", "Boxsack", "endurance", "Boxsack"],
   ["bike", "Fahrrad", "endurance", "Fahrrad"]
 ] as const;
+
+export const EQUIPMENT_SEEDS = [
+  ["klimmzugstation", "Klimmzugstation", 1],
+  ["kraftstation", "Kraftstation", 1],
+  ["laufband", "Laufband", 2],
+  ["vibrationsplatte", "Vibrationsplatte", 1],
+  ["boxsack", "Boxsack", 1],
+  ["fahrrad", "Fahrrad", 1]
+] as const;
