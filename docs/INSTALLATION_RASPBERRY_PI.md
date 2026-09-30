@@ -43,9 +43,9 @@ Die NAS-Freigabe mit einem nur für Backups berechtigten Konto unter `/mnt/nas/f
 
 Nach dem Start zeigt der Monitor einen QR-Code. Mit einem Handy im selben WLAN scannen, Profildaten und Eltern-PIN einrichten und zum Dashboard zurückkehren.
 
-## 7. Musik und Lautsprecher
+## 7. Radio und Lautsprecher
 
-PC-Lautsprecher oder ein Audioausgang des Monitors werden vom Raspberry Pi als Standardausgabe verwendet. Musikdateien lassen sich im Dashboard über die Musikschaltfläche oben rechts und nach Eingabe des Eltern-PINs hinzufügen. Unterstützt werden MP3, M4A, AAC, OGG, WAV, FLAC und WEBM bis 50 MB je Datei. Die Dateien werden ausschließlich unter `data/music/` auf dem Pi gespeichert und sind nicht Teil eines Backups oder Exports.
+PC-Lautsprecher oder ein Audioausgang des Monitors werden vom Raspberry Pi als Standardausgabe verwendet. Der Radio-Player im Dashboard spielt sechs Livestreams (1LIVE, 1LIVE DIGGI, ANTENNE BAYERN, ROCK ANTENNE, BAYERN 3 und BR24) direkt von den Sendern ab. Zusätzlich verweist ein Link zu den Sportschau-Audioreportagen an Spieltagen. Eine Upload-Funktion für Musikdateien gibt es nicht; für die Wiedergabe ist eine Internetverbindung nötig.
 
 ## Diagnose
 

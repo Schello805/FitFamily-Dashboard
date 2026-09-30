@@ -18,7 +18,7 @@ Das lokale Familien-Fitnessdashboard für den Touchmonitor im Sportraum. FitFami
 - Übungsanleitungen mit sicher hinterlegbaren YouTube-Links
 - Gerätebestand im Elternbereich: Stückzahl, Verfügbarkeit und eigene Geräte; nicht verfügbare Geräte werden aus Touch-/NFC-Übungsstarts und neuen Planvorschlägen ausgeschlossen
 - Wetter für Bechhofen, Ruhemodus-Konzept und installierbare Web-App
-- Lokaler Musikplayer mit Playlist, Lautstärke und Upload eigener Audiodateien
+- Radio-Player mit 1LIVE, ANTENNE BAYERN, ROCK ANTENNE, BAYERN 3, BR24 und Sportschau-Live-Link
 - Lokale SQLite-Datenbank, JSON-Export und verschlüsselte NAS-Backups
 - Keine Kamera und keine Körperüberwachung
 
@@ -57,7 +57,7 @@ Ein Tag verweist auf `/nfc/<uebungs-id>`. Ein unbekanntes Handy fragt einmalig n
 
 ## Musik
 
-Die Musiksteuerung befindet sich oben rechts auf dem Dashboard. Eigene MP3-, M4A-, AAC-, OGG-, WAV-, FLAC- oder WEBM-Dateien können dort mit dem Eltern-PIN hinzugefügt und über die Lautsprecher des Dashboard-PCs abgespielt werden. Musikdateien liegen nur im lokalen Ordner `data/music/`; das Projekt liefert keine Musik mit.
+Die Radiosteuerung befindet sich oben rechts auf dem Dashboard. Sie spielt sechs Livestreams direkt von den Sendern ab: 1LIVE, 1LIVE DIGGI, ANTENNE BAYERN, ROCK ANTENNE, BAYERN 3 und BR24. Für Fußball gibt es zusätzlich einen Sportschau-Link zu den Spieltags-Audioreportagen; das ist kein durchgehender Sender. Eine Upload-Funktion für Musikdateien gibt es nicht. Zum Streamen ist eine Internetverbindung nötig.
 
 ## Bewegungsziel
 

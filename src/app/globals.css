@@ -65,13 +65,13 @@ body::before {
 .avatar-body { width: 54px; height: 42px; margin-top: -2px; border-radius: 19px 19px 12px 12px; display: grid; place-items: center; color: #071316; background: var(--profile); z-index: 1; }
 .avatar-body.female { border-radius: 21px 21px 9px 9px; width: 58px; }
 .level-chip { position: absolute; right: -8px; bottom: 2px; z-index: 3; font-size: 10px; font-weight: 800; padding: 4px 7px; border-radius: 9px; background: #f7fffe; color: #092024; box-shadow: 0 4px 14px rgba(0,0,0,.28); }
-.avatar-generated { height: 104px; width: 88px; overflow: visible; }
+.avatar-generated { height: 120px; width: 88px; overflow: visible; }
 .avatar-generated .avatar-glow { inset: 10px 0 0; }
-.avatar-sprite { position: absolute; z-index: 2; inset: 0; background-image: url('/assets/family-avatars.png'); background-repeat: no-repeat; background-size: 400% auto; background-position-y: center; filter: drop-shadow(0 7px 8px rgba(0,0,0,.28)); }
-.avatar-sprite.mama { background-position-x: 0%; }
-.avatar-sprite.papa { background-position-x: 33.333%; }
-.avatar-sprite.fabian { background-position-x: 66.667%; }
-.avatar-sprite.frieda { background-position-x: 100%; }
+.avatar-sprite { position: absolute; z-index: 2; inset: 0; background-image: url('/assets/family-avatars.png'); background-repeat: no-repeat; background-size: 240px 120px; background-position-y: top; filter: drop-shadow(0 7px 8px rgba(0,0,0,.28)); }
+.avatar-sprite.mama { background-position-x: 14px; }
+.avatar-sprite.papa { background-position-x: -46px; }
+.avatar-sprite.fabian { background-position-x: -106px; }
+.avatar-sprite.frieda { background-position-x: -166px; }
 .goal-ring { --progress: 0deg; width: 75px; height: 75px; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; background: conic-gradient(var(--profile) var(--progress), rgba(255,255,255,.08) 0); }
 .goal-ring::after { content: ""; position: absolute; inset: 7px; border-radius: 50%; background: #0e2227; }
 .goal-ring span, .goal-ring small { z-index: 1; }
@@ -115,32 +115,34 @@ body::before {
 .music-panel > header small { color: var(--muted); font-size: 10px; margin-top: 3px; }
 .music-panel > header button { width: 34px; height: 34px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 10px; background: transparent; color: var(--muted); }
 .music-panel > header button svg { width: 18px; }
-.music-now { display: flex; gap: 10px; align-items: center; margin-top: 17px; padding: 13px; border-radius: 14px; background: rgba(45,212,191,.08); }
-.music-now > svg { width: 22px; color: var(--brand); flex: none; }
-.music-now b, .music-now small { display: block; }
-.music-now b { max-width: 285px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.music-now small { color: var(--muted); font-size: 10px; margin-top: 3px; }
-.music-controls { display: flex; align-items: center; justify-content: center; gap: 23px; margin: 13px 0 9px; }
-.music-controls button { border: 0; background: transparent; color: var(--text); display: grid; place-items: center; min-width: 40px; min-height: 40px; }
-.music-controls .play-button { width: 52px; height: 52px; border-radius: 50%; color: #05201d; background: var(--brand); }
+.radio-now { display: flex; gap: 10px; align-items: center; margin-top: 14px; padding: 12px; border-radius: 14px; background: rgba(45,212,191,.08); }
+.radio-now > svg { width: 22px; color: var(--brand); flex: none; }
+.radio-now > div { flex: 1; min-width: 0; }
+.radio-now b, .radio-now small { display: block; }
+.radio-now b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.radio-now small { color: var(--muted); font-size: 10px; margin-top: 3px; }
+.radio-now .play-button { width: 42px; height: 42px; flex: none; display: grid; place-items: center; border: 0; border-radius: 50%; color: #05201d; background: var(--brand); }
+.radio-now .play-button svg { width: 18px; }
 .volume-control { display: flex; gap: 9px; align-items: center; color: var(--muted); }
 .volume-control svg { width: 18px; }
 .volume-control input { flex: 1; accent-color: var(--brand); min-width: 0; }
 .volume-control span { width: 38px; text-align: right; font-size: 10px; }
-.track-list { display: grid; gap: 5px; max-height: 190px; overflow-y: auto; margin-top: 12px; }
-.track-list button { min-height: 42px; display: grid; grid-template-columns: 26px 1fr 20px; align-items: center; gap: 7px; padding: 0 9px; border: 1px solid transparent; border-radius: 11px; background: rgba(255,255,255,.025); color: var(--muted); text-align: left; font-size: 12px; }
-.track-list button.selected { border-color: rgba(45,212,191,.2); color: var(--brand-bright); background: rgba(45,212,191,.07); }
-.track-list button > span { color: #6f898c; font-size: 10px; }
-.music-empty { min-height: 148px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 7px; color: var(--muted); }
-.music-empty > svg { color: var(--brand); width: 28px; height: 28px; margin-bottom: 3px; }
-.music-empty b { color: var(--text); }
-.music-empty span { max-width: 260px; font-size: 11px; line-height: 1.45; }
-.music-upload { display: grid; grid-template-columns: .8fr 1.2fr; gap: 8px; margin-top: 13px; padding-top: 12px; border-top: 1px solid var(--line); }
-.music-upload > label:first-child { display: grid; gap: 5px; color: var(--muted); font-size: 9px; font-weight: 750; }
-.music-upload input[type="password"] { width: 100%; min-width: 0; height: 40px; border: 1px solid var(--line); border-radius: 10px; background: rgba(0,0,0,.2); padding: 0 9px; color: var(--text); font-size: 11px; }
-.upload-button { position: relative; align-self: end; display: flex; align-items: center; justify-content: center; gap: 7px; height: 40px; padding: 0 9px; overflow: hidden; border-radius: 10px; background: rgba(45,212,191,.13); color: var(--brand-bright); font-weight: 800; font-size: 10px; cursor: pointer; }
-.upload-button svg { width: 15px; }
-.upload-button input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+.radio-list { display: grid; gap: 6px; margin-top: 11px; }
+.radio-list button { width: 100%; min-height: 54px; display: grid; grid-template-columns: 33px 1fr 18px; align-items: center; gap: 9px; padding: 6px 10px; border: 1px solid transparent; border-radius: 12px; background: rgba(255,255,255,.025); color: var(--muted); text-align: left; cursor: pointer; }
+.radio-list button:hover { background: rgba(255,255,255,.05); }
+.radio-list button.selected { border-color: rgba(45,212,191,.25); color: var(--brand-bright); background: rgba(45,212,191,.07); }
+.radio-list-icon { width: 32px; height: 32px; display: grid; place-items: center; border-radius: 10px; color: var(--brand); background: rgba(45,212,191,.1); }
+.radio-list-icon svg { width: 17px; }
+.radio-label { min-width: 0; }
+.radio-label b, .radio-label small { display: block; }
+.radio-label b { font-size: 11px; }
+.radio-label small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 3px; color: var(--muted); font-size: 9px; }
+.radio-state-icon { width: 15px; color: var(--brand-bright); }
+.sports-radio-link { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 9px; padding: 11px 12px; border: 1px solid rgba(251,191,36,.2); border-radius: 12px; background: rgba(251,191,36,.055); color: var(--text); text-decoration: none; }
+.sports-radio-link b, .sports-radio-link small { display: block; }
+.sports-radio-link b { font-size: 11px; }
+.sports-radio-link small { margin-top: 3px; color: var(--muted); font-size: 9px; }
+.sports-radio-link > svg { width: 16px; flex: none; color: #fbbf24; }
 .music-notice { color: #fde68a; font-size: 10px; line-height: 1.4; margin: 10px 0 0; }
 .music-footnote { color: #647c7f; font-size: 9px; line-height: 1.4; margin: 10px 0 0; }
 
@@ -213,7 +215,7 @@ body::before {
   .topbar { min-height: 68px; }
   .profile-grid { gap: 12px; grid-template-rows: repeat(2, minmax(238px, 1fr)); }
   .profile-card { padding-top: 18px; padding-bottom: 14px; }
-  .avatar { transform: scale(.9); transform-origin: left center; width: 70px; }
+  .avatar { transform: scale(.88); transform-origin: left center; }
   .score-row { margin: 7px 0 8px; }
 }
 

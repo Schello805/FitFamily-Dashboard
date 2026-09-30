@@ -71,7 +71,7 @@ Die Verbindung ist im Standardaufbau unverschlüsseltes HTTP. FitFamily deshalb 
 
 Für die erste Einrichtung genügt der normale Ubuntu-Browser. Im Vollbildmodus blendet `F11` die Browserleisten aus. Optional lässt sich Chromium mit `--kiosk http://localhost:3000` als Anwendungsstart einrichten.
 
-Musik wird im Dashboard hinzugefügt und über den Standard-Audioausgang des Lenovo abgespielt. PC-Lautsprecher oder später angeschlossene externe Lautsprecher sollten in Ubuntu unter **Einstellungen → Ton** als Ausgabe ausgewählt sein.
+Radio läuft über den Standard-Audioausgang des Lenovo. PC-Lautsprecher oder später angeschlossene externe Lautsprecher sollten in Ubuntu unter **Einstellungen → Ton** als Ausgabe ausgewählt sein. Der Player bietet sechs Livestreams und einen Link zu den Sportschau-Audioreportagen an Spieltagen; eine Musik-Upload-Funktion gibt es nicht. Zum Radiohören muss der PC mit dem Internet verbunden sein.
 
 ## Dienst bedienen
 
