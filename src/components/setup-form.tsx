@@ -7,10 +7,10 @@ import { Check, ChevronRight, LockKeyhole, ShieldCheck } from "lucide-react";
 type SetupProfile = { id: "mama" | "papa" | "fabian" | "frieda"; name: string; birthDate: string; avatar: "female" | "male" | "neutral" };
 
 const initialProfiles: SetupProfile[] = [
-  { id: "mama", name: "Mama", birthDate: "", avatar: "female" },
-  { id: "papa", name: "Papa", birthDate: "", avatar: "male" },
-  { id: "fabian", name: "Fabian", birthDate: "", avatar: "male" },
-  { id: "frieda", name: "Frieda", birthDate: "", avatar: "female" }
+  { id: "mama", name: "Mama", birthDate: "1980-01-01", avatar: "female" },
+  { id: "papa", name: "Papa", birthDate: "1980-01-01", avatar: "male" },
+  { id: "fabian", name: "Fabian", birthDate: "2012-01-01", avatar: "male" },
+  { id: "frieda", name: "Frieda", birthDate: "2012-01-01", avatar: "female" }
 ];
 const setupDraftKey = "fitfamily-setup-profiles";
 
@@ -34,7 +34,10 @@ export function SetupForm() {
           ["mama", "papa", "fabian", "frieda"].includes(profile.id) &&
           typeof profile.name === "string" && typeof profile.birthDate === "string" &&
           ["female", "male", "neutral"].includes(profile.avatar)
-        )) savedProfiles = draft as SetupProfile[];
+        )) savedProfiles = (draft as SetupProfile[]).map((profile) => ({
+          ...profile,
+          birthDate: profile.birthDate || initialProfiles.find((item) => item.id === profile.id)?.birthDate || ""
+        }));
       }
     } catch {
       // Browser storage can be unavailable; the form remains usable without it.
@@ -88,7 +91,7 @@ export function SetupForm() {
             <fieldset key={profile.id}>
               <legend>{profile.name}</legend>
               <label>Anzeigename<input required maxLength={30} value={profile.name} onChange={(event) => setProfiles((items) => items.map((item, itemIndex) => itemIndex === index ? { ...item, name: event.target.value } : item))} /></label>
-              <label>Geburtsdatum<input required type="date" value={profile.birthDate} onChange={(event) => setProfiles((items) => items.map((item, itemIndex) => itemIndex === index ? { ...item, birthDate: event.target.value } : item))} /></label>
+              <label>Geburtsdatum (Tag und Monat bitte prüfen)<input required type="date" value={profile.birthDate} onChange={(event) => setProfiles((items) => items.map((item, itemIndex) => itemIndex === index ? { ...item, birthDate: event.target.value } : item))} /></label>
               <label>Avatar<select value={profile.avatar} onChange={(event) => setProfiles((items) => items.map((item, itemIndex) => itemIndex === index ? { ...item, avatar: event.target.value as "female" | "male" | "neutral" } : item))}><option value="female">Weiblich</option><option value="male">Männlich</option><option value="neutral">Neutral</option></select></label>
             </fieldset>
           ))}
