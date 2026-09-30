@@ -53,11 +53,11 @@ function Avatar({ profile }: { profile: DashboardProfile }) {
   );
 }
 
-function GoalRing({ value, color }: { value: number; color: string }) {
+function GoalRing({ value, color, targetMinutes, targetPeriod }: { value: number; color: string; targetMinutes: number; targetPeriod: "Tag" | "Woche" }) {
   return (
-    <div className="goal-ring" style={{ "--progress": `${Math.min(100, value) * 3.6}deg`, "--profile": color } as React.CSSProperties}>
+    <div className="goal-ring" title={`DOSB-Bewegungsorientierung: ${targetMinutes} Minuten pro ${targetPeriod.toLowerCase()}. Der Ring zählt nur in FitFamily erfasste Trainingszeit, nicht Alltagsbewegung.`} aria-label={`${value} Prozent des Richtwerts von ${targetMinutes} Trainingsminuten pro ${targetPeriod.toLowerCase()}`} style={{ "--progress": `${Math.min(100, value) * 3.6}deg`, "--profile": color } as React.CSSProperties}>
       <span>{value}%</span>
-      <small>Ziel</small>
+      <small>{targetMinutes}/{targetPeriod === "Tag" ? "Tag" : "Wo."}</small>
     </div>
   );
 }
@@ -135,7 +135,7 @@ export function Dashboard({ initialProfiles, version }: { initialProfiles: Dashb
             <div className="profile-heading">
               <Avatar profile={profile} />
               <div className="profile-name"><span>Profil</span><h2>{profile.name}</h2><p>{profile.goal}</p></div>
-              <GoalRing value={profile.targetPercent} color={profile.color} />
+              <GoalRing value={profile.targetPercent} color={profile.color} targetMinutes={profile.targetMinutes} targetPeriod={profile.targetPeriod} />
             </div>
 
             <div className="score-row">

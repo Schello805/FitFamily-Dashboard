@@ -1,6 +1,6 @@
 import { asNumber, asString, db } from "@/lib/db";
 import type { DashboardProfile, Profile, TrainingType } from "@/lib/domain";
-import { SCORE_MULTIPLIER } from "@/lib/domain";
+import { movementTargetForAge, SCORE_MULTIPLIER } from "@/lib/domain";
 
 function durationSeconds(start: string, end: string | null) {
   return Math.max(0, (new Date(end ?? Date.now()).getTime() - new Date(start).getTime()) / 1000);
@@ -64,15 +64,17 @@ export async function getDashboardData(): Promise<DashboardProfile[]> {
     const age = profile.birthDate
       ? Math.floor((now.getTime() - new Date(profile.birthDate).getTime()) / (365.2425 * 24 * 60 * 60 * 1000))
       : (["fabian", "frieda"].includes(profile.id) ? 17 : 30);
-    const targetMinutes = age < 18 ? 90 : 150;
-    const targetActualMinutes = (age < 18 ? todaySeconds : weekSeconds) / 60;
+    const target = movementTargetForAge(age);
+    const targetActualMinutes = (target.period === "Tag" ? todaySeconds : weekSeconds) / 60;
 
     return {
       ...profile,
       score: Math.floor(profile.scoreBaseline + points),
       totalMinutes: Math.floor(totalSeconds / 60),
       todayMinutes: Math.floor(todaySeconds / 60),
-      targetPercent: Math.min(100, Math.round((targetActualMinutes / targetMinutes) * 100)),
+      targetPercent: Math.min(100, Math.round((targetActualMinutes / target.minutes) * 100)),
+      targetMinutes: target.minutes,
+      targetPeriod: target.period,
       nextTraining: plan ? String(plan.title) : null,
       activeTraining: active
         ? {

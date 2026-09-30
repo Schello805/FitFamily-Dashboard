@@ -25,9 +25,17 @@ export type DashboardProfile = Profile & {
   totalMinutes: number;
   todayMinutes: number;
   targetPercent: number;
+  targetMinutes: number;
+  targetPeriod: "Tag" | "Woche";
   nextTraining: string | null;
   activeTraining: ActiveTraining | null;
 };
+
+export function movementTargetForAge(age: number) {
+  return age < 18
+    ? { minutes: 90, period: "Tag" as const }
+    : { minutes: 150, period: "Woche" as const };
+}
 
 export const SCORE_MULTIPLIER: Record<TrainingType, number> = {
   strength: 1,

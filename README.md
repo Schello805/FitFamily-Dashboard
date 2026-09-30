@@ -9,6 +9,7 @@ Das lokale Familien-Fitnessdashboard für den Touchmonitor im Sportraum. FitFami
 - Vier große, touchfreundliche Familienprofile
 - Mehrere gleichzeitig laufende Trainings
 - Kraft: 1 Punkt/Minute, Ausdauer: 2 Punkte/Minute
+- Altersbezogener Bewegungsrichtwert: Kinder/Jugendliche 90 Minuten pro Tag, Erwachsene 150 Minuten pro Woche (DOSB-Orientierung)
 - Automatische Sicherheits-Pause nach vier Stunden
 - Handy-Übergabe über einmalige QR-Codes
 - NFC-Endpunkte pro Gerät oder Übung
@@ -55,6 +56,10 @@ Ein Tag verweist auf `/nfc/<uebungs-id>`. Ein unbekanntes Handy fragt einmalig n
 ## Musik
 
 Die Musiksteuerung befindet sich oben rechts auf dem Dashboard. Eigene MP3-, M4A-, AAC-, OGG-, WAV-, FLAC- oder WEBM-Dateien können dort mit dem Eltern-PIN hinzugefügt und über die Lautsprecher des Dashboard-PCs abgespielt werden. Musikdateien liegen nur im lokalen Ordner `data/music/`; das Projekt liefert keine Musik mit.
+
+## Bewegungsziel
+
+Der Zielring richtet sich nach der DOSB-Orientierung: 90 Minuten Bewegung täglich für Kinder und Jugendliche sowie 150 Minuten wöchentlich für Erwachsene. Er zählt derzeit nur Trainingszeit, die in FitFamily gestartet wurde. Bewegung im Alltag wird nicht automatisch erfasst; der Ring ist daher keine vollständige Messung der persönlichen Gesamtbewegung. [DOSB: Sportdeutschland 2035](https://www.dosb.de/ueber-uns/grundlagen-unserer-arbeit/ziele-und-strategie) · [Bundesgesundheitsministerium: Bewegungsempfehlungen](https://www.bundesgesundheitsministerium.de/service/begriffe-von-a-z/b/bewegungsempfehlungen)
 
 ## Qualität
 
