@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { ServiceWorker } from "@/components/service-worker";
+import { PersistentMusicPlayer } from "@/components/persistent-music-player";
 
 export const metadata: Metadata = {
   title: "FitFamily Dashboard",
@@ -21,7 +22,7 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="de">
-      <body><ServiceWorker />{children}</body>
+      <body><ServiceWorker /><PersistentMusicPlayer />{children}</body>
     </html>
   );
 }

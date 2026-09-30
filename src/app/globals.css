@@ -96,6 +96,10 @@ body::before {
 .quiet-overlay span { font-size: clamp(80px, 14vw, 190px); line-height: .9; font-weight: 850; letter-spacing: -.07em; color: #d8e9e7; }
 .quiet-overlay strong { margin-top: 28px; color: var(--brand); text-transform: uppercase; letter-spacing: .18em; }
 .quiet-overlay small { color: #516366; margin-top: 10px; }
+.persistent-radio { position: fixed; z-index: 45; }
+.persistent-radio.dashboard-radio { top: 34px; right: clamp(170px, 12vw, 230px); }
+.persistent-radio.subpage-radio { right: 18px; bottom: 18px; }
+.subpage-radio .music-panel { top: auto; right: 18px; bottom: 82px; max-height: min(720px, calc(100vh - 100px)); }
 .music-launch { position: relative; display: inline-flex; align-items: center; gap: 9px; min-height: 49px; max-width: min(290px, 32vw); padding: 0 15px; border: 1px solid var(--line); border-radius: 16px; background: rgba(12,28,32,.85); color: var(--text); font-weight: 750; cursor: pointer; touch-action: manipulation; }
 .music-launch > span { min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; }
 .music-launch > span b { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
@@ -208,6 +212,9 @@ body::before {
   .music-launch { min-width: 48px; min-height: 48px; max-width: min(210px, 40vw); padding: 0 10px; border-radius: 14px; }
   .music-launch > span b { font-size: 10px; }
   .music-launch > span small { font-size: 8px; }
+  .persistent-radio.dashboard-radio { top: 18px; right: 116px; }
+  .persistent-radio.subpage-radio { right: 12px; bottom: 12px; }
+  .subpage-radio .music-panel { right: 12px; bottom: 72px; max-height: calc(100vh - 88px); }
   .music-panel { top: 86px; right: 12px; }
   .weather-block { display: none; }
   .profile-grid { grid-template-columns: 1fr; grid-template-rows: none; }

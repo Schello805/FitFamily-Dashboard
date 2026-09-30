@@ -15,7 +15,6 @@ import {
 } from "lucide-react";
 import type { DashboardProfile } from "@/lib/domain";
 import { LiveDuration } from "@/components/live-duration";
-import { MusicPlayer } from "@/components/music-player";
 import { avatarAssetForProfile } from "@/lib/domain";
 
 type Weather = { temperature: number; apparent: number; code: number; updatedAt: string } | null;
@@ -120,7 +119,6 @@ export function Dashboard({ initialProfiles, version }: { initialProfiles: Dashb
           <div className="location"><MapPin size={15} /> Bechhofen</div>
         </section>
         <section className="header-actions">
-          <MusicPlayer />
           <div className="clock-block">
             <time>{clock.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })}</time>
             <span>{dateText}</span>
