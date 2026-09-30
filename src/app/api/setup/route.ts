@@ -2,12 +2,13 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db, getSetting } from "@/lib/db";
 import { setAdminPin } from "@/lib/security";
+import { AVATAR_IDS } from "@/lib/domain";
 
 const profileSchema = z.object({
   id: z.enum(["mama", "papa", "fabian", "frieda"]),
   name: z.string().min(1).max(30),
   birthDate: z.string().date().nullable(),
-  avatar: z.enum(["female", "male", "neutral"])
+  avatar: z.enum([...AVATAR_IDS, "female", "male", "neutral"])
 });
 const schema = z.object({
   pin: z.string().regex(/^\d{4,8}$/),

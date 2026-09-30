@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { EQUIPMENT_SEEDS, EXERCISE_SEEDS, movementTargetForAge, PROFILE_SEEDS, SCORE_MULTIPLIER } from "@/lib/domain";
+import { avatarAssetForProfile, EQUIPMENT_SEEDS, EXERCISE_SEEDS, movementTargetForAge, PROFILE_SEEDS, SCORE_MULTIPLIER } from "@/lib/domain";
 import { isAllowedVideoUrl } from "@/lib/exercise-video";
 
 describe("FitFamily-Domänenregeln", () => {
@@ -10,6 +10,11 @@ describe("FitFamily-Domänenregeln", () => {
 
   it("liefert genau die vier vereinbarten Startprofile", () => {
     expect(PROFILE_SEEDS.map((profile) => profile.name)).toEqual(["Mama", "Papa", "Fabian", "Frieda"]);
+  });
+
+  it("verwendet konfigurierbare Figuren und erhält bestehende Geschlechtswerte kompatibel", () => {
+    expect(avatarAssetForProfile("mama", "papa")).toBe("papa");
+    expect(avatarAssetForProfile("fabian", "male")).toBe("fabian");
   });
 
   it("unterscheidet Übungen an Multifunktionsgeräten", () => {

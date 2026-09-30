@@ -16,6 +16,7 @@ import {
 import type { DashboardProfile } from "@/lib/domain";
 import { LiveDuration } from "@/components/live-duration";
 import { MusicPlayer } from "@/components/music-player";
+import { avatarAssetForProfile } from "@/lib/domain";
 
 type Weather = { temperature: number; apparent: number; code: number; updatedAt: string } | null;
 
@@ -47,7 +48,7 @@ function Avatar({ profile }: { profile: DashboardProfile }) {
   return (
     <div className="avatar avatar-generated" style={{ "--profile": profile.color } as React.CSSProperties} aria-label={`Avatar von ${profile.name}`}>
       <div className="avatar-glow" />
-      <Image className="avatar-sprite" src={`/assets/avatars/${profile.id}.webp`} alt="" width={222} height={444} unoptimized draggable={false} />
+      <Image className="avatar-sprite" src={`/assets/avatars/${avatarAssetForProfile(profile.id, profile.avatar)}.webp`} alt="" width={222} height={444} unoptimized draggable={false} />
       <div className="level-chip">Lvl {level}</div>
     </div>
   );

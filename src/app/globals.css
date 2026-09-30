@@ -276,6 +276,7 @@ body::before {
 .form-title h2 { margin: 0; font-size: 20px; }
 .form-title p { margin: 4px 0 0; color: var(--muted); font-size: 12px; line-height: 1.4; }
 .form-card fieldset { display: grid; grid-template-columns: 1.2fr 1fr .8fr; gap: 10px; border: 0; padding: 16px 0; margin: 0; border-top: 1px solid var(--line); }
+.form-card fieldset:has(.avatar-choice) { grid-template-columns: 1fr 1fr; }
 .form-card legend { padding: 0 0 8px; font-weight: 800; color: var(--brand-bright); }
 .form-card label, .pair-card label { display: grid; gap: 6px; color: var(--muted); font-size: 11px; font-weight: 700; }
 .form-card > label { margin-top: 12px; }
@@ -313,6 +314,14 @@ body::before {
 .profile-edit-modal h2 { margin: 14px 0 18px; font-size: 26px; }
 .profile-edit-modal label { display: grid; gap: 6px; margin-top: 12px; color: var(--muted); font-size: 11px; font-weight: 750; }
 .profile-edit-modal input, .profile-edit-modal select { width: 100%; height: 49px; padding: 0 12px; border: 1px solid var(--line); border-radius: 12px; color: var(--text); background: rgba(0,0,0,.2); }
+.avatar-choice { min-width: 0; display: grid; gap: 7px; margin-top: 12px; color: var(--muted); font-size: 11px; font-weight: 750; }
+.avatar-picker { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.avatar-picker label { position: relative; min-height: 84px; margin: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; overflow: hidden; border: 1px solid var(--line); border-radius: 12px; background: rgba(255,255,255,.025); color: var(--text); cursor: pointer; touch-action: manipulation; }
+.avatar-picker label.selected { border-color: var(--brand); background: rgba(45,212,191,.09); box-shadow: inset 0 0 0 1px rgba(45,212,191,.15); }
+.avatar-picker input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.avatar-picker img { width: 35px; height: 55px; object-fit: contain; object-position: center bottom; pointer-events: none; }
+.avatar-picker label span { color: var(--text); font-size: 10px; }
+.avatar-picker label:has(input:focus-visible) { outline: 3px solid var(--brand-bright); outline-offset: 2px; }
 .profile-edit-modal .primary-submit { margin-top: 20px; }
 .profile-notice { color: var(--brand-bright); text-align: center; font-size: 13px; }
 .modal-close { position: absolute; right: 13px; top: 13px; width: 44px; height: 44px; border-radius: 12px; border: 1px solid var(--line); background: rgba(0,0,0,.15); color: var(--text); font-size: 25px; cursor: pointer; touch-action: manipulation; }

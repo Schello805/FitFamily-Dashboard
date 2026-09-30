@@ -1,14 +1,21 @@
 export type TrainingType = "strength" | "endurance";
+export const AVATAR_IDS = ["mama", "papa", "fabian", "frieda"] as const;
+export type AvatarId = typeof AVATAR_IDS[number];
+export type ProfileAvatar = AvatarId | "female" | "male" | "neutral";
 
 export type Profile = {
   id: string;
   name: string;
   color: string;
-  avatar: "female" | "male" | "neutral";
+  avatar: ProfileAvatar;
   birthDate: string | null;
   scoreBaseline: number;
   goal: string;
 };
+
+export function avatarAssetForProfile(profileId: string, avatar: ProfileAvatar) {
+  return AVATAR_IDS.includes(avatar as AvatarId) ? avatar : AVATAR_IDS.includes(profileId as AvatarId) ? profileId as AvatarId : "neutral";
+}
 
 export type ActiveTraining = {
   sessionId: string;

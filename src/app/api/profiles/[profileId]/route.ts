@@ -2,14 +2,14 @@ import { NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { GOALS } from "@/lib/domain";
+import { AVATAR_IDS, GOALS } from "@/lib/domain";
 import { verifyAdminPin } from "@/lib/security";
 
 const profileIds = new Set(["mama", "papa", "fabian", "frieda"]);
 const schema = z.object({
   name: z.string().trim().min(1).max(30),
   birthDate: z.string().date().nullable(),
-  avatar: z.enum(["female", "male", "neutral"]),
+  avatar: z.enum([...AVATAR_IDS, "female", "male", "neutral"]),
   goal: z.string().min(1).max(100),
   pin: z.string().regex(/^\d{4,8}$/)
 });

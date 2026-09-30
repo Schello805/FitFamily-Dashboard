@@ -6,7 +6,9 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { Activity, ArrowLeft, CalendarRange, Dumbbell, History, QrCode, Settings2, Square } from "lucide-react";
 import { GOALS, type DashboardProfile, type TrainingType } from "@/lib/domain";
+import { AVATAR_IDS, type AvatarId } from "@/lib/domain";
 import { LiveDuration } from "@/components/live-duration";
+import { AvatarPicker } from "@/components/avatar-picker";
 
 type Exercise = { id: string; name: string; type: string; equipment: string };
 
@@ -170,7 +172,7 @@ export function ProfileView({ initialProfile, exercises }: { initialProfile: Das
         <span className="setup-badge">Profil bearbeiten</span><h2>Angaben für {profile.name}</h2>
         <label>Anzeigename<input name="name" required maxLength={30} defaultValue={profile.name} /></label>
         <label>Geburtsdatum<input name="birthDate" type="date" defaultValue={profile.birthDate ?? ""} /></label>
-        <label>Avatar<select name="avatar" defaultValue={profile.avatar}><option value="female">Weiblich</option><option value="male">Männlich</option><option value="neutral">Neutral</option></select></label>
+        <div className="avatar-choice"><span>Figur im Dashboard</span><AvatarPicker value={AVATAR_IDS.includes(profile.avatar as AvatarId) ? profile.avatar as AvatarId : profile.id as AvatarId} /></div>
         <label>Trainingsziel<select name="goal" defaultValue={profile.goal}>{GOALS.map((goal) => <option key={goal}>{goal}</option>)}</select></label>
         <label>Eltern-PIN<input name="pin" type="password" inputMode="numeric" autoComplete="current-password" minLength={4} maxLength={8} pattern="[0-9]{4,8}" required /></label>
         {profileNotice && <p className="form-error" role="alert">{profileNotice}</p>}

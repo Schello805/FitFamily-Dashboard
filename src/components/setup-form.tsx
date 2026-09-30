@@ -3,14 +3,16 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Check, ChevronRight, LockKeyhole, ShieldCheck } from "lucide-react";
+import { AVATAR_IDS, type AvatarId, type ProfileAvatar } from "@/lib/domain";
+import { AvatarPicker } from "@/components/avatar-picker";
 
-type SetupProfile = { id: "mama" | "papa" | "fabian" | "frieda"; name: string; birthDate: string; avatar: "female" | "male" | "neutral" };
+type SetupProfile = { id: AvatarId; name: string; birthDate: string; avatar: ProfileAvatar };
 
 const initialProfiles: SetupProfile[] = [
-  { id: "mama", name: "Mama", birthDate: "1980-01-01", avatar: "female" },
-  { id: "papa", name: "Papa", birthDate: "1980-01-01", avatar: "male" },
-  { id: "fabian", name: "Fabian", birthDate: "2012-01-01", avatar: "male" },
-  { id: "frieda", name: "Frieda", birthDate: "2012-01-01", avatar: "female" }
+  { id: "mama", name: "Mama", birthDate: "1980-01-01", avatar: "mama" },
+  { id: "papa", name: "Papa", birthDate: "1980-01-01", avatar: "papa" },
+  { id: "fabian", name: "Fabian", birthDate: "2012-01-01", avatar: "fabian" },
+  { id: "frieda", name: "Frieda", birthDate: "2012-01-01", avatar: "frieda" }
 ];
 const setupDraftKey = "fitfamily-setup-profiles";
 
@@ -33,10 +35,11 @@ export function SetupForm() {
           profile && typeof profile === "object" &&
           ["mama", "papa", "fabian", "frieda"].includes(profile.id) &&
           typeof profile.name === "string" && typeof profile.birthDate === "string" &&
-          ["female", "male", "neutral"].includes(profile.avatar)
+          [...AVATAR_IDS, "female", "male", "neutral"].includes(profile.avatar)
         )) savedProfiles = (draft as SetupProfile[]).map((profile) => ({
           ...profile,
-          birthDate: profile.birthDate || initialProfiles.find((item) => item.id === profile.id)?.birthDate || ""
+          birthDate: profile.birthDate || initialProfiles.find((item) => item.id === profile.id)?.birthDate || "",
+          avatar: AVATAR_IDS.includes(profile.avatar as AvatarId) ? profile.avatar : profile.id
         }));
       }
     } catch {
@@ -92,7 +95,7 @@ export function SetupForm() {
               <legend>{profile.name}</legend>
               <label>Anzeigename<input required maxLength={30} value={profile.name} onChange={(event) => setProfiles((items) => items.map((item, itemIndex) => itemIndex === index ? { ...item, name: event.target.value } : item))} /></label>
               <label>Geburtsdatum (Tag und Monat bitte prüfen)<input required type="date" value={profile.birthDate} onChange={(event) => setProfiles((items) => items.map((item, itemIndex) => itemIndex === index ? { ...item, birthDate: event.target.value } : item))} /></label>
-              <label>Avatar<select value={profile.avatar} onChange={(event) => setProfiles((items) => items.map((item, itemIndex) => itemIndex === index ? { ...item, avatar: event.target.value as "female" | "male" | "neutral" } : item))}><option value="female">Weiblich</option><option value="male">Männlich</option><option value="neutral">Neutral</option></select></label>
+              <div className="avatar-choice"><span>Figur im Dashboard</span><AvatarPicker value={AVATAR_IDS.includes(profile.avatar as AvatarId) ? profile.avatar as AvatarId : profile.id} onChange={(avatar) => setProfiles((items) => items.map((item, itemIndex) => itemIndex === index ? { ...item, avatar } : item))} name={`avatar-${profile.id}`} /></div>
             </fieldset>
           ))}
         </section>
