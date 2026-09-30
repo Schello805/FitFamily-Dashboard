@@ -14,6 +14,15 @@ if [[ ! -d "$APP_DIR" && -f "$(dirname "$0")/../package.json" ]]; then
   APP_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 fi
 
+# Vorab neueste Dateien aus Git laden, falls Git-Repo vorhanden
+if [[ -d "$APP_DIR/.git" ]]; then
+  echo "-> Aktualisiere $APP_DIR auf den neuesten Stand..."
+  git config --system --add safe.directory "$APP_DIR" 2>/dev/null || true
+  git -C "$APP_DIR" fetch origin main 2>/dev/null || true
+  git -C "$APP_DIR" checkout main 2>/dev/null || true
+  git -C "$APP_DIR" pull --ff-only origin main 2>/dev/null || true
+fi
+
 echo "=========================================================="
 echo " FitFamily Dashboard – Kiosk & Autostart einrichten      "
 echo "=========================================================="
