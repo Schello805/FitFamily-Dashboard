@@ -8,7 +8,20 @@ export function MusicPlayer() {
   const [open, setOpen] = useState(false);
   const [selectedStationId, setSelectedStationId] = useState(RADIO_STATIONS[0].id);
   const [playing, setPlaying] = useState(false);
-  const [volume, setVolume] = useState(65);
+  const [volume, setVolume] = useState(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = window.localStorage.getItem("fitfamily-radio-volume");
+        if (saved !== null) {
+          const parsed = Number(saved);
+          if (!Number.isNaN(parsed) && parsed >= 0 && parsed <= 100) return parsed;
+        }
+      } catch {
+        // ignore
+      }
+    }
+    return 5;
+  });
   const [notice, setNotice] = useState("");
   const [trackTitle, setTrackTitle] = useState("");
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -48,6 +61,11 @@ export function MusicPlayer() {
 
   useEffect(() => {
     if (audioRef.current) audioRef.current.volume = volume / 100;
+    try {
+      window.localStorage.setItem("fitfamily-radio-volume", String(volume));
+    } catch {
+      // ignore
+    }
   }, [volume]);
 
   async function playStation(stationId: string) {

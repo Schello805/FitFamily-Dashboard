@@ -159,7 +159,7 @@ body::before {
 .volume-control { display: flex; gap: 8px; align-items: center; min-height: 56px; margin-top: 4px; color: var(--muted); }
 .volume-control > svg { width: 20px; flex: none; color: var(--brand); }
 .volume-control input { flex: 1; min-width: 40px; height: 48px; margin: 0; padding: 0 3px; appearance: none; -webkit-appearance: none; background: transparent; cursor: pointer; touch-action: pan-y; }
-.volume-control input::-webkit-slider-runnable-track { height: 10px; border-radius: 99px; background: linear-gradient(to right, var(--brand) 0%, var(--brand) var(--volume-progress, 65%), rgba(255,255,255,.16) var(--volume-progress, 65%), rgba(255,255,255,.16) 100%); }
+.volume-control input::-webkit-slider-runnable-track { height: 10px; border-radius: 99px; background: linear-gradient(to right, var(--brand) 0%, var(--brand) var(--volume-progress, 5%), rgba(255,255,255,.16) var(--volume-progress, 5%), rgba(255,255,255,.16) 100%); }
 .volume-control input::-webkit-slider-thumb { width: 28px; height: 28px; margin-top: -9px; appearance: none; -webkit-appearance: none; border: 3px solid #eafffc; border-radius: 50%; background: var(--brand); box-shadow: 0 2px 9px rgba(0,0,0,.35); }
 .volume-control input::-moz-range-track { height: 10px; border-radius: 99px; background: rgba(255,255,255,.16); }
 .volume-control input::-moz-range-progress { height: 10px; border-radius: 99px; background: var(--brand); }
