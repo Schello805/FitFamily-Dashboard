@@ -172,7 +172,7 @@ echo "-> Konfiguration (.env.local) erfolgreich gespeichert."
 
 # 5. Sudoers für 1-Click Web-Update & Reparatur einrichten
 cat > /etc/sudoers.d/fitfamily << 'EOF'
-fitfamily ALL=(ALL) NOPASSWD: /bin/systemctl restart fitfamily, /usr/bin/systemctl restart fitfamily, /opt/fitfamily/scripts/update.sh, /opt/fitfamily/scripts/repair.sh
+fitfamily ALL=(ALL) NOPASSWD: /bin/systemctl restart fitfamily, /usr/bin/systemctl restart fitfamily, /opt/fitfamily/scripts/update.sh, /opt/fitfamily/scripts/update.sh *, /bin/bash /opt/fitfamily/scripts/update.sh, /bin/bash /opt/fitfamily/scripts/update.sh *, /usr/bin/bash /opt/fitfamily/scripts/update.sh, /usr/bin/bash /opt/fitfamily/scripts/update.sh *, /opt/fitfamily/scripts/repair.sh, /opt/fitfamily/scripts/repair.sh *, /bin/bash /opt/fitfamily/scripts/repair.sh, /bin/bash /opt/fitfamily/scripts/repair.sh *, /usr/bin/bash /opt/fitfamily/scripts/repair.sh, /usr/bin/bash /opt/fitfamily/scripts/repair.sh *
 EOF
 chmod 0440 /etc/sudoers.d/fitfamily
 

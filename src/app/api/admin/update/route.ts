@@ -98,11 +98,14 @@ export async function POST(request: Request) {
     const scriptPath = path.join(cwd, "scripts", "update.sh");
     if (existsSync(scriptPath)) {
       try {
-        execSync("sudo -n /opt/fitfamily/scripts/update.sh --no-restart 2>&1 || sudo -n bash scripts/update.sh --no-restart 2>&1", {
-          cwd,
-          timeout: 180000,
-          encoding: "utf-8"
-        });
+        execSync(
+          "sudo -n /opt/fitfamily/scripts/update.sh --no-restart 2>&1 || sudo -n bash scripts/update.sh --no-restart 2>&1 || sudo -n /opt/fitfamily/scripts/update.sh 2>&1 || sudo -n bash scripts/update.sh 2>&1",
+          {
+            cwd,
+            timeout: 240000,
+            encoding: "utf-8"
+          }
+        );
         updatedViaScript = true;
       } catch {
         updatedViaScript = false;
