@@ -120,7 +120,8 @@ if [[ -f "$APP_DIR/.env.local" ]]; then
       sed -i "s|APP_URL=http://0.0.0.0:3000|APP_URL=http://${REAL_LAN_IP}:3000|g" "$APP_DIR/.env.local"
     fi
   fi
-  chmod 0600 "$APP_DIR/.env.local"
+  chown "$APP_USER:$APP_USER" "$APP_DIR/.env.local" || true
+  chmod 0640 "$APP_DIR/.env.local" || true
 fi
 
 # Desktop-Icon & Autostart sicherstellen

@@ -8,7 +8,7 @@ Type=simple
 User=fitfamily
 Group=fitfamily
 WorkingDirectory=/opt/fitfamily
-EnvironmentFile=/opt/fitfamily/.env.local
+EnvironmentFile=-/opt/fitfamily/.env.local
 Environment=NODE_ENV=production
 ExecStart=/usr/bin/npm start
 Restart=on-failure
