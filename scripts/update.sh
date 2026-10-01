@@ -13,7 +13,11 @@ done
 
 if [[ $EUID -ne 0 ]]; then
   echo "Für Updates und Dienst-Neustart sind Root-Rechte erforderlich."
-  exec sudo bash "$0" "$@"
+  if sudo -n true 2>/dev/null; then
+    exec sudo -n /bin/bash "$0" "$@"
+  else
+    exec sudo /bin/bash "$0" "$@"
+  fi
 fi
 
 APP_DIR=""

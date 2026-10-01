@@ -60,7 +60,10 @@ export async function GET(request: Request) {
     if (parsed.version) latestVersion = parsed.version;
   } catch {}
 
-  const hasUpdate = Boolean(latestCommit && currentCommit !== "unbekannt" && currentCommit !== latestCommit);
+  const hasUpdate = Boolean(
+    (latestCommit && currentCommit !== "unbekannt" && currentCommit !== latestCommit) ||
+    (latestVersion && latestVersion !== version)
+  );
 
   return NextResponse.json({
     ok: true,
@@ -106,7 +109,7 @@ export async function POST(request: Request) {
     if (existsSync(scriptPath)) {
       try {
         execSync(
-          `sudo -n "${scriptPath}" --no-restart 2>&1 || sudo -n bash "${scriptPath}" --no-restart 2>&1 || sudo -n /opt/fitfamily/scripts/update.sh --no-restart 2>&1 || sudo -n bash scripts/update.sh --no-restart 2>&1 || sudo -n "${scriptPath}" 2>&1 || sudo -n bash "${scriptPath}" 2>&1 || sudo -n /opt/fitfamily/scripts/update.sh 2>&1`,
+          `sudo -n "${scriptPath}" --no-restart 2>&1 || sudo -n /bin/bash "${scriptPath}" --no-restart 2>&1 || sudo -n /opt/fitfamily/scripts/update.sh --no-restart 2>&1 || sudo -n /bin/bash /opt/fitfamily/scripts/update.sh --no-restart 2>&1`,
           {
             cwd,
             timeout: 240000,
@@ -177,15 +180,17 @@ export async function POST(request: Request) {
   }
 
   const newCommit = getGitCommit("rev-parse --short HEAD") ?? getAppRevision().commit ?? "aktuell";
+  const newVersion = getPackageVersion();
 
   // 3. Dienst nach kurzer Verzögerung neu starten, damit die HTTP-Antwort noch sauber ankommt
   setTimeout(() => {
-    exec("sudo -n systemctl restart fitfamily || sudo systemctl restart fitfamily || systemctl restart fitfamily", { cwd }, () => undefined);
+    exec("sudo -n /bin/systemctl restart fitfamily || sudo -n systemctl restart fitfamily || systemctl restart fitfamily", { cwd }, () => undefined);
   }, 1500);
 
   return NextResponse.json({
     ok: true,
     message: "Update wurde erfolgreich installiert! Das Dashboard startet in wenigen Sekunden neu...",
-    newCommit
+    newCommit,
+    newVersion
   });
 }

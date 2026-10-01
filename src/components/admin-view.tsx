@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { ArrowLeft, AlertTriangle, Bot, CheckCircle2, Database, Download, HardDrive, Lock, Monitor, Moon, Plus, RefreshCw, RotateCcw, ShieldCheck, Sparkles, Sun } from "lucide-react";
 import { TouchPinpad } from "@/components/touch-pinpad";
 import { showToast } from "@/components/toast";
@@ -38,7 +38,14 @@ type ConfirmModalConfig = {
 
 export function AdminView({ profiles, exercises, equipment }: { profiles: { id: string; name: string; score: number }[]; exercises: ExerciseMedia[]; equipment: EquipmentItem[] }) {
   const router = useRouter();
-  const [pin, setPin] = useState("");
+  const [pin, setPin] = useState(() => {
+    if (typeof window !== "undefined") {
+      try {
+        return sessionStorage.getItem("fitfamily_admin_pin") ?? "";
+      } catch {}
+    }
+    return "";
+  });
   const [verifying, setVerifying] = useState(false);
   const [status, setStatus] = useState<Status | null>(null);
   const [error, setError] = useState("");
@@ -121,13 +128,48 @@ export function AdminView({ profiles, exercises, equipment }: { profiles: { id: 
     }
   }
 
+  const [postUpdateSuccess, setPostUpdateSuccess] = useState<{ version?: string; commit?: string } | null>(null);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const savedPin = sessionStorage.getItem("fitfamily_admin_pin");
+      if (savedPin && savedPin.length >= 4) {
+        void performUnlock(savedPin);
+      }
+    } catch {}
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function waitForServerAndReload() {
+    setNotice("Dashboard-Dienst startet neu … Stelle Verbindung wieder her …");
+    let attempts = 0;
+    const pollTimer = setInterval(async () => {
+      attempts += 1;
+      try {
+        const res = await fetch("/api/dashboard", { cache: "no-store" });
+        if (res.ok) {
+          clearInterval(pollTimer);
+          window.location.reload();
+        }
+      } catch {
+        // Noch beim Booten
+      }
+      if (attempts >= 25) {
+        clearInterval(pollTimer);
+        window.location.reload();
+      }
+    }, 1500);
+  }
+
   function requestApplyUpdate() {
+    const targetVer = updateInfo?.latestVersion || "0.2.15";
+    const targetRev = updateInfo?.latestCommit ? `Rev. ${updateInfo.latestCommit}` : "";
     setConfirmModal({
-      title: "1-Click Update einspielen?",
-      badge: updateInfo?.latestCommit ? `Rev. ${updateInfo.latestCommit}` : "Systemupdate",
+      title: `1-Click Update auf v${targetVer} einspielen?`,
+      badge: targetRev ? `v${targetVer} (${targetRev})` : `v${targetVer}`,
       description: "Ein automatisches Sicherheits-Backup der Datenbank wird erstellt. Die neueste Version wird von GitHub geladen, gebaut und das Dashboard wird neu gestartet.",
       icon: "update",
-      confirmLabel: "Update jetzt einspielen",
+      confirmLabel: `Update auf v${targetVer} jetzt einspielen`,
       confirmVariant: "brand",
       action: () => executeApplyUpdate()
     });
@@ -150,8 +192,16 @@ export function AdminView({ profiles, exercises, equipment }: { profiles: { id: 
         setRunningUpdate(false);
         return;
       }
+      try {
+        sessionStorage.setItem("fitfamily_admin_pin", pin);
+        sessionStorage.setItem("fitfamily_last_update_status", JSON.stringify({
+          timestamp: Date.now(),
+          targetCommit: data.newCommit || updateInfo?.latestCommit || "",
+          targetVersion: data.newVersion || updateInfo?.latestVersion || "0.2.15"
+        }));
+      } catch {}
       setNotice("Update erfolgreich abgeschlossen! Dashboard startet neu …");
-      showToast({ type: "success", title: "Update installiert", message: "Das Dashboard wird neu geladen." });
+      showToast({ type: "success", title: "Update installiert", message: "Das Dashboard startet neu und wird geladen." });
       let countdown = 6;
       setUpdateCountdown(countdown);
       const timer = setInterval(() => {
@@ -159,13 +209,21 @@ export function AdminView({ profiles, exercises, equipment }: { profiles: { id: 
         setUpdateCountdown(countdown);
         if (countdown <= 0) {
           clearInterval(timer);
-          window.location.reload();
+          waitForServerAndReload();
         }
       }, 1000);
     } catch {
+      try {
+        sessionStorage.setItem("fitfamily_admin_pin", pin);
+        sessionStorage.setItem("fitfamily_last_update_status", JSON.stringify({
+          timestamp: Date.now(),
+          targetCommit: updateInfo?.latestCommit || "",
+          targetVersion: updateInfo?.latestVersion || "0.2.15"
+        }));
+      } catch {}
       setNotice("Dashboard-Dienst wird neu gestartet … Seite lädt gleich neu.");
       showToast({ type: "info", title: "Dashboard startet neu", message: "Verbindung wird neu aufgebaut." });
-      setTimeout(() => window.location.reload(), 6000);
+      waitForServerAndReload();
     }
   }
 
@@ -186,7 +244,25 @@ export function AdminView({ profiles, exercises, equipment }: { profiles: { id: 
         setVerifying(false);
         return;
       }
-      try { sessionStorage.removeItem("fitfamily_admin_pin"); } catch {}
+      try {
+        sessionStorage.setItem("fitfamily_admin_pin", pinToTest);
+      } catch {}
+      try {
+        const updateDoneRaw = sessionStorage.getItem("fitfamily_last_update_status");
+        if (updateDoneRaw) {
+          sessionStorage.removeItem("fitfamily_last_update_status");
+          const meta = JSON.parse(updateDoneRaw);
+          setPostUpdateSuccess({
+            version: meta.targetVersion || "0.2.15",
+            commit: meta.targetCommit || ""
+          });
+          showToast({
+            type: "sparkles",
+            title: "🎉 Update erfolgreich installiert!",
+            message: `Das Dashboard läuft jetzt auf Version v${meta.targetVersion || "0.2.15"}${meta.targetCommit ? ` (Rev. ${meta.targetCommit})` : ""}.`
+          });
+        }
+      } catch {}
       setStatus({ ...result.providers, usage: result.usage, models: result.models, nas: result.nas });
       if (result.backup) {
         setBackupStatus(result.backup);
@@ -819,9 +895,34 @@ export function AdminView({ profiles, exercises, equipment }: { profiles: { id: 
       </article>
       <article className="wide update-card">
         <div className="admin-title"><RefreshCw className={checkingUpdate || runningUpdate ? "spin" : ""} /><div><h2>Software-Update</h2><p>Dashboard auf den neuesten Stand von GitHub bringen</p></div></div>
+        {postUpdateSuccess && (
+          <div className="update-alert-banner" style={{ background: "color-mix(in srgb, var(--brand) 15%, var(--subtle-bg))", borderColor: "var(--brand)", marginBottom: "16px" }}>
+            <Sparkles size={24} style={{ color: "var(--brand-bright)", flexShrink: 0 }} />
+            <div style={{ flex: 1 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                <b style={{ color: "var(--text)" }}>Update erfolgreich installiert!</b>
+                <span style={{ fontSize: "11px", fontWeight: "800", padding: "2px 8px", borderRadius: "999px", background: "var(--brand)", color: "#06201d" }}>
+                  v{postUpdateSuccess.version} {postUpdateSuccess.commit ? `· Rev. ${postUpdateSuccess.commit}` : ""}
+                </span>
+              </div>
+              <p className="update-commit-log" style={{ margin: "4px 0 0" }}>
+                Das Dashboard wurde neu gebaut, neu gestartet und läuft ab sofort auf der aktuellsten Version.
+              </p>
+            </div>
+            <button
+              type="button"
+              className="modal-close"
+              style={{ position: "static", width: "32px", height: "32px", fontSize: "18px" }}
+              onClick={() => setPostUpdateSuccess(null)}
+              aria-label="Hinweis schließen"
+            >
+              ×
+            </button>
+          </div>
+        )}
         <div className="update-status-grid">
           <div className="update-meta-box"><span>Installierte Version</span><b>v{updateInfo?.version ?? "0.1.0"} {updateInfo?.currentCommit ? `(Rev. ${updateInfo.currentCommit})` : ""}</b></div>
-          <div className="update-meta-box"><span>GitHub Repository</span><b className={updateInfo?.hasUpdate ? "update-tag-new" : "update-tag-current"}>{updateInfo ? (updateInfo.hasUpdate ? `Neues Update verfügbar (Rev. ${updateInfo.latestCommit})` : `Aktuell (Rev. ${updateInfo.latestCommit})`) : (checkingUpdate ? "Prüfung läuft …" : "Noch nicht geprüft")}</b></div>
+          <div className="update-meta-box"><span>GitHub Repository</span><b className={updateInfo?.hasUpdate ? "update-tag-new" : "update-tag-current"}>{updateInfo ? (updateInfo.hasUpdate ? `Neues Update verfügbar: v${updateInfo.latestVersion || "neu"} (Rev. ${updateInfo.latestCommit})` : `Aktuell: v${updateInfo.version} (Rev. ${updateInfo.latestCommit})`) : (checkingUpdate ? "Prüfung läuft …" : "Noch nicht geprüft")}</b></div>
         </div>
         {updateInfo?.hasUpdate && (
           <div className="update-alert-banner"><Sparkles /><div><div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}><b>Neues Update bereit zur Installation</b><span style={{ fontSize: "11px", fontWeight: "800", padding: "2px 8px", borderRadius: "999px", background: "var(--brand)", color: "#ffffff" }}>Rev. {updateInfo.latestCommit}</span></div><p className="update-commit-log">&bdquo;{updateInfo.latestMessage}&ldquo;</p></div></div>
@@ -829,7 +930,7 @@ export function AdminView({ profiles, exercises, equipment }: { profiles: { id: 
         <div className="update-action-row">
           <button type="button" className="update-secondary-btn" disabled={checkingUpdate || runningUpdate} onClick={() => void checkUpdate()}><RefreshCw className={checkingUpdate ? "spin" : ""} />{checkingUpdate ? "Prüfe …" : "Jetzt prüfen"}</button>
           {updateInfo?.hasUpdate && (
-            <button type="button" className="primary-update-btn" disabled={runningUpdate} onClick={requestApplyUpdate}>{runningUpdate ? (<><RefreshCw className="spin" />Wird aktualisiert & neu gebaut …</>) : (<><Sparkles />1-Click Update einspielen (Rev. {updateInfo.latestCommit})</>)}</button>
+            <button type="button" className="primary-update-btn" disabled={runningUpdate} onClick={requestApplyUpdate}>{runningUpdate ? (<><RefreshCw className="spin" />Wird aktualisiert & neu gebaut …</>) : (<><Sparkles />1-Click Update auf v{updateInfo.latestVersion || "neueste Version"} einspielen (Rev. {updateInfo.latestCommit})</>)}</button>
           )}
         </div>
         {updateCountdown !== null && (
