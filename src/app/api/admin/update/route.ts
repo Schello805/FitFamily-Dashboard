@@ -43,11 +43,30 @@ export async function GET(request: Request) {
     currentCommit = rev.commit || "unbekannt";
   }
   
-  // Versuche, den Remote-Stand zu prüfen (ohne langes Warten, falls offline)
+  // Der Update-Check darf keinen veralteten origin/main-Stand als aktuell ausgeben.
+  // Auf einem Raspberry Pi kann der GitHub-Fetch bei langsamem WLAN länger dauern.
+  let remoteFetchSucceeded = false;
   try {
-    execSync("git -c safe.directory='*' fetch origin main", { cwd, timeout: 6000, stdio: "ignore" });
+    execSync("git -c safe.directory='*' fetch --no-tags origin main", {
+      cwd,
+      timeout: 30000,
+      stdio: "ignore"
+    });
+    remoteFetchSucceeded = true;
   } catch {
-    // Offline oder Netzwerk nicht erreichbar
+    // Ohne erfolgreichen Fetch ist origin/main möglicherweise veraltet.
+  }
+
+  if (!remoteFetchSucceeded) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: "GitHub konnte nicht zuverlässig abgefragt werden. Bitte Netzwerk prüfen und erneut versuchen; es wurde kein veralteter Stand als aktuell angezeigt.",
+        currentCommit,
+        version: getPackageVersion()
+      },
+      { status: 503, headers: { "Cache-Control": "no-store, max-age=0" } }
+    );
   }
 
   const latestCommit = getGitCommit("rev-parse --short origin/main");
@@ -73,7 +92,7 @@ export async function GET(request: Request) {
     hasUpdate,
     version,
     latestVersion
-  });
+  }, { headers: { "Cache-Control": "no-store, max-age=0" } });
 }
 
 const postSchema = z.object({ pin: z.string().regex(/^\d{4}$/) });

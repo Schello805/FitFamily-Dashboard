@@ -23,7 +23,7 @@ echo ""
 echo "-> 1/3: Grundlegende Systempakete aktualisieren..."
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq
-apt-get install -y -qq curl git openssl ca-certificates
+apt-get install -y -qq curl git openssl ca-certificates cifs-utils
 
 echo ""
 echo "-> 2/3: Node.js 22 LTS prüfen und einrichten..."

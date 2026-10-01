@@ -1,4 +1,6 @@
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
+import { mkdtempSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -29,23 +31,44 @@ export async function POST(request: Request) {
   }
 
   const cleanServer = server.trim().replace(/^[\\/]+/, "").replace(/[\\/]+$/, "");
-  const cleanShare = share.trim().replace(/^[\\/]+/, "").replace(/[\\/]+$/, "");
+  const shareParts = share.trim().replace(/\\/g, "/").replace(/^\/+|\/+$/g, "").split("/");
+  if (
+    !cleanServer || /[\s/\\,]/.test(cleanServer) ||
+    shareParts.some((part) => !part || part === "." || part === ".." || /[,\r\n]/.test(part))
+  ) {
+    return NextResponse.json({ error: "Bitte eine gültige Serveradresse und Freigabe angeben (z. B. 192.168.1.118 und Public/fitfamily)." }, { status: 400 });
+  }
+  const cleanShare = shareParts[0];
+  const shareSubdirectory = shareParts.slice(1).join("/");
   const mountTarget = (customMountPath && customMountPath.trim()) ? customMountPath.trim() : "/mnt/nas/fitfamily";
+  if (!path.isAbsolute(mountTarget) || /[\0\r\n]/.test(mountTarget) || mountTarget === "/") {
+    return NextResponse.json({ error: "Der lokale Einhängepfad muss ein gültiger absoluter Pfad sein und darf nicht das Wurzelverzeichnis sein." }, { status: 400 });
+  }
+  if (/[\r\n]/.test(username ?? "") || /[\r\n]/.test(password ?? "")) {
+    return NextResponse.json({ error: "Benutzername und Passwort dürfen keine Zeilenumbrüche enthalten." }, { status: 400 });
+  }
   const unc = `//${cleanServer}/${cleanShare}`;
+  let credentialsDir: string | null = null;
+  let credentialsPath: string | null = null;
 
   try {
     // 1. Erstelle lokales Mount-Verzeichnis falls nötig
-    try {
-      execSync(`sudo -n /bin/mkdir -p "${mountTarget}" || mkdir -p "${mountTarget}"`, { timeout: 10000 });
-      execSync(`sudo -n /bin/chown -R fitfamily:fitfamily "${mountTarget}" 2>/dev/null || true`, { timeout: 5000 });
-    } catch {}
+    execFileSync("sudo", ["-n", "/bin/mkdir", "-p", mountTarget], { timeout: 10000, stdio: "pipe" });
 
     // 2. Mount-Optionen zusammenstellen
     const opts: string[] = ["rw", "file_mode=0775", "dir_mode=0775"];
+    if (typeof process.getuid === "function" && typeof process.getgid === "function") {
+      opts.push(`uid=${process.getuid()}`, `gid=${process.getgid()}`);
+    }
+    if (shareSubdirectory) opts.push(`prefixpath=${shareSubdirectory}`);
     if (username && username.trim()) {
       opts.push(`username=${username.trim()}`);
       if (password && password.trim()) {
-        opts.push(`password=${password.trim()}`);
+        // Passwort niemals als Prozessargument übergeben (sichtbar via ps / in Fehlertexten).
+        credentialsDir = mkdtempSync(path.join(os.tmpdir(), "fitfamily-cifs-"));
+        credentialsPath = path.join(credentialsDir, "credentials");
+        writeFileSync(credentialsPath, `username=${username.trim()}\npassword=${password.trim()}\n`, { mode: 0o600 });
+        opts.splice(opts.indexOf(`username=${username.trim()}`), 1, `credentials=${credentialsPath}`);
       }
     } else {
       opts.push("guest");
@@ -56,26 +79,28 @@ export async function POST(request: Request) {
     // 3. Prüfen, ob bereits gemountet
     let alreadyMounted = false;
     try {
-      const currentMounts = execSync("mount", { encoding: "utf-8" });
+      const currentMounts = execFileSync("/bin/mount", [], { encoding: "utf-8" });
       if (currentMounts.includes(mountTarget)) {
         alreadyMounted = true;
       }
     } catch {}
 
     if (!alreadyMounted) {
-      execSync(`sudo -n mount -t cifs -o "${optionsStr}" "${unc}" "${mountTarget}"`, {
+      execFileSync("sudo", ["-n", "/bin/mount", "-t", "cifs", "-o", optionsStr, unc, mountTarget], {
         timeout: 25000,
-        encoding: "utf-8"
+        encoding: "utf-8",
+        stdio: "pipe"
       });
     }
 
     // 4. Schreibtest auf gemountetem Pfad durchführen
     const testFile = path.join(mountTarget, `.fitfamily_test_${Date.now()}`);
     try {
-      execSync(`touch "${testFile}" && rm -f "${testFile}"`, { timeout: 5000 });
-    } catch {
-      execSync(`sudo -n chmod 777 "${mountTarget}" 2>/dev/null || true`);
-      execSync(`touch "${testFile}" && rm -f "${testFile}"`, { timeout: 5000 });
+      writeFileSync(testFile, "ok", { flag: "wx" });
+      unlinkSync(testFile);
+    } catch (writeError) {
+      try { unlinkSync(testFile); } catch {}
+      throw new Error(`Verbindung besteht, aber der Einhängepfad ist nicht beschreibbar: ${(writeError as Error).message}`);
     }
 
     // 5. Automatisch als NAS-Sicherungspfad abspeichern
@@ -88,10 +113,15 @@ export async function POST(request: Request) {
       status
     });
   } catch (err) {
-    const errorMsg = (err as Error)?.message || String(err);
+    const commandError = err as NodeJS.ErrnoException & { stderr?: Buffer | string };
+    const stderr = commandError.stderr?.toString().trim();
+    const errorMsg = (stderr || commandError.message || "Unbekannter Mount-Fehler")
+      .replace(/password=[^,\s"']+/gi, "password=[geschützt]");
     return NextResponse.json({
       ok: false,
       error: `Einbinden fehlgeschlagen: Konnte ${unc} nicht nach ${mountTarget} mounten. Details: ${errorMsg}`
     }, { status: 500 });
+  } finally {
+    if (credentialsDir) rmSync(credentialsDir, { recursive: true, force: true });
   }
 }

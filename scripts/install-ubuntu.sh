@@ -171,10 +171,13 @@ echo ""
 echo "-> Konfiguration (.env.local) erfolgreich gespeichert."
 
 # 5. Sudoers für 1-Click Web-Update & Reparatur einrichten
-cat > /etc/sudoers.d/fitfamily << 'EOF'
-fitfamily ALL=(ALL) NOPASSWD: /bin/systemctl, /usr/bin/systemctl, /bin/chown, /usr/bin/chown, /bin/rm, /usr/bin/rm, /bin/mv, /usr/bin/mv, /bin/mount, /usr/bin/mount, /bin/umount, /usr/bin/umount, /bin/mkdir, /usr/bin/mkdir, /opt/fitfamily/scripts/*, /bin/bash /opt/fitfamily/scripts/*, /usr/bin/bash /opt/fitfamily/scripts/*
+SUDOERS_TMP="/etc/sudoers.d/fitfamily.tmp.$$"
+cat > "$SUDOERS_TMP" <<EOF
+fitfamily ALL=(ALL) NOPASSWD: /bin/systemctl, /usr/bin/systemctl, /bin/chown, /usr/bin/chown, /bin/rm, /usr/bin/rm, /bin/mv, /usr/bin/mv, /bin/mount, /usr/bin/mount, /bin/umount, /usr/bin/umount, /bin/mkdir, /usr/bin/mkdir, $APP_DIR/scripts/update.sh, $APP_DIR/scripts/repair.sh, $APP_DIR/scripts/backup.sh
 EOF
-chmod 0440 /etc/sudoers.d/fitfamily
+chmod 0440 "$SUDOERS_TMP"
+visudo -cf "$SUDOERS_TMP"
+mv "$SUDOERS_TMP" /etc/sudoers.d/fitfamily
 
 # 6. Abhängigkeiten installieren & App bauen
 echo ""

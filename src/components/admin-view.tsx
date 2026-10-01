@@ -143,12 +143,14 @@ export function AdminView({
     if (!pinToUse) return;
     setCheckingUpdate(true);
     try {
-      const response = await fetch(`/api/admin/update?pin=${encodeURIComponent(pinToUse)}`);
+      const response = await fetch(`/api/admin/update?pin=${encodeURIComponent(pinToUse)}`, { cache: "no-store" });
       const data = await response.json();
       if (response.ok) {
         setUpdateInfo(data);
       } else {
-        setNotice(data.error ?? "Update-Prüfung fehlgeschlagen.");
+        const errorMessage = data.error ?? "Update-Prüfung fehlgeschlagen.";
+        setNotice(errorMessage);
+        showToast({ type: "error", title: "Update-Prüfung fehlgeschlagen", message: errorMessage });
       }
     } catch {
       setNotice("Update-Server konnte nicht erreicht werden.");
@@ -1152,13 +1154,14 @@ export function AdminView({
                   />
                 </label>
                 <label className="api-key-field" style={{ margin: 0 }}>
-                  Freigabename (Share)
+                  Freigabe / optionaler Unterordner
                   <input
                     type="text"
-                    placeholder="fitfamily oder backup"
+                    placeholder="Public/fitfamily"
                     value={nasShareInput}
                     onChange={(e) => setNasShareInput(e.target.value)}
                   />
+                  <small>Bei „Public/fitfamily“ wird die Freigabe „Public“ und darin der Ordner „fitfamily“ verwendet.</small>
                 </label>
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
