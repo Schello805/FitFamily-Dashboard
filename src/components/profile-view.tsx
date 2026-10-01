@@ -411,11 +411,9 @@ export function ProfileView({
   }
 
   const [resettingHealth, setResettingHealth] = useState(false);
+  const [confirmResetHealth, setConfirmResetHealth] = useState(false);
 
-  async function resetHealthSync() {
-    if (!window.confirm(`Möchtest du wirklich alle über Apple Health synchronisierten Daten (Workouts & Aktivitätsringe) für ${profile.name} zurücksetzen?`)) {
-      return;
-    }
+  async function performHealthReset() {
     setResettingHealth(true);
     try {
       const response = await fetch(`/api/sync/apple-health?profileId=${encodeURIComponent(profile.id)}`, {
@@ -425,9 +423,10 @@ export function ProfileView({
       if (response.ok) {
         showToast({
           type: "success",
-          title: "Apple Health zurückgesetzt",
+          title: "Apple Health getrennt & gelöscht",
           message: data.message ?? "Daten wurden erfolgreich entfernt."
         });
+        setConfirmResetHealth(false);
         await refresh();
       } else {
         showToast({
@@ -686,29 +685,52 @@ export function ProfileView({
                 <Zap size={18} />
                 <span>{testingHealth ? "Übertrage …" : "Test-Training & Ringe synchronisieren"}</span>
               </button>
-              <button
-                type="button"
-                className="health-ghost-btn"
-                disabled={testingHealth || resettingHealth}
-                onClick={resetHealthSync}
-                title="Synchronisierte Apple Health Daten für dieses Profil löschen"
-                style={{
-                  padding: "10px 14px",
-                  fontSize: "12px",
-                  fontWeight: 650,
-                  border: "1px solid rgba(225, 29, 72, 0.4)",
-                  borderRadius: "10px",
-                  background: "rgba(225, 29, 72, 0.08)",
-                  color: "var(--danger)",
-                  cursor: "pointer",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "6px"
-                }}
-              >
-                <RotateCcw size={14} />
-                <span>{resettingHealth ? "Lösche …" : "Daten zurücksetzen"}</span>
-              </button>
+              {confirmResetHealth ? (
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", padding: "10px", borderRadius: "10px", background: "rgba(225, 29, 72, 0.1)", border: "1px solid rgba(225, 29, 72, 0.3)", width: "100%" }}>
+                  <span style={{ fontSize: "12px", color: "var(--danger)", fontWeight: 650, flex: "1 1 100%" }}>
+                    Alle Apple Health Daten &amp; Ringe für {profile.name} unwiderruflich löschen &amp; trennen?
+                  </span>
+                  <button
+                    type="button"
+                    style={{ padding: "8px 14px", fontSize: "12px", background: "var(--danger)", color: "#fff", border: 0, borderRadius: "8px", fontWeight: 700, cursor: "pointer" }}
+                    disabled={resettingHealth}
+                    onClick={performHealthReset}
+                  >
+                    {resettingHealth ? "Löscht …" : "Ja, Daten löschen & trennen"}
+                  </button>
+                  <button
+                    type="button"
+                    style={{ padding: "8px 14px", fontSize: "12px", background: "transparent", border: "1px solid var(--line)", borderRadius: "8px", color: "var(--muted)", cursor: "pointer" }}
+                    onClick={() => setConfirmResetHealth(false)}
+                  >
+                    Abbrechen
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  className="health-ghost-btn"
+                  disabled={testingHealth || resettingHealth}
+                  onClick={() => setConfirmResetHealth(true)}
+                  title="Synchronisierte Apple Health Daten für dieses Profil löschen & trennen"
+                  style={{
+                    padding: "10px 14px",
+                    fontSize: "12px",
+                    fontWeight: 650,
+                    border: "1px solid rgba(225, 29, 72, 0.4)",
+                    borderRadius: "10px",
+                    background: "rgba(225, 29, 72, 0.08)",
+                    color: "var(--danger)",
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "6px"
+                  }}
+                >
+                  <RotateCcw size={14} />
+                  <span>Daten zurücksetzen &amp; trennen</span>
+                </button>
+              )}
               <a
                 href={`/api/shortcuts/${profile.id}?download=1`}
                 className="health-ghost-btn"

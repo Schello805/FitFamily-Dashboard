@@ -467,7 +467,7 @@ export function HistoryView({ profile }: { profile: DashboardProfile }) {
                 <option value="endurance">Ausdauer</option>
               </select>
             </label>
-            <label>Eltern-PIN (4–8 Ziffern)</label>
+            <label>Eltern-PIN (4 Ziffern)</label>
             <TouchPinpad value={manualPin} onChange={setManualPin} />
             <input type="hidden" name="pin" value={manualPin} />
             {manualError && <p className="form-error">{manualError}</p>}
@@ -533,7 +533,7 @@ export function HistoryView({ profile }: { profile: DashboardProfile }) {
                 <option value="endurance">Ausdauer</option>
               </select>
             </label>
-            <label>Eltern-PIN zur Freigabe (4–8 Ziffern)</label>
+            <label>Eltern-PIN zur Freigabe (4 Ziffern)</label>
             <TouchPinpad value={editPin} onChange={setEditPin} />
             {editError && <p className="form-error">{editError}</p>}
             <button className="primary-submit" disabled={editPin.length < 4}>
@@ -585,7 +585,7 @@ export function HistoryView({ profile }: { profile: DashboardProfile }) {
               </p>
             </div>
 
-            <label>Eltern-PIN zur Bestätigung (4–8 Ziffern)</label>
+            <label>Eltern-PIN zur Bestätigung (4 Ziffern)</label>
             <TouchPinpad value={deletePin} onChange={setDeletePin} />
             {deleteError && <p className="form-error">{deleteError}</p>}
 

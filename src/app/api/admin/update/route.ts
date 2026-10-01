@@ -120,30 +120,53 @@ export async function POST(request: Request) {
     }
 
     if (!updatedViaScript) {
-      // Vor dem Build: Versuche etwaige Root-Dateien in .next via sudo oder rm zu bereinigen
+      // 1. Versuche Dateirechte via sudo zu korrigieren, falls sudoers vorhanden
       try {
         execSync(
-          "sudo -n /bin/chown -R fitfamily:fitfamily /opt/fitfamily 2>/dev/null || sudo -n /usr/bin/chown -R fitfamily:fitfamily /opt/fitfamily 2>/dev/null || sudo -n /bin/rm -rf /opt/fitfamily/.next 2>/dev/null || sudo -n /usr/bin/rm -rf /opt/fitfamily/.next 2>/dev/null || rm -rf .next 2>/dev/null || true",
+          "sudo -n /bin/chown -R fitfamily:fitfamily /opt/fitfamily 2>/dev/null || sudo -n /usr/bin/chown -R fitfamily:fitfamily /opt/fitfamily 2>/dev/null || true",
           { cwd, timeout: 5000 }
         );
-      } catch {
-        // Nicht blockierend
-      }
+      } catch {}
 
+      // 2. WICHTIG: .next niemals in-place unlinken (scheitert bei Root-Artefakten mit EACCES)!
+      // In Linux benötigt das Verschieben/Umbenennen eines Verzeichnisses nur Schreibrecht auf dem Elternordner (/opt/fitfamily).
+      // Damit kann der fitfamily-User den alten .next-Ordner IMMER wegbewegen, selbst wenn Dateien darin root gehören!
+      try {
+        const trashDir = path.join(cwd, `.next_trash_${Date.now()}`);
+        if (existsSync(path.join(cwd, ".next"))) {
+          execSync(`sudo -n /bin/rm -rf .next 2>/dev/null || mv .next "${trashDir}" 2>/dev/null || true`, { cwd });
+          execSync(`sudo -n /bin/rm -rf .next_trash_* 2>/dev/null || rm -rf .next_trash_* 2>/dev/null || true`, { cwd });
+        }
+      } catch {}
+
+      // 3. Git Fetch & Reset --hard
       execSync(
-        "git -c safe.directory='*' fetch origin main && git -c safe.directory='*' checkout -f main && git -c safe.directory='*' reset --hard origin/main",
-        { cwd, timeout: 35000, encoding: "utf-8" }
+        "git config --global --add safe.directory '*' 2>/dev/null || true; git config --system --add safe.directory '*' 2>/dev/null || true; git -c safe.directory='*' fetch origin main && git -c safe.directory='*' checkout -f main && git -c safe.directory='*' reset --hard origin/main",
+        { cwd, timeout: 45000, encoding: "utf-8" }
       );
+
+      // 4. npm install
       execSync("npm install --prefer-offline --no-audit --no-fund", { cwd, timeout: 120000, encoding: "utf-8" });
-      execSync("npm run build", { cwd, timeout: 180000, encoding: "utf-8" });
+
+      // 5. Build mit automatischer Selbstreparatur bei EACCES
+      try {
+        execSync("npm run build", { cwd, timeout: 180000, encoding: "utf-8" });
+      } catch (buildErr) {
+        const errMsg = (buildErr as Error)?.message || String(buildErr);
+        // Falls trotz allem ein EACCES oder unlink-Problem aufgetreten ist:
+        if (errMsg.includes("EACCES") || errMsg.includes("permission denied") || errMsg.includes("unlink")) {
+          const emergencyTrash = path.join(cwd, `.next_emergency_${Date.now()}`);
+          execSync(`sudo -n /bin/rm -rf .next 2>/dev/null || mv .next "${emergencyTrash}" 2>/dev/null || true`, { cwd });
+          // Zweiter Versuch mit komplett jungfräulichem Verzeichnis
+          execSync("npm run build", { cwd, timeout: 180000, encoding: "utf-8" });
+        } else {
+          throw buildErr;
+        }
+      }
     }
   } catch (err) {
     const errorMsg = (err as Error)?.message || String(err);
-    let userMessage = `Update fehlgeschlagen: ${errorMsg}. Der bisherige Dienst bleibt unverändert aktiv.`;
-    
-    if (errorMsg.includes("EACCES") || errorMsg.includes("permission denied") || errorMsg.includes("unlink")) {
-      userMessage = `Dateirechte-Konflikt (EACCES): Build-Dateien in .next gehören noch dem Benutzer 'root'. Bitte einmalig im Terminal ausführen:\nsudo chown -R fitfamily:fitfamily /opt/fitfamily && sudo /opt/fitfamily/scripts/update.sh`;
-    }
+    const userMessage = `Update fehlgeschlagen: ${errorMsg}. Der bisherige Dienst bleibt unverändert aktiv.`;
 
     return NextResponse.json(
       {

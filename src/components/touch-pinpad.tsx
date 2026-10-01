@@ -5,7 +5,7 @@ import { Delete, RotateCcw } from "lucide-react";
 export function TouchPinpad({
   value,
   onChange,
-  maxLength = 8,
+  maxLength = 4,
   disabled = false
 }: {
   value: string;
@@ -28,7 +28,7 @@ export function TouchPinpad({
     onChange("");
   }
 
-  const dotCount = Math.max(4, Math.min(value.length, maxLength));
+  const dotCount = maxLength;
 
   return (
     <div className="touch-pinpad" role="group" aria-label="PIN-Tastenfeld">

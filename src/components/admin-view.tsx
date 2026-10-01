@@ -68,6 +68,12 @@ export function AdminView({ profiles, exercises, equipment }: { profiles: { id: 
   const [savingNas, setSavingNas] = useState(false);
   const [testingNas, setTestingNas] = useState(false);
   const [runningBackup, setRunningBackup] = useState(false);
+  const [showNasMountForm, setShowNasMountForm] = useState(false);
+  const [nasServerInput, setNasServerInput] = useState("");
+  const [nasShareInput, setNasShareInput] = useState("");
+  const [nasUserInput, setNasUserInput] = useState("");
+  const [nasPassInput, setNasPassInput] = useState("");
+  const [mountingNas, setMountingNas] = useState(false);
 
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
   const [checkingUpdate, setCheckingUpdate] = useState(false);
@@ -279,6 +285,45 @@ export function AdminView({ profiles, exercises, equipment }: { profiles: { id: 
     }
   }
 
+  async function mountNasShare() {
+    if (!nasServerInput.trim() || !nasShareInput.trim()) {
+      showToast({ type: "error", title: "Fehlende Angaben", message: "Bitte Server-IP/Name und Freigabename eingeben." });
+      return;
+    }
+    setMountingNas(true);
+    setNotice("");
+    try {
+      const response = await fetch("/api/admin/nas-mount", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          pin,
+          server: nasServerInput,
+          share: nasShareInput,
+          username: nasUserInput || undefined,
+          password: nasPassInput || undefined,
+          mountPath: nasPathInput.trim() || "/mnt/nas/fitfamily"
+        })
+      });
+      const data = await response.json();
+      if (response.ok && data.ok) {
+        showToast({ type: "success", title: "Netzlaufwerk verbunden", message: data.message });
+        setNasPathInput(data.path);
+        setStatus((cur) => (cur ? { ...cur, nas: true } : cur));
+        setShowNasMountForm(false);
+        if (data.status) setBackupStatus(data.status);
+      } else {
+        const msg = data.error || "Netzlaufwerk konnte nicht eingebunden werden.";
+        showToast({ type: "error", title: "Mount fehlgeschlagen", message: msg });
+        setNotice(msg);
+      }
+    } catch {
+      showToast({ type: "error", title: "Netzwerkfehler", message: "Server nicht erreichbar." });
+    } finally {
+      setMountingNas(false);
+    }
+  }
+
   async function runNasBackupNow() {
     if (!window.confirm("Jetzt sofort ein verschlüsseltes Backup der SQLite-Datenbank auf das NAS schreiben?")) return;
     setRunningBackup(true);
@@ -479,8 +524,9 @@ export function AdminView({ profiles, exercises, equipment }: { profiles: { id: 
             pattern="[0-9]*"
             aria-label="Eltern-PIN"
             style={{ position: "absolute", opacity: 0, pointerEvents: "none", height: 0, width: 0 }}
+            maxLength={4}
             value={pin}
-            onChange={(event) => setPin(event.target.value.replace(/\D/g, "").slice(0, 8))}
+            onChange={(event) => setPin(event.target.value.replace(/\D/g, "").slice(0, 4))}
           />
 
           {error && <p className="form-error">{error}</p>}
@@ -797,6 +843,75 @@ export function AdminView({ profiles, exercises, equipment }: { profiles: { id: 
             onChange={(e) => setNasPathInput(e.target.value)}
           />
         </label>
+
+        <div style={{ marginTop: "6px" }}>
+          <button
+            type="button"
+            className="backup-advanced-toggle"
+            style={{ fontSize: "12px", color: "var(--brand)", background: "transparent", border: 0, padding: 0, cursor: "pointer", fontWeight: 700 }}
+            onClick={() => setShowNasMountForm((prev) => !prev)}
+          >
+            {showNasMountForm ? "▾ Netzlaufwerk-Assistent schließen" : "▸ Netzlaufwerk (SMB/CIFS) automatisch einhängen"}
+          </button>
+
+          {showNasMountForm && (
+            <div style={{ marginTop: "10px", padding: "14px", border: "1px solid var(--line)", borderRadius: "12px", background: "var(--subtle-bg)", display: "grid", gap: "10px" }}>
+              <div style={{ fontSize: "12px", fontWeight: 700, color: "var(--text)" }}>
+                NAS-Freigabe direkt über das Frontend mounten:
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                <label className="api-key-field" style={{ margin: 0 }}>
+                  Server / IP
+                  <input
+                    type="text"
+                    placeholder="192.168.1.100 oder diskstation"
+                    value={nasServerInput}
+                    onChange={(e) => setNasServerInput(e.target.value)}
+                  />
+                </label>
+                <label className="api-key-field" style={{ margin: 0 }}>
+                  Freigabename (Share)
+                  <input
+                    type="text"
+                    placeholder="fitfamily oder backup"
+                    value={nasShareInput}
+                    onChange={(e) => setNasShareInput(e.target.value)}
+                  />
+                </label>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                <label className="api-key-field" style={{ margin: 0 }}>
+                  Benutzername (optional)
+                  <input
+                    type="text"
+                    placeholder="z. B. admin"
+                    value={nasUserInput}
+                    onChange={(e) => setNasUserInput(e.target.value)}
+                  />
+                </label>
+                <label className="api-key-field" style={{ margin: 0 }}>
+                  Passwort (optional)
+                  <input
+                    type="password"
+                    placeholder="Passwort"
+                    value={nasPassInput}
+                    onChange={(e) => setNasPassInput(e.target.value)}
+                  />
+                </label>
+              </div>
+              <button
+                type="button"
+                className="update-secondary-btn"
+                style={{ justifySelf: "start", marginTop: "4px" }}
+                disabled={mountingNas || !nasServerInput.trim() || !nasShareInput.trim()}
+                onClick={() => void mountNasShare()}
+              >
+                <HardDrive className={mountingNas ? "spin" : ""} size={16} />
+                <span>{mountingNas ? "Verbinde Netzlaufwerk …" : "Netzlaufwerk jetzt verbinden & mounten"}</span>
+              </button>
+            </div>
+          )}
+        </div>
 
         <div className="update-action-row">
           <button

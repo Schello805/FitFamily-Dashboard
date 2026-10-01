@@ -172,7 +172,7 @@ echo "-> Konfiguration (.env.local) erfolgreich gespeichert."
 
 # 5. Sudoers für 1-Click Web-Update & Reparatur einrichten
 cat > /etc/sudoers.d/fitfamily << 'EOF'
-fitfamily ALL=(ALL) NOPASSWD: /bin/systemctl restart fitfamily, /usr/bin/systemctl restart fitfamily, /bin/chown -R fitfamily\:fitfamily /opt/fitfamily, /usr/bin/chown -R fitfamily\:fitfamily /opt/fitfamily, /bin/rm -rf /opt/fitfamily/.next, /usr/bin/rm -rf /opt/fitfamily/.next, /opt/fitfamily/scripts/update.sh, /opt/fitfamily/scripts/update.sh *, /bin/bash /opt/fitfamily/scripts/update.sh, /bin/bash /opt/fitfamily/scripts/update.sh *, /usr/bin/bash /opt/fitfamily/scripts/update.sh, /usr/bin/bash /opt/fitfamily/scripts/update.sh *, /opt/fitfamily/scripts/repair.sh, /opt/fitfamily/scripts/repair.sh *, /bin/bash /opt/fitfamily/scripts/repair.sh, /bin/bash /opt/fitfamily/scripts/repair.sh *, /usr/bin/bash /opt/fitfamily/scripts/repair.sh, /usr/bin/bash /opt/fitfamily/scripts/repair.sh *
+fitfamily ALL=(ALL) NOPASSWD: /bin/systemctl, /usr/bin/systemctl, /bin/chown, /usr/bin/chown, /bin/rm, /usr/bin/rm, /bin/mv, /usr/bin/mv, /bin/mount, /usr/bin/mount, /bin/umount, /usr/bin/umount, /bin/mkdir, /usr/bin/mkdir, /opt/fitfamily/scripts/*, /bin/bash /opt/fitfamily/scripts/*, /usr/bin/bash /opt/fitfamily/scripts/*
 EOF
 chmod 0440 /etc/sudoers.d/fitfamily
 

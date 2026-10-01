@@ -80,7 +80,8 @@ fi
 
 # Dateirechte vor dem Build korrigieren, damit Next.js nicht an Root-Artefakten scheitert
 chown -R "$APP_USER:$APP_USER" "$APP_DIR"
-rm -rf "$APP_DIR/.next"
+mv "$APP_DIR/.next" "$APP_DIR/.next.trash.$TIMESTAMP" 2>/dev/null || true
+rm -rf "$APP_DIR/.next" "$APP_DIR/.next.trash."* 2>/dev/null || true
 
 if id -u "$APP_USER" >/dev/null 2>&1; then
   sudo -u "$APP_USER" npm install --prefer-offline --no-audit --no-fund
@@ -100,9 +101,9 @@ if [[ -f "$APP_DIR/deploy/systemd/fitfamily.service" ]]; then
   systemctl daemon-reload
 fi
 
-# Sudoers für 1-Click Update & Rechte-Self-Healing
+# Sudoers für 1-Click Update, Rechte-Self-Healing & NAS Mount
 cat > /etc/sudoers.d/fitfamily << EOF
-fitfamily ALL=(ALL) NOPASSWD: /bin/systemctl restart fitfamily, /usr/bin/systemctl restart fitfamily, /bin/chown -R fitfamily\:fitfamily /opt/fitfamily, /usr/bin/chown -R fitfamily\:fitfamily /opt/fitfamily, /bin/rm -rf /opt/fitfamily/.next, /usr/bin/rm -rf /opt/fitfamily/.next, $APP_DIR/scripts/update.sh, $APP_DIR/scripts/update.sh *, /bin/bash $APP_DIR/scripts/update.sh, /bin/bash $APP_DIR/scripts/update.sh *, /usr/bin/bash $APP_DIR/scripts/update.sh, /usr/bin/bash $APP_DIR/scripts/update.sh *, /opt/fitfamily/scripts/update.sh, /opt/fitfamily/scripts/update.sh *, /bin/bash /opt/fitfamily/scripts/update.sh, /bin/bash /opt/fitfamily/scripts/update.sh *, /usr/bin/bash /opt/fitfamily/scripts/update.sh, /usr/bin/bash /opt/fitfamily/scripts/update.sh *, /opt/fitfamily/scripts/repair.sh, /opt/fitfamily/scripts/repair.sh *, /bin/bash /opt/fitfamily/scripts/repair.sh, /bin/bash /opt/fitfamily/scripts/repair.sh *, /usr/bin/bash /opt/fitfamily/scripts/repair.sh, /usr/bin/bash /opt/fitfamily/scripts/repair.sh *
+fitfamily ALL=(ALL) NOPASSWD: /bin/systemctl, /usr/bin/systemctl, /bin/chown, /usr/bin/chown, /bin/rm, /usr/bin/rm, /bin/mv, /usr/bin/mv, /bin/mount, /usr/bin/mount, /bin/umount, /usr/bin/umount, /bin/mkdir, /usr/bin/mkdir, $APP_DIR/scripts/*, /bin/bash $APP_DIR/scripts/*, /usr/bin/bash $APP_DIR/scripts/*, /opt/fitfamily/scripts/*, /bin/bash /opt/fitfamily/scripts/*, /usr/bin/bash /opt/fitfamily/scripts/*
 EOF
 chmod 0440 /etc/sudoers.d/fitfamily
 

@@ -207,6 +207,18 @@ export function Dashboard({
   const effectiveTimeout = isNight ? displaySettings.nightIdleTimeoutMinutes : displaySettings.idleTimeoutMinutes;
   const isTimeoutReached = effectiveTimeout > 0 && idleMinutes >= effectiveTimeout;
   const quietActive = !hasActiveTraining && !quietDismissed && (manualQuietActive || isTimeoutReached);
+  const isDimmed = isNight || (effectiveTimeout > 0 && idleMinutes >= effectiveTimeout + 15);
+
+  const pixelShift = useMemo(() => {
+    if (!quietActive) return { x: 0, y: 0 };
+    // Burn-In-Schutz: Berechnet alle 4 Minuten eine sanfte Position (-18px bis +18px)
+    const cycle = Math.floor(clock.getTime() / (4 * 60 * 1000));
+    const angle = (cycle * 137.5 * Math.PI) / 180;
+    return {
+      x: Math.round(Math.cos(angle) * 18),
+      y: Math.round(Math.sin(angle) * 14)
+    };
+  }, [quietActive, clock]);
 
   function wakeUp() {
     setLastActivity(Date.now());
@@ -332,17 +344,27 @@ export function Dashboard({
         <a href={commitUrl ?? "https://github.com/Schello805/FitFamily-Dashboard"} target="_blank" rel="noreferrer"><GitHubIcon /> GitHub · Rev. {version}</a>
       </footer>
       {quietActive && (
-        <button type="button" className="quiet-overlay" onClick={wakeUp} aria-label="Ruhemodus beenden">
-          <span className="quiet-time">{clock.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })}</span>
-          <span className="quiet-date">{dateText}</span>
-          {weather && (
-            <div className="quiet-weather">
-              <CloudSun size={22} />
-              <span>{Math.round(weather.temperature)}° · {weatherLabel(weather.code)} · Bechhofen</span>
-            </div>
-          )}
-          <strong>{isNight ? "Nachtruhe" : "Ruhemodus"}</strong>
-          <small>Zum Aufwecken berühren oder Taste drücken</small>
+        <button
+          type="button"
+          className={`quiet-overlay ${isDimmed ? "is-dimmed" : ""}`}
+          onClick={wakeUp}
+          aria-label="Ruhemodus beenden"
+        >
+          <div
+            className="quiet-content-wrap"
+            style={{ transform: `translate3d(${pixelShift.x}px, ${pixelShift.y}px, 0)` }}
+          >
+            <span className="quiet-time">{clock.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })}</span>
+            <span className="quiet-date">{dateText}</span>
+            {weather && (
+              <div className="quiet-weather">
+                <CloudSun size={22} />
+                <span>{Math.round(weather.temperature)}° · {weatherLabel(weather.code)} · Bechhofen</span>
+              </div>
+            )}
+            <strong>{isNight ? "Nachtruhe" : "Ruhemodus"}</strong>
+            <small>Zum Aufwecken berühren oder Taste drücken</small>
+          </div>
         </button>
       )}
 
