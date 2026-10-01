@@ -36,7 +36,19 @@ type ConfirmModalConfig = {
   action: () => Promise<void> | void;
 };
 
-export function AdminView({ profiles, exercises, equipment }: { profiles: { id: string; name: string; score: number }[]; exercises: ExerciseMedia[]; equipment: EquipmentItem[] }) {
+export function AdminView({
+  profiles,
+  exercises,
+  equipment,
+  initialVersion = "0.2.17",
+  initialCommit
+}: {
+  profiles: { id: string; name: string; score: number }[];
+  exercises: ExerciseMedia[];
+  equipment: EquipmentItem[];
+  initialVersion?: string;
+  initialCommit?: string;
+}) {
   const router = useRouter();
   const [pin, setPin] = useState(() => {
     if (typeof window !== "undefined") {
@@ -100,6 +112,8 @@ export function AdminView({ profiles, exercises, equipment }: { profiles: { id: 
   const [checkingUpdate, setCheckingUpdate] = useState(false);
   const [runningUpdate, setRunningUpdate] = useState(false);
   const [updateCountdown, setUpdateCountdown] = useState<number | null>(null);
+  const currentInstalledVersion = updateInfo?.version ?? initialVersion;
+  const currentInstalledCommit = updateInfo?.currentCommit ?? initialCommit;
 
   const currentTheme = useSyncExternalStore(
     subscribeTheme,
@@ -165,7 +179,7 @@ export function AdminView({ profiles, exercises, equipment }: { profiles: { id: 
   }
 
   function requestApplyUpdate() {
-    const targetVer = updateInfo?.latestVersion || "0.2.15";
+    const targetVer = updateInfo?.latestVersion || currentInstalledVersion;
     const targetRev = updateInfo?.latestCommit ? `Rev. ${updateInfo.latestCommit}` : "";
     setConfirmModal({
       title: `1-Click Update auf v${targetVer} einspielen?`,
@@ -199,8 +213,8 @@ export function AdminView({ profiles, exercises, equipment }: { profiles: { id: 
         sessionStorage.setItem("fitfamily_admin_pin", pin);
         sessionStorage.setItem("fitfamily_last_update_status", JSON.stringify({
           timestamp: Date.now(),
-          targetCommit: data.newCommit || updateInfo?.latestCommit || "",
-          targetVersion: data.newVersion || updateInfo?.latestVersion || "0.2.15"
+          targetCommit: data.newCommit || updateInfo?.latestCommit || currentInstalledCommit || "",
+          targetVersion: data.newVersion || updateInfo?.latestVersion || currentInstalledVersion
         }));
       } catch {}
       setNotice("Update erfolgreich abgeschlossen! Dashboard startet neu …");
@@ -220,8 +234,8 @@ export function AdminView({ profiles, exercises, equipment }: { profiles: { id: 
         sessionStorage.setItem("fitfamily_admin_pin", pin);
         sessionStorage.setItem("fitfamily_last_update_status", JSON.stringify({
           timestamp: Date.now(),
-          targetCommit: updateInfo?.latestCommit || "",
-          targetVersion: updateInfo?.latestVersion || "0.2.15"
+          targetCommit: updateInfo?.latestCommit || currentInstalledCommit || "",
+          targetVersion: updateInfo?.latestVersion || currentInstalledVersion
         }));
       } catch {}
       setNotice("Dashboard-Dienst wird neu gestartet … Seite lädt gleich neu.");
@@ -256,7 +270,7 @@ export function AdminView({ profiles, exercises, equipment }: { profiles: { id: 
           sessionStorage.removeItem("fitfamily_last_update_status");
           const meta = JSON.parse(updateDoneRaw);
           setPostUpdateSuccess({
-            version: meta.targetVersion || "0.2.15",
+            version: meta.targetVersion || currentInstalledVersion,
             commit: meta.targetCommit || ""
           });
           showToast({
@@ -941,8 +955,8 @@ export function AdminView({ profiles, exercises, equipment }: { profiles: { id: 
           </div>
         )}
         <div className="update-status-grid">
-          <div className="update-meta-box"><span>Installierte Version</span><b>v{updateInfo?.version ?? "0.1.0"} {updateInfo?.currentCommit ? `(Rev. ${updateInfo.currentCommit})` : ""}</b></div>
-          <div className="update-meta-box"><span>GitHub Repository</span><b className={updateInfo?.hasUpdate ? "update-tag-new" : "update-tag-current"}>{updateInfo ? (updateInfo.hasUpdate ? `Neues Update verfügbar: v${updateInfo.latestVersion || "neu"} (Rev. ${updateInfo.latestCommit})` : `Aktuell: v${updateInfo.version} (Rev. ${updateInfo.latestCommit})`) : (checkingUpdate ? "Prüfung läuft …" : "Noch nicht geprüft")}</b></div>
+          <div className="update-meta-box"><span>Installierte Version</span><b>v{currentInstalledVersion} {currentInstalledCommit ? `(Rev. ${currentInstalledCommit})` : ""}</b></div>
+          <div className="update-meta-box"><span>GitHub Repository</span><b className={updateInfo?.hasUpdate ? "update-tag-new" : "update-tag-current"}>{updateInfo ? (updateInfo.hasUpdate ? `Neues Update verfügbar: v${updateInfo.latestVersion || "neu"} (Rev. ${updateInfo.latestCommit})` : `Aktuell: v${currentInstalledVersion} (Rev. ${updateInfo.latestCommit})`) : (checkingUpdate ? "Prüfung läuft …" : "Noch nicht geprüft")}</b></div>
         </div>
         {updateInfo?.hasUpdate && (
           <div className="update-alert-banner"><Sparkles /><div><div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}><b>Neues Update bereit zur Installation</b><span style={{ fontSize: "11px", fontWeight: "800", padding: "2px 8px", borderRadius: "999px", background: "var(--brand)", color: "#ffffff" }}>Rev. {updateInfo.latestCommit}</span></div><p className="update-commit-log">&bdquo;{updateInfo.latestMessage}&ldquo;</p></div></div>

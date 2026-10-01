@@ -22,9 +22,9 @@ function getPackageVersion(): string {
   try {
     const pkgPath = path.join(process.cwd(), "package.json");
     const content = JSON.parse(readFileSync(pkgPath, "utf-8"));
-    return content.version ?? "0.1.0";
+    return content.version ?? "0.2.17";
   } catch {
-    return "0.1.0";
+    return "0.2.17";
   }
 }
 

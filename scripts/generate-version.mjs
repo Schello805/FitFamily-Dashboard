@@ -82,10 +82,10 @@ try {
 
 if (shouldWrite) {
   const versionData = {
-    version: pkg.version || "0.1.0",
+    version: pkg.version || "0.2.17",
     commit: git.commit,
     fullCommit: git.fullCommit,
-    displayVersion: git.commit !== "aktuell" ? git.commit : (pkg.version || "0.1.0")
+    displayVersion: git.commit !== "aktuell" ? git.commit : (pkg.version || "0.2.17")
   };
   fs.writeFileSync(targetPath, JSON.stringify(versionData, null, 2) + "\n");
   console.log(`[FitFamily] Revisionsdatei aktualisiert: Rev. ${versionData.displayVersion}`);
