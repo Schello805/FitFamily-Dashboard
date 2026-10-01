@@ -9,16 +9,36 @@ if [[ $EUID -ne 0 ]]; then
   exec sudo bash "$0" "$@"
 fi
 
-APP_DIR="/opt/fitfamily"
-APP_USER="fitfamily"
+APP_DIR=""
+# 1. Prüfe ob der systemd-Dienst läuft und ein WorkingDirectory hat
+if command -v systemctl >/dev/null 2>&1; then
+  SYSTEMD_WD="$(systemctl show fitfamily -p WorkingDirectory --value 2>/dev/null || true)"
+  if [[ -n "$SYSTEMD_WD" && -d "$SYSTEMD_WD" && -f "$SYSTEMD_WD/package.json" ]]; then
+    APP_DIR="$SYSTEMD_WD"
+  fi
+fi
 
-echo "=========================================================="
-echo " FitFamily Dashboard – Automatische Reparatur             "
-echo "=========================================================="
+# 2. Prüfe ob das Skript innerhalb des Projektverzeichnisses aufgerufen wird
+if [[ -z "$APP_DIR" && -f "$(dirname "${BASH_SOURCE[0]}")/../package.json" ]]; then
+  APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+fi
 
-# 1. Verzeichnis & Git initialisieren
-mkdir -p "$APP_DIR"
-cd "$APP_DIR"
+# 3. Fallback auf /opt/fitfamily
+if [[ -z "$APP_DIR" && -d "/opt/fitfamily" ]]; then
+  APP_DIR="/opt/fitfamily"
+fi
+
+# 4. Suche in typischen Benutzerverzeichnissen
+if [[ -z "$APP_DIR" ]]; then
+  FOUND_DIR="$(find /home /opt -maxdepth 3 -name "package.json" -exec grep -l '"name": "sportboard"' {} + 2>/dev/null | head -n1 || true)"
+  if [[ -n "$FOUND_DIR" ]]; then
+    APP_DIR="$(dirname "$FOUND_DIR")"
+  fi
+fi
+
+if [[ -z "$APP_DIR" ]]; then
+  APP_DIR="/opt/fitfamily"
+fi
 
 echo "-> 1/7: Git-Konfiguration & neueste Version laden..."
 git config --system --add safe.directory "$APP_DIR" 2>/dev/null || true
@@ -71,8 +91,8 @@ npm run build
 echo "-> 5/7: Hintergrunddienst & Berechtigungen einrichten..."
 cp "$APP_DIR/deploy/systemd/fitfamily.service" /etc/systemd/system/fitfamily.service
 
-cat > /etc/sudoers.d/fitfamily << 'EOF'
-fitfamily ALL=(ALL) NOPASSWD: /bin/systemctl restart fitfamily, /usr/bin/systemctl restart fitfamily, /opt/fitfamily/scripts/update.sh, /opt/fitfamily/scripts/update.sh *, /bin/bash /opt/fitfamily/scripts/update.sh, /bin/bash /opt/fitfamily/scripts/update.sh *, /usr/bin/bash /opt/fitfamily/scripts/update.sh, /usr/bin/bash /opt/fitfamily/scripts/update.sh *, /opt/fitfamily/scripts/repair.sh, /opt/fitfamily/scripts/repair.sh *, /bin/bash /opt/fitfamily/scripts/repair.sh, /bin/bash /opt/fitfamily/scripts/repair.sh *, /usr/bin/bash /opt/fitfamily/scripts/repair.sh, /usr/bin/bash /opt/fitfamily/scripts/repair.sh *
+cat > /etc/sudoers.d/fitfamily << EOF
+fitfamily ALL=(ALL) NOPASSWD: /bin/systemctl restart fitfamily, /usr/bin/systemctl restart fitfamily, $APP_DIR/scripts/update.sh, $APP_DIR/scripts/update.sh *, /bin/bash $APP_DIR/scripts/update.sh, /bin/bash $APP_DIR/scripts/update.sh *, /usr/bin/bash $APP_DIR/scripts/update.sh, /usr/bin/bash $APP_DIR/scripts/update.sh *, /opt/fitfamily/scripts/update.sh, /opt/fitfamily/scripts/update.sh *, /opt/fitfamily/scripts/repair.sh, /opt/fitfamily/scripts/repair.sh *
 EOF
 chmod 0440 /etc/sudoers.d/fitfamily
 

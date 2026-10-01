@@ -99,7 +99,7 @@ export async function POST(request: Request) {
     if (existsSync(scriptPath)) {
       try {
         execSync(
-          "sudo -n /opt/fitfamily/scripts/update.sh --no-restart 2>&1 || sudo -n bash scripts/update.sh --no-restart 2>&1 || sudo -n /opt/fitfamily/scripts/update.sh 2>&1 || sudo -n bash scripts/update.sh 2>&1",
+          `sudo -n "${scriptPath}" --no-restart 2>&1 || sudo -n bash "${scriptPath}" --no-restart 2>&1 || sudo -n /opt/fitfamily/scripts/update.sh --no-restart 2>&1 || sudo -n bash scripts/update.sh --no-restart 2>&1 || sudo -n "${scriptPath}" 2>&1 || sudo -n bash "${scriptPath}" 2>&1 || sudo -n /opt/fitfamily/scripts/update.sh 2>&1`,
           {
             cwd,
             timeout: 240000,
