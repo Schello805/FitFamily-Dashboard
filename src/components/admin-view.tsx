@@ -179,14 +179,12 @@ export function AdminView({
   }
 
   function requestApplyUpdate() {
-    const targetVer = updateInfo?.latestVersion || currentInstalledVersion;
-    const targetRev = updateInfo?.latestCommit ? `Rev. ${updateInfo.latestCommit}` : "";
     setConfirmModal({
-      title: `1-Click Update auf v${targetVer} einspielen?`,
-      badge: targetRev ? `v${targetVer} (${targetRev})` : `v${targetVer}`,
-      description: "Ein automatisches Sicherheits-Backup der Datenbank wird erstellt. Die neueste Version wird von GitHub geladen, gebaut und das Dashboard wird neu gestartet.",
+      title: "Update installieren?",
+      badge: updateInfo?.latestCommit ? `Build ${updateInfo.latestCommit}` : undefined,
+      description: "Vorher wird eine Datenbanksicherung erstellt. Danach wird das Update installiert und das Dashboard neu gestartet. Währenddessen ist es kurz nicht erreichbar.",
       icon: "update",
-      confirmLabel: `Update auf v${targetVer} jetzt einspielen`,
+      confirmLabel: "Jetzt installieren",
       confirmVariant: "brand",
       action: () => executeApplyUpdate()
     });
@@ -194,7 +192,7 @@ export function AdminView({
 
   async function executeApplyUpdate() {
     setRunningUpdate(true);
-    setNotice("Update wird ausgeführt: Neueste Version wird geladen und neu gebaut. Bitte kurz warten …");
+    setNotice("Update läuft. Das kann einige Minuten dauern; das Dashboard startet danach automatisch neu.");
     try {
       const response = await fetch("/api/admin/update", {
         method: "POST",
@@ -936,7 +934,7 @@ export function AdminView({
               <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
                 <b style={{ color: "var(--text)" }}>Update erfolgreich installiert!</b>
                 <span style={{ fontSize: "11px", fontWeight: "800", padding: "2px 8px", borderRadius: "999px", background: "var(--brand)", color: "#06201d" }}>
-                  v{postUpdateSuccess.version} {postUpdateSuccess.commit ? `· Rev. ${postUpdateSuccess.commit}` : ""}
+                  v{postUpdateSuccess.version}{postUpdateSuccess.commit ? ` · Build ${postUpdateSuccess.commit}` : ""}
                 </span>
               </div>
               <p className="update-commit-log" style={{ margin: "4px 0 0" }}>
@@ -955,22 +953,21 @@ export function AdminView({
           </div>
         )}
         <div className="update-status-grid">
-          <div className="update-meta-box"><span>Installierte Version</span><b>v{currentInstalledVersion} {currentInstalledCommit ? `(Rev. ${currentInstalledCommit})` : ""}</b></div>
-          <div className="update-meta-box"><span>GitHub Repository</span><b className={updateInfo?.hasUpdate ? "update-tag-new" : "update-tag-current"}>{updateInfo ? (updateInfo.hasUpdate ? `Neues Update verfügbar: v${updateInfo.latestVersion || "neu"} (Rev. ${updateInfo.latestCommit})` : `Aktuell: v${currentInstalledVersion} (Rev. ${updateInfo.latestCommit})`) : (checkingUpdate ? "Prüfung läuft …" : "Noch nicht geprüft")}</b></div>
+          <div className="update-meta-box"><span>Auf diesem Gerät installiert</span><b>v{currentInstalledVersion}</b>{currentInstalledCommit && <small>Build {currentInstalledCommit}</small>}</div>
+          <div className="update-meta-box"><span>Neuer Stand auf GitHub</span><b className={updateInfo?.hasUpdate ? "update-tag-new" : "update-tag-current"}>{updateInfo ? (updateInfo.hasUpdate ? `Update verfügbar · v${updateInfo.latestVersion || currentInstalledVersion}` : `Auf aktuellem Stand · v${currentInstalledVersion}`) : (checkingUpdate ? "Prüfung läuft …" : "Noch nicht geprüft")}</b>{updateInfo?.latestCommit && <small>Build {updateInfo.latestCommit}</small>}</div>
         </div>
         {updateInfo?.hasUpdate && (
-          <div className="update-alert-banner"><Sparkles /><div><div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}><b>Neues Update bereit zur Installation</b><span style={{ fontSize: "11px", fontWeight: "800", padding: "2px 8px", borderRadius: "999px", background: "var(--brand)", color: "#ffffff" }}>Rev. {updateInfo.latestCommit}</span></div><p className="update-commit-log">&bdquo;{updateInfo.latestMessage}&ldquo;</p></div></div>
+          <div className="update-alert-banner"><Sparkles /><div><b>Ein Update ist bereit.</b><p className="update-commit-log">Vor der Installation wird automatisch eine Sicherung deiner Daten erstellt.</p></div></div>
         )}
         <div className="update-action-row">
-          <button type="button" className="update-secondary-btn" disabled={checkingUpdate || runningUpdate} onClick={() => void checkUpdate()}><RefreshCw className={checkingUpdate ? "spin" : ""} />{checkingUpdate ? "Prüfe …" : "Jetzt prüfen"}</button>
+          <button type="button" className="update-secondary-btn" disabled={checkingUpdate || runningUpdate} onClick={() => void checkUpdate()}><RefreshCw className={checkingUpdate ? "spin" : ""} />{checkingUpdate ? "Prüfe …" : "Nach Updates suchen"}</button>
           {updateInfo?.hasUpdate && (
-            <button type="button" className="primary-update-btn" disabled={runningUpdate} onClick={requestApplyUpdate}>{runningUpdate ? (<><RefreshCw className="spin" />Wird aktualisiert & neu gebaut …</>) : (<><Sparkles />1-Click Update auf v{updateInfo.latestVersion || "neueste Version"} einspielen (Rev. {updateInfo.latestCommit})</>)}</button>
+            <button type="button" className="primary-update-btn" disabled={runningUpdate} onClick={requestApplyUpdate}>{runningUpdate ? (<><RefreshCw className="spin" />Update läuft …</>) : (<><Sparkles />Update installieren</>)}</button>
           )}
         </div>
         {updateCountdown !== null && (
           <div className="update-countdown-alert">Dienst wurde neu gestartet. Das Dashboard lädt neu in <b>{updateCountdown}</b> Sekunden …</div>
         )}
-        <p className="data-text">Vor dem Einspielen wird automatisch ein SQLite-Backup unter <code>backups/</code> angelegt. Alternativ im Terminal per <code>sudo /opt/fitfamily/scripts/update.sh</code> oder <code>npm run update</code>.</p>
       </article>
       <article className="wide"><div className="admin-title"><Bot /><div><h2>KI-Integrationen</h2><p>API-Schlüssel lokal auf diesem Gerät speichern – ohne Code oder Serverdatei.</p></div></div>
         {(["openai", "gemini"] as const).map((provider) => {

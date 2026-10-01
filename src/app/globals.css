@@ -2437,6 +2437,12 @@ body::before {
   font-size: 14px;
   font-weight: 750;
 }
+.update-meta-box small {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 11px;
+}
 .update-tag-new {
   color: #0284c7;
 }
