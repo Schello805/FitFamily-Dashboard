@@ -124,12 +124,22 @@ export const EXERCISE_SEEDS = [
   ["push-up", "Liegestütze", "strength", "Klimmzugstation"],
   ["sit-up", "Sit-ups", "strength", "Klimmzugstation"],
   ["leg-raise", "Hängendes Beinheben", "strength", "Klimmzugstation"],
+  ["dip", "Dips", "strength", "Klimmzugstation"],
+  ["lunge", "Ausfallschritte", "strength", "Klimmzugstation"],
+  ["plank", "Unterarmstütz (Plank)", "strength", "Klimmzugstation"],
+  ["burpee", "Burpees", "endurance", "Klimmzugstation"],
   ["butterfly", "Butterfly", "strength", "Kraftstation"],
   ["lat-pulldown", "Latzug", "strength", "Kraftstation"],
+  ["bench-press", "Bankdrücken", "strength", "Kraftstation"],
+  ["rowing", "Rudern", "strength", "Kraftstation"],
+  ["shoulder-press", "Schulterdrücken", "strength", "Kraftstation"],
+  ["squat", "Kniebeugen", "strength", "Kraftstation"],
+  ["deadlift", "Kreuzheben", "strength", "Kraftstation"],
   ["treadmill", "Laufband", "endurance", "Laufband"],
   ["vibration", "Vibrationsplatte", "strength", "Vibrationsplatte"],
   ["punchbag", "Boxsack", "endurance", "Boxsack"],
-  ["bike", "Fahrrad", "endurance", "Fahrrad"]
+  ["bike", "Fahrrad", "endurance", "Fahrrad"],
+  ["jump-rope", "Seilspringen", "endurance", "Springseil"]
 ] as const;
 
 export const EQUIPMENT_SEEDS = [
@@ -138,5 +148,6 @@ export const EQUIPMENT_SEEDS = [
   ["laufband", "Laufband", 2],
   ["vibrationsplatte", "Vibrationsplatte", 1],
   ["boxsack", "Boxsack", 1],
-  ["fahrrad", "Fahrrad", 1]
+  ["fahrrad", "Fahrrad", 1],
+  ["springseil", "Springseil", 1]
 ] as const;

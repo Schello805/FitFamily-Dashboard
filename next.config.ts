@@ -19,19 +19,6 @@ const nextConfig: NextConfig = {
   turbopack: { root: process.cwd() },
   experimental: {
     optimizePackageImports: ["lucide-react"]
-  },
-  async headers() {
-    return [
-      {
-        source: "/:path*",
-        headers: [
-          {
-            key: "Cache-Control",
-            value: "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0"
-          }
-        ]
-      }
-    ];
   }
 };
 

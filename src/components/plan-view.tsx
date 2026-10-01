@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { ArrowLeft, CalendarDays, CheckCircle2, Cpu, Download, PlayCircle, Sparkles, Upload } from "lucide-react";
+import { ArrowLeft, CalendarDays, CheckCircle2, Cpu, Download, Play, PlayCircle, Sparkles, Upload } from "lucide-react";
 import type { DashboardProfile } from "@/lib/domain";
 import { showToast } from "@/components/toast";
 import { normalizePlanJson, type NormalizedPlan } from "@/lib/plan-normalizer";
@@ -19,14 +20,56 @@ type Plan = {
 };
 
 export function PlanView({ profile, goals }: { profile: DashboardProfile; goals: string[] }) {
+  const router = useRouter();
   const [plans, setPlans] = useState<Plan[]>([]);
   const [creating, setCreating] = useState(false);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
+  const [startingEx, setStartingEx] = useState<string | null>(null);
   const load = () => fetch(`/api/plans?profileId=${profile.id}`).then((response) => response.json()).then((data) => setPlans(data.plans || []));
   useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const active = plans.find((plan) => plan.status === "active");
   const activePlanJson = active ? normalizePlanJson(active.plan_json) : null;
+
+  async function startExercise(exId: string, exName: string, type: "strength" | "endurance" = "strength") {
+    setStartingEx(exId);
+    try {
+      const response = await fetch("/api/training", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "start",
+          profileId: profile.id,
+          type,
+          exerciseId: exId,
+          source: "touch"
+        })
+      });
+      if (response.ok) {
+        showToast({
+          type: "success",
+          title: `Training gestartet: ${exName}`,
+          message: `${type === "strength" ? "Krafttraining (+1 Pkt./Min.)" : "Ausdauertraining (+2 Pkt./Min.)"} läuft.`
+        });
+        router.push(`/profil/${profile.id}`);
+      } else {
+        const data = await response.json().catch(() => null);
+        showToast({
+          type: "error",
+          title: "Start fehlgeschlagen",
+          message: data?.error ?? "Training konnte nicht gestartet werden."
+        });
+      }
+    } catch {
+      showToast({
+        type: "error",
+        title: "Verbindungsfehler",
+        message: "Server konnte nicht erreicht werden."
+      });
+    } finally {
+      setStartingEx(null);
+    }
+  }
 
   async function create(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault(); setBusy(true); setNotice(""); const form = new FormData(event.currentTarget);
@@ -167,6 +210,16 @@ export function PlanView({ profile, goals }: { profile: DashboardProfile; goals:
                             Anleitung
                           </span>
                         </Link>
+                        <button
+                          type="button"
+                          className="plan-quick-start-btn"
+                          onClick={() => startExercise(primaryExId, session.title, session.type || "strength")}
+                          disabled={startingEx === primaryExId}
+                          title={`Einheit „${session.title}“ jetzt direkt starten`}
+                        >
+                          <Play size={13} fill="currentColor" />
+                          <span>{startingEx === primaryExId ? "Startet…" : "Starten"}</span>
+                        </button>
                       </div>
 
                       <div className="plan-session-meta">

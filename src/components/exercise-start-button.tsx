@@ -9,12 +9,14 @@ export function ExerciseStartButton({
   profileId,
   exerciseId,
   exerciseName,
-  type = "strength"
+  type = "strength",
+  returnUrl
 }: {
   profileId?: string;
   exerciseId: string;
   exerciseName: string;
   type?: "strength" | "endurance";
+  returnUrl?: string;
 }) {
   const router = useRouter();
   const [starting, setStarting] = useState(false);
@@ -23,6 +25,7 @@ export function ExerciseStartButton({
 
   async function handleStart() {
     setStarting(true);
+    const targetUrl = returnUrl || `/profil/${profileId}`;
     try {
       const response = await fetch("/api/training", {
         method: "POST",
@@ -41,7 +44,7 @@ export function ExerciseStartButton({
           title: `Training gestartet: ${exerciseName}`,
           message: `${type === "strength" ? "Krafttraining (+1 Pkt./Min.)" : "Ausdauertraining (+2 Pkt./Min.)"} läuft.`
         });
-        router.push(`/profil/${profileId}`);
+        router.push(targetUrl);
       } else {
         const data = await response.json().catch(() => null);
         showToast({
@@ -49,7 +52,6 @@ export function ExerciseStartButton({
           title: "Start fehlgeschlagen",
           message: data?.error ?? "Das Training konnte nicht gestartet werden."
         });
-        router.push(`/profil/${profileId}`);
       }
     } catch {
       showToast({
@@ -57,7 +59,6 @@ export function ExerciseStartButton({
         title: "Verbindungsfehler",
         message: "Das Dashboard konnte nicht erreicht werden."
       });
-      router.push(`/profil/${profileId}`);
     } finally {
       setStarting(false);
     }

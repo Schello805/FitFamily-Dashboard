@@ -122,6 +122,7 @@ export default async function ExercisePage({
             exerciseId={guide.id}
             exerciseName={guide.name}
             type={trainingType}
+            returnUrl={backHref}
           />
         </div>
       </header>
