@@ -225,15 +225,6 @@ export function HistoryView({ profile }: { profile: DashboardProfile }) {
     [sessions]
   );
 
-  function getStoredPin() {
-    if (typeof window !== "undefined") {
-      try {
-        return sessionStorage.getItem("fitfamily_admin_pin") || "";
-      } catch {}
-    }
-    return "";
-  }
-
   function startEdit(session: Session) {
     const startDate = new Date(session.startedAt);
     const endDate = new Date(session.endedAt || session.startedAt);
@@ -248,13 +239,13 @@ export function HistoryView({ profile }: { profile: DashboardProfile }) {
     setEditStart(startStr);
     setEditEnd(endStr);
     setEditType(session.segments[0]?.type === "endurance" ? "endurance" : "strength");
-    setEditPin(getStoredPin());
+    setEditPin("");
     setEditError("");
   }
 
   function startDelete(session: Session) {
     setDeletingSession(session);
-    setDeletePin(getStoredPin());
+    setDeletePin("");
     setDeleteError("");
   }
 
@@ -385,7 +376,7 @@ export function HistoryView({ profile }: { profile: DashboardProfile }) {
         <button
           onClick={() => {
             setManual(true);
-            setManualPin(getStoredPin());
+            setManualPin("");
             setManualError("");
           }}
         >

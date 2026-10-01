@@ -2,15 +2,15 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { ArrowLeft, Bot, CheckCircle2, Database, Download, HardDrive, Moon, Plus, RefreshCw, RotateCcw, ShieldCheck, Sparkles } from "lucide-react";
+import { useState } from "react";
+import { ArrowLeft, Bot, CheckCircle2, Database, Download, HardDrive, Lock, Moon, Plus, RefreshCw, RotateCcw, ShieldCheck, Sparkles } from "lucide-react";
 import { TouchPinpad } from "@/components/touch-pinpad";
 import { showToast } from "@/components/toast";
 
 type AiUsage = { requests: number; inputTokens: number; outputTokens: number; estimateUsd: number; updatedAt: string | null };
 type Status = { openai: boolean; gemini: boolean; nas: boolean; models: { openai: string; gemini: string }; usage: { openai: AiUsage; gemini: AiUsage } };
 type ExerciseMedia = { id: string; name: string; equipment: string; videoUrl: string | null };
-type EquipmentItem = { id: string; name: string; quantity: number; available: boolean };
+type EquipmentItem = { id: string; name: string; quantity: number; available: boolean; videoUrl?: string | null };
 type UpdateInfo = { currentCommit: string; latestCommit: string; latestMessage: string; hasUpdate: boolean; version: string; latestVersion?: string };
 type BackupInfo = { name: string; sizeBytes: number; sizeFormatted: string; date: string };
 type BackupStatus = {
@@ -26,14 +26,7 @@ type BackupStatus = {
 
 export function AdminView({ profiles, exercises, equipment }: { profiles: { id: string; name: string; score: number }[]; exercises: ExerciseMedia[]; equipment: EquipmentItem[] }) {
   const router = useRouter();
-  const [pin, setPin] = useState(() => {
-    if (typeof window !== "undefined") {
-      try {
-        return sessionStorage.getItem("fitfamily_admin_pin") || "";
-      } catch {}
-    }
-    return "";
-  });
+  const [pin, setPin] = useState("");
   const [verifying, setVerifying] = useState(false);
   const [status, setStatus] = useState<Status | null>(null);
   const [error, setError] = useState("");
@@ -150,11 +143,11 @@ export function AdminView({ profiles, exercises, equipment }: { profiles: { id: 
       const result = await response.json();
       if (!response.ok) {
         setError(result.error ?? "Eltern-PIN ist falsch");
-        sessionStorage.removeItem("fitfamily_admin_pin");
+        try { sessionStorage.removeItem("fitfamily_admin_pin"); } catch {}
         setVerifying(false);
         return;
       }
-      sessionStorage.setItem("fitfamily_admin_pin", pinToTest);
+      try { sessionStorage.removeItem("fitfamily_admin_pin"); } catch {}
       setStatus({ ...result.providers, usage: result.usage, models: result.models, nas: result.nas });
       if (result.backup) {
         setBackupStatus(result.backup);
@@ -196,18 +189,6 @@ export function AdminView({ profiles, exercises, equipment }: { profiles: { id: 
       setSavingDisplay(false);
     }
   }
-
-  useEffect(() => {
-    try {
-      const savedPin = sessionStorage.getItem("fitfamily_admin_pin");
-      if (savedPin && savedPin.length >= 4) {
-        const timer = setTimeout(() => {
-          void performUnlock(savedPin);
-        }, 50);
-        return () => clearTimeout(timer);
-      }
-    } catch {}
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function unlock(event?: React.FormEvent) {
     if (event) event.preventDefault();
@@ -504,7 +485,25 @@ export function AdminView({ profiles, exercises, equipment }: { profiles: { id: 
     );
   }
 
-  return <main className="admin-page"><header><Link href="/"><ArrowLeft /> Dashboard</Link><div><span>Elternbereich</span><h1>Verwaltung</h1></div></header>{notice && <p className="notice">{notice}</p>}
+  return (
+    <main className="admin-page">
+      <header>
+        <Link href="/"><ArrowLeft /> Dashboard</Link>
+        <div><span>Elternbereich</span><h1>Verwaltung</h1></div>
+        <button
+          type="button"
+          className="admin-lock-btn"
+          title="Verwaltungsbereich sperren"
+          onClick={() => {
+            setStatus(null);
+            setPin("");
+            try { sessionStorage.removeItem("fitfamily_admin_pin"); } catch {}
+          }}
+        >
+          <Lock size={15} /> Sperren
+        </button>
+      </header>
+      {notice && <p className="notice">{notice}</p>}
     <section className="admin-grid">
       <article><div className="admin-title"><Database /><div><h2>Meine Daten</h2><p>Vollständiger lokaler Datenbestand</p></div></div><ul><li><CheckCircle2 /> Profildaten und Geburtsdaten</li><li><CheckCircle2 /> Trainings- und Punkteverlauf</li><li><CheckCircle2 /> Pläne und Änderungsprotokoll</li></ul><button onClick={download}><Download /> JSON herunterladen</button></article>
       <article className="screensaver-card">
@@ -754,5 +753,6 @@ export function AdminView({ profiles, exercises, equipment }: { profiles: { id: 
       <article className="wide"><div className="admin-title"><Database /><div><h2>Geräte im Sportraum</h2><p>Stückzahl und Verfügbarkeit für Übungsauswahl und neue Trainingspläne</p></div></div><div className="inventory-list">{equipmentItems.map((item) => { const edit = equipmentEdits[item.id] ?? item; return <div className="inventory-row" key={item.id}><label>Gerätename<input value={edit.name} maxLength={60} onChange={(event) => setEquipmentEdits((values) => ({ ...values, [item.id]: { ...edit, name: event.target.value } }))} /></label><label className="quantity-field">Anzahl<input type="number" min={1} max={8} value={edit.quantity} onChange={(event) => setEquipmentEdits((values) => ({ ...values, [item.id]: { ...edit, quantity: Number(event.target.value) } }))} /></label><label className="inventory-toggle"><input type="checkbox" checked={edit.available} onChange={(event) => setEquipmentEdits((values) => ({ ...values, [item.id]: { ...edit, available: event.target.checked } }))} /> Verfügbar</label><button disabled={savingEquipment === item.id} onClick={() => saveEquipment(item.id)}>{savingEquipment === item.id ? "Speichert …" : "Speichern"}</button></div>; })}</div><form className="inventory-add" onSubmit={addEquipment}><label>Weiteres Gerät<input required minLength={2} maxLength={60} placeholder="z. B. Hantelbank" value={newEquipmentName} onChange={(event) => setNewEquipmentName(event.target.value)} /></label><label className="quantity-field">Anzahl<input type="number" min={1} max={8} value={newEquipmentQuantity} onChange={(event) => setNewEquipmentQuantity(Number(event.target.value))} /></label><button><Plus /> Gerät ergänzen</button></form><p className="data-text">Deaktivierte Geräte bleiben im bisherigen Trainingsverlauf erhalten, werden aber künftig nicht zur Auswahl angeboten.</p></article>
       <article className="wide"><div className="admin-title"><CheckCircle2 /><div><h2>Übungsvideos</h2><p>Eigene YouTube-Anleitungen pro Übung hinterlegen; leere Felder zeigen eine YouTube-Suche.</p></div></div><div className="exercise-media-list">{exercises.map((exercise) => <div key={exercise.id}><label><span>{exercise.name}<small>{exercise.equipment}</small></span><input type="url" inputMode="url" placeholder="https://youtube.com/..." value={videoUrls[exercise.id] ?? ""} onChange={(event) => setVideoUrls((values) => ({ ...values, [exercise.id]: event.target.value }))} /></label><button disabled={savingVideo === exercise.id} onClick={() => saveVideo(exercise.id)}>{savingVideo === exercise.id ? "Speichert …" : "Speichern"}</button></div>)}</div></article>
     </section>
-  </main>;
+    </main>
+  );
 }
