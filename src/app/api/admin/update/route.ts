@@ -120,6 +120,16 @@ export async function POST(request: Request) {
     }
 
     if (!updatedViaScript) {
+      // Vor dem Build: Versuche etwaige Root-Dateien in .next via sudo oder rm zu bereinigen
+      try {
+        execSync(
+          "sudo -n /bin/chown -R fitfamily:fitfamily /opt/fitfamily 2>/dev/null || sudo -n /usr/bin/chown -R fitfamily:fitfamily /opt/fitfamily 2>/dev/null || sudo -n /bin/rm -rf /opt/fitfamily/.next 2>/dev/null || sudo -n /usr/bin/rm -rf /opt/fitfamily/.next 2>/dev/null || rm -rf .next 2>/dev/null || true",
+          { cwd, timeout: 5000 }
+        );
+      } catch {
+        // Nicht blockierend
+      }
+
       execSync(
         "git -c safe.directory='*' fetch origin main && git -c safe.directory='*' checkout -f main && git -c safe.directory='*' reset --hard origin/main",
         { cwd, timeout: 35000, encoding: "utf-8" }
@@ -128,9 +138,16 @@ export async function POST(request: Request) {
       execSync("npm run build", { cwd, timeout: 180000, encoding: "utf-8" });
     }
   } catch (err) {
+    const errorMsg = (err as Error)?.message || String(err);
+    let userMessage = `Update fehlgeschlagen: ${errorMsg}. Der bisherige Dienst bleibt unverändert aktiv.`;
+    
+    if (errorMsg.includes("EACCES") || errorMsg.includes("permission denied") || errorMsg.includes("unlink")) {
+      userMessage = `Dateirechte-Konflikt (EACCES): Build-Dateien in .next gehören noch dem Benutzer 'root'. Bitte einmalig im Terminal ausführen:\nsudo chown -R fitfamily:fitfamily /opt/fitfamily && sudo /opt/fitfamily/scripts/update.sh`;
+    }
+
     return NextResponse.json(
       {
-        error: `Update fehlgeschlagen: ${(err as Error).message}. Der bisherige Dienst bleibt unverändert aktiv.`
+        error: userMessage
       },
       { status: 500 }
     );

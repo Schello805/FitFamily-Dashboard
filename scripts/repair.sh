@@ -40,6 +40,8 @@ if [[ -z "$APP_DIR" ]]; then
   APP_DIR="/opt/fitfamily"
 fi
 
+APP_USER="fitfamily"
+
 echo "-> 1/7: Git-Konfiguration & neueste Version laden..."
 git config --system --add safe.directory "$APP_DIR" 2>/dev/null || true
 
@@ -54,7 +56,7 @@ fi
 # 2. Systembenutzer anlegen falls fehlend
 echo "-> 2/7: Systembenutzer '$APP_USER' prüfen..."
 if ! id -u "$APP_USER" >/dev/null 2>&1; then
-  useradd --system --no-create-home --shell /usr/sbin/nologin "$APP_USER"
+  useradd --system --no-create-home --shell /usr/sbin/nologin "$APP_USER" || true
   echo "   Systembenutzer '$APP_USER' angelegt."
 fi
 
@@ -84,15 +86,25 @@ fi
 
 # 4. Abhängigkeiten & Build
 echo "-> 4/7: Abhängigkeiten installieren & Dashboard bauen..."
-npm install --prefer-offline --no-audit --no-fund
-npm run build
+chown -R "$APP_USER:$APP_USER" "$APP_DIR"
+rm -rf "$APP_DIR/.next"
+
+if id -u "$APP_USER" >/dev/null 2>&1; then
+  sudo -u "$APP_USER" npm install --prefer-offline --no-audit --no-fund
+  sudo -u "$APP_USER" npm run build
+else
+  npm install --prefer-offline --no-audit --no-fund
+  npm run build
+fi
+
+chown -R "$APP_USER:$APP_USER" "$APP_DIR"
 
 # 5. Systemd Service & Sudoers einrichten
 echo "-> 5/7: Hintergrunddienst & Berechtigungen einrichten..."
 cp "$APP_DIR/deploy/systemd/fitfamily.service" /etc/systemd/system/fitfamily.service
 
 cat > /etc/sudoers.d/fitfamily << EOF
-fitfamily ALL=(ALL) NOPASSWD: /bin/systemctl restart fitfamily, /usr/bin/systemctl restart fitfamily, $APP_DIR/scripts/update.sh, $APP_DIR/scripts/update.sh *, /bin/bash $APP_DIR/scripts/update.sh, /bin/bash $APP_DIR/scripts/update.sh *, /usr/bin/bash $APP_DIR/scripts/update.sh, /usr/bin/bash $APP_DIR/scripts/update.sh *, /opt/fitfamily/scripts/update.sh, /opt/fitfamily/scripts/update.sh *, /opt/fitfamily/scripts/repair.sh, /opt/fitfamily/scripts/repair.sh *
+fitfamily ALL=(ALL) NOPASSWD: /bin/systemctl restart fitfamily, /usr/bin/systemctl restart fitfamily, /bin/chown -R fitfamily\:fitfamily /opt/fitfamily, /usr/bin/chown -R fitfamily\:fitfamily /opt/fitfamily, /bin/rm -rf /opt/fitfamily/.next, /usr/bin/rm -rf /opt/fitfamily/.next, $APP_DIR/scripts/update.sh, $APP_DIR/scripts/update.sh *, /bin/bash $APP_DIR/scripts/update.sh, /bin/bash $APP_DIR/scripts/update.sh *, /usr/bin/bash $APP_DIR/scripts/update.sh, /usr/bin/bash $APP_DIR/scripts/update.sh *, /opt/fitfamily/scripts/update.sh, /opt/fitfamily/scripts/update.sh *, /bin/bash /opt/fitfamily/scripts/update.sh, /bin/bash /opt/fitfamily/scripts/update.sh *, /usr/bin/bash /opt/fitfamily/scripts/update.sh, /usr/bin/bash /opt/fitfamily/scripts/update.sh *, /opt/fitfamily/scripts/repair.sh, /opt/fitfamily/scripts/repair.sh *, /bin/bash /opt/fitfamily/scripts/repair.sh, /bin/bash /opt/fitfamily/scripts/repair.sh *, /usr/bin/bash /opt/fitfamily/scripts/repair.sh, /usr/bin/bash /opt/fitfamily/scripts/repair.sh *
 EOF
 chmod 0440 /etc/sudoers.d/fitfamily
 
