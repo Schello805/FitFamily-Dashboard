@@ -1552,8 +1552,8 @@ body::before {
 .week-grid .plan-round-start-btn { min-height: 44px; gap: 6px; padding: 0 10px; font-size: 11px; }
 .week-grid .empty-week { margin: 0; padding: 8px 0; color: var(--muted); font-size: 12px; }
 
-.plan-unit-backdrop { z-index: 120; padding: 20px; }
-.plan-unit-dialog { position: relative; display: flex; flex-direction: column; width: min(1120px, 96vw); max-height: min(90vh, 900px); overflow: hidden; border: 1px solid var(--line-strong); border-radius: 24px; background: var(--modal-bg); box-shadow: var(--card-shadow); }
+.plan-unit-backdrop { z-index: 120; padding: 1vh 1vw; }
+.plan-unit-dialog { position: relative; display: flex; flex-direction: column; width: min(1680px, 98vw); height: min(96vh, 1050px); max-height: 96vh; overflow: hidden; border: 1px solid var(--line-strong); border-radius: 24px; background: var(--modal-bg); box-shadow: var(--card-shadow); }
 .plan-unit-dialog > .modal-close { position: absolute; top: 16px; right: 16px; z-index: 2; width: 48px; height: 48px; }
 .plan-unit-heading { padding: 24px 80px 18px 26px; border-bottom: 1px solid var(--line); }
 .plan-unit-heading h2 { margin: 8px 0 3px; font-size: clamp(25px, 3vw, 36px); }
@@ -1561,20 +1561,25 @@ body::before {
 .plan-unit-live { display: inline-flex; align-items: center; gap: 8px; margin-top: 13px; padding: 9px 13px; border: 1px solid var(--line); border-radius: 13px; background: var(--subtle-bg); color: var(--brand); }
 .plan-unit-live span { color: var(--muted); font-size: 12px; font-weight: 700; }
 .plan-unit-live strong { color: var(--text); font-variant-numeric: tabular-nums; }
-.plan-unit-content { display: grid; grid-template-columns: minmax(300px, .9fr) minmax(0, 1.4fr); gap: 18px; min-height: 0; padding: 20px 24px; overflow: auto; }
+.plan-unit-content { display: grid; grid-template-columns: minmax(320px, .78fr) minmax(0, 1.22fr); align-items: start; gap: 18px; min-height: 0; flex: 1; padding: 20px 24px; overflow: auto; }
 .plan-unit-exercises h3 { margin: 0 0 10px; font-size: 17px; }
 .plan-unit-exercise-row { display: grid; grid-template-columns: 34px minmax(0, 1fr); align-items: center; gap: 7px 10px; padding: 9px 0; border-top: 1px solid var(--line); }
 .plan-unit-exercise-row > span { width: 32px; height: 32px; display: grid; place-items: center; border-radius: 50%; background: color-mix(in srgb, var(--profile) 18%, var(--subtle-bg)); color: var(--profile); font-weight: 900; }
 .plan-unit-exercise-row > b { min-width: 0; font-size: 14px; }
 .plan-unit-exercise-row > button { grid-column: 2; justify-self: start; display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 44px; padding: 0 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--subtle-bg); color: var(--text); font-size: 12px; font-weight: 750; cursor: pointer; touch-action: manipulation; }
 .plan-unit-exercise-row > button:hover { border-color: var(--profile); color: var(--profile); }
-.plan-exercise-detail { min-width: 0; padding: 16px; border: 1px solid var(--line); border-radius: 17px; background: var(--subtle-bg); }
+.plan-exercise-detail { position: sticky; top: 0; min-width: 0; padding: 16px; border: 1px solid var(--line); border-radius: 17px; background: var(--subtle-bg); }
+.plan-exercise-placeholder { min-height: 320px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; text-align: center; color: var(--muted); }
+.plan-exercise-placeholder > svg { color: var(--profile); opacity: .75; }
+.plan-exercise-placeholder b { color: var(--text); font-size: 17px; }
+.plan-exercise-placeholder p { margin: 0; font-size: 13px; }
 .plan-exercise-detail-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
 .plan-exercise-detail-heading small { color: var(--muted); }
 .plan-exercise-detail-heading h3 { margin: 3px 0 0; font-size: 19px; }
 .plan-exercise-detail-heading button { width: 44px; height: 44px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); color: var(--text); cursor: pointer; }
 .plan-exercise-video { position: relative; width: 100%; aspect-ratio: 16 / 9; overflow: hidden; border-radius: 13px; background: #000; }
-.plan-exercise-video iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+.plan-exercise-video iframe, .plan-exercise-video > div { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+.plan-exercise-video > div iframe { width: 100%; height: 100%; border: 0; }
 .plan-external-video { display: inline-flex; align-items: center; gap: 8px; min-height: 48px; padding: 0 14px; border-radius: 12px; background: var(--brand); color: #06201d; font-weight: 850; text-decoration: none; }
 .plan-no-video { color: var(--muted); font-size: 12px; }
 .plan-guide-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }
@@ -1789,6 +1794,7 @@ body::before {
   .plan-unit-heading { padding: 18px 62px 14px 16px; }
   .plan-unit-dialog > .modal-close { top: 9px; right: 9px; }
   .plan-unit-content { grid-template-columns: 1fr; gap: 14px; padding: 14px; }
+  .plan-exercise-detail { position: static; }
   .plan-unit-footer { align-items: stretch; flex-direction: column; padding: 12px 14px; }
   .plan-unit-stop { width: 100%; }
 }

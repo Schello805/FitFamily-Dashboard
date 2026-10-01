@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { getAiApiKey, recordAiUsage } from "@/lib/ai-config";
+import { usesUnavailableEquipment } from "@/lib/plan-equipment-policy";
 
 const schema = z.object({
   profileId: z.string(), goal: z.string().min(2).max(100), level: z.enum(["Einsteiger", "Fortgeschritten", "Erfahren"]),
@@ -33,6 +34,11 @@ const importRequestSchema = z.object({
   profileId: z.string().min(1),
   plan: importedPlanSchema
 });
+
+function allowedEquipmentInstruction(equipment: string[]) {
+  const list = equipment.length ? equipment.join(", ") : "KEINE Geräte (nur Eigengewicht und allgemeine Bewegung)";
+  return `\n\nVERFÜGBARE GERÄTE – STRIKTE POSITIVLISTE: ${list}. Verwende ausschließlich Geräte aus dieser Liste. Erfinde keine weiteren Geräte. Eine Kraftstation darf nicht als Beinpresse oder Rudergerät ausgelegt werden. Wenn eine Übung ein nicht aufgeführtes Gerät benötigen würde, wähle eine sichere Eigengewichtsübung.`;
+}
 
 function localPlan(input: z.infer<typeof schema>, equipment: string[]) {
   const enduranceGoal = /Lauf|Marathon|Ausdauer|Box/i.test(input.goal);
@@ -85,9 +91,9 @@ WICHTIG: Antworte AUSSCHLIESSLICH im folgenden JSON-Format mit genau 4 Wochen un
     }
   ]
 }
-Verwende als JSON-Schlüssel ausschließlich die englischen Schlüssel: summary, weeks, week, sessions, title, type, minutes, exercises. Type darf nur "strength" oder "endurance" sein.`;
+Verwende als JSON-Schlüssel ausschließlich die englischen Schlüssel: summary, weeks, week, sessions, title, type, minutes, exercises. Type darf nur "strength" oder "endurance" sein.${allowedEquipmentInstruction(equipment)}`;
 
-  const userPrompt = `Ziel: ${input.goal}; Niveau: ${input.level}; ${input.sessionsPerWeek} Einheiten/Woche; ${input.minutesPerSession} Minuten je Einheit; Zieltermin: ${input.targetDate ?? "offenes Ende"}; Verfügbare Geräte: ${equipment.length ? equipment.join(", ") : "Eigengewicht / ohne Geräte"}.`;
+  const userPrompt = `Ziel: ${input.goal}; Niveau: ${input.level}; ${input.sessionsPerWeek} Einheiten/Woche; ${input.minutesPerSession} Minuten je Einheit; Zieltermin: ${input.targetDate ?? "offenes Ende"}.${allowedEquipmentInstruction(equipment)}`;
 
   try {
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -155,7 +161,7 @@ Struktur:
     }
   ]
 }
-Ziel: ${input.goal}; Niveau: ${input.level}; ${input.sessionsPerWeek} Einheiten/Woche; ${input.minutesPerSession} Minuten/Einheit; Zieltermin: ${input.targetDate ?? "offen"}; Geräte: ${equipment.length ? equipment.join(", ") : "Eigengewicht"}.`;
+Ziel: ${input.goal}; Niveau: ${input.level}; ${input.sessionsPerWeek} Einheiten/Woche; ${input.minutesPerSession} Minuten/Einheit; Zieltermin: ${input.targetDate ?? "offen"}.${allowedEquipmentInstruction(equipment)}`;
 
   const model = process.env.GEMINI_MODEL ?? "gemini-2.5-flash";
   const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`, {
@@ -204,10 +210,15 @@ export async function POST(request: Request) {
   const equipment = inventory.rows.map((row) => String(row.name));
   let plan;
   let usedProvider = body.data.provider;
+  let fallbackReason: string | undefined;
   try {
     plan = body.data.provider === "openai" ? await callOpenAI(body.data, equipment) : body.data.provider === "gemini" ? await callGemini(body.data, equipment) : null;
   } catch (error) {
     console.error(error);
+  }
+  if (plan && usesUnavailableEquipment(plan, equipment)) {
+    plan = null;
+    fallbackReason = "Die KI hat nicht konfigurierte Geräte vorgeschlagen. Es wurde ein Plan aus dem vorhandenen Gerätebestand erstellt.";
   }
   if (!plan) { plan = localPlan(body.data, equipment); usedProvider = "local"; }
   const normalizedPlan = normalizePlanJson(plan, body.data.minutesPerSession);
@@ -235,7 +246,7 @@ export async function POST(request: Request) {
       ]
     }
   ], "write");
-  return NextResponse.json({ id, plan: normalizedPlan, provider: usedProvider });
+  return NextResponse.json({ id, plan: normalizedPlan, provider: usedProvider, fallbackReason });
 }
 
 export async function GET(request: Request) {

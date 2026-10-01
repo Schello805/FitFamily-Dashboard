@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, BookOpen, CalendarDays, ChevronLeft, ChevronRight, Cpu, Download, Dumbbell, Play, RefreshCw, Sparkles, Square, Upload, Video, X } from "lucide-react";
 import type { DashboardProfile } from "@/lib/domain";
 import { showToast } from "@/components/toast";
@@ -9,6 +9,7 @@ import { normalizePlanJson, type NormalizedPlan, type NormalizedSession } from "
 import { resolveExerciseId } from "@/lib/exercise-guides";
 import { KioskIdleBar } from "@/components/kiosk-idle-bar";
 import { LiveDuration } from "@/components/live-duration";
+import { YoutubePlayer } from "@/components/youtube-player";
 
 type Plan = {
   id: string;
@@ -50,10 +51,10 @@ type SessionExercise = {
   loading?: boolean;
 };
 
-function youtubeEmbedUrl(url: string) {
+function youtubeVideoId(url: string) {
   const match = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/i);
-  if (match?.[1]) return `https://www.youtube-nocookie.com/embed/${match[1]}?rel=0&playsinline=1`;
-  if (/^[a-zA-Z0-9_-]{11}$/.test(url)) return `https://www.youtube-nocookie.com/embed/${url}?rel=0&playsinline=1`;
+  if (match?.[1]) return match[1];
+  if (/^[a-zA-Z0-9_-]{11}$/.test(url)) return url;
   return null;
 }
 
@@ -66,6 +67,8 @@ export function PlanView({ profile, goals }: { profile: DashboardProfile; goals:
   const [stoppingSession, setStoppingSession] = useState(false);
   const [unitDialog, setUnitDialog] = useState<{ session: NormalizedSession; startedAt: string } | null>(null);
   const [selectedExercise, setSelectedExercise] = useState<SessionExercise | null>(null);
+  const [isVideoPlaying, setIsVideoPlaying] = useState(false);
+  const unitCloseTimer = useRef<number | null>(null);
   const [weekPage, setWeekPage] = useState<{ planId: string; page: number } | null>(null);
   const load = () => fetch(`/api/plans?profileId=${profile.id}`).then((response) => response.json()).then((data) => setPlans(data.plans || []));
   useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -78,6 +81,25 @@ export function PlanView({ profile, goals }: { profile: DashboardProfile; goals:
   const requestedWeekPage = weekPage && weekPage.planId === active?.id ? weekPage.page : Math.floor(Math.max(0, currentWeekIndex) / 4);
   const visibleWeekPage = Math.min(requestedWeekPage, weekPageCount - 1);
   const visibleWeeks = weeks.slice(visibleWeekPage * 4, visibleWeekPage * 4 + 4);
+
+  useEffect(() => {
+    if (!unitDialog || isVideoPlaying) return;
+    const closeAfterInactivity = () => {
+      if (unitCloseTimer.current !== null) window.clearTimeout(unitCloseTimer.current);
+      unitCloseTimer.current = window.setTimeout(() => {
+        setUnitDialog(null);
+        setSelectedExercise(null);
+      }, 30_000);
+    };
+    const events = ["pointerdown", "keydown", "touchstart", "wheel"] as const;
+    closeAfterInactivity();
+    events.forEach((event) => window.addEventListener(event, closeAfterInactivity, { passive: true }));
+    return () => {
+      if (unitCloseTimer.current !== null) window.clearTimeout(unitCloseTimer.current);
+      unitCloseTimer.current = null;
+      events.forEach((event) => window.removeEventListener(event, closeAfterInactivity));
+    };
+  }, [unitDialog, isVideoPlaying]);
 
   async function startUnit(session: NormalizedSession) {
     setStartingSession(true);
@@ -167,8 +189,10 @@ export function PlanView({ profile, goals }: { profile: DashboardProfile; goals:
         return;
       }
       const selectedProvider = form.get("provider");
-      const msg = result.provider === "local"
-        ? (selectedProvider !== "local" ? "Plan als lokale Vorlage erstellt (Kein aktiver KI-Schlüssel hinterlegt)." : "Plan erstellt (lokale Vorlage).")
+      const msg = result.fallbackReason
+        ? result.fallbackReason
+        : result.provider === "local"
+        ? (selectedProvider !== "local" ? "Plan als lokale Vorlage erstellt (kein aktiver KI-Schlüssel hinterlegt)." : "Plan erstellt (lokale Vorlage).")
         : `Plan mit ${result.provider === "openai" ? "OpenAI" : "Gemini"} erstellt.`;
       setNotice(msg);
       showToast({
@@ -226,7 +250,7 @@ export function PlanView({ profile, goals }: { profile: DashboardProfile; goals:
 
   return (
     <main className="subpage" style={{ "--profile": profile.color } as React.CSSProperties}>
-      <KioskIdleBar redirectUrl="/" seconds={120} color={profile.color} title={`Trainingsplan von ${profile.name}`} paused={Boolean(selectedExercise?.videoUrl)} />
+      <KioskIdleBar redirectUrl="/" seconds={120} color={profile.color} title={`Trainingsplan von ${profile.name}`} paused={isVideoPlaying} />
       <header>
         <Link href={`/profil/${profile.id}`} title={`Zurück zur Profilseite von ${profile.name}`}>
           <ArrowLeft /> Zurück
@@ -320,9 +344,9 @@ export function PlanView({ profile, goals }: { profile: DashboardProfile; goals:
       </section>
     ) : <section className="empty-state large"><Cpu /><h2>Noch kein Trainingsplan</h2><p>Erstelle einen einfachen, auf eure Geräte abgestimmten Vorschlag.</p><button onClick={() => setCreating(true)}>Plan erstellen</button></section>}
     {unitDialog && (
-      <div className="modal-backdrop plan-unit-backdrop" onClick={() => { setUnitDialog(null); setSelectedExercise(null); }}>
+      <div className="modal-backdrop plan-unit-backdrop" onClick={() => { setUnitDialog(null); setSelectedExercise(null); setIsVideoPlaying(false); }}>
         <section className="plan-unit-dialog" role="dialog" aria-modal="true" aria-labelledby="plan-unit-title" onClick={(event) => event.stopPropagation()}>
-          <button type="button" className="modal-close" aria-label="Einheit schließen" onClick={() => { setUnitDialog(null); setSelectedExercise(null); }}><X /></button>
+          <button type="button" className="modal-close" aria-label="Einheit schließen" onClick={() => { setUnitDialog(null); setSelectedExercise(null); setIsVideoPlaying(false); }}><X /></button>
           <div className="plan-unit-heading">
             <span className="setup-badge">Einheit läuft · {unitDialog.session.type === "endurance" ? "Ausdauer" : "Kraft"}</span>
             <h2 id="plan-unit-title">{unitDialog.session.title}</h2>
@@ -340,7 +364,7 @@ export function PlanView({ profile, goals }: { profile: DashboardProfile; goals:
                 </article>
               )) : <p className="empty-week">Für diese Einheit sind keine einzelnen Übungen hinterlegt.</p>}
             </div>
-            {selectedExercise && (
+            {selectedExercise ? (
               <section className="plan-exercise-detail" aria-live="polite">
                 <div className="plan-exercise-detail-heading">
                   <div><small>{selectedExercise.guide?.equipment ?? "Übungsanleitung"}</small><h3>{selectedExercise.name}</h3></div>
@@ -348,8 +372,8 @@ export function PlanView({ profile, goals }: { profile: DashboardProfile; goals:
                 </div>
                 {selectedExercise.loading ? <p>Anleitung wird geladen…</p> : selectedExercise.guide ? (
                   <>
-                    {selectedExercise.videoUrl && (youtubeEmbedUrl(selectedExercise.videoUrl) ? (
-                      <div className="plan-exercise-video"><iframe src={youtubeEmbedUrl(selectedExercise.videoUrl)!} title={`Anleitungsvideo: ${selectedExercise.name}`} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowFullScreen /></div>
+                    {selectedExercise.videoUrl && (youtubeVideoId(selectedExercise.videoUrl) ? (
+                      <YoutubePlayer videoId={youtubeVideoId(selectedExercise.videoUrl)!} title={`Anleitungsvideo: ${selectedExercise.name}`} onPlayingChange={setIsVideoPlaying} />
                     ) : <a className="plan-external-video" href={selectedExercise.videoUrl} target="_blank" rel="noreferrer"><Video size={18} /> Video öffnen</a>)}
                     {!selectedExercise.videoUrl && <p className="plan-no-video">Für diese Übung ist noch kein Video hinterlegt.</p>}
                     <div className="plan-guide-columns">
@@ -361,10 +385,10 @@ export function PlanView({ profile, goals }: { profile: DashboardProfile; goals:
                   </>
                 ) : <p>Die Anleitung ist derzeit nicht verfügbar.</p>}
               </section>
-            )}
+            ) : <section className="plan-exercise-detail plan-exercise-placeholder"><Video size={38} /><b>Übung auswählen</b><p>Die Anleitung und das eingebettete Video erscheinen hier.</p></section>}
           </div>
           <footer className="plan-unit-footer">
-            <p>{selectedExercise?.videoUrl ? "Rückkehr-Timer pausiert, solange das Video geöffnet ist." : "Ohne geöffnetes Video läuft der Rückkehr-Timer wie gewohnt weiter."}</p>
+            <p>{isVideoPlaying ? "Timer pausiert, solange das Video läuft." : "Dieses Fenster schließt nach 30 Sekunden ohne Eingabe automatisch."}</p>
             <button type="button" className="plan-unit-stop" disabled={stoppingSession} onClick={() => void stopUnit()}><Square size={17} fill="currentColor" />{stoppingSession ? "Wird beendet…" : "Einheit beenden"}</button>
           </footer>
         </section>
