@@ -30,7 +30,7 @@ export async function verifyAdminPin(pin: string) {
   const client = await db();
   const result = await client.execute({ sql: "SELECT value FROM settings WHERE key = 'admin_pin_hash'" });
   const hash = result.rows[0]?.value;
-  return typeof hash === "string" && bcrypt.compare(pin, hash);
+  return typeof hash === "string" && await bcrypt.compare(pin, hash);
 }
 
 export async function pairDevice(profileId: string, label: string | null) {
