@@ -198,50 +198,69 @@ export function PlanView({ profile, goals }: { profile: DashboardProfile; goals:
                   return (
                     <div key={index} className="plan-session-card">
                       <div className="plan-session-header">
-                        <Link
-                          href={`/uebung/${primaryExId}?profil=${profile.id}&fromPlan=1`}
-                          className="plan-session-title-link"
-                          title="Anleitung & Video öffnen"
-                        >
-                          <CheckCircle2 className="plan-session-check" />
-                          <span className="plan-session-name">{session.title}</span>
-                          <span className="plan-session-video-badge">
-                            <PlayCircle size={13} />
-                            Anleitung
-                          </span>
-                        </Link>
+                        <div className="plan-session-title-wrap">
+                          <Link
+                            href={`/uebung/${primaryExId}?profil=${profile.id}&fromPlan=1`}
+                            className="plan-session-title-link"
+                            title="Anleitung & Video öffnen"
+                          >
+                            <CheckCircle2 className="plan-session-check" />
+                            <span className="plan-session-name">{session.title}</span>
+                          </Link>
+                          <div className="plan-session-meta">
+                            {session.date ? `${new Date(`${session.date}T12:00:00`).toLocaleDateString("de-DE")} · ` : ""}
+                            {session.minutes} Min.
+                            {session.distanceKm ? ` · ${session.distanceKm} km` : ""}
+                          </div>
+                        </div>
+
                         <button
                           type="button"
-                          className="plan-quick-start-btn"
+                          className="plan-round-start-btn"
                           onClick={() => startExercise(primaryExId, session.title, session.type || "strength")}
                           disabled={startingEx === primaryExId}
-                          title={`Einheit „${session.title}“ jetzt direkt starten`}
+                          title={`Einheit „${session.title}“ jetzt starten`}
                         >
-                          <Play size={13} fill="currentColor" />
-                          <span>{startingEx === primaryExId ? "Startet…" : "Starten"}</span>
+                          <span className="plan-round-start-icon">
+                            <Play size={15} fill="currentColor" />
+                          </span>
+                          <span>{startingEx === primaryExId ? "Startet…" : "Einheit starten"}</span>
                         </button>
                       </div>
 
-                      <div className="plan-session-meta">
-                        {session.date ? `${new Date(`${session.date}T12:00:00`).toLocaleDateString("de-DE")} · ` : ""}
-                        {session.minutes} Min.
-                        {session.distanceKm ? ` · ${session.distanceKm} km` : ""}
-                      </div>
-
                       {Array.isArray(session.exercises) && session.exercises.length > 0 && (
-                        <div className="plan-exercise-chips">
+                        <div className="plan-exercise-list">
                           {session.exercises.map((ex, exIndex) => {
                             const exId = resolveExerciseId(ex);
                             return (
-                              <Link
-                                key={exIndex}
-                                href={`/uebung/${exId}?profil=${profile.id}&fromPlan=1`}
-                                className="plan-exercise-chip"
-                                title={`Anleitung & Video für ${ex} ansehen`}
-                              >
-                                <PlayCircle size={13} />
-                                <span>{ex}</span>
-                              </Link>
+                              <div key={exIndex} className="plan-exercise-row">
+                                <div className="plan-exercise-row-info">
+                                  <span className="plan-exercise-num">{exIndex + 1}</span>
+                                  <Link
+                                    href={`/uebung/${exId}?profil=${profile.id}&fromPlan=1`}
+                                    className="plan-exercise-link"
+                                    title={`Video & Anleitung für ${ex} ansehen`}
+                                  >
+                                    <span className="plan-exercise-name">{ex}</span>
+                                    <span className="plan-exercise-guide-badge">
+                                      <PlayCircle size={13} />
+                                      Video
+                                    </span>
+                                  </Link>
+                                </div>
+                                <button
+                                  type="button"
+                                  className="plan-exercise-round-btn"
+                                  onClick={() => startExercise(exId, ex, session.type || "strength")}
+                                  disabled={startingEx === exId}
+                                  title={`Übung ${exIndex + 1} (${ex}) jetzt direkt starten`}
+                                >
+                                  <span className="plan-exercise-round-icon">
+                                    <Play size={13} fill="currentColor" />
+                                  </span>
+                                  <span>{startingEx === exId ? "Startet…" : "Starten"}</span>
+                                </button>
+                              </div>
                             );
                           })}
                         </div>

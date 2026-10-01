@@ -72,8 +72,10 @@ export function ExerciseStartButton({
       disabled={starting}
       title={`Training für ${exerciseName} jetzt starten`}
     >
-      <Play size={16} fill="currentColor" />
-      <span>{starting ? "Startet …" : "Training starten"}</span>
+      <span className="guide-start-btn-icon">
+        <Play size={18} fill="currentColor" />
+      </span>
+      <span>{starting ? "Startet …" : "Übung jetzt starten"}</span>
     </button>
   );
 }

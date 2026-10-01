@@ -1526,22 +1526,178 @@ body::before {
 .week-grid h3 { color: var(--profile); margin: 0 0 12px; font-size: 19px; }
 .plan-session-card { padding: 12px 0; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 6px; }
 .plan-session-card:first-of-type { border-top: none; }
-.plan-session-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.plan-session-title-link { display: inline-flex; align-items: center; gap: 9px; text-decoration: none; color: var(--text); border-radius: 10px; padding: 4px 6px; margin: -4px -6px; transition: background .15s ease, transform .15s ease; }
+.plan-session-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.plan-session-title-wrap { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.plan-session-title-link { display: inline-flex; align-items: center; gap: 8px; text-decoration: none; color: var(--text); border-radius: 10px; padding: 2px 4px; margin: -2px -4px; transition: background .15s ease, transform .15s ease; }
 .plan-session-title-link:hover { background: color-mix(in srgb, var(--brand) 12%, transparent); transform: translateX(2px); }
 .plan-session-check { width: 19px; height: 19px; color: var(--brand); flex-shrink: 0; }
 .plan-session-name { font-weight: 750; font-size: 15px; }
-.plan-session-video-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; font-weight: 750; color: var(--brand); background: color-mix(in srgb, var(--brand) 14%, var(--panel)); border: 1px solid color-mix(in srgb, var(--brand) 28%, transparent); padding: 2px 7px; border-radius: 999px; margin-left: 6px; }
-.plan-session-meta { color: var(--muted); font-size: 12px; font-weight: 600; padding-left: 28px; }
-.plan-quick-start-btn { display: inline-flex; align-items: center; gap: 5px; background: var(--brand); color: #ffffff; border: none; border-radius: 999px; padding: 4px 12px; font-size: 11px; font-weight: 750; cursor: pointer; transition: all .15s ease; box-shadow: 0 2px 6px color-mix(in srgb, var(--brand) 35%, transparent); flex-shrink: 0; }
-.plan-quick-start-btn:hover { background: var(--brand-bright); transform: translateY(-1px); }
-.plan-quick-start-btn:active { transform: translateY(0); }
-.plan-quick-start-btn:disabled { opacity: 0.6; cursor: not-allowed; }
-.plan-exercise-chips { display: flex; flex-wrap: wrap; gap: 6px; padding-left: 28px; margin-top: 4px; }
-.plan-exercise-chip { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 650; color: var(--text); background: var(--panel); border: 1px solid var(--line); padding: 4px 10px; border-radius: 999px; text-decoration: none; transition: all .15s ease; box-shadow: 0 1px 3px rgba(0,0,0,.04); }
-.plan-exercise-chip svg { color: var(--brand); flex-shrink: 0; }
-.plan-exercise-chip:hover { border-color: var(--brand); background: color-mix(in srgb, var(--brand) 15%, var(--panel)); color: var(--brand); transform: translateY(-1px); box-shadow: 0 2px 6px rgba(0,0,0,.08); }
-.plan-exercise-chip:active { transform: translateY(0); }
+.plan-session-meta { color: var(--muted); font-size: 12px; font-weight: 600; padding-left: 27px; }
+
+/* Session Round Start Button (Header) */
+.plan-round-start-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(135deg, var(--brand-bright, #2dd4bf), var(--brand, #14b8a6));
+  color: #06201d;
+  border: none;
+  border-radius: 999px;
+  min-height: 40px;
+  padding: 0 16px;
+  font-size: 13px;
+  font-weight: 850;
+  cursor: pointer;
+  transition: all .18s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 3px 12px color-mix(in srgb, var(--brand) 35%, transparent);
+  flex-shrink: 0;
+  touch-action: manipulation;
+}
+.plan-round-start-btn:hover {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 5px 16px color-mix(in srgb, var(--brand) 45%, transparent);
+}
+.plan-round-start-btn:active {
+  transform: translateY(1px) scale(0.98);
+}
+.plan-round-start-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+.plan-round-start-icon {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: rgba(6, 32, 29, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* Plan Exercise List & Individual Exercise Start Buttons */
+.plan-exercise-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 6px;
+  padding-left: 27px;
+}
+.plan-exercise-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: color-mix(in srgb, var(--panel) 90%, var(--subtle-bg));
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 8px 12px 8px 10px;
+  transition: all .15s ease;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+}
+.plan-exercise-row:hover {
+  border-color: color-mix(in srgb, var(--brand) 40%, var(--line));
+  background: color-mix(in srgb, var(--brand) 6%, var(--panel));
+}
+.plan-exercise-row-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+.plan-exercise-num {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--brand) 18%, var(--subtle-bg));
+  color: var(--brand);
+  font-size: 12px;
+  font-weight: 850;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.plan-exercise-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+  color: var(--text);
+  min-width: 0;
+}
+.plan-exercise-link:hover .plan-exercise-name {
+  color: var(--brand);
+}
+.plan-exercise-name {
+  font-weight: 750;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: color .15s ease;
+}
+.plan-exercise-guide-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 750;
+  color: var(--brand);
+  background: color-mix(in srgb, var(--brand) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--brand) 25%, transparent);
+  padding: 2px 7px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+.plan-exercise-round-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: color-mix(in srgb, var(--brand) 15%, var(--panel));
+  color: var(--brand);
+  border: 1px solid color-mix(in srgb, var(--brand) 40%, transparent);
+  border-radius: 999px;
+  min-height: 34px;
+  padding: 0 13px;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all .18s cubic-bezier(0.4, 0, 0.2, 1);
+  flex-shrink: 0;
+  touch-action: manipulation;
+}
+.plan-exercise-round-btn:hover {
+  background: var(--brand);
+  color: #06201d;
+  border-color: var(--brand);
+  transform: translateY(-1px) scale(1.03);
+  box-shadow: 0 3px 10px color-mix(in srgb, var(--brand) 35%, transparent);
+}
+.plan-exercise-round-btn:active {
+  transform: translateY(1px) scale(0.97);
+}
+.plan-exercise-round-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+.plan-exercise-round-icon {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--brand) 25%, transparent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background .15s ease;
+}
+.plan-exercise-round-btn:hover .plan-exercise-round-icon {
+  background: rgba(6, 32, 29, 0.2);
+}
 .ai-privacy { color: var(--muted); background: color-mix(in srgb, var(--brand) 8%, var(--subtle-bg)); padding: 10px; border-radius: 11px; font-size: 11px; }
 @media (max-width: 720px) {
   .subpage { padding: 18px 15px 45px; }
@@ -1706,24 +1862,44 @@ body::before {
   flex-shrink: 0;
 }
 .guide-start-btn {
-  min-height: 40px;
-  padding: 0 16px;
+  min-height: 48px;
+  padding: 0 22px;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   border: 0;
-  border-radius: 12px;
-  background: var(--brand);
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--brand-bright, #2dd4bf), var(--brand, #14b8a6));
   color: #06201d;
   font-weight: 850;
-  font-size: 13px;
+  font-size: 15px;
   cursor: pointer;
-  box-shadow: 0 3px 12px color-mix(in srgb, var(--brand) 35%, transparent);
-  transition: transform .15s ease;
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--brand) 40%, transparent), 0 2px 4px rgba(0,0,0,0.08);
+  transition: all .18s cubic-bezier(0.4, 0, 0.2, 1);
   touch-action: manipulation;
 }
-.guide-start-btn:hover { transform: translateY(-1px); }
-.guide-start-btn:active { transform: translateY(1px); }
+.guide-start-btn:hover {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 6px 22px color-mix(in srgb, var(--brand) 50%, transparent);
+}
+.guide-start-btn:active {
+  transform: translateY(1px) scale(0.98);
+}
+.guide-start-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+.guide-start-btn-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(6, 32, 29, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
 
 /* Main Split View: Left Column (Media & Tempo) + Right Column (Steps & Rules) */
 .guide-body {
