@@ -135,6 +135,11 @@ async function createSchema(client: Client) {
     await client.execute("ALTER TABLE profiles ADD COLUMN starting_fitness INTEGER NOT NULL DEFAULT 3");
   }
 
+  const equipmentColumns = await client.execute("PRAGMA table_info(equipment_inventory)");
+  if (!equipmentColumns.rows.some((row) => String(row.name) === "video_url")) {
+    await client.execute("ALTER TABLE equipment_inventory ADD COLUMN video_url TEXT");
+  }
+
   for (const profile of PROFILE_SEEDS) {
     await client.execute({
       sql: `INSERT OR IGNORE INTO profiles

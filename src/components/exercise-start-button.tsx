@@ -1,0 +1,66 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { Play } from "lucide-react";
+import { showToast } from "@/components/toast";
+
+export function ExerciseStartButton({
+  profileId,
+  exerciseId,
+  exerciseName,
+  type = "strength"
+}: {
+  profileId?: string;
+  exerciseId: string;
+  exerciseName: string;
+  type?: "strength" | "endurance";
+}) {
+  const router = useRouter();
+  const [starting, setStarting] = useState(false);
+
+  if (!profileId) return null;
+
+  async function handleStart() {
+    setStarting(true);
+    try {
+      const response = await fetch("/api/training", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "start",
+          profileId,
+          type,
+          exerciseId,
+          source: "touch"
+        })
+      });
+      if (response.ok) {
+        showToast({
+          type: "success",
+          title: `Training gestartet: ${exerciseName}`,
+          message: `${type === "strength" ? "Krafttraining (+1 Pkt./Min.)" : "Ausdauertraining (+2 Pkt./Min.)"} läuft.`
+        });
+        router.push(`/profil/${profileId}`);
+      } else {
+        router.push(`/profil/${profileId}`);
+      }
+    } catch {
+      router.push(`/profil/${profileId}`);
+    } finally {
+      setStarting(false);
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      className="guide-start-btn"
+      onClick={handleStart}
+      disabled={starting}
+    >
+      <Play size={16} fill="currentColor" />
+      <span>{starting ? "Startet …" : `Training starten (${exerciseName})`}</span>
+    </button>
+  );
+}

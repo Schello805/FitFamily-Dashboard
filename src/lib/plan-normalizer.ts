@@ -137,7 +137,35 @@ const FITNESS_TRANSLATIONS: Record<string, string> = {
   "jump rope": "Seilspringen",
   "skipping rope": "Seilspringen",
   "rowing": "Rudern",
-  "stretching": "Dehnen & Beweglichkeit"
+  "stretching": "Dehnen & Beweglichkeit",
+
+  // Spezifische Phrasen aus KI-Trainingsplänen
+  "strength training basics": "Grundlagen Krafttraining",
+  "circuit training": "Zirkeltraining",
+  "total body circuit": "Ganzkörper-Zirkel",
+  "total body": "Ganzkörper",
+  "kettlebell deadlifts": "Kreuzheben (Kettlebell)",
+  "kettlebell deadlift": "Kreuzheben (Kettlebell)",
+  "dumbbell rows": "Kurzhantelrudern",
+  "dumbbell row": "Kurzhantelrudern",
+  "seated shoulder press": "Schulterdrücken im Sitzen",
+  "seated row": "Rudern im Sitzen",
+  "seated rows": "Rudern im Sitzen",
+  "interval training": "Intervalltraining",
+  "steady-state cardio": "Gleichmäßiges Ausdauertraining",
+  "hiit cardio": "HIIT Ausdauertraining",
+  "running on treadmill (walk/jog intervals)": "Laufband (Geh-/Lauf-Intervalle)",
+  "running on treadmill": "Laufband-Lauf",
+  "brisk walking on treadmill": "Zügiges Gehen auf dem Laufband",
+  "sprint intervals on treadmill": "Sprintintervalle auf dem Laufband",
+  "boxing on punching bag": "Boxen am Boxsack",
+  "cycling on stationary bike": "Fahrradergometer",
+  "cycling at moderate pace": "Fahrradergometer in moderatem Tempo",
+  "plank to push-up": "Plank zu Liegestütz",
+  "plank to push-ups": "Plank zu Liegestützen",
+  "dumbbell squats": "Kurzhantel-Kniebeugen",
+  "dumbbell squat": "Kurzhantel-Kniebeuge",
+  "lateral raise": "Seitheben"
 };
 
 // Sortierte Keys nach Länge absteigend für präzise Phrase-Replacements

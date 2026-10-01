@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { ArrowLeft, CalendarDays, CheckCircle2, Cpu, Download, Sparkles, Upload } from "lucide-react";
+import { ArrowLeft, CalendarDays, CheckCircle2, Cpu, Download, PlayCircle, Sparkles, Upload } from "lucide-react";
 import type { DashboardProfile } from "@/lib/domain";
 import { showToast } from "@/components/toast";
 import { normalizePlanJson, type NormalizedPlan } from "@/lib/plan-normalizer";
+import { resolveExerciseId } from "@/lib/exercise-guides";
 
 type Plan = {
   id: string;
@@ -100,22 +101,52 @@ export function PlanView({ profile, goals }: { profile: DashboardProfile; goals:
             {activePlanJson.weeks.map((week) => (
               <article key={week.week}>
                 <h3>Woche {week.week}</h3>
-                {week.sessions.map((session, index) => (
-                  <div key={index}>
-                    <CheckCircle2 />
-                    <span>
-                      <b>{session.title}</b>
-                      <small>
+                {week.sessions.map((session, index) => {
+                  const primaryExId = resolveExerciseId(session.exercises?.[0] || session.title);
+                  return (
+                    <div key={index} className="plan-session-card">
+                      <div className="plan-session-header">
+                        <Link
+                          href={`/uebung/${primaryExId}?profil=${profile.id}&fromPlan=1`}
+                          className="plan-session-title-link"
+                          title="Anleitung & Video öffnen"
+                        >
+                          <CheckCircle2 className="plan-session-check" />
+                          <span className="plan-session-name">{session.title}</span>
+                          <span className="plan-session-video-badge">
+                            <PlayCircle size={13} />
+                            Anleitung
+                          </span>
+                        </Link>
+                      </div>
+
+                      <div className="plan-session-meta">
                         {session.date ? `${new Date(`${session.date}T12:00:00`).toLocaleDateString("de-DE")} · ` : ""}
                         {session.minutes} Min.
                         {session.distanceKm ? ` · ${session.distanceKm} km` : ""}
-                        {Array.isArray(session.exercises) && session.exercises.length > 0
-                          ? ` · ${session.exercises.join(" · ")}`
-                          : ""}
-                      </small>
-                    </span>
-                  </div>
-                ))}
+                      </div>
+
+                      {Array.isArray(session.exercises) && session.exercises.length > 0 && (
+                        <div className="plan-exercise-chips">
+                          {session.exercises.map((ex, exIndex) => {
+                            const exId = resolveExerciseId(ex);
+                            return (
+                              <Link
+                                key={exIndex}
+                                href={`/uebung/${exId}?profil=${profile.id}&fromPlan=1`}
+                                className="plan-exercise-chip"
+                                title={`Anleitung & Video für ${ex} ansehen`}
+                              >
+                                <PlayCircle size={13} />
+                                <span>{ex}</span>
+                              </Link>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </article>
             ))}
           </div>
