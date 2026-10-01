@@ -184,7 +184,19 @@ export async function POST(request: Request) {
 
   // 3. Dienst nach kurzer Verzögerung neu starten, damit die HTTP-Antwort noch sauber ankommt
   setTimeout(() => {
-    exec("sudo -n /bin/systemctl restart fitfamily || sudo -n systemctl restart fitfamily || systemctl restart fitfamily", { cwd }, () => undefined);
+    exec("sudo -n /bin/systemctl restart fitfamily || sudo -n systemctl restart fitfamily || systemctl restart fitfamily", { cwd }, (err) => {
+      if (err) {
+        // Fallback: Falls systemctl ohne Sudo-Passwort blockiert, beende Node.js kontrolliert mit Exit 1.
+        // systemd (Restart=on-failure) startet den Dienst sofort mit dem neuen Build neu!
+        setTimeout(() => {
+          process.exit(1);
+        }, 500);
+      }
+    });
+    // Zusätzlicher Sicherheits-Timeout: Falls sudo/systemctl auf Eingabe wartet
+    setTimeout(() => {
+      process.exit(1);
+    }, 3500);
   }, 1500);
 
   return NextResponse.json({
