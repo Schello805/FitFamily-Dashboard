@@ -134,7 +134,7 @@ export function ProfileView({
     events.forEach((event) => window.addEventListener(event, handleActivity, { passive: true }));
 
     const interval = window.setInterval(() => {
-      if (!deadlineRef.current || editingProfile || handoff !== null || healthModal || prepCountdown !== null) return;
+      if (!deadlineRef.current || prepCountdown !== null) return;
       const remainingMs = Math.max(0, deadlineRef.current - Date.now());
       const remainingSec = Math.ceil(remainingMs / 1000);
       setSecondsLeft(remainingSec);
@@ -150,7 +150,7 @@ export function ProfileView({
       window.clearInterval(interval);
       events.forEach((event) => window.removeEventListener(event, handleActivity));
     };
-  }, [resetTimer, router, isMobile, editingProfile, handoff, healthModal, prepCountdown]);
+  }, [resetTimer, router, isMobile, prepCountdown]);
 
   useEffect(() => {
     const interval = window.setInterval(refresh, 5000);
@@ -544,7 +544,15 @@ export function ProfileView({
       {profileNotice && <p className="profile-notice" role="status">{profileNotice}</p>}
       {editingProfile && <div className="modal-backdrop" onClick={() => setEditingProfile(false)}><form className="profile-edit-modal" onSubmit={saveProfile} onClick={(event) => event.stopPropagation()}>
         <button type="button" className="modal-close" onClick={() => setEditingProfile(false)}>×</button>
-        <span className="setup-badge">Profil bearbeiten</span><h2>Angaben für {profile.name}</h2>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
+          <span className="setup-badge">Profil bearbeiten</span>
+          {!isMobile && (
+            <span className="modal-idle-badge" onClick={resetTimer} title="Automatische Rückkehr zum Dashboard bei Inaktivität (Tippen zum Verlängern)">
+              Dashboard in {secondsLeft}s
+            </span>
+          )}
+        </div>
+        <h2>Angaben für {profile.name}</h2>
         <div className="profile-edit-preview-row">
           <Avatar
             id={profile.id}
@@ -589,7 +597,14 @@ export function ProfileView({
             <div className="health-modal-header">
               <div className="health-apple-circle"><Apple size={30} /></div>
               <div>
-                <span className="setup-badge">iOS Kurzbefehle</span>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
+                  <span className="setup-badge">iOS Kurzbefehle</span>
+                  {!isMobile && (
+                    <span className="modal-idle-badge" onClick={resetTimer} title="Automatische Rückkehr zum Dashboard bei Inaktivität (Tippen zum Verlängern)">
+                      Dashboard in {secondsLeft}s
+                    </span>
+                  )}
+                </div>
                 <h2>Apple Health für {profile.name}</h2>
               </div>
             </div>
@@ -766,7 +781,14 @@ export function ProfileView({
               </div>
             ) : (
               <>
-                <span className="setup-badge">Sicherer Übergang</span>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", marginBottom: "4px" }}>
+                  <span className="setup-badge">Sicherer Übergang</span>
+                  {!isMobile && (
+                    <span className="modal-idle-badge" onClick={resetTimer} title="Automatische Rückkehr zum Dashboard bei Inaktivität (Tippen zum Verlängern)">
+                      Dashboard in {secondsLeft}s
+                    </span>
+                  )}
+                </div>
                 <h2>Auf dem Handy fortfahren</h2>
                 <p>Scanne den Code mit deiner Smartphone-Kamera. Er ist zehn Minuten gültig.</p>
                 <Image src={handoff.qr} alt="QR-Code zum Öffnen des Profils auf dem Handy" width={330} height={330} unoptimized />
