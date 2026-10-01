@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { ArrowLeft, AlertTriangle, Bot, CheckCircle2, Database, Download, HardDrive, Lock, Monitor, Moon, Plus, RefreshCw, RotateCcw, ShieldCheck, Sparkles, Sun } from "lucide-react";
 import { TouchPinpad } from "@/components/touch-pinpad";
 import { showToast } from "@/components/toast";
@@ -33,7 +33,8 @@ type ConfirmModalConfig = {
   icon: "update" | "backup" | "reset" | "key";
   confirmLabel: string;
   confirmVariant?: "primary" | "danger" | "brand";
-  action: () => Promise<void> | void;
+  requiresPin?: boolean;
+  action: (freshPin?: string) => Promise<void> | void;
 };
 
 export function AdminView({
@@ -50,14 +51,7 @@ export function AdminView({
   initialCommit?: string;
 }) {
   const router = useRouter();
-  const [pin, setPin] = useState(() => {
-    if (typeof window !== "undefined") {
-      try {
-        return sessionStorage.getItem("fitfamily_admin_pin") ?? "";
-      } catch {}
-    }
-    return "";
-  });
+  const [pin, setPin] = useState("");
   const [verifying, setVerifying] = useState(false);
   const [status, setStatus] = useState<Status | null>(null);
   const [error, setError] = useState("");
@@ -66,6 +60,9 @@ export function AdminView({
     Object.fromEntries(profiles.map((p) => [p.id, p.score]))
   );
   const [confirmModal, setConfirmModal] = useState<ConfirmModalConfig | null>(null);
+  const [confirmPin, setConfirmPin] = useState("");
+  const [confirmPinError, setConfirmPinError] = useState("");
+  const [verifyingConfirmPin, setVerifyingConfirmPin] = useState(false);
   const [videoUrls, setVideoUrls] = useState<Record<string, string>>(() => Object.fromEntries(exercises.map((exercise) => [exercise.id, exercise.videoUrl ?? ""])));
   const [savingVideo, setSavingVideo] = useState<string | null>(null);
   const [equipmentItems, setEquipmentItems] = useState(equipment);
@@ -147,16 +144,6 @@ export function AdminView({
 
   const [postUpdateSuccess, setPostUpdateSuccess] = useState<{ version?: string; commit?: string } | null>(null);
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    try {
-      const savedPin = sessionStorage.getItem("fitfamily_admin_pin");
-      if (savedPin && savedPin.length >= 4) {
-        void performUnlock(savedPin);
-      }
-    } catch {}
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
   function waitForServerAndReload() {
     setNotice("Dashboard-Dienst startet neu … Stelle Verbindung wieder her …");
     let attempts = 0;
@@ -179,6 +166,8 @@ export function AdminView({
   }
 
   function requestApplyUpdate() {
+    setConfirmPin("");
+    setConfirmPinError("");
     setConfirmModal({
       title: "Update installieren?",
       badge: updateInfo?.latestCommit ? `Build ${updateInfo.latestCommit}` : undefined,
@@ -186,18 +175,19 @@ export function AdminView({
       icon: "update",
       confirmLabel: "Jetzt installieren",
       confirmVariant: "brand",
-      action: () => executeApplyUpdate()
+      requiresPin: true,
+      action: (freshPin) => executeApplyUpdate(freshPin)
     });
   }
 
-  async function executeApplyUpdate() {
+  async function executeApplyUpdate(freshPin = pin) {
     setRunningUpdate(true);
     setNotice("Update läuft. Das kann einige Minuten dauern; das Dashboard startet danach automatisch neu.");
     try {
       const response = await fetch("/api/admin/update", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pin })
+        body: JSON.stringify({ pin: freshPin })
       });
       const data = await response.json();
       if (!response.ok) {
@@ -208,7 +198,6 @@ export function AdminView({
         return;
       }
       try {
-        sessionStorage.setItem("fitfamily_admin_pin", pin);
         sessionStorage.setItem("fitfamily_last_update_status", JSON.stringify({
           timestamp: Date.now(),
           targetCommit: data.newCommit || updateInfo?.latestCommit || currentInstalledCommit || "",
@@ -229,7 +218,6 @@ export function AdminView({
       }, 1000);
     } catch {
       try {
-        sessionStorage.setItem("fitfamily_admin_pin", pin);
         sessionStorage.setItem("fitfamily_last_update_status", JSON.stringify({
           timestamp: Date.now(),
           targetCommit: updateInfo?.latestCommit || currentInstalledCommit || "",
@@ -255,13 +243,9 @@ export function AdminView({
       const result = await response.json();
       if (!response.ok) {
         setError(result.error ?? "Eltern-PIN ist falsch");
-        try { sessionStorage.removeItem("fitfamily_admin_pin"); } catch {}
         setVerifying(false);
         return;
       }
-      try {
-        sessionStorage.setItem("fitfamily_admin_pin", pinToTest);
-      } catch {}
       try {
         const updateDoneRaw = sessionStorage.getItem("fitfamily_last_update_status");
         if (updateDoneRaw) {
@@ -676,6 +660,7 @@ export function AdminView({
 
           <TouchPinpad
             value={pin}
+            maxLength={8}
             onChange={(val) => {
               setPin(val);
               if (error) setError("");
@@ -689,9 +674,9 @@ export function AdminView({
             pattern="[0-9]*"
             aria-label="Eltern-PIN"
             style={{ position: "absolute", opacity: 0, pointerEvents: "none", height: 0, width: 0 }}
-            maxLength={4}
+            maxLength={8}
             value={pin}
-            onChange={(event) => setPin(event.target.value.replace(/\D/g, "").slice(0, 4))}
+            onChange={(event) => setPin(event.target.value.replace(/\D/g, "").slice(0, 8))}
           />
 
           {error && <p className="form-error">{error}</p>}
@@ -1170,9 +1155,9 @@ export function AdminView({
     </section>
 
       {confirmModal && (
-        <div className="modal-backdrop" onClick={() => setConfirmModal(null)}>
+        <div className="modal-backdrop" onClick={() => { setConfirmModal(null); setConfirmPin(""); setConfirmPinError(""); }}>
           <div className="confirm-modal-card" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
-            <button type="button" className="modal-close" onClick={() => setConfirmModal(null)} aria-label="Schließen">×</button>
+            <button type="button" className="modal-close" onClick={() => { setConfirmModal(null); setConfirmPin(""); setConfirmPinError(""); }} aria-label="Schließen">×</button>
             <div className="confirm-modal-top">
               {confirmModal.badge && <span className="setup-badge">{confirmModal.badge}</span>}
               <div className={`confirm-modal-icon ${confirmModal.confirmVariant ?? "primary"}`}>
@@ -1184,24 +1169,60 @@ export function AdminView({
             </div>
             <h3>{confirmModal.title}</h3>
             <p>{confirmModal.description}</p>
+            {confirmModal.requiresPin && (
+              <div className="confirm-pin-section">
+                <b>Eltern-PIN erneut eingeben</b>
+                <TouchPinpad
+                  value={confirmPin}
+                  maxLength={8}
+                  disabled={verifyingConfirmPin}
+                  onChange={(value) => { setConfirmPin(value); setConfirmPinError(""); }}
+                />
+                {confirmPinError && <p className="form-error">{confirmPinError}</p>}
+              </div>
+            )}
             <div className="confirm-modal-actions">
               <button
                 type="button"
                 className="confirm-cancel-btn"
-                onClick={() => setConfirmModal(null)}
+                onClick={() => { setConfirmModal(null); setConfirmPin(""); setConfirmPinError(""); }}
               >
                 Abbrechen
               </button>
               <button
                 type="button"
                 className={`confirm-submit-btn ${confirmModal.confirmVariant ?? "primary"}`}
+                disabled={verifyingConfirmPin || Boolean(confirmModal.requiresPin && confirmPin.length < 4)}
                 onClick={async () => {
+                  if (confirmModal.requiresPin) {
+                    setVerifyingConfirmPin(true);
+                    setConfirmPinError("");
+                    try {
+                      const response = await fetch("/api/admin/verify", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ pin: confirmPin })
+                      });
+                      const result = await response.json();
+                      if (!response.ok) {
+                        setConfirmPinError(result.error ?? "Eltern-PIN ist nicht richtig.");
+                        return;
+                      }
+                    } catch {
+                      setConfirmPinError("PIN konnte nicht geprüft werden. Bitte Verbindung prüfen.");
+                      return;
+                    } finally {
+                      setVerifyingConfirmPin(false);
+                    }
+                  }
                   const act = confirmModal.action;
                   setConfirmModal(null);
-                  await act();
+                  const freshPin = confirmModal.requiresPin ? confirmPin : undefined;
+                  setConfirmPin("");
+                  await act(freshPin);
                 }}
               >
-                {confirmModal.confirmLabel}
+                {verifyingConfirmPin ? "PIN wird geprüft …" : confirmModal.confirmLabel}
               </button>
             </div>
           </div>
