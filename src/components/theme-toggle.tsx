@@ -1,57 +1,64 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import { Moon, Sun } from "lucide-react";
+import { Monitor, Moon, Sun } from "lucide-react";
+import {
+  applyTheme,
+  getNextThemeSetting,
+  getStoredThemeSetting,
+  resolveTheme,
+  subscribeTheme,
+  type ResolvedTheme,
+  type ThemeSetting
+} from "@/lib/theme";
 
-function subscribe(callback: () => void) {
-  if (typeof window === "undefined") return () => {};
-  const observer = new MutationObserver((mutations) => {
-    for (const mutation of mutations) {
-      if (mutation.type === "attributes" && mutation.attributeName === "data-theme") {
-        callback();
-      }
-    }
-  });
-  observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
-  window.addEventListener("storage", callback);
-  return () => {
-    observer.disconnect();
-    window.removeEventListener("storage", callback);
-  };
+function getSettingSnapshot(): ThemeSetting {
+  if (typeof document === "undefined") return "system";
+  const attr = document.documentElement.getAttribute("data-theme-setting");
+  if (attr === "system" || attr === "light" || attr === "dark") return attr;
+  return getStoredThemeSetting();
 }
 
-function getSnapshot(): "light" | "dark" {
+function getResolvedSnapshot(): ResolvedTheme {
   if (typeof document === "undefined") return "light";
-  return (document.documentElement.getAttribute("data-theme") as "light" | "dark") || "light";
-}
-
-function getServerSnapshot(): "light" | "dark" {
-  return "light";
+  const attr = document.documentElement.getAttribute("data-theme");
+  if (attr === "dark" || attr === "light") return attr;
+  return resolveTheme(getSettingSnapshot());
 }
 
 export function ThemeToggle({ className, showLabel = false }: { className?: string; showLabel?: boolean }) {
-  const theme = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+  const setting = useSyncExternalStore<ThemeSetting>(subscribeTheme, getSettingSnapshot, () => "system");
+  const resolved = useSyncExternalStore<ResolvedTheme>(subscribeTheme, getResolvedSnapshot, () => "light");
 
   function toggle() {
-    const next = theme === "light" ? "dark" : "light";
-    document.documentElement.setAttribute("data-theme", next);
-    try {
-      localStorage.setItem("fitfamily-theme", next);
-    } catch {
-      // ignore
-    }
+    const next = getNextThemeSetting(setting);
+    applyTheme(next);
   }
+
+  const label = setting === "system" ? "System" : setting === "light" ? "Hell" : "Dunkel";
+  const title =
+    setting === "system"
+      ? `Design: System (${resolved === "dark" ? "Dunkel" : "Hell"}) – Klicken für Hell`
+      : setting === "light"
+        ? "Design: Hell – Klicken für Dunkel"
+        : "Design: Dunkel – Klicken für System (automatisch)";
 
   return (
     <button
       type="button"
       className={className ?? "theme-toggle"}
       onClick={toggle}
-      title={theme === "light" ? "Dunkles Design aktivieren" : "Helles Design aktivieren (Blendfrei)"}
-      aria-label={theme === "light" ? "Auf dunkles Design umschalten" : "Auf helles blendfreies Design umschalten"}
+      title={title}
+      aria-label={title}
     >
-      {theme === "light" ? <Moon size={showLabel ? 26 : 20} /> : <Sun size={showLabel ? 26 : 20} />}
-      {showLabel && <span className="tool-label">{theme === "light" ? "Dunkel" : "Hell"}</span>}
+      {setting === "system" ? (
+        <Monitor size={showLabel ? 24 : 20} />
+      ) : setting === "light" ? (
+        <Sun size={showLabel ? 24 : 20} />
+      ) : (
+        <Moon size={showLabel ? 24 : 20} />
+      )}
+      {showLabel && <span className="tool-label">{label}</span>}
     </button>
   );
 }

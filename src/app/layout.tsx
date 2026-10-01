@@ -31,7 +31,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       <head>
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var t=localStorage.getItem('fitfamily-theme')||'light';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();`
+            __html: `(function(){try{var s=localStorage.getItem('fitfamily-theme')||'system';var d=s==='system'?(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches):s==='dark';document.documentElement.setAttribute('data-theme',d?'dark':'light');document.documentElement.setAttribute('data-theme-setting',s);}catch(e){}})();`
           }}
         />
       </head>

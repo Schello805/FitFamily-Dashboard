@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
-import { ArrowLeft, Bot, CheckCircle2, Database, Download, HardDrive, Lock, Moon, Plus, RefreshCw, RotateCcw, ShieldCheck, Sparkles } from "lucide-react";
+import { useState, useSyncExternalStore } from "react";
+import { ArrowLeft, Bot, CheckCircle2, Database, Download, HardDrive, Lock, Monitor, Moon, Plus, RefreshCw, RotateCcw, ShieldCheck, Sparkles, Sun } from "lucide-react";
 import { TouchPinpad } from "@/components/touch-pinpad";
 import { showToast } from "@/components/toast";
+import { applyTheme, getStoredThemeSetting, subscribeTheme, type ThemeSetting } from "@/lib/theme";
 
 type AiUsage = { requests: number; inputTokens: number; outputTokens: number; estimateUsd: number; updatedAt: string | null };
 type Status = { openai: boolean; gemini: boolean; nas: boolean; models: { openai: string; gemini: string }; usage: { openai: AiUsage; gemini: AiUsage } };
@@ -73,6 +74,17 @@ export function AdminView({ profiles, exercises, equipment }: { profiles: { id: 
   const [checkingUpdate, setCheckingUpdate] = useState(false);
   const [runningUpdate, setRunningUpdate] = useState(false);
   const [updateCountdown, setUpdateCountdown] = useState<number | null>(null);
+
+  const currentTheme = useSyncExternalStore(
+    subscribeTheme,
+    () => {
+      if (typeof document === "undefined") return "system";
+      const attr = document.documentElement.getAttribute("data-theme-setting");
+      if (attr === "system" || attr === "light" || attr === "dark") return attr as ThemeSetting;
+      return getStoredThemeSetting();
+    },
+    () => "system" as ThemeSetting
+  );
 
   async function checkUpdate(effectivePin?: string) {
     const pinToUse = effectivePin || pin;
@@ -510,12 +522,39 @@ export function AdminView({ profiles, exercises, equipment }: { profiles: { id: 
         <div className="admin-title">
           <Moon />
           <div>
-            <h2>Ruhemodus & Inaktivität</h2>
-            <p>Bildschirmschoner nach Inaktivität und Nachtruhe</p>
+            <h2>Design & Ruhemodus</h2>
+            <p>Farbschema, Inaktivität und Nachtruhe</p>
           </div>
         </div>
 
         <div style={{ marginTop: "10px" }}>
+          <label style={{ display: "block", fontSize: "12px", fontWeight: 750, color: "var(--muted)", marginBottom: "6px" }}>
+            Design & Farbschema:
+          </label>
+          <div className="timeout-pills">
+            {[
+              { label: "System (Auto)", val: "system" as const, icon: <Monitor size={14} /> },
+              { label: "Hell", val: "light" as const, icon: <Sun size={14} /> },
+              { label: "Dunkel", val: "dark" as const, icon: <Moon size={14} /> }
+            ].map(({ label, val, icon }) => (
+              <button
+                key={val}
+                type="button"
+                className={`timeout-pill ${currentTheme === val ? "active" : ""}`}
+                style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
+                onClick={() => {
+                  applyTheme(val);
+                  showToast({ type: "success", title: "Design aktualisiert", message: `Farbschema auf "${label}" gesetzt.` });
+                }}
+              >
+                {icon}
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ marginTop: "14px" }}>
           <label style={{ display: "block", fontSize: "12px", fontWeight: 750, color: "var(--muted)", marginBottom: "6px" }}>
             Aktivieren nach Inaktivität:
           </label>
