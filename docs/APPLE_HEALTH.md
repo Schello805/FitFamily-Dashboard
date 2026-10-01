@@ -1,0 +1,50 @@
+# Apple-Health-Sync über Kurzbefehle
+
+FitFamily ist eine lokale Webapp und kann HealthKit nicht direkt aus dem Browser lesen. Auf dem iPhone übernimmt Apples Kurzbefehle-App den Transfer. Die Kurzbefehl-Datei zum Herunterladen wurde entfernt: Apple warnt bei privat geladenen Kurzbefehlen, weil Apple deren Herausgeber und Verhalten nicht verifiziert. FitFamily kann diese Prüfung nicht umgehen. Lege den Kurzbefehl deshalb selbst in Apples App an und prüfe seine Aktionen.
+
+## Vorbereitungen
+
+1. iPhone und FitFamily-PC müssen im selben Heimnetz erreichbar sein. Verwende auf dem iPhone die IP-Adresse bzw. lokale Adresse des PCs, nicht `localhost`.
+2. Öffne im gewünschten FitFamily-Profil **Apple Health**.
+3. Tippe auf **Sync-Schlüssel erstellen** und bestätige die Eltern-PIN. Der Schlüssel wird einmal angezeigt und kopiert. Verliere ihn nicht; andernfalls musst du ihn erneuern und im Kurzbefehl ersetzen. Beim Erneuern wird der alte Schlüssel sofort ungültig.
+4. Erlaube Kurzbefehle beim ersten Lauf den Zugriff auf die Health-Trainingsdaten.
+
+Der Schlüssel berechtigt nur den Sync-Endpunkt dieses Profils. Speichere ihn nicht in öffentlichen Kurzbefehlen oder Nachrichten. **Schlüssel widerrufen** sperrt weitere Übertragungen. **Daten zurücksetzen** verlangt zusätzlich die Eltern-PIN, löscht importierte Health-Workouts und Aktivitätsringe und widerruft den Sync-Schlüssel.
+
+## Kurzbefehl erstellen
+
+Die Bezeichnungen können je nach iOS-Version leicht abweichen.
+
+1. In **Kurzbefehle** einen neuen Kurzbefehl anlegen.
+2. **Health-Proben suchen** / **Find Health Samples** hinzufügen und den Datentyp **Training/Workouts** auswählen. Für den ersten Test auf ein aktuelles Training begrenzen. Später den Zeitraum so setzen, dass seit dem letzten Lauf nichts verpasst wird; FitFamily überspringt bekannte Workouts.
+3. **Wiederhole mit jedem** über die gefundenen Trainings legen. Innerhalb der Wiederholung ein **Wörterbuch** mit folgenden Feldern erstellen und jedes Wörterbuch zu einer Ergebnisliste hinzufügen:
+
+   - `title`: Trainingsart aus dem aktuellen Health-Training
+   - `startedAt`: Startdatum des aktuellen Trainings
+   - `endedAt`: Enddatum des aktuellen Trainings
+   - `id`: eindeutige Workout-ID, falls Kurzbefehle sie anbietet (empfohlen)
+   - `type`: optional `strength` oder `endurance`; ohne Angabe erkennt FitFamily Kraftbegriffe im Titel und behandelt sonst die Einheit als Ausdauer
+
+   Falls Kurzbefehle die Datumswerte nicht als ISO-Datum in JSON übergibt, vor dem Wörterbuch jeweils **Datum formatieren** ergänzen: benutzerdefiniertes Format `yyyy-MM-dd'T'HH:mm:ssXXXXX`.
+
+4. Nach **Ende der Wiederholung** **Inhalte von URL abrufen** hinzufügen. URL und Request-Body einstellen:
+
+   - Methode: `POST`
+   - Anforderungstext: `JSON`
+   - `profileId`: die Profil-ID (zum Beispiel `papa`)
+   - `secret`: der Sync-Schlüssel aus FitFamily
+   - `workouts`: die Ergebnisliste aus der Wiederholung
+
+   URL: `http://<IP-ODER-LOKALE-ADRESSE>:3000/api/sync/apple-health` (die passende Adresse zeigt FitFamily im Profil).
+
+5. Den Kurzbefehl einmal manuell ausführen und die Antwort prüfen. Danach kannst du ihn manuell starten oder – wenn deine iOS-Version und dein Gerät es anbieten – eine persönliche Automation ergänzen. Eine direkte, ständig laufende HealthKit-Synchronisation bietet die Webapp nicht.
+
+## Verhalten und Datenschutz
+
+- Doppelte Übertragungen werden anhand der Apple-Workout-ID erkannt; ohne ID anhand des Trainingsbeginns.
+- Start- und Enddatum müssen gültig sein; Einheiten über 24 Stunden oder mit Start in der Zukunft werden abgewiesen.
+- Punkte werden nach der FitFamily-Regel berechnet: Kraft 1 Punkt/Minute, Ausdauer 2 Punkte/Minute.
+- Trainings allein erzeugen keine geschätzten Aktivitätsring-Werte. Ringe ändern sich nur, wenn echte Werte separat mitgesendet werden.
+- Eingehende Syncs benötigen den individuellen Schlüssel; der gespeicherte Wert liegt nur als Hash in der lokalen Datenbank.
+- Der Verbindungstest prüft nur den Schlüssel und schreibt keine Trainingseinheit.
+

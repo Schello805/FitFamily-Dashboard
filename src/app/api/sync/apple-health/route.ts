@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { SCORE_MULTIPLIER, type TrainingType } from "@/lib/domain";
+import { hashToken, verifyAdminPin } from "@/lib/security";
 
 function inferTrainingType(title?: string | null, explicitType?: string | null): TrainingType {
   if (explicitType === "strength" || explicitType === "endurance") return explicitType;
@@ -19,36 +20,38 @@ function inferTrainingType(title?: string | null, explicitType?: string | null):
 }
 
 const workoutItemSchema = z.object({
-  id: z.string().optional(),
-  title: z.string().optional().nullable(),
+  id: z.string().max(200).optional(),
+  title: z.string().max(200).optional().nullable(),
   type: z.enum(["strength", "endurance"]).optional().nullable(),
-  startedAt: z.string().optional().nullable(),
-  endedAt: z.string().optional().nullable(),
-  durationMinutes: z.number().positive().optional().nullable(),
-  calories: z.number().optional().nullable(),
-  distanceKm: z.number().optional().nullable(),
-  source: z.string().optional()
+  startedAt: z.string().datetime({ offset: true }).optional().nullable(),
+  endedAt: z.string().datetime({ offset: true }).optional().nullable(),
+  durationMinutes: z.number().min(1).max(1440).optional().nullable(),
+  calories: z.number().nonnegative().max(100_000).optional().nullable(),
+  distanceKm: z.number().nonnegative().max(2_000).optional().nullable(),
+  source: z.string().max(80).optional()
 });
 
 const bodySchema = z.object({
   profileId: z.string().min(1),
-  secret: z.string().optional(),
-  workouts: z.array(workoutItemSchema).optional(),
+  secret: z.string().min(32).max(256),
+  dryRun: z.boolean().optional(),
+  workouts: z.array(workoutItemSchema).max(500).optional(),
   // Single workout fallback fields for simple Shortcuts
-  title: z.string().optional().nullable(),
+  id: z.string().max(200).optional(),
+  title: z.string().max(200).optional().nullable(),
   type: z.enum(["strength", "endurance"]).optional().nullable(),
-  startedAt: z.string().optional().nullable(),
-  endedAt: z.string().optional().nullable(),
-  durationMinutes: z.number().positive().optional().nullable(),
-  calories: z.number().optional().nullable(),
-  distanceKm: z.number().optional().nullable(),
+  startedAt: z.string().datetime({ offset: true }).optional().nullable(),
+  endedAt: z.string().datetime({ offset: true }).optional().nullable(),
+  durationMinutes: z.number().min(1).max(1440).optional().nullable(),
+  calories: z.number().nonnegative().max(100_000).optional().nullable(),
+  distanceKm: z.number().nonnegative().max(2_000).optional().nullable(),
   // Activity Rings fields
-  moveCalories: z.number().optional().nullable(),
-  moveGoal: z.number().optional().nullable(),
-  exerciseMinutes: z.number().optional().nullable(),
-  exerciseGoal: z.number().optional().nullable(),
-  standHours: z.number().optional().nullable(),
-  standGoal: z.number().optional().nullable()
+  moveCalories: z.number().nonnegative().max(100_000).optional().nullable(),
+  moveGoal: z.number().positive().max(100_000).optional().nullable(),
+  exerciseMinutes: z.number().nonnegative().max(1440).optional().nullable(),
+  exerciseGoal: z.number().positive().max(1440).optional().nullable(),
+  standHours: z.number().nonnegative().max(24).optional().nullable(),
+  standGoal: z.number().positive().max(24).optional().nullable()
 });
 
 export async function POST(request: Request) {
@@ -75,6 +78,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: `Profil '${profileId}' existiert nicht.` }, { status: 404 });
   }
 
+  const tokenRow = await client.execute({
+    sql: "SELECT token_hash FROM apple_health_tokens WHERE profile_id = ? LIMIT 1",
+    args: [profileId]
+  });
+  const storedHash = tokenRow.rows[0]?.token_hash;
+  if (typeof storedHash !== "string" || hashToken(parsed.data.secret) !== storedHash) {
+    return NextResponse.json({ error: "Sync-Schlüssel fehlt oder ist ungültig. Bitte in FitFamily neu erstellen." }, { status: 401 });
+  }
+
   const profileName = String(profileExists.rows[0].name);
 
   // Normalize workouts into a single list - only include actual workouts
@@ -83,6 +95,34 @@ export async function POST(request: Request) {
     : (singleWorkout.title || singleWorkout.durationMinutes || singleWorkout.startedAt)
       ? [singleWorkout]
       : [];
+
+  const latestAllowedStart = Date.now() + 60_000;
+  for (const item of rawList) {
+    const start = item.startedAt ? Date.parse(item.startedAt) : null;
+    const end = item.endedAt ? Date.parse(item.endedAt) : null;
+    const duration = item.durationMinutes ?? null;
+    if ((start !== null) !== (end !== null) && duration === null) {
+      return NextResponse.json({ error: "Bitte Start und Ende oder Start und Dauer eines Trainings mitsenden." }, { status: 400 });
+    }
+    if (start !== null && start > latestAllowedStart) {
+      return NextResponse.json({ error: "Ein Training darf nicht in der Zukunft beginnen." }, { status: 400 });
+    }
+    if (end !== null && end > latestAllowedStart) {
+      return NextResponse.json({ error: "Ein Training darf nicht in der Zukunft enden." }, { status: 400 });
+    }
+    if (start !== null && end !== null && (end - start < 60_000 || end - start > 24 * 60 * 60 * 1000)) {
+      return NextResponse.json({ error: "Ein Training muss zwischen 1 Minute und 24 Stunden dauern." }, { status: 400 });
+    }
+  }
+
+  if (parsed.data.dryRun) {
+    return NextResponse.json({
+      ok: true,
+      validToken: true,
+      received: rawList.length,
+      message: rawList.length ? "Sync-Schlüssel gültig. Trainingsdaten wurden nicht gespeichert." : "Sync-Schlüssel gültig. Noch keine Trainingsdaten empfangen."
+    });
+  }
 
   const now = new Date();
   let importedCount = 0;
@@ -97,12 +137,15 @@ export async function POST(request: Request) {
     if (item.startedAt && item.endedAt) {
       startIso = new Date(item.startedAt).toISOString();
       endIso = new Date(item.endedAt).toISOString();
-      if (!durMinutes) {
-        durMinutes = Math.max(1, Math.round((new Date(endIso).getTime() - new Date(startIso).getTime()) / 60000));
-      }
+      const actualMinutes = (new Date(endIso).getTime() - new Date(startIso).getTime()) / 60000;
+      if (actualMinutes < 1 || actualMinutes > 1440) return NextResponse.json({ error: "Ein Training muss zwischen 1 Minute und 24 Stunden dauern." }, { status: 400 });
+      durMinutes = actualMinutes;
     } else if (item.startedAt && durMinutes) {
       startIso = new Date(item.startedAt).toISOString();
       endIso = new Date(new Date(startIso).getTime() + durMinutes * 60000).toISOString();
+    } else if (item.endedAt && durMinutes) {
+      endIso = new Date(item.endedAt).toISOString();
+      startIso = new Date(new Date(endIso).getTime() - durMinutes * 60000).toISOString();
     } else if (durMinutes) {
       const durationMs = durMinutes * 60000;
       endIso = now.toISOString();
@@ -112,20 +155,22 @@ export async function POST(request: Request) {
       continue;
     }
 
-    // Safety check: ensure end time is strictly after start time
-    if (new Date(endIso).getTime() <= new Date(startIso).getTime()) {
-      endIso = new Date(new Date(startIso).getTime() + 60000).toISOString();
-      durMinutes = 1;
+    if (!Number.isFinite(Date.parse(startIso)) || !Number.isFinite(Date.parse(endIso))) {
+      return NextResponse.json({ error: "Ungültige Trainingszeit." }, { status: 400 });
     }
 
     // Deduplication check: check if a session already exists for this profile within 3 minutes of start time
-    const duplicate = await client.execute({
-      sql: `SELECT id FROM training_sessions 
-        WHERE profile_id = ? 
-        AND ABS(strftime('%s', started_at) - strftime('%s', ?)) < 180
-        LIMIT 1`,
-      args: [profileId, startIso]
-    });
+    const duplicate = item.id
+      ? await client.execute({
+          sql: "SELECT id FROM training_sessions WHERE profile_id = ? AND source = 'apple_health' AND external_id = ? LIMIT 1",
+          args: [profileId, item.id]
+        })
+      : await client.execute({
+          sql: `SELECT id FROM training_sessions
+            WHERE profile_id = ? AND ABS(strftime('%s', started_at) - strftime('%s', ?)) < 180
+            LIMIT 1`,
+          args: [profileId, startIso]
+        });
 
     if (duplicate.rows.length > 0) {
       skippedCount++;
@@ -135,35 +180,46 @@ export async function POST(request: Request) {
     const trainingType = inferTrainingType(item.title, item.type);
     const sessionId = randomUUID();
     const segmentId = randomUUID();
-    const points = Math.round(durMinutes * SCORE_MULTIPLIER[trainingType]);
+    const points = durMinutes * SCORE_MULTIPLIER[trainingType];
 
-    await client.batch([
-      {
-        sql: `INSERT INTO training_sessions (id, profile_id, started_at, ended_at, status, source, edited)
-          VALUES (?, ?, ?, ?, 'completed', 'apple_health', 0)`,
-        args: [sessionId, profileId, startIso, endIso]
-      },
-      {
-        sql: `INSERT INTO training_segments (id, session_id, type, exercise_id, started_at, ended_at)
-          VALUES (?, ?, ?, NULL, ?, ?)`,
-        args: [segmentId, sessionId, trainingType, startIso, endIso]
-      },
-      {
-        sql: `INSERT INTO audit_log (id, action, profile_id, details)
-          VALUES (?, 'health.apple_sync', ?, ?)`,
-        args: [
-          randomUUID(),
-          profileId,
-          JSON.stringify({
-            title: item.title ?? "Apple Health Training",
-            type: trainingType,
-            durationMinutes: durMinutes,
-            calories: item.calories,
-            points
-          })
-        ]
-      }
-    ], "write");
+    try {
+      await client.batch([
+        {
+          sql: `INSERT INTO training_sessions (id, profile_id, started_at, ended_at, status, source, external_id, edited)
+            VALUES (?, ?, ?, ?, 'completed', 'apple_health', ?, 0)`,
+          args: [sessionId, profileId, startIso, endIso, item.id ?? null]
+        },
+        {
+          sql: `INSERT INTO training_segments (id, session_id, type, exercise_id, started_at, ended_at)
+            VALUES (?, ?, ?, NULL, ?, ?)`,
+          args: [segmentId, sessionId, trainingType, startIso, endIso]
+        },
+        {
+          sql: `INSERT INTO audit_log (id, action, profile_id, details)
+            VALUES (?, 'health.apple_sync', ?, ?)`,
+          args: [
+            randomUUID(),
+            profileId,
+            JSON.stringify({
+              title: item.title ?? "Apple Health Training",
+              type: trainingType,
+              durationMinutes: durMinutes,
+              calories: item.calories,
+              points
+            })
+          ]
+        }
+      ], "write");
+    } catch (error) {
+      if (!item.id) throw error;
+      const concurrentDuplicate = await client.execute({
+        sql: "SELECT id FROM training_sessions WHERE profile_id = ? AND source = 'apple_health' AND external_id = ? LIMIT 1",
+        args: [profileId, item.id]
+      });
+      if (!concurrentDuplicate.rows.length) throw error;
+      skippedCount++;
+      continue;
+    }
 
     importedCount++;
     totalPointsEarned += points;
@@ -194,22 +250,10 @@ export async function POST(request: Request) {
         parsed.data.standGoal ?? 12
       ]
     }).catch(() => { /* ignorieren falls DB-Lock */ });
-  } else if (importedCount > 0) {
-    // Falls Workouts übertragen wurden, automatisch die Ringe für heute fortschreiben
-    await client.execute({
-      sql: `INSERT INTO apple_health_daily (profile_id, date, move_calories, move_goal, exercise_minutes, exercise_goal, stand_hours, stand_goal, updated_at)
-        VALUES (?, ?, ?, 500, ?, 30, 1, 12, CURRENT_TIMESTAMP)
-        ON CONFLICT(profile_id, date) DO UPDATE SET
-          move_calories = move_calories + excluded.move_calories,
-          exercise_minutes = exercise_minutes + excluded.exercise_minutes,
-          stand_hours = MIN(12, stand_hours + 1),
-          updated_at = CURRENT_TIMESTAMP`,
-      args: [profileId, todayStr, totalPointsEarned * 10, Math.round(totalPointsEarned / 2)]
-    }).catch(() => { /* ignorieren */ });
   }
 
   const message = importedCount > 0
-    ? `${importedCount} Einheit(en) synchronisiert (+${totalPointsEarned} Punkte für ${profileName}).`
+    ? `${importedCount} Einheit(en) für ${profileName} synchronisiert.`
     : (parsed.data.moveCalories != null || parsed.data.exerciseMinutes != null)
       ? `Aktivitätsringe für ${profileName} erfolgreich aktualisiert.`
       : skippedCount > 0
@@ -230,9 +274,16 @@ export async function POST(request: Request) {
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const profileId = searchParams.get("profileId");
-  const client = await db();
 
   if (profileId) {
+    const client = await db();
+    const profile = await client.execute({ sql: "SELECT id FROM profiles WHERE id = ?", args: [profileId] });
+    if (!profile.rows[0]) return NextResponse.json({ error: "Profil nicht gefunden." }, { status: 404 });
+    const token = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ?? "";
+    const configured = await client.execute({ sql: "SELECT token_hash FROM apple_health_tokens WHERE profile_id = ?", args: [profileId] });
+    if (!configured.rows[0] || hashToken(token) !== String(configured.rows[0].token_hash)) {
+      return NextResponse.json({ error: "Sync-Schlüssel fehlt oder ist ungültig." }, { status: 401 });
+    }
     const now = new Date();
     const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 
@@ -269,28 +320,24 @@ export async function GET(request: Request) {
     });
   }
 
-  const allStats = await client.execute(
-    "SELECT profile_id, COUNT(*) count FROM training_sessions WHERE source = 'apple_health' GROUP BY profile_id"
-  );
-
   return NextResponse.json({
     status: "ok",
     service: "FitFamily Apple Health Sync API",
     endpoint: "/api/sync/apple-health",
-    supportedMethods: ["POST"],
-    profiles: allStats.rows.map((row) => ({
-      profileId: String(row.profile_id),
-      syncedWorkouts: Number(row.count)
-    }))
+    supportedMethods: ["POST", "GET"]
   });
 }
 
 export async function DELETE(request: Request) {
   const { searchParams } = new URL(request.url);
   const profileId = searchParams.get("profileId");
+  const body = await request.json().catch(() => null) as { pin?: unknown } | null;
 
   if (!profileId) {
     return NextResponse.json({ error: "profileId ist erforderlich." }, { status: 400 });
+  }
+  if (typeof body?.pin !== "string" || !(await verifyAdminPin(body.pin))) {
+    return NextResponse.json({ error: "Zum Löschen ist die Eltern-PIN erforderlich." }, { status: 401 });
   }
 
   const client = await db();
@@ -327,10 +374,15 @@ export async function DELETE(request: Request) {
     sql: "DELETE FROM audit_log WHERE profile_id = ? AND action = 'health.apple_sync'",
     args: [profileId]
   });
+  await client.execute({ sql: "DELETE FROM apple_health_tokens WHERE profile_id = ?", args: [profileId] });
+  await client.execute({
+    sql: "INSERT INTO audit_log (id, action, profile_id, details) VALUES (?, 'health.apple_reset', ?, ?)",
+    args: [randomUUID(), profileId, JSON.stringify({ deletedSessions: sessionIds.length })]
+  });
 
   return NextResponse.json({
     ok: true,
     deletedSessions: sessionIds.length,
-    message: `Apple Health Daten für dieses Profil wurden vollständig zurückgesetzt (${sessionIds.length} Einheit(en) und Aktivitätsringe entfernt).`
+    message: `Apple-Health-Daten und Sync-Schlüssel wurden zurückgesetzt (${sessionIds.length} Einheit(en) und Aktivitätsringe entfernt).`
   });
 }

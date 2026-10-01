@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Activity, Apple, ArrowLeft, CalendarRange, Check, CheckCircle2, Copy, Download, Dumbbell, History, QrCode, RotateCcw, Settings2, Smartphone, Square, XCircle, Zap } from "lucide-react";
+import { Activity, Apple, ArrowLeft, CalendarRange, Check, CheckCircle2, Copy, Dumbbell, History, QrCode, RotateCcw, Settings2, Smartphone, Square, XCircle, Zap } from "lucide-react";
 import {
   AVATAR_IDS,
   FITNESS_STAGES,
@@ -42,6 +42,9 @@ export function ProfileView({
   const [healthModal, setHealthModal] = useState(false);
   const [copiedWebhook, setCopiedWebhook] = useState(false);
   const [testingHealth, setTestingHealth] = useState(false);
+  const [healthSyncToken, setHealthSyncToken] = useState("");
+  const [healthTokenConfigured, setHealthTokenConfigured] = useState(false);
+  const [showHealthSyncToken, setShowHealthSyncToken] = useState(false);
   const [prepCountdown, setPrepCountdown] = useState<{
     type: TrainingType;
     exerciseId?: string | null;
@@ -101,6 +104,14 @@ export function ProfileView({
     }, 1200);
     return () => window.clearInterval(interval);
   }, [handoff?.token, handoffScanned, profile.name]);
+
+  useEffect(() => {
+    if (!healthModal) return;
+    fetch(`/api/sync/apple-health/token?profileId=${encodeURIComponent(profile.id)}`, { cache: "no-store" })
+      .then((response) => response.ok ? response.json() : null)
+      .then((data) => setHealthTokenConfigured(Boolean(data?.configured)))
+      .catch(() => setHealthTokenConfigured(false));
+  }, [healthModal, profile.id]);
 
   const previewProgress = getAvatarProgress(
     editStartingFitness,
@@ -385,10 +396,16 @@ export function ProfileView({
   async function copySamplePayload() {
     const payload = JSON.stringify({
       profileId: profile.id,
-      title: "Lauftraining",
-      type: "endurance",
-      durationMinutes: 30,
-      calories: 250
+      secret: healthSyncToken || "HIER_DEN_SYNC_SCHLUESSEL_EINFUEGEN",
+      workouts: [{
+        id: "apple-health-workout-id",
+        title: "Lauftraining",
+        type: "endurance",
+        startedAt: new Date(Date.now() - 30 * 60000).toISOString(),
+        endedAt: new Date().toISOString(),
+        calories: 250,
+        distanceKm: 5
+      }]
     }, null, 2);
     try {
       await navigator.clipboard.writeText(payload);
@@ -400,38 +417,66 @@ export function ProfileView({
     }
   }
 
+  async function manageHealthToken(action: "create" | "revoke") {
+    const pin = window.prompt("Eltern-PIN eingeben, um den Apple-Health-Sync-Schlüssel " + (action === "create" ? "zu erstellen" : "zu widerrufen") + ":");
+    if (!pin) return;
+    try {
+      const response = await fetch("/api/sync/apple-health/token", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ profileId: profile.id, pin, action })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error ?? "Sync-Schlüssel konnte nicht geändert werden.");
+      if (action === "create" && typeof data.token === "string") {
+        setHealthSyncToken(data.token);
+        setShowHealthSyncToken(true);
+        setHealthTokenConfigured(true);
+        await navigator.clipboard.writeText(data.token).catch(() => undefined);
+        showToast({ type: "success", title: "Sync-Schlüssel erstellt", message: "Der Schlüssel wurde kopiert. Bitte sicher in den Kurzbefehl übernehmen – er wird nur jetzt angezeigt." });
+      } else {
+        setHealthSyncToken("");
+        setShowHealthSyncToken(false);
+        setHealthTokenConfigured(false);
+        showToast({ type: "info", title: "Sync-Schlüssel widerrufen", message: "Apple-Health-Übertragungen dieses Profils sind jetzt gesperrt." });
+      }
+    } catch (error) {
+      showToast({ type: "error", title: "Sync-Schlüssel", message: error instanceof Error ? error.message : "Keine Verbindung zum Dashboard." });
+    }
+  }
+
+  async function copyHealthToken() {
+    try {
+      await navigator.clipboard.writeText(healthSyncToken);
+      showToast({ type: "info", title: "Schlüssel kopiert", message: "Jetzt im Kurzbefehle-Wörterbuch als secret einfügen." });
+    } catch {
+      showToast({ type: "error", title: "Kopieren nicht möglich", message: "Markiere den Schlüssel im Eingabefeld und kopiere ihn manuell." });
+    }
+  }
+
   async function testHealthSync() {
+    if (!healthSyncToken) {
+      showToast({ type: "error", title: "Sync-Schlüssel fehlt", message: "Erstelle zuerst einen Schlüssel und kopiere ihn in deinen Kurzbefehl." });
+      return;
+    }
     setTestingHealth(true);
     try {
-      const currentMove = profile.appleHealthRings?.moveCalories || 0;
-      const currentEx = profile.appleHealthRings?.exerciseMinutes || 0;
-      const currentStand = profile.appleHealthRings?.standHours || 7;
-
       const response = await fetch("/api/sync/apple-health", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           profileId: profile.id,
-          title: "Apple Health Test-Lauf",
-          type: "endurance",
-          durationMinutes: 30,
-          calories: 260,
-          moveCalories: Math.max(380, currentMove + 260),
-          moveGoal: profile.appleHealthRings?.moveGoal || 500,
-          exerciseMinutes: Math.max(30, currentEx + 30),
-          exerciseGoal: profile.appleHealthRings?.exerciseGoal || 30,
-          standHours: Math.min(12, currentStand + 1),
-          standGoal: 12
+          secret: healthSyncToken,
+          dryRun: true
         })
       });
       const data = await response.json();
       if (response.ok) {
         showToast({
           type: "sparkles",
-          title: "Apple Health synchronisiert! 🍎",
-          message: data.message ?? "30 Min. Test-Lauf & Aktivitätsringe erfolgreich aktualisiert."
+          title: "Verbindung erfolgreich",
+          message: data.message ?? "Der Sync-Schlüssel ist gültig. Es wurden keine Trainingsdaten gespeichert."
         });
-        await refresh();
       } else {
         showToast({
           type: "error",
@@ -454,10 +499,14 @@ export function ProfileView({
   const [confirmResetHealth, setConfirmResetHealth] = useState(false);
 
   async function performHealthReset() {
+    const pin = window.prompt("Eltern-PIN eingeben, um die Apple-Health-Daten zu löschen:");
+    if (!pin) return;
     setResettingHealth(true);
     try {
       const response = await fetch(`/api/sync/apple-health?profileId=${encodeURIComponent(profile.id)}`, {
-        method: "DELETE"
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pin })
       });
       const data = await response.json();
       if (response.ok) {
@@ -467,6 +516,8 @@ export function ProfileView({
           message: data.message ?? "Daten wurden erfolgreich entfernt."
         });
         setConfirmResetHealth(false);
+        setHealthSyncToken("");
+        setHealthTokenConfigured(false);
         setProfile((prev) => ({ ...prev, appleHealthRings: null }));
         await refresh();
       } else {
@@ -775,12 +826,12 @@ export function ProfileView({
             </div>
 
             <p className="health-modal-desc">
-              Synchronisiere deine Trainings (Laufen, Radfahren, Krafttraining, etc.) direkt aus Apple Health mit deinem FitFamily Profil. Jeder Lauf und jedes Training schreibt dir automatisch Punkte gut!
+              Übertrage Workouts aus Apple Health mit einem selbst eingerichteten iOS-Kurzbefehl in dieses Profil. Importierte Einheiten zählen nach der FitFamily-Punkteregel. Apple-Aktivitätsringe werden nur übernommen, wenn der Kurzbefehl echte Ringwerte mitsendet.
             </p>
 
             <div style={{ margin: "0 0 16px", padding: "10px 14px", borderRadius: "12px", background: "var(--subtle-bg)", border: "1px solid var(--line)", fontSize: "12px", color: "var(--muted)", display: "flex", alignItems: "center", gap: "10px" }}>
               <span style={{ fontSize: "16px" }}>💡</span>
-              <span><strong>Kompatibel mit Gymondo & Fitness-Apps:</strong> Auch Trainings aus Gymondo, Strava, Garmin oder Nike Training Club werden automatisch übernommen, sobald sie in Apple Health gespeichert sind.</span>
+              <span><strong>Fitness-Apps:</strong> Trainings aus Apps wie Gymondo, Strava, Garmin oder Nike Training Club können übernommen werden, wenn sie in Apple Health gespeichert sind und dein Kurzbefehl diese Trainings abfragt.</span>
             </div>
 
             {profile.appleHealthRings ? (
@@ -798,15 +849,15 @@ export function ProfileView({
             )}
 
             <div className="health-action-row">
-              <button
-                type="button"
-                className="health-secondary-btn"
-                disabled={testingHealth || resettingHealth}
+                <button
+                  type="button"
+                  className="health-secondary-btn"
+                  disabled={testingHealth || resettingHealth || !healthSyncToken}
                 onClick={testHealthSync}
                 style={{ flex: 1 }}
               >
                 <Zap size={18} />
-                <span>{testingHealth ? "Übertrage …" : "Test-Training & Ringe synchronisieren"}</span>
+                <span>{testingHealth ? "Prüfe …" : healthSyncToken ? "Verbindung testen (ohne Daten zu speichern)" : "Schlüssel eingeben zum Testen"}</span>
               </button>
               {confirmResetHealth ? (
                 <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", padding: "10px", borderRadius: "10px", background: "rgba(225, 29, 72, 0.1)", border: "1px solid rgba(225, 29, 72, 0.3)", width: "100%" }}>
@@ -854,16 +905,35 @@ export function ProfileView({
                   <span>Daten zurücksetzen &amp; trennen</span>
                 </button>
               )}
-              <a
-                href={`/api/shortcuts/${profile.id}?download=1`}
-                className="health-ghost-btn"
-                download={`FitFamily_Sync_${profile.name}.shortcut`}
-                title="Rohdatei (.shortcut) herunterladen"
-                style={{ padding: "10px 14px", fontSize: "12px", border: "1px solid var(--line)", borderRadius: "10px", display: "inline-flex", alignItems: "center", gap: "6px", color: "var(--muted)" }}
-              >
-                <Download size={14} />
-                <span>.shortcut Datei</span>
-              </a>
+            </div>
+
+            <div className="health-url-box">
+              <label>Sync-Schlüssel · {healthTokenConfigured ? "eingerichtet" : "noch nicht eingerichtet"}</label>
+              <p style={{ margin: "6px 0 10px", fontSize: "12px", color: "var(--muted)" }}>
+                Der Schlüssel schützt den Webhook dieses Profils. Er wird nur beim Erstellen angezeigt und muss als „secret“ in den Kurzbefehl.
+              </p>
+              <div className="health-url-input-wrap" style={{ marginBottom: "8px" }}>
+                <input
+                  aria-label="Apple-Health-Sync-Schlüssel"
+                  type={showHealthSyncToken ? "text" : "password"}
+                  autoComplete="off"
+                  value={healthSyncToken}
+                  placeholder="Schlüssel aus Kurzbefehle einfügen oder neu erstellen"
+                  onChange={(event) => setHealthSyncToken(event.target.value)}
+                />
+                <button type="button" className="health-copy-btn" disabled={!healthSyncToken} onClick={() => setShowHealthSyncToken((visible) => !visible)}>
+                  {showHealthSyncToken ? "Verbergen" : "Anzeigen"}
+                </button>
+                <button type="button" className="health-copy-btn" disabled={!healthSyncToken} onClick={() => void copyHealthToken()} aria-label="Sync-Schlüssel kopieren">
+                  <Copy size={16} />
+                </button>
+              </div>
+              <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                <button type="button" className="health-copy-btn" onClick={() => void manageHealthToken("create")}>
+                  <Zap size={16} /> {healthTokenConfigured ? "Schlüssel erneuern" : "Sync-Schlüssel erstellen"}
+                </button>
+                {healthTokenConfigured && <button type="button" className="health-ghost-btn" onClick={() => void manageHealthToken("revoke")}>Schlüssel widerrufen</button>}
+              </div>
             </div>
 
             <div className="health-url-box">
@@ -881,27 +951,30 @@ export function ProfileView({
             </div>
 
             <div className="health-steps-card">
-              <h4>Schnell-Einrichtung in der iOS & Mac &bdquo;Kurzbefehle&ldquo;-App (ca. 60 Sek.):</h4>
+              <h4>Einrichtung in Apples Kurzbefehle-App</h4>
               <p style={{ margin: "4px 0 10px", fontSize: "11px", color: "var(--muted)", lineHeight: 1.4 }}>
-                Hinweis: Apple blockiert auf aktuellen Geräten den Import unsignierter .shortcut-Dateien (&bdquo;nicht signiert / ungültiges Profil&ldquo;). Das manuelle Anlegen in der Kurzbefehle-App ist kinderleicht:
+                Wir stellen absichtlich keine .shortcut-Datei bereit: Apple kennzeichnet privat geladene Kurzbefehle als nicht geprüft. Apple erlaubt keine Verifizierung durch diese lokale Webapp. Lege den Kurzbefehl selbst an und prüfe seine Schritte.
               </p>
               <ol style={{ paddingLeft: "20px", display: "grid", gap: "8px", fontSize: "12px" }}>
                 <li>
-                  <strong>Kurzbefehl erstellen:</strong> Öffne auf iPhone oder Mac die App <em>Kurzbefehle</em> und tippe oben auf <strong>+</strong> (Neuer Kurzbefehl).
+                  <strong>Schlüssel einrichten:</strong> Tippe oben auf „Sync-Schlüssel erstellen“, bestätige die Eltern-PIN und füge den angezeigten Schlüssel in den Kurzbefehl ein. Erneuern widerruft den bisherigen Schlüssel.
                 </li>
                 <li>
-                  <strong>Aktion 1 hinzufügen:</strong> Suche nach <em>&bdquo;Trainings suchen&bdquo;</em> (Kategorie Gesundheit/Health) &rarr; Sortieren nach <em>Startdatum (Neueste zuerst)</em>, Begrenzung: <em>1 Training</em>.
+                  <strong>Kurzbefehl erstellen:</strong> Öffne Apples App <em>Kurzbefehle</em> auf dem iPhone, tippe auf <strong>+</strong> und füge die Aktion <em>Trainings suchen</em> (Health) hinzu. Sortiere nach Startdatum, neueste zuerst. Für den ersten Test begrenze auf ein Training.
                 </li>
                 <li>
-                  <strong>Aktion 2 hinzufügen:</strong> Suche nach <em>&bdquo;Inhalte von URL abrufen&bdquo;</em>:
+                  <strong>Für echte Daten:</strong> Füge <em>Wiederhole mit jedem</em> hinzu und darin <em>Wörterbuch</em> mit <code>title</code>, <code>startedAt</code> und <code>endedAt</code>. Nimm Start/Ende aus dem aktuellen Health-Training; falls nötig, formatiere sie zuvor als <code>yyyy-MM-dd&apos;T&apos;HH:mm:ssXXXXX</code>. Wenn verfügbar, ergänze dessen eindeutige ID als <code>id</code>. Für Trainingstypen kannst du optional <code>type</code> mit <code>endurance</code> oder <code>strength</code> mitsenden. Die End-der-Wiederholung-Liste ist die Workouts-Liste.
+                </li>
+                <li>
+                  <strong>Übertragen:</strong> Nach der Wiederholung eine Liste der Wörterbücher erstellen. Danach <em>Inhalte von URL abrufen</em>:
                   <ul style={{ margin: "4px 0 0", paddingLeft: "16px", color: "var(--muted)" }}>
-                    <li><strong>URL:</strong> Oben auf &bdquo;URL Kopieren&ldquo; tippen und einfügen.</li>
+                    <li><strong>URL:</strong> Oben kopieren und einfügen.</li>
                     <li><strong>Methode:</strong> <code>POST</code></li>
-                    <li><strong>Anforderungstext:</strong> <code>JSON</code> mit Feld <code>profileId</code> = <code>{profile.id}</code></li>
+                    <li><strong>Anforderungstext:</strong> <code>JSON</code> mit <code>profileId</code> = <code>{profile.id}</code>, <code>secret</code> = dem eben erzeugten Schlüssel und <code>workouts</code> = der Liste aus der Wiederholung.</li>
                   </ul>
                 </li>
                 <li>
-                  <strong>Automation (optional & empfohlen):</strong> Im Reiter <em>&bdquo;Automation&ldquo;</em> &rarr; <em>&bdquo;Neue Automation&ldquo;</em> &rarr; <em>&bdquo;Apple Watch Training beendet&ldquo;</em> &rarr; diesen Kurzbefehl automatisch ausführen lassen.
+                  <strong>Testen:</strong> Erlaube beim ersten Lauf den Zugriff auf Health-Daten und führe den Kurzbefehl manuell aus. Der Button „Verbindung testen“ prüft nur den Schlüssel und speichert nichts. Eine persönliche Automation kannst du anschließend in Kurzbefehle ergänzen.
                 </li>
               </ol>
 

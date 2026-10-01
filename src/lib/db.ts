@@ -64,6 +64,7 @@ async function createSchema(client: Client) {
       ended_at TEXT,
       status TEXT NOT NULL CHECK(status IN ('active','paused','completed')),
       source TEXT NOT NULL DEFAULT 'touch',
+      external_id TEXT,
       edited INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     )`,
@@ -125,6 +126,11 @@ async function createSchema(client: Client) {
       stand_goal REAL NOT NULL DEFAULT 12,
       updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
       PRIMARY KEY (profile_id, date)
+    )`,
+    `CREATE TABLE IF NOT EXISTS apple_health_tokens (
+      profile_id TEXT PRIMARY KEY REFERENCES profiles(id) ON DELETE CASCADE,
+      token_hash TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     )`
   ];
 
@@ -134,6 +140,13 @@ async function createSchema(client: Client) {
   if (!profileColumns.rows.some((row) => String(row.name) === "starting_fitness")) {
     await client.execute("ALTER TABLE profiles ADD COLUMN starting_fitness INTEGER NOT NULL DEFAULT 3");
   }
+
+  const sessionColumns = await client.execute("PRAGMA table_info(training_sessions)");
+  if (!sessionColumns.rows.some((row) => String(row.name) === "external_id")) {
+    await client.execute("ALTER TABLE training_sessions ADD COLUMN external_id TEXT");
+  }
+  await client.execute(`CREATE UNIQUE INDEX IF NOT EXISTS training_sessions_health_external_id
+    ON training_sessions(profile_id, external_id) WHERE source = 'apple_health' AND external_id IS NOT NULL`);
 
   const equipmentColumns = await client.execute("PRAGMA table_info(equipment_inventory)");
   if (!equipmentColumns.rows.some((row) => String(row.name) === "video_url")) {
