@@ -77,10 +77,12 @@ export async function POST(request: Request) {
 
   const profileName = String(profileExists.rows[0].name);
 
-  // Normalize workouts into a single list
+  // Normalize workouts into a single list - only include actual workouts
   const rawList = Array.isArray(arrayWorkouts) && arrayWorkouts.length > 0
-    ? arrayWorkouts
-    : [singleWorkout];
+    ? arrayWorkouts.filter((w) => Boolean(w.title || w.durationMinutes || w.startedAt))
+    : (singleWorkout.title || singleWorkout.durationMinutes || singleWorkout.startedAt)
+      ? [singleWorkout]
+      : [];
 
   const now = new Date();
   let importedCount = 0;
@@ -106,10 +108,8 @@ export async function POST(request: Request) {
       endIso = now.toISOString();
       startIso = new Date(now.getTime() - durationMs).toISOString();
     } else {
-      // Default to 30 min if no duration or start time given
-      durMinutes = 30;
-      endIso = now.toISOString();
-      startIso = new Date(now.getTime() - 30 * 60000).toISOString();
+      // Wenn weder Dauer noch Startzeit angegeben sind, überspringen
+      continue;
     }
 
     // Safety check: ensure end time is strictly after start time
@@ -282,5 +282,55 @@ export async function GET(request: Request) {
       profileId: String(row.profile_id),
       syncedWorkouts: Number(row.count)
     }))
+  });
+}
+
+export async function DELETE(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const profileId = searchParams.get("profileId");
+
+  if (!profileId) {
+    return NextResponse.json({ error: "profileId ist erforderlich." }, { status: 400 });
+  }
+
+  const client = await db();
+
+  // 1. Finde alle Apple Health Training-Sessions für das Profil
+  const sessions = await client.execute({
+    sql: "SELECT id FROM training_sessions WHERE profile_id = ? AND source = 'apple_health'",
+    args: [profileId]
+  });
+
+  const sessionIds = sessions.rows.map((r) => String(r.id));
+
+  // 2. Lösche zugehörige Segmente & Sessions
+  if (sessionIds.length > 0) {
+    const placeholders = sessionIds.map(() => "?").join(",");
+    await client.execute({
+      sql: `DELETE FROM training_segments WHERE session_id IN (${placeholders})`,
+      args: sessionIds
+    });
+    await client.execute({
+      sql: `DELETE FROM training_sessions WHERE id IN (${placeholders})`,
+      args: sessionIds
+    });
+  }
+
+  // 3. Lösche Aktivitätsringe für dieses Profil
+  await client.execute({
+    sql: "DELETE FROM apple_health_daily WHERE profile_id = ?",
+    args: [profileId]
+  });
+
+  // 4. Audit-Log bereinigen
+  await client.execute({
+    sql: "DELETE FROM audit_log WHERE profile_id = ? AND action = 'health.apple_sync'",
+    args: [profileId]
+  });
+
+  return NextResponse.json({
+    ok: true,
+    deletedSessions: sessionIds.length,
+    message: `Apple Health Daten für dieses Profil wurden vollständig zurückgesetzt (${sessionIds.length} Einheit(en) und Aktivitätsringe entfernt).`
   });
 }

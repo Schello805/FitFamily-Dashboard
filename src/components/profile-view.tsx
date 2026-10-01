@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Activity, Apple, ArrowLeft, CalendarRange, Check, CheckCircle2, Copy, Download, Dumbbell, History, QrCode, Settings2, Smartphone, Square, XCircle, Zap } from "lucide-react";
+import { Activity, Apple, ArrowLeft, CalendarRange, Check, CheckCircle2, Copy, Download, Dumbbell, History, QrCode, RotateCcw, Settings2, Smartphone, Square, XCircle, Zap } from "lucide-react";
 import {
   AVATAR_IDS,
   FITNESS_STAGES,
@@ -409,6 +409,43 @@ export function ProfileView({
     }
   }
 
+  const [resettingHealth, setResettingHealth] = useState(false);
+
+  async function resetHealthSync() {
+    if (!window.confirm(`Möchtest du wirklich alle über Apple Health synchronisierten Daten (Workouts & Aktivitätsringe) für ${profile.name} zurücksetzen?`)) {
+      return;
+    }
+    setResettingHealth(true);
+    try {
+      const response = await fetch(`/api/sync/apple-health?profileId=${encodeURIComponent(profile.id)}`, {
+        method: "DELETE"
+      });
+      const data = await response.json();
+      if (response.ok) {
+        showToast({
+          type: "success",
+          title: "Apple Health zurückgesetzt",
+          message: data.message ?? "Daten wurden erfolgreich entfernt."
+        });
+        await refresh();
+      } else {
+        showToast({
+          type: "error",
+          title: "Fehler beim Zurücksetzen",
+          message: data.error ?? "Vorgang fehlgeschlagen."
+        });
+      }
+    } catch {
+      showToast({
+        type: "error",
+        title: "Verbindungsfehler",
+        message: "Konnte nicht mit dem Server kommunizieren."
+      });
+    } finally {
+      setResettingHealth(false);
+    }
+  }
+
   function openProfileEditor() {
     setProfileNotice("");
     setEditAvatar(
@@ -641,12 +678,35 @@ export function ProfileView({
               <button
                 type="button"
                 className="health-secondary-btn"
-                disabled={testingHealth}
+                disabled={testingHealth || resettingHealth}
                 onClick={testHealthSync}
                 style={{ flex: 1 }}
               >
                 <Zap size={18} />
                 <span>{testingHealth ? "Übertrage …" : "Test-Training & Ringe synchronisieren"}</span>
+              </button>
+              <button
+                type="button"
+                className="health-ghost-btn"
+                disabled={testingHealth || resettingHealth}
+                onClick={resetHealthSync}
+                title="Synchronisierte Apple Health Daten für dieses Profil löschen"
+                style={{
+                  padding: "10px 14px",
+                  fontSize: "12px",
+                  fontWeight: 650,
+                  border: "1px solid rgba(225, 29, 72, 0.4)",
+                  borderRadius: "10px",
+                  background: "rgba(225, 29, 72, 0.08)",
+                  color: "var(--danger)",
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px"
+                }}
+              >
+                <RotateCcw size={14} />
+                <span>{resettingHealth ? "Lösche …" : "Daten zurücksetzen"}</span>
               </button>
               <a
                 href={`/api/shortcuts/${profile.id}?download=1`}
