@@ -41,7 +41,14 @@ const bodySchema = z.object({
   endedAt: z.string().optional().nullable(),
   durationMinutes: z.number().positive().optional().nullable(),
   calories: z.number().optional().nullable(),
-  distanceKm: z.number().optional().nullable()
+  distanceKm: z.number().optional().nullable(),
+  // Activity Rings fields
+  moveCalories: z.number().optional().nullable(),
+  moveGoal: z.number().optional().nullable(),
+  exerciseMinutes: z.number().optional().nullable(),
+  exerciseGoal: z.number().optional().nullable(),
+  standHours: z.number().optional().nullable(),
+  standGoal: z.number().optional().nullable()
 });
 
 export async function POST(request: Request) {
@@ -162,11 +169,52 @@ export async function POST(request: Request) {
     totalPointsEarned += points;
   }
 
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+
+  if (parsed.data.moveCalories != null || parsed.data.exerciseMinutes != null || parsed.data.standHours != null) {
+    await client.execute({
+      sql: `INSERT INTO apple_health_daily (profile_id, date, move_calories, move_goal, exercise_minutes, exercise_goal, stand_hours, stand_goal, updated_at)
+        VALUES (?, ?, ?, COALESCE(?, 500), ?, COALESCE(?, 30), ?, COALESCE(?, 12), CURRENT_TIMESTAMP)
+        ON CONFLICT(profile_id, date) DO UPDATE SET
+          move_calories = excluded.move_calories,
+          move_goal = excluded.move_goal,
+          exercise_minutes = excluded.exercise_minutes,
+          exercise_goal = excluded.exercise_goal,
+          stand_hours = excluded.stand_hours,
+          stand_goal = excluded.stand_goal,
+          updated_at = CURRENT_TIMESTAMP`,
+      args: [
+        profileId,
+        todayStr,
+        parsed.data.moveCalories ?? 0,
+        parsed.data.moveGoal ?? 500,
+        parsed.data.exerciseMinutes ?? 0,
+        parsed.data.exerciseGoal ?? 30,
+        parsed.data.standHours ?? 0,
+        parsed.data.standGoal ?? 12
+      ]
+    }).catch(() => { /* ignorieren falls DB-Lock */ });
+  } else if (importedCount > 0) {
+    // Falls Workouts übertragen wurden, automatisch die Ringe für heute fortschreiben
+    await client.execute({
+      sql: `INSERT INTO apple_health_daily (profile_id, date, move_calories, move_goal, exercise_minutes, exercise_goal, stand_hours, stand_goal, updated_at)
+        VALUES (?, ?, ?, 500, ?, 30, 1, 12, CURRENT_TIMESTAMP)
+        ON CONFLICT(profile_id, date) DO UPDATE SET
+          move_calories = move_calories + excluded.move_calories,
+          exercise_minutes = exercise_minutes + excluded.exercise_minutes,
+          stand_hours = MIN(12, stand_hours + 1),
+          updated_at = CURRENT_TIMESTAMP`,
+      args: [profileId, todayStr, totalPointsEarned * 10, Math.round(totalPointsEarned / 2)]
+    }).catch(() => { /* ignorieren */ });
+  }
+
   const message = importedCount > 0
     ? `${importedCount} Einheit(en) synchronisiert (+${totalPointsEarned} Punkte für ${profileName}).`
-    : skippedCount > 0
-      ? "Keine neuen Einheiten (bereits vorhanden)."
-      : "Keine Daten übertragen.";
+    : (parsed.data.moveCalories != null || parsed.data.exerciseMinutes != null)
+      ? `Aktivitätsringe für ${profileName} erfolgreich aktualisiert.`
+      : skippedCount > 0
+        ? "Keine neuen Einheiten (bereits vorhanden)."
+        : "Keine Daten übertragen.";
 
   return NextResponse.json({
     ok: true,
@@ -185,16 +233,38 @@ export async function GET(request: Request) {
   const client = await db();
 
   if (profileId) {
-    const stats = await client.execute({
-      sql: `SELECT COUNT(*) total_synced, MAX(started_at) last_sync
-        FROM training_sessions 
-        WHERE profile_id = ? AND source = 'apple_health'`,
-      args: [profileId]
-    });
+    const now = new Date();
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+
+    const [stats, ringRow] = await Promise.all([
+      client.execute({
+        sql: `SELECT COUNT(*) total_synced, MAX(started_at) last_sync
+          FROM training_sessions 
+          WHERE profile_id = ? AND source = 'apple_health'`,
+        args: [profileId]
+      }),
+      client.execute({
+        sql: `SELECT move_calories, move_goal, exercise_minutes, exercise_goal, stand_hours, stand_goal, updated_at
+          FROM apple_health_daily WHERE profile_id = ? AND date = ? LIMIT 1`,
+        args: [profileId, todayStr]
+      }).catch(() => ({ rows: [] }))
+    ]);
+
+    const ring = ringRow.rows[0];
+
     return NextResponse.json({
       profileId,
       totalSynced: Number(stats.rows[0]?.total_synced ?? 0),
       lastSync: stats.rows[0]?.last_sync ? String(stats.rows[0].last_sync) : null,
+      rings: ring ? {
+        moveCalories: Number(ring.move_calories),
+        moveGoal: Number(ring.move_goal),
+        exerciseMinutes: Number(ring.exercise_minutes),
+        exerciseGoal: Number(ring.exercise_goal),
+        standHours: Number(ring.stand_hours),
+        standGoal: Number(ring.stand_goal),
+        updatedAt: String(ring.updated_at)
+      } : null,
       status: "ready"
     });
   }

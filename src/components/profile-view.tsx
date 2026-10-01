@@ -20,6 +20,7 @@ import { AvatarPicker } from "@/components/avatar-picker";
 import { Avatar } from "@/components/avatar";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { showToast } from "@/components/toast";
+import { AppleActivityRings } from "@/components/apple-activity-rings";
 
 type Exercise = { id: string; name: string; type: string; equipment: string };
 
@@ -351,6 +352,10 @@ export function ProfileView({
   async function testHealthSync() {
     setTestingHealth(true);
     try {
+      const currentMove = profile.appleHealthRings?.moveCalories || 0;
+      const currentEx = profile.appleHealthRings?.exerciseMinutes || 0;
+      const currentStand = profile.appleHealthRings?.standHours || 7;
+
       const response = await fetch("/api/sync/apple-health", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -359,7 +364,13 @@ export function ProfileView({
           title: "Apple Health Test-Lauf",
           type: "endurance",
           durationMinutes: 30,
-          calories: 260
+          calories: 260,
+          moveCalories: Math.max(380, currentMove + 260),
+          moveGoal: profile.appleHealthRings?.moveGoal || 500,
+          exerciseMinutes: Math.max(30, currentEx + 30),
+          exerciseGoal: profile.appleHealthRings?.exerciseGoal || 30,
+          standHours: Math.min(12, currentStand + 1),
+          standGoal: 12
         })
       });
       const data = await response.json();
@@ -367,7 +378,7 @@ export function ProfileView({
         showToast({
           type: "sparkles",
           title: "Apple Health synchronisiert! 🍎",
-          message: data.message ?? "30 Min. Test-Lauf erfolgreich gutgeschrieben."
+          message: data.message ?? "30 Min. Test-Lauf & Aktivitätsringe erfolgreich aktualisiert."
         });
         await refresh();
       } else {
@@ -481,13 +492,21 @@ export function ProfileView({
             </div>
           </div>
         </div>
-        {profile.activeTraining && (
-          <div className="running-clock">
-            <span>{profile.activeTraining.exerciseName ?? (activeType === "strength" ? "Krafttraining" : "Ausdauertraining")}</span>
-            <strong><LiveDuration since={profile.activeTraining.segmentStartedAt} /></strong>
-            {longRunning && <em>Bitte prüfen: Läuft dieses Training noch?</em>}
-          </div>
-        )}
+        <div className="profile-hero-right">
+          {profile.activeTraining && (
+            <div className="running-clock">
+              <span>{profile.activeTraining.exerciseName ?? (activeType === "strength" ? "Krafttraining" : "Ausdauertraining")}</span>
+              <strong><LiveDuration since={profile.activeTraining.segmentStartedAt} /></strong>
+              {longRunning && <em>Bitte prüfen: Läuft dieses Training noch?</em>}
+            </div>
+          )}
+          {profile.appleHealthRings && (
+            <AppleActivityRings
+              rings={profile.appleHealthRings}
+              onOpenSync={() => setHealthModal(true)}
+            />
+          )}
+        </div>
       </section>
 
       <section className="training-actions">
@@ -584,6 +603,15 @@ export function ProfileView({
               <span><strong>Kompatibel mit Gymondo & Fitness-Apps:</strong> Auch Trainings aus Gymondo, Strava, Garmin oder Nike Training Club werden automatisch übernommen, sobald sie in Apple Health gespeichert sind.</span>
             </div>
 
+            {profile.appleHealthRings && (
+              <div style={{ marginBottom: "16px" }}>
+                <AppleActivityRings
+                  rings={profile.appleHealthRings}
+                  compact
+                />
+              </div>
+            )}
+
             <div className="health-action-row">
               <button
                 type="button"
@@ -593,7 +621,7 @@ export function ProfileView({
                 style={{ flex: 1 }}
               >
                 <Zap size={18} />
-                <span>{testingHealth ? "Übertrage …" : "Test-Lauf übertragen (30 Min.)"}</span>
+                <span>{testingHealth ? "Übertrage …" : "Test-Training & Ringe synchronisieren"}</span>
               </button>
               <a
                 href={`/api/shortcuts/${profile.id}?download=1`}

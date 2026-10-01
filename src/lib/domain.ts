@@ -58,6 +58,16 @@ export type ActiveTraining = {
   segmentStartedAt: string;
 };
 
+export type AppleHealthRings = {
+  moveCalories: number;
+  moveGoal: number;
+  exerciseMinutes: number;
+  exerciseGoal: number;
+  standHours: number;
+  standGoal: number;
+  lastSyncedAt?: string | null;
+};
+
 export type DashboardProfile = Profile & {
   strengthMinutes: number;
   enduranceMinutes: number;
@@ -73,6 +83,7 @@ export type DashboardProfile = Profile & {
   targetPeriod: "Tag" | "Woche";
   nextTraining: string | null;
   activeTraining: ActiveTraining | null;
+  appleHealthRings: AppleHealthRings;
 };
 
 export function movementTargetForAge(age: number) {

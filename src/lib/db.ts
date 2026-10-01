@@ -113,6 +113,18 @@ async function createSchema(client: Client) {
       profile_id TEXT,
       details TEXT,
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`,
+    `CREATE TABLE IF NOT EXISTS apple_health_daily (
+      profile_id TEXT NOT NULL REFERENCES profiles(id),
+      date TEXT NOT NULL,
+      move_calories REAL NOT NULL DEFAULT 0,
+      move_goal REAL NOT NULL DEFAULT 500,
+      exercise_minutes REAL NOT NULL DEFAULT 0,
+      exercise_goal REAL NOT NULL DEFAULT 30,
+      stand_hours REAL NOT NULL DEFAULT 0,
+      stand_goal REAL NOT NULL DEFAULT 12,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (profile_id, date)
     )`
   ];
 
