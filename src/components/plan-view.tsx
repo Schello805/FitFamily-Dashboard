@@ -30,35 +30,59 @@ export function PlanView({ profile, goals }: { profile: DashboardProfile; goals:
 
   async function create(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault(); setBusy(true); setNotice(""); const form = new FormData(event.currentTarget);
-    const response = await fetch("/api/plans", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
-      profileId: profile.id, goal: form.get("goal"), level: form.get("level"), sessionsPerWeek: Number(form.get("sessions")), minutesPerSession: Number(form.get("minutes")), targetDate: form.get("targetDate") || null, provider: form.get("provider")
-    }) });
-    const result = await response.json(); setBusy(false);
-    if (!response.ok) return setNotice(result.error ?? "Plan konnte nicht erstellt werden");
-    const selectedProvider = form.get("provider");
-    const msg = result.provider === "local"
-      ? (selectedProvider !== "local" ? "Plan als lokale Vorlage erstellt (Kein aktiver KI-Schlüssel hinterlegt)." : "Plan erstellt (lokale Vorlage).")
-      : `Plan mit ${result.provider === "openai" ? "OpenAI" : "Gemini"} erstellt.`;
-    setNotice(msg);
-    showToast({
-      type: "sparkles",
-      title: "Neuer Trainingsplan bereit",
-      message: msg
-    });
-    setCreating(false); load();
+    try {
+      const response = await fetch("/api/plans", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
+        profileId: profile.id, goal: form.get("goal"), level: form.get("level"), sessionsPerWeek: Number(form.get("sessions")), minutesPerSession: Number(form.get("minutes")), targetDate: form.get("targetDate") || null, provider: form.get("provider")
+      }) });
+      const result = await response.json();
+      if (!response.ok) {
+        const err = result.error ?? "Plan konnte nicht erstellt werden.";
+        setNotice(err);
+        showToast({ type: "error", title: "Fehler beim Erstellen", message: err });
+        return;
+      }
+      const selectedProvider = form.get("provider");
+      const msg = result.provider === "local"
+        ? (selectedProvider !== "local" ? "Plan als lokale Vorlage erstellt (Kein aktiver KI-Schlüssel hinterlegt)." : "Plan erstellt (lokale Vorlage).")
+        : `Plan mit ${result.provider === "openai" ? "OpenAI" : "Gemini"} erstellt.`;
+      setNotice(msg);
+      showToast({
+        type: "sparkles",
+        title: "Neuer Trainingsplan bereit",
+        message: msg
+      });
+      setCreating(false);
+      await load();
+    } catch {
+      const err = "Verbindungsfehler beim Erstellen des Plans.";
+      setNotice(err);
+      showToast({ type: "error", title: "Verbindungsfehler", message: err });
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function importJson(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.currentTarget.files?.[0];
     if (!file) return;
     event.currentTarget.value = "";
-    if (file.size > 512 * 1024) return setNotice("Die Plan-Datei darf höchstens 512 KB groß sein.");
+    if (file.size > 512 * 1024) {
+      const err = "Die Plan-Datei darf höchstens 512 KB groß sein.";
+      setNotice(err);
+      showToast({ type: "error", title: "Datei zu groß", message: err });
+      return;
+    }
     setBusy(true); setNotice("");
     try {
       const plan = JSON.parse(await file.text());
       const response = await fetch("/api/plans", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "import", profileId: profile.id, plan }) });
       const result = await response.json();
-      if (!response.ok) return setNotice(result.error ?? "Der Trainingsplan konnte nicht importiert werden.");
+      if (!response.ok) {
+        const err = result.error ?? "Der Trainingsplan konnte nicht importiert werden.";
+        setNotice(err);
+        showToast({ type: "error", title: "Import fehlgeschlagen", message: err });
+        return;
+      }
       setNotice("Trainingsplan importiert. Der vorherige aktive Plan wurde archiviert.");
       showToast({
         type: "success",
@@ -67,7 +91,9 @@ export function PlanView({ profile, goals }: { profile: DashboardProfile; goals:
       });
       await load();
     } catch {
-      setNotice("Die Datei enthält kein gültiges JSON. Nutze am besten die FitFamily-Vorlage.");
+      const err = "Die Datei enthält kein gültiges JSON. Nutze am besten die FitFamily-Vorlage.";
+      setNotice(err);
+      showToast({ type: "error", title: "Ungültiges Format", message: err });
     } finally {
       setBusy(false);
     }

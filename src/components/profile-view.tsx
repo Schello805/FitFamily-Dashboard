@@ -201,35 +201,50 @@ export function ProfileView({
 
   async function action(type?: TrainingType, exerciseId?: string) {
     setBusy(true);
-    const response = await fetch("/api/training", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(type
-        ? { action: "start", profileId: profile.id, type, exerciseId: exerciseId ?? null, source: isMobile ? "mobile" : "touch" }
-        : { action: "stop", profileId: profile.id })
-    });
-    if (response.ok) {
-      playTone(type ? (type === "strength" ? 520 : 660) : 360);
-      if (type === "strength") {
-        const ex = exerciseId ? exercises.find((e) => e.id === exerciseId) : null;
-        showToast({
-          type: "success",
-          title: "💪 Krafttraining gestartet",
-          message: ex ? `Übung: ${ex.name} (+1 Punkt/Minute)` : "Trainingszeit läuft (+1 Punkt je Minute)."
-        });
-      } else if (type === "endurance") {
-        showToast({
-          type: "success",
-          title: "🏃 Ausdauertraining gestartet",
-          message: "Trainingszeit läuft (+2 Punkte je Minute)."
-        });
+    try {
+      const response = await fetch("/api/training", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(type
+          ? { action: "start", profileId: profile.id, type, exerciseId: exerciseId ?? null, source: isMobile ? "mobile" : "touch" }
+          : { action: "stop", profileId: profile.id })
+      });
+      if (response.ok) {
+        playTone(type ? (type === "strength" ? 520 : 660) : 360);
+        if (type === "strength") {
+          const ex = exerciseId ? exercises.find((e) => e.id === exerciseId) : null;
+          showToast({
+            type: "success",
+            title: "💪 Krafttraining gestartet",
+            message: ex ? `Übung: ${ex.name} (+1 Punkt/Minute)` : "Trainingszeit läuft (+1 Punkt je Minute)."
+          });
+        } else if (type === "endurance") {
+          showToast({
+            type: "success",
+            title: "🏃 Ausdauertraining gestartet",
+            message: "Trainingszeit läuft (+2 Punkte je Minute)."
+          });
+        } else {
+          showToast({
+            type: "info",
+            title: "✓ Training beendet & gespeichert",
+            message: "Klasse Einsatz! Punkte und Trainingszeit wurden gutgeschrieben."
+          });
+        }
       } else {
+        const errData = await response.json().catch(() => null);
         showToast({
-          type: "info",
-          title: "✓ Training beendet & gespeichert",
-          message: "Klasse Einsatz! Punkte und Trainingszeit wurden gutgeschrieben."
+          type: "error",
+          title: "Fehler",
+          message: errData?.error ?? "Training konnte nicht aktualisiert werden."
         });
       }
+    } catch {
+      showToast({
+        type: "error",
+        title: "Verbindungsfehler",
+        message: "Server konnte nicht erreicht werden."
+      });
     }
     await refresh();
     setBusy(false);
@@ -306,7 +321,12 @@ export function ProfileView({
         })
       });
       const result = await response.json();
-      if (!response.ok) return setProfileNotice(result.error ?? "Profil konnte nicht gespeichert werden.");
+      if (!response.ok) {
+        const err = result.error ?? "Profil konnte nicht gespeichert werden.";
+        setProfileNotice(err);
+        showToast({ type: "error", title: "Fehler beim Speichern", message: err });
+        return;
+      }
       setEditingProfile(false);
       showToast({
         type: "success",
@@ -315,7 +335,9 @@ export function ProfileView({
       });
       await refresh();
     } catch {
-      setProfileNotice("Keine Verbindung. Bitte prüfe das Heimnetz und versuche es erneut.");
+      const err = "Keine Verbindung. Bitte prüfe das Heimnetz und versuche es erneut.";
+      setProfileNotice(err);
+      showToast({ type: "error", title: "Verbindungsfehler", message: err });
     } finally {
       setBusy(false);
     }

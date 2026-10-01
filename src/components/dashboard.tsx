@@ -230,16 +230,32 @@ export function Dashboard({
     event.preventDefault();
     event.stopPropagation();
     const prof = profiles.find((p) => p.id === profileId);
-    await fetch("/api/training", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "stop", profileId })
-    });
-    showToast({
-      type: "info",
-      title: "Training beendet & gespeichert",
-      message: prof ? `Das Training für ${prof.name} wurde gestoppt.` : "Training wurde gestoppt."
-    });
+    try {
+      const response = await fetch("/api/training", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "stop", profileId })
+      });
+      if (response.ok) {
+        showToast({
+          type: "info",
+          title: "Training beendet & gespeichert",
+          message: prof ? `Das Training für ${prof.name} wurde gestoppt.` : "Training wurde gestoppt."
+        });
+      } else {
+        showToast({
+          type: "error",
+          title: "Fehler beim Beenden",
+          message: "Das Training konnte nicht gestoppt werden."
+        });
+      }
+    } catch {
+      showToast({
+        type: "error",
+        title: "Verbindungsfehler",
+        message: "Server konnte nicht erreicht werden."
+      });
+    }
     await refresh();
   }
 

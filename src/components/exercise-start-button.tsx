@@ -43,9 +43,20 @@ export function ExerciseStartButton({
         });
         router.push(`/profil/${profileId}`);
       } else {
+        const data = await response.json().catch(() => null);
+        showToast({
+          type: "error",
+          title: "Start fehlgeschlagen",
+          message: data?.error ?? "Das Training konnte nicht gestartet werden."
+        });
         router.push(`/profil/${profileId}`);
       }
     } catch {
+      showToast({
+        type: "error",
+        title: "Verbindungsfehler",
+        message: "Das Dashboard konnte nicht erreicht werden."
+      });
       router.push(`/profil/${profileId}`);
     } finally {
       setStarting(false);

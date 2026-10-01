@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useSyncExternalStore } from "react";
-import { ArrowLeft, Bot, CheckCircle2, Database, Download, HardDrive, Lock, Monitor, Moon, Plus, RefreshCw, RotateCcw, ShieldCheck, Sparkles, Sun } from "lucide-react";
+import { ArrowLeft, AlertTriangle, Bot, CheckCircle2, Database, Download, HardDrive, Lock, Monitor, Moon, Plus, RefreshCw, RotateCcw, ShieldCheck, Sparkles, Sun } from "lucide-react";
 import { TouchPinpad } from "@/components/touch-pinpad";
 import { showToast } from "@/components/toast";
 import { applyTheme, getStoredThemeSetting, subscribeTheme, type ThemeSetting } from "@/lib/theme";
@@ -26,6 +26,16 @@ type BackupStatus = {
   lastBackup: BackupInfo | null;
 };
 
+type ConfirmModalConfig = {
+  title: string;
+  badge?: string;
+  description: string;
+  icon: "update" | "backup" | "reset" | "key";
+  confirmLabel: string;
+  confirmVariant?: "primary" | "danger" | "brand";
+  action: () => Promise<void> | void;
+};
+
 export function AdminView({ profiles, exercises, equipment }: { profiles: { id: string; name: string; score: number }[]; exercises: ExerciseMedia[]; equipment: EquipmentItem[] }) {
   const router = useRouter();
   const [pin, setPin] = useState("");
@@ -33,6 +43,7 @@ export function AdminView({ profiles, exercises, equipment }: { profiles: { id: 
   const [status, setStatus] = useState<Status | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [confirmModal, setConfirmModal] = useState<ConfirmModalConfig | null>(null);
   const [videoUrls, setVideoUrls] = useState<Record<string, string>>(() => Object.fromEntries(exercises.map((exercise) => [exercise.id, exercise.videoUrl ?? ""])));
   const [savingVideo, setSavingVideo] = useState<string | null>(null);
   const [equipmentItems, setEquipmentItems] = useState(equipment);
@@ -110,8 +121,19 @@ export function AdminView({ profiles, exercises, equipment }: { profiles: { id: 
     }
   }
 
-  async function applyUpdate() {
-    if (!window.confirm("Jetzt das Update einspielen? Ein Sicherheits-Backup der Datenbank wird automatisch erstellt, der neueste Stand wird geladen, gebaut und das Dashboard neu gestartet.")) return;
+  function requestApplyUpdate() {
+    setConfirmModal({
+      title: "1-Click Update einspielen?",
+      badge: updateInfo?.latestCommit ? `Rev. ${updateInfo.latestCommit}` : "Systemupdate",
+      description: "Ein automatisches Sicherheits-Backup der Datenbank wird erstellt. Die neueste Version wird von GitHub geladen, gebaut und das Dashboard wird neu gestartet.",
+      icon: "update",
+      confirmLabel: "Update jetzt einspielen",
+      confirmVariant: "brand",
+      action: () => executeApplyUpdate()
+    });
+  }
+
+  async function executeApplyUpdate() {
     setRunningUpdate(true);
     setNotice("Update wird ausgeführt: Neueste Version wird geladen und neu gebaut. Bitte kurz warten …");
     try {
@@ -324,8 +346,19 @@ export function AdminView({ profiles, exercises, equipment }: { profiles: { id: 
     }
   }
 
-  async function runNasBackupNow() {
-    if (!window.confirm("Jetzt sofort ein verschlüsseltes Backup der SQLite-Datenbank auf das NAS schreiben?")) return;
+  function requestNasBackup() {
+    setConfirmModal({
+      title: "Datenbank-Backup erstellen?",
+      badge: "Verschlüsselt",
+      description: `Möchtest du jetzt sofort ein verschlüsseltes Backup der SQLite-Datenbank auf das NAS (${nasPathInput || "Standardpfad"}) schreiben?`,
+      icon: "backup",
+      confirmLabel: "Backup jetzt starten",
+      confirmVariant: "primary",
+      action: () => executeNasBackup()
+    });
+  }
+
+  async function executeNasBackup() {
     setRunningBackup(true);
     setNotice("Sicherung wird erstellt und verschlüsselt auf das NAS übertragen …");
     showToast({ type: "info", title: "Backup läuft …", message: "Verschlüsseltes Backup wird übertragen." });
@@ -397,6 +430,18 @@ export function AdminView({ profiles, exercises, equipment }: { profiles: { id: 
     }
   }
 
+  function requestRemoveApiKey(provider: "openai" | "gemini") {
+    setConfirmModal({
+      title: `${provider === "openai" ? "OpenAI" : "Google Gemini"} Schlüssel löschen?`,
+      badge: "KI-Einstellung",
+      description: "Der gespeicherte API-Schlüssel wird vom Server entfernt. Künftige Trainingspläne werden dann lokal ohne externe KI generiert.",
+      icon: "key",
+      confirmLabel: "Schlüssel entfernen",
+      confirmVariant: "danger",
+      action: () => manageApiKey(provider, "remove")
+    });
+  }
+
   async function download() {
     const response = await fetch("/api/export", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pin }) });
     if (!response.ok) {
@@ -410,8 +455,20 @@ export function AdminView({ profiles, exercises, equipment }: { profiles: { id: 
     showToast({ type: "success", title: "Export erfolgreich", message: "fitfamily.json wurde heruntergeladen." });
   }
 
-  async function reset(profileId: string) {
-    if (!window.confirm("Nur den sichtbaren Score auf 0 setzen? Der Verlauf bleibt erhalten.")) return;
+  function requestResetScore(profileId: string) {
+    const prof = profiles.find((p) => p.id === profileId);
+    setConfirmModal({
+      title: `Score von ${prof?.name ?? "Profil"} auf 0 setzen?`,
+      badge: "Verlauf bleibt erhalten",
+      description: "Nur der sichtbare Punktestand wird auf 0 zurückgesetzt. Alle bisherigen Trainings, Zeiten und Statistiken im Verlauf bleiben vollständig erhalten.",
+      icon: "reset",
+      confirmLabel: "Score auf 0 setzen",
+      confirmVariant: "danger",
+      action: () => executeResetScore(profileId)
+    });
+  }
+
+  async function executeResetScore(profileId: string) {
     const response = await fetch("/api/admin/reset-score", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pin, profileId }) });
     if (response.ok) {
       setNotice("Score wurde zurückgesetzt. Der Verlauf blieb erhalten.");
@@ -772,7 +829,7 @@ export function AdminView({ profiles, exercises, equipment }: { profiles: { id: 
         <div className="update-action-row">
           <button type="button" className="update-secondary-btn" disabled={checkingUpdate || runningUpdate} onClick={() => void checkUpdate()}><RefreshCw className={checkingUpdate ? "spin" : ""} />{checkingUpdate ? "Prüfe …" : "Jetzt prüfen"}</button>
           {updateInfo?.hasUpdate && (
-            <button type="button" className="primary-update-btn" disabled={runningUpdate} onClick={() => void applyUpdate()}>{runningUpdate ? (<><RefreshCw className="spin" />Wird aktualisiert & neu gebaut …</>) : (<><Sparkles />1-Click Update einspielen (Rev. {updateInfo.latestCommit})</>)}</button>
+            <button type="button" className="primary-update-btn" disabled={runningUpdate} onClick={requestApplyUpdate}>{runningUpdate ? (<><RefreshCw className="spin" />Wird aktualisiert & neu gebaut …</>) : (<><Sparkles />1-Click Update einspielen (Rev. {updateInfo.latestCommit})</>)}</button>
           )}
         </div>
         {updateCountdown !== null && (
@@ -787,7 +844,7 @@ export function AdminView({ profiles, exercises, equipment }: { profiles: { id: 
           return <section className="ai-provider" key={provider}>
             <div className="ai-provider-heading"><div><b>{label}</b><small>{status.models[provider]}</small></div><b className={status[provider] ? "ok" : "off"}>{status[provider] ? "Eingerichtet" : "Nicht eingerichtet"}</b></div>
             <label className="api-key-field">API-Schlüssel<input type="password" autoComplete="new-password" placeholder={status[provider] ? "Gespeichert – leer lassen, um ihn beizubehalten" : "Schlüssel hier einfügen"} value={apiKeys[provider]} onChange={(event) => setApiKeys((current) => ({ ...current, [provider]: event.target.value }))} /></label>
-            <div className="api-key-actions"><button disabled={Boolean(savingApi)} onClick={() => manageApiKey(provider, "save")}>Schlüssel speichern</button><button disabled={Boolean(savingApi)} onClick={() => manageApiKey(provider, "test")}>Schlüssel testen</button>{status[provider] && <button className="api-remove" disabled={Boolean(savingApi)} onClick={() => manageApiKey(provider, "remove")}>Entfernen</button>}</div>
+            <div className="api-key-actions"><button disabled={Boolean(savingApi)} onClick={() => manageApiKey(provider, "save")}>Schlüssel speichern</button><button disabled={Boolean(savingApi)} onClick={() => manageApiKey(provider, "test")}>Schlüssel testen</button>{status[provider] && <button className="api-remove" disabled={Boolean(savingApi)} onClick={() => requestRemoveApiKey(provider)}>Entfernen</button>}</div>
             <div className="ai-usage"><b>{usage.estimateUsd.toLocaleString("de-DE", { style: "currency", currency: "USD", minimumFractionDigits: 4, maximumFractionDigits: 4 })}</b><span>geschätzte API-Kosten · {usage.requests} Anfragen · {(usage.inputTokens + usage.outputTokens).toLocaleString("de-DE")} Token</span></div>
           </section>;
         })}
@@ -937,7 +994,7 @@ export function AdminView({ profiles, exercises, equipment }: { profiles: { id: 
             type="button"
             className="primary-update-btn"
             disabled={savingNas || testingNas || runningBackup || !backupStatus?.writable}
-            onClick={() => void runNasBackupNow()}
+            onClick={requestNasBackup}
           >
             <HardDrive className={runningBackup ? "spin" : ""} />
             {runningBackup ? "Backup wird erstellt …" : "Jetzt sichern"}
@@ -974,11 +1031,50 @@ export function AdminView({ profiles, exercises, equipment }: { profiles: { id: 
           Sichert den vollständigen Datenbestand verschlüsselt ab. Alte Stände werden automatisch nach 7 Tagen, 4 Wochen und 12 Monaten rotiert.
         </p>
       </article>
-      <article className="wide"><div className="admin-title"><RotateCcw /><div><h2>Scores zurücksetzen</h2><p>Der vollständige Trainingsverlauf bleibt erhalten.</p></div></div><div className="reset-list">{profiles.map((profile) => <div key={profile.id}><span>{profile.name}<small>{profile.score} Punkte</small></span><button onClick={() => reset(profile.id)}>Auf 0 setzen</button></div>)}</div></article>
+      <article className="wide"><div className="admin-title"><RotateCcw /><div><h2>Scores zurücksetzen</h2><p>Der vollständige Trainingsverlauf bleibt erhalten.</p></div></div><div className="reset-list">{profiles.map((profile) => <div key={profile.id}><span>{profile.name}<small>{profile.score} Punkte</small></span><button onClick={() => requestResetScore(profile.id)}>Auf 0 setzen</button></div>)}</div></article>
       <article className="wide"><div className="admin-title"><HardDrive /><div><h2>Speicherorte</h2><p>Transparenz über vorhandene Daten</p></div></div><p className="data-text">Stammdaten, Training und Pläne: lokale SQLite-Datenbank · Backups: {status.nas ? "verschlüsselt auf NAS" : "noch nicht eingerichtet"} · Wetter: Open-Meteo · KI: nur bei bewusster Planerstellung.</p></article>
       <article className="wide"><div className="admin-title"><Database /><div><h2>Geräte im Sportraum</h2><p>Stückzahl und Verfügbarkeit für Übungsauswahl und neue Trainingspläne</p></div></div><div className="inventory-list">{equipmentItems.map((item) => { const edit = equipmentEdits[item.id] ?? item; return <div className="inventory-row" key={item.id}><label>Gerätename<input value={edit.name} maxLength={60} onChange={(event) => setEquipmentEdits((values) => ({ ...values, [item.id]: { ...edit, name: event.target.value } }))} /></label><label className="quantity-field">Anzahl<input type="number" min={1} max={8} value={edit.quantity} onChange={(event) => setEquipmentEdits((values) => ({ ...values, [item.id]: { ...edit, quantity: Number(event.target.value) } }))} /></label><label className="inventory-toggle"><input type="checkbox" checked={edit.available} onChange={(event) => setEquipmentEdits((values) => ({ ...values, [item.id]: { ...edit, available: event.target.checked } }))} /> Verfügbar</label><button disabled={savingEquipment === item.id} onClick={() => saveEquipment(item.id)}>{savingEquipment === item.id ? "Speichert …" : "Speichern"}</button></div>; })}</div><form className="inventory-add" onSubmit={addEquipment}><label>Weiteres Gerät<input required minLength={2} maxLength={60} placeholder="z. B. Hantelbank" value={newEquipmentName} onChange={(event) => setNewEquipmentName(event.target.value)} /></label><label className="quantity-field">Anzahl<input type="number" min={1} max={8} value={newEquipmentQuantity} onChange={(event) => setNewEquipmentQuantity(Number(event.target.value))} /></label><button><Plus /> Gerät ergänzen</button></form><p className="data-text">Deaktivierte Geräte bleiben im bisherigen Trainingsverlauf erhalten, werden aber künftig nicht zur Auswahl angeboten.</p></article>
       <article className="wide"><div className="admin-title"><CheckCircle2 /><div><h2>Übungsvideos</h2><p>Eigene YouTube-Anleitungen pro Übung hinterlegen; leere Felder zeigen eine YouTube-Suche.</p></div></div><div className="exercise-media-list">{exercises.map((exercise) => <div key={exercise.id}><label><span>{exercise.name}<small>{exercise.equipment}</small></span><input type="url" inputMode="url" placeholder="https://youtube.com/..." value={videoUrls[exercise.id] ?? ""} onChange={(event) => setVideoUrls((values) => ({ ...values, [exercise.id]: event.target.value }))} /></label><button disabled={savingVideo === exercise.id} onClick={() => saveVideo(exercise.id)}>{savingVideo === exercise.id ? "Speichert …" : "Speichern"}</button></div>)}</div></article>
     </section>
+
+      {confirmModal && (
+        <div className="modal-backdrop" onClick={() => setConfirmModal(null)}>
+          <div className="confirm-modal-card" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+            <button type="button" className="modal-close" onClick={() => setConfirmModal(null)} aria-label="Schließen">×</button>
+            <div className="confirm-modal-top">
+              {confirmModal.badge && <span className="setup-badge">{confirmModal.badge}</span>}
+              <div className={`confirm-modal-icon ${confirmModal.confirmVariant ?? "primary"}`}>
+                {confirmModal.icon === "update" && <Sparkles size={28} />}
+                {confirmModal.icon === "backup" && <Database size={28} />}
+                {confirmModal.icon === "reset" && <RotateCcw size={28} />}
+                {confirmModal.icon === "key" && <AlertTriangle size={28} />}
+              </div>
+            </div>
+            <h3>{confirmModal.title}</h3>
+            <p>{confirmModal.description}</p>
+            <div className="confirm-modal-actions">
+              <button
+                type="button"
+                className="confirm-cancel-btn"
+                onClick={() => setConfirmModal(null)}
+              >
+                Abbrechen
+              </button>
+              <button
+                type="button"
+                className={`confirm-submit-btn ${confirmModal.confirmVariant ?? "primary"}`}
+                onClick={async () => {
+                  const act = confirmModal.action;
+                  setConfirmModal(null);
+                  await act();
+                }}
+              >
+                {confirmModal.confirmLabel}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
