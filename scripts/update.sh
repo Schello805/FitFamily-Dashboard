@@ -84,8 +84,8 @@ fi
 
 # Dateirechte vor dem Build korrigieren, damit Next.js nicht an Root-Artefakten scheitert
 chown -R "$APP_USER:$APP_USER" "$APP_DIR"
-mv "$APP_DIR/.next" "$APP_DIR/.next.trash.$TIMESTAMP" 2>/dev/null || true
-rm -rf "$APP_DIR/.next" "$APP_DIR/.next.trash."* 2>/dev/null || true
+# Nur den Build-Cache löschen, aber .next/static erhalten, damit der laufende Dienst während des Builds keine 404-Fehler wirft
+rm -rf "$APP_DIR/.next/cache" 2>/dev/null || true
 
 if id -u "$APP_USER" >/dev/null 2>&1; then
   sudo -u "$APP_USER" npm install --prefer-offline --no-audit --no-fund
