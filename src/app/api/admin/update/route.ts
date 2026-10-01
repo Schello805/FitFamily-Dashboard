@@ -53,6 +53,12 @@ export async function GET(request: Request) {
   const latestCommit = getGitCommit("rev-parse --short origin/main");
   const latestMessage = getGitCommit("log -1 --format=%s origin/main");
   const version = getPackageVersion();
+  let latestVersion = version;
+  try {
+    const remotePkgJson = execSync("git -c safe.directory='*' show origin/main:package.json", { cwd, encoding: "utf-8", timeout: 3000 });
+    const parsed = JSON.parse(remotePkgJson);
+    if (parsed.version) latestVersion = parsed.version;
+  } catch {}
 
   const hasUpdate = Boolean(latestCommit && currentCommit !== "unbekannt" && currentCommit !== latestCommit);
 
@@ -62,7 +68,8 @@ export async function GET(request: Request) {
     latestCommit: latestCommit ?? currentCommit,
     latestMessage: latestMessage ?? "Keine Information verfügbar",
     hasUpdate,
-    version
+    version,
+    latestVersion
   });
 }
 

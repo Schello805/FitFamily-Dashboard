@@ -11,7 +11,7 @@ type AiUsage = { requests: number; inputTokens: number; outputTokens: number; es
 type Status = { openai: boolean; gemini: boolean; nas: boolean; models: { openai: string; gemini: string }; usage: { openai: AiUsage; gemini: AiUsage } };
 type ExerciseMedia = { id: string; name: string; equipment: string; videoUrl: string | null };
 type EquipmentItem = { id: string; name: string; quantity: number; available: boolean };
-type UpdateInfo = { currentCommit: string; latestCommit: string; latestMessage: string; hasUpdate: boolean; version: string };
+type UpdateInfo = { currentCommit: string; latestCommit: string; latestMessage: string; hasUpdate: boolean; version: string; latestVersion?: string };
 type BackupInfo = { name: string; sizeBytes: number; sizeFormatted: string; date: string };
 type BackupStatus = {
   configured: boolean;
@@ -571,16 +571,16 @@ export function AdminView({ profiles, exercises, equipment }: { profiles: { id: 
       <article className="wide update-card">
         <div className="admin-title"><RefreshCw className={checkingUpdate || runningUpdate ? "spin" : ""} /><div><h2>Software-Update</h2><p>Dashboard auf den neuesten Stand von GitHub bringen</p></div></div>
         <div className="update-status-grid">
-          <div className="update-meta-box"><span>Installierte Version</span><b>v{updateInfo?.version ?? "0.1.0"} {updateInfo ? `(${updateInfo.currentCommit})` : ""}</b></div>
-          <div className="update-meta-box"><span>GitHub Repository</span><b className={updateInfo?.hasUpdate ? "update-tag-new" : "update-tag-current"}>{updateInfo ? (updateInfo.hasUpdate ? `Neues Update verfügbar (${updateInfo.latestCommit})` : `Aktuell (${updateInfo.latestCommit})`) : (checkingUpdate ? "Prüfung läuft …" : "Noch nicht geprüft")}</b></div>
+          <div className="update-meta-box"><span>Installierte Version</span><b>v{updateInfo?.version ?? "0.1.0"} {updateInfo?.currentCommit ? `(Rev. ${updateInfo.currentCommit})` : ""}</b></div>
+          <div className="update-meta-box"><span>GitHub Repository</span><b className={updateInfo?.hasUpdate ? "update-tag-new" : "update-tag-current"}>{updateInfo ? (updateInfo.hasUpdate ? `Neues Update verfügbar (Rev. ${updateInfo.latestCommit})` : `Aktuell (Rev. ${updateInfo.latestCommit})`) : (checkingUpdate ? "Prüfung läuft …" : "Noch nicht geprüft")}</b></div>
         </div>
         {updateInfo?.hasUpdate && (
-          <div className="update-alert-banner"><Sparkles /><div><b>Neues Update bereit zur Installation</b><p className="update-commit-log">&bdquo;{updateInfo.latestMessage}&ldquo;</p></div></div>
+          <div className="update-alert-banner"><Sparkles /><div><div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}><b>Neues Update bereit zur Installation</b><span style={{ fontSize: "11px", fontWeight: "800", padding: "2px 8px", borderRadius: "999px", background: "var(--brand)", color: "#ffffff" }}>Rev. {updateInfo.latestCommit}</span></div><p className="update-commit-log">&bdquo;{updateInfo.latestMessage}&ldquo;</p></div></div>
         )}
         <div className="update-action-row">
           <button type="button" className="update-secondary-btn" disabled={checkingUpdate || runningUpdate} onClick={() => void checkUpdate()}><RefreshCw className={checkingUpdate ? "spin" : ""} />{checkingUpdate ? "Prüfe …" : "Jetzt prüfen"}</button>
           {updateInfo?.hasUpdate && (
-            <button type="button" className="primary-update-btn" disabled={runningUpdate} onClick={() => void applyUpdate()}>{runningUpdate ? (<><RefreshCw className="spin" />Wird aktualisiert & neu gebaut …</>) : (<><Sparkles />1-Click Update einspielen</>)}</button>
+            <button type="button" className="primary-update-btn" disabled={runningUpdate} onClick={() => void applyUpdate()}>{runningUpdate ? (<><RefreshCw className="spin" />Wird aktualisiert & neu gebaut …</>) : (<><Sparkles />1-Click Update einspielen (Rev. {updateInfo.latestCommit})</>)}</button>
           )}
         </div>
         {updateCountdown !== null && (
