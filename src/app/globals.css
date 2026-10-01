@@ -21,6 +21,7 @@
   --modal-backdrop: rgba(15, 34, 40, 0.45);
   --slider-track: rgba(14, 38, 44, 0.12);
   --radius: 26px;
+  --transition-ui: all .15s ease;
   color-scheme: light;
 }
 
@@ -47,6 +48,7 @@
   --modal-backdrop: rgba(1, 8, 10, 0.78);
   --slider-track: rgba(255, 255, 255, 0.16);
   --radius: 26px;
+  --transition-ui: all .15s ease;
   color-scheme: dark;
 }
 
@@ -87,7 +89,7 @@ body::before {
 .brand-tools { display: flex; align-items: center; gap: 10px; margin-left: 6px; }
 
 /* Standard-Styling für kleine Buttons (z. B. auf Unterseiten) */
-.admin-shortcut, .theme-toggle, .quiet-shortcut { width: 42px; height: 42px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 13px; color: var(--muted); background: var(--panel); box-shadow: var(--card-shadow); cursor: pointer; touch-action: manipulation; transition: all .15s ease; text-decoration: none; }
+.admin-shortcut, .theme-toggle, .quiet-shortcut { width: 42px; height: 42px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 13px; color: var(--muted); background: var(--panel); box-shadow: var(--card-shadow); cursor: pointer; touch-action: manipulation; transition: var(--transition-ui); text-decoration: none; }
 .admin-shortcut:hover, .theme-toggle:hover, .quiet-shortcut:hover { color: var(--text); border-color: var(--line-strong); background: var(--panel-soft); }
 
 /* Header-Buttons im Dashboard: Exakt gleiche Höhe wie das 104px Logo */
@@ -112,7 +114,7 @@ body::before {
   box-shadow: var(--card-shadow);
   cursor: pointer;
   touch-action: manipulation;
-  transition: all .15s ease;
+  transition: var(--transition-ui);
   text-decoration: none;
 }
 .brand-tools .admin-shortcut:hover,
@@ -145,7 +147,7 @@ body::before {
   color: var(--text);
   cursor: pointer;
   touch-action: manipulation;
-  transition: all .15s ease;
+  transition: var(--transition-ui);
 }
 .header-qr-button:hover {
   background: var(--panel-soft);
@@ -325,7 +327,7 @@ body::before {
   box-shadow: var(--card-shadow);
   cursor: pointer;
   touch-action: manipulation;
-  transition: all .15s ease;
+  transition: var(--transition-ui);
   text-decoration: none;
 }
 .radio-theme-toggle:hover {
@@ -464,7 +466,7 @@ body::before {
   font-weight: 750;
   box-shadow: var(--card-shadow);
   text-decoration: none;
-  transition: all .15s ease;
+  transition: var(--transition-ui);
 }
 .profile-topbar .icon-link:hover,
 .icon-link:hover {
@@ -492,7 +494,7 @@ body::before {
   color: var(--muted);
   cursor: pointer;
   touch-action: manipulation;
-  transition: all .15s ease;
+  transition: var(--transition-ui);
 }
 .profile-topbar-right .theme-toggle:hover {
   color: var(--text);
@@ -524,7 +526,7 @@ body::before {
   cursor: pointer;
   user-select: none;
   touch-action: manipulation;
-  transition: all .15s ease;
+  transition: var(--transition-ui);
   position: relative;
   overflow: hidden;
 }
@@ -909,7 +911,7 @@ body::before {
   text-decoration: none;
   cursor: pointer;
   touch-action: manipulation;
-  transition: all .15s ease;
+  transition: var(--transition-ui);
   overflow: hidden;
 }
 .profile-nav button:hover,
@@ -1523,7 +1525,18 @@ body::before {
 .plan-meta small { color: var(--muted); font-weight: 500; border-left: 1px solid var(--line); padding-left: 9px; }
 .week-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 20px; }
 .week-grid article { padding: 18px; border: 1px solid var(--line); border-radius: 17px; background: var(--subtle-bg); }
-.week-grid h3 { color: var(--profile); margin: 0 0 12px; font-size: 19px; }
+.week-grid h3 { color: var(--profile); margin: 0 0 12px; font-size: 19px; display: flex; align-items: center; gap: 8px; }
+.week-current-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 9px; font-weight: 800; padding: 2px 8px; border-radius: 999px;
+  background: var(--brand); color: #05201d;
+  text-transform: uppercase; letter-spacing: .05em;
+}
+.week-grid article.current-week {
+  border-color: color-mix(in srgb, var(--brand) 50%, transparent);
+  background: color-mix(in srgb, var(--brand) 7%, var(--panel));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand) 20%, transparent), var(--card-shadow);
+}
 .plan-session-card { padding: 12px 0; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 6px; }
 .plan-session-card:first-of-type { border-top: none; }
 .plan-session-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
@@ -1658,7 +1671,7 @@ body::before {
   flex-shrink: 0;
   text-decoration: none;
   width: fit-content;
-  transition: all .15s ease;
+  transition: var(--transition-ui);
 }
 .plan-exercise-guide-badge:hover {
   background: var(--brand);
@@ -1732,7 +1745,7 @@ body::before {
 .admin-page > header > div { text-align: center; }
 .admin-page > header span { color: var(--brand); font-size: 11px; text-transform: uppercase; letter-spacing: .14em; }
 .admin-page > header h1 { margin: 3px 0; font-size: 35px; }
-.admin-lock-btn { min-height: 42px; padding: 0 14px; display: inline-flex; align-items: center; gap: 7px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); color: var(--muted); font-size: 13px; font-weight: 750; cursor: pointer; transition: all .15s ease; box-shadow: var(--card-shadow); }
+.admin-lock-btn { min-height: 42px; padding: 0 14px; display: inline-flex; align-items: center; gap: 7px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); color: var(--muted); font-size: 13px; font-weight: 750; cursor: pointer; transition: var(--transition-ui); box-shadow: var(--card-shadow); }
 .admin-lock-btn:hover { color: #ef4444; border-color: rgba(239, 68, 68, 0.4); background: color-mix(in srgb, #ef4444 8%, var(--panel)); }
 .admin-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .admin-grid article { border: 1px solid var(--line); border-radius: 22px; background: var(--panel); padding: 22px; box-shadow: var(--card-shadow); }
@@ -1965,7 +1978,7 @@ body::before {
   border-radius: 8px;
   border: 1px solid var(--line);
   background: var(--subtle-bg);
-  transition: all .15s ease;
+  transition: var(--transition-ui);
 }
 .guide-video-external-link:hover {
   color: #ef4444;
@@ -2799,7 +2812,7 @@ body::before {
   font-weight: 750;
   cursor: pointer;
   white-space: nowrap;
-  transition: all .15s ease;
+  transition: var(--transition-ui);
   box-shadow: 0 4px 12px rgba(225, 29, 72, 0.25);
 }
 .health-connect-btn:hover {
@@ -2868,7 +2881,7 @@ body::before {
   border: none;
   cursor: pointer;
   text-decoration: none;
-  transition: all .15s ease;
+  transition: var(--transition-ui);
   box-shadow: 0 4px 14px rgba(225, 29, 72, 0.28);
 }
 .health-primary-btn:hover {
@@ -2887,7 +2900,7 @@ body::before {
   font-weight: 700;
   font-size: 13px;
   cursor: pointer;
-  transition: all .15s ease;
+  transition: var(--transition-ui);
 }
 .health-secondary-btn:hover {
   background: var(--subtle-bg-hover);
@@ -2928,7 +2941,7 @@ body::before {
   font-weight: 700;
   font-size: 12px;
   cursor: pointer;
-  transition: all .15s ease;
+  transition: var(--transition-ui);
   white-space: nowrap;
 }
 .health-copy-btn:hover {
@@ -3117,7 +3130,7 @@ body::before {
   gap: 10px;
   cursor: pointer;
   touch-action: manipulation;
-  transition: all .15s ease;
+  transition: var(--transition-ui);
 }
 
 .prep-cancel-btn:hover {
@@ -3141,7 +3154,7 @@ body::before {
   gap: 8px;
   cursor: pointer;
   touch-action: manipulation;
-  transition: all .15s ease;
+  transition: var(--transition-ui);
 }
 
 .prep-instant-btn:hover {

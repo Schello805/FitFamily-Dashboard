@@ -19,6 +19,20 @@ type Plan = {
   plan_json: NormalizedPlan | Record<string, unknown>;
 };
 
+function getCurrentPlanWeek(weeks: { week: number }[]): number {
+  // Returns which week number is "current" based on today.
+  // Assumes week 1 started the Monday of the first session date found,
+  // or falls back to week 1 if no dates exist.
+  const today = new Date();
+  const dayOfYear = Math.floor((today.getTime() - new Date(today.getFullYear(), 0, 0).getTime()) / 86400000);
+  // Simple heuristic: cycle through weeks 1..n based on ISO week number
+  const isoWeek = Math.ceil(dayOfYear / 7);
+  const maxWeek = weeks.length;
+  if (maxWeek === 0) return 1;
+  // Map current ISO week to plan week (1-indexed, wraps)
+  return ((isoWeek - 1) % maxWeek) + 1;
+}
+
 export function PlanView({ profile, goals }: { profile: DashboardProfile; goals: string[] }) {
   const router = useRouter();
   const [plans, setPlans] = useState<Plan[]>([]);
@@ -190,9 +204,15 @@ export function PlanView({ profile, goals }: { profile: DashboardProfile; goals:
 
         {activePlanJson && activePlanJson.weeks.length > 0 ? (
           <div className="week-grid">
-            {activePlanJson.weeks.map((week) => (
-              <article key={week.week}>
-                <h3>Woche {week.week}</h3>
+            {(() => {
+              const currentWeek = getCurrentPlanWeek(activePlanJson.weeks);
+              return activePlanJson.weeks.map((week) => {
+                const isCurrent = week.week === currentWeek;
+                return (<article key={week.week} className={isCurrent ? "current-week" : ""}>
+                <h3>
+                  Woche {week.week}
+                  {isCurrent && <span className="week-current-badge">Diese Woche</span>}
+                </h3>
                 {week.sessions.map((session, index) => {
                   const primaryExId = resolveExerciseId(session.exercises?.[0] || session.title);
                   return (
@@ -278,7 +298,9 @@ export function PlanView({ profile, goals }: { profile: DashboardProfile; goals:
                   );
                 })}
               </article>
-            ))}
+              );
+              });
+            })()}
           </div>
         ) : (
           <div className="empty-state" style={{ marginTop: "1.5rem" }}>

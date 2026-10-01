@@ -175,6 +175,24 @@ export function ProfileView({
     return () => window.clearInterval(timer);
   }, [profile.activeTraining]);
 
+  // Remind user when the active exercise changes mid-session
+  const prevExerciseIdRef = useRef<string | null | undefined>(undefined);
+  useEffect(() => {
+    const currentExId = profile.activeTraining?.exerciseId ?? null;
+    const previous = prevExerciseIdRef.current;
+    if (previous !== undefined && previous !== currentExId && profile.activeTraining) {
+      const exName = profile.activeTraining.exerciseName;
+      showToast({
+        type: "info",
+        title: "💡 Übungswechsel",
+        message: exName
+          ? `Jetzt läuft: ${exName}`
+          : "Neue Übung gestartet — weiter so!"
+      });
+    }
+    prevExerciseIdRef.current = currentExId;
+  }, [profile.activeTraining?.exerciseId]); // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     if (!prepCountdown) return;
 
