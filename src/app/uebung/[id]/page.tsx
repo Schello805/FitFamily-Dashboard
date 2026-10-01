@@ -108,7 +108,7 @@ export default async function ExercisePage({
   return (
     <main className="guide-page">
       <KioskIdleBar redirectUrl={backHref} seconds={120} title={`Übung: ${guide.name}`} />
-      <header>
+      <header className="guide-header">
         <Link href={backHref} className="guide-back-link">
           <ArrowLeft size={18} /> {backLabel}
         </Link>
@@ -126,101 +126,121 @@ export default async function ExercisePage({
         </div>
       </header>
 
-      {/* Anleitungsvideo des Geräts / der Übung */}
-      {video ? (
-        <section className="guide-video-embed-card">
-          <div className="guide-video-top">
-            <div className="guide-video-badge">
-              <PlayCircle size={18} />
-              <span>Anleitungsvideo · {guide.equipment}</span>
-            </div>
-            {video.type === "youtube" && (
-              <a href={video.watchUrl} target="_blank" rel="noreferrer" className="guide-video-external-link">
-                <Video size={16} /> Auf YouTube öffnen
-              </a>
-            )}
-          </div>
-          <div className="guide-video-player-container">
-            {video.type === "youtube" ? (
-              <iframe
-                src={video.embedUrl}
-                title={`Anleitungsvideo für ${guide.name}`}
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                allowFullScreen
-                className="guide-video-iframe"
-              />
-            ) : video.type === "html5" ? (
-              <video src={video.src} controls playsInline className="guide-video-html5" />
-            ) : (
-              <div className="guide-video-link-box">
-                <p>Anleitungsvideo für dieses Gerät verlinkt:</p>
-                <a href={video.url} target="_blank" rel="noreferrer" className="guide-video-open-btn">
-                  <ExternalLink size={16} /> Video ansehen ({video.url})
+      <div className="guide-body">
+        {/* Linke Spalte: Kompaktes Anleitungsvideo & Atmung/Tempo */}
+        <div className="guide-col-media">
+          {video ? (
+            <section className="guide-video-embed-card">
+              <div className="guide-video-top">
+                <div className="guide-video-badge">
+                  <PlayCircle size={16} />
+                  <span>Anleitungsvideo · {guide.equipment}</span>
+                </div>
+                {video.type === "youtube" && (
+                  <a href={video.watchUrl} target="_blank" rel="noreferrer" className="guide-video-external-link">
+                    <Video size={14} /> Auf YouTube öffnen
+                  </a>
+                )}
+              </div>
+              <div className="guide-video-player-container">
+                {video.type === "youtube" ? (
+                  <iframe
+                    src={video.embedUrl}
+                    title={`Anleitungsvideo für ${guide.name}`}
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                    allowFullScreen
+                    className="guide-video-iframe"
+                  />
+                ) : video.type === "html5" ? (
+                  <video src={video.src} controls playsInline className="guide-video-html5" />
+                ) : (
+                  <div className="guide-video-link-box">
+                    <p>Anleitungsvideo für dieses Gerät verlinkt:</p>
+                    <a href={video.url} target="_blank" rel="noreferrer" className="guide-video-open-btn">
+                      <ExternalLink size={15} /> Video ansehen ({video.url})
+                    </a>
+                  </div>
+                )}
+              </div>
+            </section>
+          ) : (
+            <section className="guide-video-empty-card">
+              <div className="guide-video-empty-text">
+                <span className="setup-badge">Gerät: {guide.equipment}</span>
+                <h3>Noch kein Video hinterlegt</h3>
+                <p>
+                  In den <b>Einstellungen</b> kannst du eine Video-URL für <b>{guide.equipment}</b> oder <b>{guide.name}</b> eintragen.
+                </p>
+              </div>
+              <div className="guide-video-empty-actions">
+                <Link href="/verwaltung" className="guide-btn-settings">
+                  In Einstellungen verlinken
+                </Link>
+                <a href={videoSearch} target="_blank" rel="noreferrer" className="guide-btn-yt">
+                  <ExternalLink size={13} /> YouTube Suche
                 </a>
               </div>
-            )}
-          </div>
-        </section>
-      ) : (
-        <section className="guide-video-empty-card">
-          <div className="guide-video-empty-text">
-            <span className="setup-badge">Gerät: {guide.equipment}</span>
-            <h3>Noch kein Anleitungsvideo verlinkt</h3>
-            <p>
-              In den <b>Einstellungen (Verwaltung)</b> kannst du eine YouTube-Anleitung für die <b>{guide.equipment}</b> oder speziell für <b>{guide.name}</b> hinterlegen. Sie wird dann hier direkt abgespielt.
-            </p>
-          </div>
-          <div className="guide-video-empty-actions">
-            <Link href="/verwaltung" className="guide-btn-settings">
-              In Einstellungen verlinken
-            </Link>
-            <a href={videoSearch} target="_blank" rel="noreferrer" className="guide-btn-yt">
-              <ExternalLink size={15} /> Auf YouTube suchen
-            </a>
-          </div>
-        </section>
-      )}
+            </section>
+          )}
 
-      {/* Hero mit Atmung & Tempo */}
-      <section className="guide-hero">
-        <div>
-          <span className="setup-badge">Technik vor Tempo</span>
-          <h2>Sauber. Kontrolliert.<br />Sicher.</h2>
+          {/* Hero mit Atmung & Tempo */}
+          <section className="guide-hero">
+            <div className="guide-hero-heading">
+              <span className="setup-badge">Technik vor Tempo</span>
+              <h2>Sauber. Kontrolliert. Sicher.</h2>
+            </div>
+            <div className="tempo">
+              <Wind className="tempo-icon" size={22} />
+              <div className="tempo-item">
+                <span className="tempo-label">Atmung</span>
+                <span className="tempo-val">{guide.breathing}</span>
+              </div>
+              <div className="tempo-item">
+                <span className="tempo-label">Tempo</span>
+                <span className="tempo-val">{guide.tempo}</span>
+              </div>
+            </div>
+          </section>
         </div>
-        <div className="tempo">
-          <Wind />
-          <span><b>Atmung</b>{guide.breathing}</span>
-          <span><b>Tempo</b>{guide.tempo}</span>
-        </div>
-      </section>
 
-      {/* Detaillierte Schritt-für-Schritt-Anleitung */}
-      <section className="guide-grid">
-        <article>
-          <h3>1. Vorbereitung</h3>
-          {guide.setup.map((step) => (
-            <p key={step}><CheckCircle2 />{step}</p>
-          ))}
-        </article>
-        <article>
-          <h3>2. Bewegung</h3>
-          {guide.movement.map((step) => (
-            <p key={step}><CheckCircle2 />{step}</p>
-          ))}
-        </article>
-        <article className="warning">
-          <h3>Häufige Fehler</h3>
-          {guide.mistakes.map((step) => (
-            <p key={step}><AlertTriangle />{step}</p>
-          ))}
-        </article>
-        <article className="warning safety">
-          <h3>Sicherheit</h3>
-          {guide.safety.map((step) => (
-            <p key={step}><AlertTriangle />{step}</p>
-          ))}
-        </article>
-      </section>
+        {/* Rechte Spalte: 4-Karten-Raster mit Vorbereitung, Bewegung, Fehler, Sicherheit */}
+        <div className="guide-col-instructions">
+          <section className="guide-grid">
+            <article>
+              <h3><CheckCircle2 size={15} /> 1. Vorbereitung</h3>
+              <div className="guide-steps-scroll">
+                {guide.setup.map((step) => (
+                  <p key={step}><CheckCircle2 />{step}</p>
+                ))}
+              </div>
+            </article>
+            <article>
+              <h3><CheckCircle2 size={15} /> 2. Bewegung</h3>
+              <div className="guide-steps-scroll">
+                {guide.movement.map((step) => (
+                  <p key={step}><CheckCircle2 />{step}</p>
+                ))}
+              </div>
+            </article>
+            <article className="warning">
+              <h3><AlertTriangle size={15} /> Häufige Fehler</h3>
+              <div className="guide-steps-scroll">
+                {guide.mistakes.map((step) => (
+                  <p key={step}><AlertTriangle />{step}</p>
+                ))}
+              </div>
+            </article>
+            <article className="warning safety">
+              <h3><AlertTriangle size={15} /> Sicherheit</h3>
+              <div className="guide-steps-scroll">
+                {guide.safety.map((step) => (
+                  <p key={step}><AlertTriangle />{step}</p>
+                ))}
+              </div>
+            </article>
+          </section>
+        </div>
+      </div>
     </main>
   );
 }
