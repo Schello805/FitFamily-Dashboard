@@ -12,7 +12,8 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
   if (!profile) notFound();
   const client = await db();
   const result = await client.execute(`SELECT ex.id, ex.name, ex.type, ex.equipment FROM exercises ex
-    JOIN equipment_inventory inv ON inv.name = ex.equipment AND inv.available = 1
+    LEFT JOIN equipment_inventory inv ON inv.name = ex.equipment
+    WHERE ex.active = 1 AND ((inv.active = 1 AND inv.available = 1) OR LOWER(ex.equipment) IN ('ohne gerät', 'körpergewicht'))
     ORDER BY ex.equipment, ex.name`);
   const exercises = result.rows.map((row) => ({ id: String(row.id), name: String(row.name), type: String(row.type), equipment: String(row.equipment) }));
   const serverBaseUrl = getMobileReachableBaseUrl();

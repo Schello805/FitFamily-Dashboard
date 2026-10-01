@@ -206,7 +206,7 @@ export async function POST(request: Request) {
   const body = schema.safeParse(payload);
   if (!body.success) return NextResponse.json({ error: "Bitte Planangaben prüfen" }, { status: 400 });
   const client = await db();
-  const inventory = await client.execute("SELECT name FROM equipment_inventory WHERE available = 1 ORDER BY name");
+  const inventory = await client.execute("SELECT name FROM equipment_inventory WHERE active = 1 AND available = 1 ORDER BY name");
   const equipment = inventory.rows.map((row) => String(row.name));
   let plan;
   let usedProvider = body.data.provider;
@@ -266,4 +266,33 @@ export async function GET(request: Request) {
       };
     })
   });
+}
+
+const planStatusSchema = z.object({ profileId: z.string().min(1), planId: z.string().min(1) });
+
+export async function DELETE(request: Request) {
+  const body = planStatusSchema.safeParse(await request.json().catch(() => null));
+  if (!body.success) return NextResponse.json({ error: "Profil oder Plan fehlt." }, { status: 400 });
+  const client = await db();
+  const current = await client.execute({ sql: "SELECT id, title FROM training_plans WHERE id = ? AND profile_id = ? AND status = 'active'", args: [body.data.planId, body.data.profileId] });
+  if (!current.rows[0]) return NextResponse.json({ error: "Aktiver Trainingsplan nicht gefunden." }, { status: 404 });
+  await client.batch([
+    { sql: "UPDATE training_plans SET status = 'archived', updated_at = CURRENT_TIMESTAMP WHERE profile_id = ? AND status = 'active'", args: [body.data.profileId] },
+    { sql: "INSERT INTO audit_log (id, action, profile_id, details) VALUES (?, 'plan.archive', ?, ?)", args: [randomUUID(), body.data.profileId, JSON.stringify({ planId: body.data.planId, title: String(current.rows[0].title) })] }
+  ], "write");
+  return NextResponse.json({ ok: true, planId: body.data.planId, status: "archived" });
+}
+
+export async function PATCH(request: Request) {
+  const body = planStatusSchema.safeParse(await request.json().catch(() => null));
+  if (!body.success) return NextResponse.json({ error: "Profil oder Plan fehlt." }, { status: 400 });
+  const client = await db();
+  const current = await client.execute({ sql: "SELECT id, title FROM training_plans WHERE id = ? AND profile_id = ? AND status = 'archived'", args: [body.data.planId, body.data.profileId] });
+  if (!current.rows[0]) return NextResponse.json({ error: "Archivierter Trainingsplan nicht gefunden." }, { status: 404 });
+  await client.batch([
+    { sql: "UPDATE training_plans SET status = 'archived', updated_at = CURRENT_TIMESTAMP WHERE profile_id = ? AND status = 'active'", args: [body.data.profileId] },
+    { sql: "UPDATE training_plans SET status = 'active', updated_at = CURRENT_TIMESTAMP WHERE id = ? AND profile_id = ?", args: [body.data.planId, body.data.profileId] },
+    { sql: "INSERT INTO audit_log (id, action, profile_id, details) VALUES (?, 'plan.restore', ?, ?)", args: [randomUUID(), body.data.profileId, JSON.stringify({ planId: body.data.planId, title: String(current.rows[0].title) })] }
+  ], "write");
+  return NextResponse.json({ ok: true, planId: body.data.planId, status: "active" });
 }

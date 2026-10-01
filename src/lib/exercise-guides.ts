@@ -280,3 +280,26 @@ export function getExerciseGuide(id: string): ExerciseGuide {
 
   return EXERCISE_GUIDES[0];
 }
+
+export function getExerciseGuideFromRecord(record: {
+  id: string;
+  name: string;
+  equipment: string;
+  instructions: string | null;
+  safetyNotes: string | null;
+}): ExerciseGuide {
+  const base = EXERCISE_GUIDES.find((guide) => guide.id === record.id);
+  const instructions = record.instructions?.split(/\r?\n/).map((step) => step.trim()).filter(Boolean) ?? [];
+  const safety = record.safetyNotes?.split(/\r?\n/).map((step) => step.trim()).filter(Boolean) ?? [];
+  return {
+    id: record.id,
+    name: record.name,
+    equipment: record.equipment,
+    setup: base?.setup ?? [],
+    movement: instructions.length ? instructions : (base?.movement ?? ["Für diese Übung ist noch keine Anleitung hinterlegt."]),
+    breathing: base?.breathing ?? "Ruhig und gleichmäßig atmen, ohne die Luft anzuhalten.",
+    tempo: base?.tempo ?? "Langsam und kontrolliert bewegen.",
+    mistakes: base?.mistakes ?? [],
+    safety: safety.length ? safety : (base?.safety ?? ["Nur schmerzfrei und mit kontrollierter Bewegung trainieren."])
+  };
+}

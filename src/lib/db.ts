@@ -47,13 +47,15 @@ async function createSchema(client: Client) {
       equipment TEXT NOT NULL,
       instructions TEXT,
       safety_notes TEXT,
-      video_url TEXT
+      video_url TEXT,
+      active INTEGER NOT NULL DEFAULT 1 CHECK(active IN (0,1))
     )`,
     `CREATE TABLE IF NOT EXISTS equipment_inventory (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL UNIQUE,
       quantity INTEGER NOT NULL DEFAULT 1 CHECK(quantity BETWEEN 1 AND 8),
       available INTEGER NOT NULL DEFAULT 1 CHECK(available IN (0,1)),
+      active INTEGER NOT NULL DEFAULT 1 CHECK(active IN (0,1)),
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
       updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     )`,
@@ -151,6 +153,14 @@ async function createSchema(client: Client) {
   const equipmentColumns = await client.execute("PRAGMA table_info(equipment_inventory)");
   if (!equipmentColumns.rows.some((row) => String(row.name) === "video_url")) {
     await client.execute("ALTER TABLE equipment_inventory ADD COLUMN video_url TEXT");
+  }
+  if (!equipmentColumns.rows.some((row) => String(row.name) === "active")) {
+    await client.execute("ALTER TABLE equipment_inventory ADD COLUMN active INTEGER NOT NULL DEFAULT 1");
+  }
+
+  const exerciseColumns = await client.execute("PRAGMA table_info(exercises)");
+  if (!exerciseColumns.rows.some((row) => String(row.name) === "active")) {
+    await client.execute("ALTER TABLE exercises ADD COLUMN active INTEGER NOT NULL DEFAULT 1");
   }
 
   for (const profile of PROFILE_SEEDS) {

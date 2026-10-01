@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { AlertTriangle, ArrowLeft, CheckCircle2, ExternalLink, PlayCircle, Video, Wind } from "lucide-react";
-import { getExerciseGuide } from "@/lib/exercise-guides";
+import { getExerciseGuide, getExerciseGuideFromRecord } from "@/lib/exercise-guides";
 import { db } from "@/lib/db";
 import { ExerciseStartButton } from "@/components/exercise-start-button";
 import { KioskIdleBar } from "@/components/kiosk-idle-bar";
@@ -54,9 +54,14 @@ export default async function ExercisePage({
 }) {
   const { id } = await params;
   const { profil, fromPlan } = await searchParams;
-  const guide = getExerciseGuide(id);
-
   const client = await db();
+  const exerciseResult = await client.execute({ sql: "SELECT id, name, type, equipment, instructions, safety_notes FROM exercises WHERE id = ? LIMIT 1", args: [id] });
+  const exerciseRow = exerciseResult.rows[0];
+  const guide = exerciseRow ? getExerciseGuideFromRecord({
+    id: String(exerciseRow.id), name: String(exerciseRow.name), equipment: String(exerciseRow.equipment),
+    instructions: exerciseRow.instructions ? String(exerciseRow.instructions) : null,
+    safetyNotes: exerciseRow.safety_notes ? String(exerciseRow.safety_notes) : null
+  }) : getExerciseGuide(id);
 
   // 1. Suche nach Video direkt auf dieser Übung
   let media = await client.execute({

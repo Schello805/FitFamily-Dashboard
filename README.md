@@ -16,8 +16,9 @@ Das lokale Familien-Fitnessdashboard für den Touchmonitor im Sportraum. FitFami
 - NFC-Endpunkte pro Gerät oder Übung
 - Persönlicher Verlauf und geschütztes Nachtragen
 - Trainingspläne mit OpenAI, Gemini, lokaler Vorlage oder JSON-Import
-- Übungsanleitungen mit sicher hinterlegbaren YouTube-Links
-- Gerätebestand im Elternbereich: Stückzahl, Verfügbarkeit und eigene Geräte; nicht verfügbare Geräte werden aus Touch-/NFC-Übungsstarts und neuen Planvorschlägen ausgeschlossen
+- Verwaltungsbereich für Geräte und Übungen: Anlegen, Bearbeiten, Video- und Sicherheitshinweise pflegen; archivierte Einträge lassen sich wiederherstellen und bleiben in der Trainingshistorie erhalten
+- Trainingspläne lassen sich erstellen/importieren, archivieren und wiederherstellen; vorhandene Pläne und Trainingsverläufe bleiben erhalten
+- Nicht verfügbare oder archivierte Geräte werden aus Starts und Planvorschlägen ausgeschlossen; archivierte Übungen verschwinden aus der Touch-/NFC-Auswahl
 - Wetter für Bechhofen, Ruhemodus-Konzept und installierbare Web-App
 - Radio-Player mit 1LIVE, ANTENNE BAYERN, ROCK ANTENNE, BAYERN 3, BR24 und Sportschau-Live-Link
 - Lokale SQLite-Datenbank, JSON-Export und verschlüsselte NAS-Backups

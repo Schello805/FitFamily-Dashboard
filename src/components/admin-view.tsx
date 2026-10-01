@@ -11,8 +11,9 @@ import { DEFAULT_DISPLAY_SETTINGS, type DisplaySettings } from "@/lib/display-se
 
 type AiUsage = { requests: number; inputTokens: number; outputTokens: number; estimateUsd: number; updatedAt: string | null };
 type Status = { openai: boolean; gemini: boolean; nas: boolean; models: { openai: string; gemini: string }; usage: { openai: AiUsage; gemini: AiUsage } };
-type ExerciseMedia = { id: string; name: string; equipment: string; videoUrl: string | null };
-type EquipmentItem = { id: string; name: string; quantity: number; available: boolean; videoUrl?: string | null };
+type ExerciseMedia = { id: string; name: string; type: "strength" | "endurance"; equipment: string; instructions: string; safetyNotes: string; videoUrl: string | null; active: boolean };
+type EquipmentItem = { id: string; name: string; quantity: number; available: boolean; active: boolean; videoUrl?: string | null };
+type ExerciseDraft = { name: string; type: "strength" | "endurance"; equipment: string; instructions: string; safetyNotes: string; videoUrl: string };
 type UpdateInfo = { currentCommit: string; latestCommit: string; latestMessage: string; hasUpdate: boolean; version: string; latestVersion?: string };
 type BackupInfo = { name: string; sizeBytes: number; sizeFormatted: string; date: string };
 type BackupStatus = {
@@ -74,13 +75,16 @@ export function AdminView({
   const [confirmPin, setConfirmPin] = useState("");
   const [confirmPinError, setConfirmPinError] = useState("");
   const [verifyingConfirmPin, setVerifyingConfirmPin] = useState(false);
-  const [videoUrls, setVideoUrls] = useState<Record<string, string>>(() => Object.fromEntries(exercises.map((exercise) => [exercise.id, exercise.videoUrl ?? ""])));
-  const [savingVideo, setSavingVideo] = useState<string | null>(null);
+  const [exerciseItems, setExerciseItems] = useState(exercises);
+  const [exerciseEdits, setExerciseEdits] = useState<Record<string, ExerciseMedia>>(() => Object.fromEntries(exercises.map((exercise) => [exercise.id, exercise])));
+  const [savingExercise, setSavingExercise] = useState<string | null>(null);
+  const [newExercise, setNewExercise] = useState<ExerciseDraft>({ name: "", type: "strength", equipment: "", instructions: "", safetyNotes: "", videoUrl: "" });
   const [equipmentItems, setEquipmentItems] = useState(equipment);
   const [equipmentEdits, setEquipmentEdits] = useState<Record<string, EquipmentItem>>(() => Object.fromEntries(equipment.map((item) => [item.id, item])));
   const [savingEquipment, setSavingEquipment] = useState<string | null>(null);
   const [newEquipmentName, setNewEquipmentName] = useState("");
   const [newEquipmentQuantity, setNewEquipmentQuantity] = useState(1);
+  const [newEquipmentVideoUrl, setNewEquipmentVideoUrl] = useState("");
   const [apiKeys, setApiKeys] = useState({ openai: "", gemini: "" });
   const [savingApi, setSavingApi] = useState<string | null>(null);
 
@@ -582,19 +586,22 @@ export function AdminView({
     }
   }
 
-  async function saveVideo(exerciseId: string) {
-    setSavingVideo(exerciseId); setNotice("");
+  async function saveExercise(exerciseId: string, overrides: Partial<ExerciseMedia> = {}) {
+    const exercise = { ...exerciseEdits[exerciseId], ...overrides };
+    setSavingExercise(exerciseId); setNotice("");
     try {
       const response = await fetch(`/api/exercises/${exerciseId}`, {
         method: "PATCH", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pin, videoUrl: videoUrls[exerciseId]?.trim() || null })
+        body: JSON.stringify({ pin, ...exercise, videoUrl: exercise.videoUrl?.trim() || null })
       });
       const result = await response.json();
       if (response.ok) {
-        setNotice("Video-Link gespeichert.");
-        showToast({ type: "success", title: "Video gespeichert", message: "Übungsvideo wurde aktualisiert." });
+        setExerciseItems((items) => items.map((item) => item.id === exerciseId ? result.exercise : item));
+        setExerciseEdits((items) => ({ ...items, [exerciseId]: result.exercise }));
+        setNotice("Übung und Anleitung gespeichert.");
+        showToast({ type: "success", title: "Übung gespeichert", message: `${result.exercise.name} wurde aktualisiert.` });
       } else {
-        const msg = result.error ?? "Video-Link konnte nicht gespeichert werden.";
+        const msg = result.error ?? "Übung konnte nicht gespeichert werden.";
         setNotice(msg);
         showToast({ type: "error", title: "Fehler beim Speichern", message: msg });
       }
@@ -602,17 +609,62 @@ export function AdminView({
       setNotice("Keine Verbindung. Bitte Heimnetz prüfen und erneut versuchen.");
       showToast({ type: "error", title: "Verbindungsfehler", message: "Keine Verbindung zum Dashboard." });
     } finally {
-      setSavingVideo(null);
+      setSavingExercise(null);
     }
   }
 
-  async function saveEquipment(id: string) {
-    const item = equipmentEdits[id];
+  async function addExercise(event: React.FormEvent) {
+    event.preventDefault(); setNotice("");
+    try {
+      const response = await fetch("/api/exercises", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pin, ...newExercise, videoUrl: newExercise.videoUrl.trim() || null })
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        const message = result.error ?? "Übung konnte nicht angelegt werden.";
+        setNotice(message);
+        showToast({ type: "error", title: "Übung nicht angelegt", message });
+        return;
+      }
+      setExerciseItems((items) => [...items, result.exercise].sort((a, b) => a.name.localeCompare(b.name, "de")));
+      setExerciseEdits((items) => ({ ...items, [result.exercise.id]: result.exercise }));
+      setNewExercise({ name: "", type: "strength", equipment: "", instructions: "", safetyNotes: "", videoUrl: "" });
+      setNotice("Übung wurde angelegt.");
+      showToast({ type: "success", title: "Übung angelegt", message: `${result.exercise.name} ist jetzt verfügbar.` });
+    } catch {
+      showToast({ type: "error", title: "Verbindungsfehler", message: "Übung konnte nicht angelegt werden." });
+    }
+  }
+
+  function requestArchiveExercise(exercise: ExerciseMedia) {
+    setConfirmModal({
+      title: `„${exercise.name}“ archivieren?`,
+      description: "Die Übung verschwindet aus der Auswahl und aus neuen Trainingsplänen. Gespeicherte Trainings und Videos bleiben erhalten; du kannst sie später wiederherstellen.",
+      icon: "key", confirmLabel: "Übung archivieren", confirmVariant: "danger", requiresPin: true,
+      action: async (freshPin) => {
+        try {
+          const response = await fetch(`/api/exercises/${encodeURIComponent(exercise.id)}`, { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pin: freshPin }) });
+          const result = await response.json();
+          if (!response.ok) throw new Error(result.error ?? "Übung konnte nicht archiviert werden.");
+          const updated = { ...exerciseEdits[exercise.id], active: false };
+          setExerciseItems((items) => items.map((item) => item.id === exercise.id ? { ...item, active: false } : item));
+          setExerciseEdits((items) => ({ ...items, [exercise.id]: updated }));
+          showToast({ type: "success", title: "Übung archiviert", message: "Trainingshistorie und Anleitung bleiben erhalten." });
+        } catch (error) {
+          showToast({ type: "error", title: "Archivieren fehlgeschlagen", message: error instanceof Error ? error.message : "Bitte Verbindung prüfen." });
+        }
+      }
+    });
+  }
+
+  async function saveEquipment(id: string, overrides: Partial<EquipmentItem> = {}) {
+    const item = { ...equipmentEdits[id], ...overrides };
     setSavingEquipment(id); setNotice("");
     try {
       const response = await fetch(`/api/equipment/${encodeURIComponent(id)}`, {
         method: "PATCH", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pin, name: item.name, quantity: item.quantity, available: item.available })
+        body: JSON.stringify({ pin, name: item.name, quantity: item.quantity, available: item.available, active: item.active, videoUrl: item.videoUrl?.trim() || null })
       });
       const result = await response.json();
       if (!response.ok) {
@@ -638,7 +690,7 @@ export function AdminView({
     try {
       const response = await fetch("/api/equipment", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pin, name: newEquipmentName, quantity: newEquipmentQuantity })
+        body: JSON.stringify({ pin, name: newEquipmentName, quantity: newEquipmentQuantity, videoUrl: newEquipmentVideoUrl.trim() || null })
       });
       const result = await response.json();
       if (!response.ok) {
@@ -650,12 +702,32 @@ export function AdminView({
       setEquipmentItems((items) => [...items, result.equipment].sort((a, b) => a.name.localeCompare(b.name, "de")));
       setEquipmentEdits((values) => ({ ...values, [result.equipment.id]: result.equipment }));
       const addedName = newEquipmentName;
-      setNewEquipmentName(""); setNewEquipmentQuantity(1); setNotice("Gerät wurde ergänzt.");
+      setNewEquipmentName(""); setNewEquipmentQuantity(1); setNewEquipmentVideoUrl(""); setNotice("Gerät wurde ergänzt.");
       showToast({ type: "success", title: "Gerät hinzugefügt", message: `${addedName} ist nun verfügbar.` });
     } catch {
       setNotice("Keine Verbindung. Bitte Heimnetz prüfen und erneut versuchen.");
       showToast({ type: "error", title: "Verbindungsfehler", message: "Keine Verbindung zum Dashboard." });
     }
+  }
+
+  function requestArchiveEquipment(item: EquipmentItem) {
+    setConfirmModal({
+      title: `„${item.name}“ archivieren?`,
+      description: "Das Gerät wird aus neuen Trainingsplänen und der Geräteauswahl entfernt. Verknüpfte aktive Übungen müssen vorher geändert oder archiviert werden. Die Trainingshistorie bleibt erhalten.",
+      icon: "key", confirmLabel: "Gerät archivieren", confirmVariant: "danger", requiresPin: true,
+      action: async (freshPin) => {
+        try {
+          const response = await fetch(`/api/equipment/${encodeURIComponent(item.id)}`, { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pin: freshPin }) });
+          const result = await response.json();
+          if (!response.ok) throw new Error(result.error ?? "Gerät konnte nicht archiviert werden.");
+          setEquipmentItems((items) => items.map((entry) => entry.id === item.id ? { ...entry, active: false } : entry));
+          setEquipmentEdits((items) => ({ ...items, [item.id]: { ...items[item.id], active: false } }));
+          showToast({ type: "success", title: "Gerät archiviert", message: "Die Trainingshistorie bleibt erhalten." });
+        } catch (error) {
+          showToast({ type: "error", title: "Archivieren fehlgeschlagen", message: error instanceof Error ? error.message : "Bitte Verbindung prüfen." });
+        }
+      }
+    });
   }
 
   if (!status) {
@@ -1187,8 +1259,57 @@ export function AdminView({
       <article className="wide"><div className="admin-title"><HardDrive /><div><h2>Speicherorte</h2><p>Transparenz über vorhandene Daten</p></div></div><p className="data-text">Stammdaten, Training und Pläne: lokale SQLite-Datenbank · Backups: {status.nas ? "verschlüsselt auf NAS" : "noch nicht eingerichtet"} · Wetter: Open-Meteo · KI: nur bei bewusster Planerstellung.</p></article>
       </>}
       {activeAdminSection === "sportraum" && <>
-      <article className="wide"><div className="admin-title"><Database /><div><h2>Geräte im Sportraum</h2><p>Stückzahl und Verfügbarkeit für Übungsauswahl und neue Trainingspläne</p></div></div><div className="inventory-list">{equipmentItems.map((item) => { const edit = equipmentEdits[item.id] ?? item; return <div className="inventory-row" key={item.id}><label>Gerätename<input value={edit.name} maxLength={60} onChange={(event) => setEquipmentEdits((values) => ({ ...values, [item.id]: { ...edit, name: event.target.value } }))} /></label><label className="quantity-field">Anzahl<input type="number" min={1} max={8} value={edit.quantity} onChange={(event) => setEquipmentEdits((values) => ({ ...values, [item.id]: { ...edit, quantity: Number(event.target.value) } }))} /></label><label className="inventory-toggle"><input type="checkbox" checked={edit.available} onChange={(event) => setEquipmentEdits((values) => ({ ...values, [item.id]: { ...edit, available: event.target.checked } }))} /> Verfügbar</label><button disabled={savingEquipment === item.id} onClick={() => saveEquipment(item.id)}>{savingEquipment === item.id ? "Speichert …" : "Speichern"}</button></div>; })}</div><form className="inventory-add" onSubmit={addEquipment}><label>Weiteres Gerät<input required minLength={2} maxLength={60} placeholder="z. B. Hantelbank" value={newEquipmentName} onChange={(event) => setNewEquipmentName(event.target.value)} /></label><label className="quantity-field">Anzahl<input type="number" min={1} max={8} value={newEquipmentQuantity} onChange={(event) => setNewEquipmentQuantity(Number(event.target.value))} /></label><button><Plus /> Gerät ergänzen</button></form><p className="data-text">Deaktivierte Geräte bleiben im bisherigen Trainingsverlauf erhalten, werden aber künftig nicht zur Auswahl angeboten.</p></article>
-      <article className="wide"><div className="admin-title"><CheckCircle2 /><div><h2>Übungsvideos</h2><p>Eigene YouTube-Anleitungen pro Übung hinterlegen; leere Felder zeigen eine YouTube-Suche.</p></div></div><div className="exercise-media-list">{exercises.map((exercise) => <div key={exercise.id}><label><span>{exercise.name}<small>{exercise.equipment}</small></span><input type="url" inputMode="url" placeholder="https://youtube.com/..." value={videoUrls[exercise.id] ?? ""} onChange={(event) => setVideoUrls((values) => ({ ...values, [exercise.id]: event.target.value }))} /></label><button disabled={savingVideo === exercise.id} onClick={() => saveVideo(exercise.id)}>{savingVideo === exercise.id ? "Speichert …" : "Speichern"}</button></div>)}</div></article>
+      <article className="wide"><div className="admin-title"><Database /><div><h2>Geräte im Sportraum</h2><p>Geräte, Verfügbarkeit und gerätebezogene Videos verwalten. Archivierte Einträge bleiben für die Historie erhalten.</p></div></div>
+        <div className="inventory-list">
+          {equipmentItems.map((item) => {
+            const edit = equipmentEdits[item.id] ?? item;
+            return <div className={`inventory-row ${edit.active ? "" : "archived"}`} key={item.id}>
+              <label>Gerätename<input value={edit.name} maxLength={60} onChange={(event) => setEquipmentEdits((values) => ({ ...values, [item.id]: { ...edit, name: event.target.value } }))} /></label>
+              <label className="quantity-field">Anzahl<input type="number" min={1} max={8} value={edit.quantity} onChange={(event) => setEquipmentEdits((values) => ({ ...values, [item.id]: { ...edit, quantity: Number(event.target.value) } }))} /></label>
+              <label>Video-Link<input type="url" inputMode="url" placeholder="Optionaler YouTube-Link" value={edit.videoUrl ?? ""} onChange={(event) => setEquipmentEdits((values) => ({ ...values, [item.id]: { ...edit, videoUrl: event.target.value || null } }))} /></label>
+              <label className="inventory-toggle"><input type="checkbox" checked={edit.available} onChange={(event) => setEquipmentEdits((values) => ({ ...values, [item.id]: { ...edit, available: event.target.checked } }))} /> Verfügbar</label>
+              <div className="inventory-actions"><button disabled={savingEquipment === item.id} onClick={() => void saveEquipment(item.id)}>{savingEquipment === item.id ? "Speichert …" : "Speichern"}</button>{edit.active ? <button className="archive-action" onClick={() => requestArchiveEquipment(item)}>Archivieren</button> : <button onClick={() => void saveEquipment(item.id, { active: true })}>Wiederherstellen</button>}</div>
+            </div>;
+          })}
+        </div>
+        <form className="inventory-add" onSubmit={addEquipment}>
+          <label>Weiteres Gerät<input required minLength={2} maxLength={60} placeholder="z. B. Hantelbank" value={newEquipmentName} onChange={(event) => setNewEquipmentName(event.target.value)} /></label>
+          <label className="quantity-field">Anzahl<input type="number" min={1} max={8} value={newEquipmentQuantity} onChange={(event) => setNewEquipmentQuantity(Number(event.target.value))} /></label>
+          <label>Video-Link<input type="url" inputMode="url" placeholder="Optionaler YouTube-Link" value={newEquipmentVideoUrl} onChange={(event) => setNewEquipmentVideoUrl(event.target.value)} /></label>
+          <button><Plus /> Gerät ergänzen</button>
+        </form>
+      </article>
+      <article className="wide"><div className="admin-title"><CheckCircle2 /><div><h2>Übungen, Anleitungen &amp; Videos</h2><p>Eigene Übungen anlegen, Gerätezuordnung und Sicherheitshinweise bearbeiten. Video-Links lassen sich ergänzen oder durch Leeren des Feldes entfernen.</p></div></div>
+        <div className="exercise-admin-list">
+          {exerciseItems.map((exercise) => {
+            const edit = exerciseEdits[exercise.id] ?? exercise;
+            return <details className={`exercise-admin-item ${edit.active ? "" : "archived"}`} key={exercise.id}>
+              <summary><span><b>{edit.name}</b><small>{edit.equipment} · {edit.type === "strength" ? "Kraft" : "Ausdauer"}</small></span><em>{edit.active ? "Aktiv" : "Archiviert"}</em></summary>
+              <form className="exercise-admin-editor" onSubmit={(event) => { event.preventDefault(); void saveExercise(exercise.id); }}>
+                <label>Übungsname<input required minLength={2} maxLength={80} value={edit.name} onChange={(event) => setExerciseEdits((values) => ({ ...values, [exercise.id]: { ...edit, name: event.target.value } }))} /></label>
+                <label>Trainingsart<select value={edit.type} onChange={(event) => setExerciseEdits((values) => ({ ...values, [exercise.id]: { ...edit, type: event.target.value as ExerciseMedia["type"] } }))}><option value="strength">Kraft</option><option value="endurance">Ausdauer</option></select></label>
+                <label>Gerät<select required value={edit.equipment} onChange={(event) => setExerciseEdits((values) => ({ ...values, [exercise.id]: { ...edit, equipment: event.target.value } }))}><option value={edit.equipment}>{edit.equipment}</option>{equipmentItems.filter((entry) => entry.active && entry.name !== edit.equipment).map((entry) => <option key={entry.id} value={entry.name}>{entry.name}</option>)}<option value="Ohne Gerät">Ohne Gerät</option><option value="Körpergewicht">Körpergewicht</option></select></label>
+                <label className="wide-field">Bewegungsanleitung (ein Schritt pro Zeile)<textarea rows={3} maxLength={3000} value={edit.instructions} onChange={(event) => setExerciseEdits((values) => ({ ...values, [exercise.id]: { ...edit, instructions: event.target.value } }))} placeholder="Ruhig starten …&#10;Bewegung kontrolliert ausführen …" /></label>
+                <label className="wide-field">Sicherheitshinweise (ein Hinweis pro Zeile)<textarea rows={2} maxLength={1200} value={edit.safetyNotes} onChange={(event) => setExerciseEdits((values) => ({ ...values, [exercise.id]: { ...edit, safetyNotes: event.target.value } }))} placeholder="Bei Schmerzen abbrechen …" /></label>
+                <label className="wide-field">Video-Link<input type="url" inputMode="url" maxLength={500} placeholder="https://www.youtube.com/... (leer = Video entfernen)" value={edit.videoUrl ?? ""} onChange={(event) => setExerciseEdits((values) => ({ ...values, [exercise.id]: { ...edit, videoUrl: event.target.value || null } }))} /></label>
+                <div className="exercise-admin-actions"><button type="submit" disabled={savingExercise === exercise.id}>{savingExercise === exercise.id ? "Speichert …" : "Änderungen speichern"}</button>{edit.active ? <button type="button" className="archive-action" onClick={() => requestArchiveExercise(edit)}>Archivieren</button> : <button type="button" onClick={() => void saveExercise(exercise.id, { active: true })}>Wiederherstellen</button>}</div>
+              </form>
+            </details>;
+          })}
+        </div>
+        <form className="exercise-create-form" onSubmit={addExercise}>
+          <h3>Neue Übung anlegen</h3>
+          <div className="exercise-create-grid">
+            <label>Übungsname<input required minLength={2} maxLength={80} value={newExercise.name} onChange={(event) => setNewExercise((draft) => ({ ...draft, name: event.target.value }))} /></label>
+            <label>Trainingsart<select value={newExercise.type} onChange={(event) => setNewExercise((draft) => ({ ...draft, type: event.target.value as ExerciseMedia["type"] }))}><option value="strength">Kraft</option><option value="endurance">Ausdauer</option></select></label>
+            <label>Gerät<select required value={newExercise.equipment} onChange={(event) => setNewExercise((draft) => ({ ...draft, equipment: event.target.value }))}><option value="">Gerät auswählen</option>{equipmentItems.filter((entry) => entry.active && entry.available).map((entry) => <option key={entry.id} value={entry.name}>{entry.name}</option>)}<option value="Ohne Gerät">Ohne Gerät</option><option value="Körpergewicht">Körpergewicht</option></select></label>
+            <label className="wide-field">Bewegungsanleitung (ein Schritt pro Zeile)<textarea required minLength={5} rows={3} maxLength={3000} value={newExercise.instructions} onChange={(event) => setNewExercise((draft) => ({ ...draft, instructions: event.target.value }))} /></label>
+            <label className="wide-field">Sicherheitshinweise<textarea required minLength={5} rows={2} maxLength={1200} value={newExercise.safetyNotes} onChange={(event) => setNewExercise((draft) => ({ ...draft, safetyNotes: event.target.value }))} /></label>
+            <label className="wide-field">Video-Link (optional)<input type="url" inputMode="url" maxLength={500} placeholder="https://www.youtube.com/..." value={newExercise.videoUrl} onChange={(event) => setNewExercise((draft) => ({ ...draft, videoUrl: event.target.value }))} /></label>
+            <button><Plus /> Übung anlegen</button>
+          </div>
+        </form>
+      </article>
       </>}
       {activeAdminSection === "familie" && <>
       <article className="wide"><div className="admin-title"><RotateCcw /><div><h2>Scores zurücksetzen</h2><p>Der vollständige Trainingsverlauf bleibt erhalten.</p></div></div><div className="reset-list">{profiles.map((profile) => <div key={profile.id}><span>{profile.name}<small>{profileScores[profile.id] ?? 0} Punkte</small></span><button type="button" onClick={() => requestResetScore(profile.id)}>Auf 0 setzen</button></div>)}</div></article>

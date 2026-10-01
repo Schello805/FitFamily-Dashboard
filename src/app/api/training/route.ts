@@ -22,13 +22,17 @@ export async function POST(request: Request) {
   if (parsed.data.action === "start" && parsed.data.exerciseId) {
     const client = await db();
     const unavailable = await client.execute({
-      sql: `SELECT inventory.name FROM exercises ex JOIN equipment_inventory inventory
-        ON (inventory.name = ex.equipment OR inventory.id = LOWER(ex.equipment))
-        WHERE ex.id = ? AND inventory.available = 0 LIMIT 1`,
+      sql: `SELECT ex.active AS exercise_active, ex.equipment, inventory.name, inventory.active AS equipment_active, inventory.available
+        FROM exercises ex LEFT JOIN equipment_inventory inventory
+          ON (inventory.name = ex.equipment OR inventory.id = LOWER(ex.equipment))
+        WHERE ex.id = ? LIMIT 1`,
       args: [parsed.data.exerciseId]
     });
-    if (unavailable.rows[0]) {
-      return NextResponse.json({ error: `Das Gerät ${String(unavailable.rows[0].name)} ist derzeit nicht verfügbar.` }, { status: 409 });
+    const item = unavailable.rows[0];
+    if (!item || !item.exercise_active) return NextResponse.json({ error: "Diese Übung ist nicht mehr aktiv." }, { status: 404 });
+    if (!["ohne gerät", "körpergewicht"].includes(String(item.equipment).toLocaleLowerCase("de"))) {
+      if (!item.name || !item.equipment_active) return NextResponse.json({ error: "Das zugeordnete Gerät ist nicht mehr aktiv." }, { status: 409 });
+      if (!item.available) return NextResponse.json({ error: `Das Gerät ${String(item.name)} ist derzeit nicht verfügbar.` }, { status: 409 });
     }
   }
   const result = parsed.data.action === "stop"

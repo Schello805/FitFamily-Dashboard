@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, BookOpen, CalendarDays, ChevronLeft, ChevronRight, Cpu, Download, Dumbbell, Play, RefreshCw, Sparkles, Square, Upload, Video, X } from "lucide-react";
+import { ArrowLeft, BookOpen, CalendarDays, ChevronLeft, ChevronRight, Cpu, Download, Dumbbell, Play, RefreshCw, Sparkles, Square, Trash2, Upload, Video, X } from "lucide-react";
 import type { DashboardProfile } from "@/lib/domain";
 import { showToast } from "@/components/toast";
 import { normalizePlanJson, type NormalizedPlan, type NormalizedSession } from "@/lib/plan-normalizer";
@@ -73,6 +73,7 @@ export function PlanView({ profile, goals }: { profile: DashboardProfile; goals:
   const load = () => fetch(`/api/plans?profileId=${profile.id}`).then((response) => response.json()).then((data) => setPlans(data.plans || []));
   useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const active = plans.find((plan) => plan.status === "active");
+  const archivedPlans = plans.filter((plan) => plan.status === "archived");
   const activePlanJson = active ? normalizePlanJson(active.plan_json) : null;
   const weeks = activePlanJson?.weeks ?? [];
   const currentWeek = getCurrentPlanWeek(weeks);
@@ -143,9 +144,15 @@ export function PlanView({ profile, goals }: { profile: DashboardProfile; goals:
   }
 
   async function loadExercise(exerciseName: string) {
-    const id = resolveExerciseId(exerciseName);
+    let id = resolveExerciseId(exerciseName);
     setSelectedExercise({ id, name: exerciseName, loading: true });
     try {
+      const matchResponse = await fetch(`/api/exercises?name=${encodeURIComponent(exerciseName)}`, { cache: "no-store" });
+      if (matchResponse.ok) {
+        const matchData = await matchResponse.json();
+        if (matchData.exercise?.id) id = String(matchData.exercise.id);
+      }
+      setSelectedExercise({ id, name: exerciseName, loading: true });
       const response = await fetch(`/api/exercises/${encodeURIComponent(id)}`, { cache: "no-store" });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error ?? "Übungsanleitung konnte nicht geladen werden.");
@@ -248,6 +255,37 @@ export function PlanView({ profile, goals }: { profile: DashboardProfile; goals:
     }
   }
 
+  async function archivePlan() {
+    if (!active || !window.confirm(`Möchtest du „${active.title}“ archivieren? Der Plan kann später wiederhergestellt werden.`)) return;
+    setBusy(true);
+    try {
+      const response = await fetch("/api/plans", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ profileId: profile.id, planId: active.id }) });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error ?? "Trainingsplan konnte nicht archiviert werden.");
+      showToast({ type: "success", title: "Trainingsplan archiviert", message: "Du kannst den Plan unten jederzeit wiederherstellen." });
+      await load();
+    } catch (error) {
+      showToast({ type: "error", title: "Archivieren fehlgeschlagen", message: error instanceof Error ? error.message : "Bitte Verbindung prüfen." });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function restorePlan(plan: Plan) {
+    setBusy(true);
+    try {
+      const response = await fetch("/api/plans", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ profileId: profile.id, planId: plan.id }) });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error ?? "Trainingsplan konnte nicht wiederhergestellt werden.");
+      showToast({ type: "success", title: "Trainingsplan wiederhergestellt", message: `„${plan.title}“ ist wieder aktiv.` });
+      await load();
+    } catch (error) {
+      showToast({ type: "error", title: "Wiederherstellung fehlgeschlagen", message: error instanceof Error ? error.message : "Bitte Verbindung prüfen." });
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <main className="subpage" style={{ "--profile": profile.color } as React.CSSProperties}>
       <KioskIdleBar redirectUrl="/" seconds={120} color={profile.color} title={`Trainingsplan von ${profile.name}`} paused={isVideoPlaying} />
@@ -270,6 +308,7 @@ export function PlanView({ profile, goals }: { profile: DashboardProfile; goals:
           <button onClick={() => setCreating(true)} title="Neuen KI-Trainingsplan generieren">
             <Sparkles /> Neuer Plan
           </button>
+          {active && <button type="button" className="plan-archive-action" disabled={busy} onClick={() => void archivePlan()}><Trash2 /> Plan archivieren</button>}
         </div>
       </header>
     {notice && <p className="notice">{notice}</p>}
@@ -343,6 +382,7 @@ export function PlanView({ profile, goals }: { profile: DashboardProfile; goals:
         )}
       </section>
     ) : <section className="empty-state large"><Cpu /><h2>Noch kein Trainingsplan</h2><p>Erstelle einen einfachen, auf eure Geräte abgestimmten Vorschlag.</p><button onClick={() => setCreating(true)}>Plan erstellen</button></section>}
+    {archivedPlans.length > 0 && <details className="plan-archive-list"><summary>Archivierte Pläne <span>{archivedPlans.length}</span></summary><div>{archivedPlans.map((plan) => <article key={plan.id}><span><b>{plan.title}</b><small>{plan.goal}</small></span><button type="button" disabled={busy} onClick={() => void restorePlan(plan)}>Wiederherstellen</button></article>)}</div></details>}
     {unitDialog && (
       <div className="modal-backdrop plan-unit-backdrop" onClick={() => { setUnitDialog(null); setSelectedExercise(null); setIsVideoPlaying(false); }}>
         <section className="plan-unit-dialog" role="dialog" aria-modal="true" aria-labelledby="plan-unit-title" onClick={(event) => event.stopPropagation()}>
