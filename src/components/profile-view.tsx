@@ -459,13 +459,8 @@ export function ProfileView({
   const activeType = profile.activeTraining?.type;
   return (
     <main className="profile-shell" style={{ "--profile": profile.color } as React.CSSProperties}>
-      {!isMobile && totalIdleSeconds > 0 && (
-        <div className="profile-idle-bar-container" title={`Automatische Rückkehr zum Dashboard in ${secondsLeft}s (Tippen zum Zurücksetzen)`} onClick={resetTimer}>
-          <div className="profile-idle-bar-fill" style={{ width: `${progress}%` }} />
-        </div>
-      )}
       <header className="profile-topbar">
-        <Link href="/" className="icon-link">
+        <Link href="/" className="icon-link" title="Zurück zum Hauptdashboard">
           <ArrowLeft size={isMobile ? 20 : 26} />
           <span>Dashboard</span>
         </Link>
@@ -477,7 +472,7 @@ export function ProfileView({
           <ThemeToggle showLabel={!isMobile} />
           {!isMobile && (
             <div
-              className="profile-idle-badge"
+              className={`profile-idle-badge ${secondsLeft <= 15 ? "is-warning" : ""}`}
               onClick={resetTimer}
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
@@ -489,14 +484,17 @@ export function ProfileView({
               role="button"
               tabIndex={0}
             >
+              <div className="profile-idle-badge-track">
+                <div className="profile-idle-badge-fill" style={{ width: `${progress}%` }} />
+              </div>
               <span className="idle-pulse-dot" />
               <div className="profile-idle-badge-text">
-                <small>Dashboard in</small>
+                <small>Dashboard zurück in</small>
                 <b>{secondsLeft}s</b>
               </div>
             </div>
           )}
-          <div className="profile-score">
+          <div className="profile-score" title={`Aktueller Punktestand von ${profile.name}`}>
             <strong>{profile.score.toLocaleString("de-DE")}</strong>
             <span>Punkte</span>
           </div>
@@ -558,14 +556,43 @@ export function ProfileView({
       </section>
 
       <section className="training-actions">
-        <button disabled={busy} className={`training-button strength ${activeType === "strength" ? "selected" : ""}`} onClick={() => requestTrainingStart("strength")}>
-          <span className="button-icon"><Dumbbell size={46} /></span><span><small>{activeType === "strength" ? "Läuft gerade" : "Starten"}</small><strong>Kraft</strong><em>1 Punkt je Minute</em></span>
+        <button
+          disabled={busy}
+          className={`training-button strength ${activeType === "strength" ? "selected" : ""}`}
+          onClick={() => requestTrainingStart("strength")}
+          title="Krafttraining starten (+1 Punkt je Minute)"
+        >
+          <span className="button-icon"><Dumbbell size={46} /></span>
+          <span>
+            <small>{activeType === "strength" ? "Läuft gerade" : "Starten"}</small>
+            <strong>Kraft</strong>
+            <em>1 Punkt je Minute</em>
+          </span>
         </button>
-        <button disabled={busy} className={`training-button endurance ${activeType === "endurance" ? "selected" : ""}`} onClick={() => requestTrainingStart("endurance")}>
-          <span className="button-icon"><Activity size={46} /></span><span><small>{activeType === "endurance" ? "Läuft gerade" : "Starten"}</small><strong>Ausdauer</strong><em>2 Punkte je Minute</em></span>
+        <button
+          disabled={busy}
+          className={`training-button endurance ${activeType === "endurance" ? "selected" : ""}`}
+          onClick={() => requestTrainingStart("endurance")}
+          title="Ausdauertraining starten (+2 Punkte je Minute)"
+        >
+          <span className="button-icon"><Activity size={46} /></span>
+          <span>
+            <small>{activeType === "endurance" ? "Läuft gerade" : "Starten"}</small>
+            <strong>Ausdauer</strong>
+            <em>2 Punkte je Minute</em>
+          </span>
         </button>
-        <button disabled={busy || !profile.activeTraining} className="training-button stop" onClick={() => action()}>
-          <Square size={38} fill="currentColor" /><span><small>Training</small><strong>Stoppen</strong></span>
+        <button
+          disabled={busy || !profile.activeTraining}
+          className="training-button stop"
+          onClick={() => action()}
+          title="Laufendes Training beenden und Punkte verbuchen"
+        >
+          <Square size={38} fill="currentColor" />
+          <span>
+            <small>Training</small>
+            <strong>Stoppen</strong>
+          </span>
         </button>
       </section>
 
@@ -574,8 +601,14 @@ export function ProfileView({
           <div><span className="section-kicker">Optional genauer erfassen</span><h3>Aktuelle Übung</h3></div>
           <div className="exercise-scroll">
             {exercises.filter((exercise) => exercise.type === "strength").map((exercise) => (
-              <button key={exercise.id} className={profile.activeTraining?.exerciseId === exercise.id ? "active" : ""} onClick={() => requestTrainingStart("strength", exercise.id)}>
-                <Dumbbell size={20} /><span>{exercise.name}<small>{exercise.equipment}</small></span>
+              <button
+                key={exercise.id}
+                className={profile.activeTraining?.exerciseId === exercise.id ? "active" : ""}
+                onClick={() => requestTrainingStart("strength", exercise.id)}
+                title={`Übung ${exercise.name} (${exercise.equipment}) auswählen`}
+              >
+                <Dumbbell size={20} />
+                <span>{exercise.name}<small>{exercise.equipment}</small></span>
               </button>
             ))}
           </div>
@@ -583,11 +616,55 @@ export function ProfileView({
       )}
 
       <nav className={`profile-nav ${isMobile ? "mobile-nav" : ""}`}>
-        <Link href={`/profil/${profile.id}/plan`}><CalendarRange /><span>Trainingsplan</span></Link>
-        <Link href={`/profil/${profile.id}/verlauf`}><History /><span>Verlauf</span></Link>
-        {!isMobile && <button onClick={openHandoff}><QrCode /><span>Am Handy öffnen</span></button>}
-        <button type="button" onClick={() => setHealthModal(true)}><Apple size={20} /><span>Apple Health</span></button>
-        <button type="button" onClick={openProfileEditor}><Settings2 /><span>Profil bearbeiten</span></button>
+        <Link href={`/profil/${profile.id}/plan`} title="Persönlichen Trainingsplan und Wochenetappen anzeigen">
+          <CalendarRange />
+          <div className="profile-nav-text">
+            <b>Trainingsplan</b>
+            <small>Wochen &amp; Etappen</small>
+          </div>
+        </Link>
+        <Link href={`/profil/${profile.id}/verlauf`} title="Bisherige Trainingseinheiten und Zeiten ansehen">
+          <History />
+          <div className="profile-nav-text">
+            <b>Verlauf</b>
+            <small>Historie &amp; Zeiten</small>
+          </div>
+        </Link>
+        {!isMobile && (
+          <button
+            type="button"
+            onClick={openHandoff}
+            title="QR-Code anzeigen: Profil auf dem Smartphone öffnen für mobile Steuerung &amp; Apple Health"
+          >
+            <QrCode />
+            <div className="profile-nav-text">
+              <b>Am Handy öffnen</b>
+              <small>QR-Code scannen</small>
+            </div>
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={() => setHealthModal(true)}
+          title="Apple Health Kurzbefehl, Webhook und Synchronisation verwalten"
+        >
+          <Apple size={20} />
+          <div className="profile-nav-text">
+            <b>Apple Health</b>
+            <small>Sync &amp; Kurzbefehl</small>
+          </div>
+        </button>
+        <button
+          type="button"
+          onClick={openProfileEditor}
+          title="Name, Geburtsdatum, Avatar und PIN für dieses Profil anpassen"
+        >
+          <Settings2 />
+          <div className="profile-nav-text">
+            <b>Profil bearbeiten</b>
+            <small>Avatar, Ziel &amp; PIN</small>
+          </div>
+        </button>
       </nav>
       {profileNotice && <p className="profile-notice" role="status">{profileNotice}</p>}
       {editingProfile && <div className="modal-backdrop" onClick={() => setEditingProfile(false)}><form className="profile-edit-modal" onSubmit={saveProfile} onClick={(event) => event.stopPropagation()}>
@@ -881,15 +958,17 @@ export function ProfileView({
             ) : (
               <>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", marginBottom: "4px" }}>
-                  <span className="setup-badge">Sicherer Übergang</span>
+                  <span className="setup-badge">Smartphone-Kopplung</span>
                   {!isMobile && (
                     <span className="modal-idle-badge" onClick={resetTimer} title="Automatische Rückkehr zum Dashboard bei Inaktivität (Tippen zum Verlängern)">
                       Dashboard in {secondsLeft}s
                     </span>
                   )}
                 </div>
-                <h2>Auf dem Handy fortfahren</h2>
-                <p>Scanne den Code mit deiner Smartphone-Kamera. Er ist zehn Minuten gültig.</p>
+                <h2>Profil auf dem Handy öffnen</h2>
+                <p style={{ maxWidth: "480px", margin: "6px auto 14px", lineHeight: "1.45", fontSize: "13px", color: "var(--muted)" }}>
+                  Scanne den QR-Code mit der iPhone- oder Android-Kamera. <b>{profile.name}</b> öffnet sich direkt auf deinem Smartphone zur mobilen Trainingssteuerung und Apple Health Synchronisation (10 Minuten gültig).
+                </p>
                 <Image src={handoff.qr} alt="QR-Code zum Öffnen des Profils auf dem Handy" width={330} height={330} unoptimized />
                 {handoff.url && <p style={{ wordBreak: "break-all", fontSize: "12px", color: "var(--muted)", margin: "12px 0 0", textAlign: "center" }}><code>{handoff.url}</code></p>}
               </>

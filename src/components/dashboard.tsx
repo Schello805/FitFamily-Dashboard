@@ -249,7 +249,7 @@ export function Dashboard({
         <section className="brand-block">
           <Image className="brand-logo" src="/assets/fitfamily-logo.png" alt="FitFamily Dashboard – Gesund, aktiv, gemeinsam" width={112} height={112} priority unoptimized />
           <div className="brand-tools">
-            <Link className="admin-shortcut" href="/verwaltung" aria-label="Verwaltung öffnen">
+            <Link className="admin-shortcut" href="/verwaltung" aria-label="Verwaltung öffnen" title="Einstellungen & Verwaltung öffnen (PIN, Backup, Ruhezustand, Updates)">
               <Settings size={26} />
               <span className="tool-label">Setup</span>
             </Link>
@@ -258,7 +258,7 @@ export function Dashboard({
                 type="button"
                 className="header-qr-button"
                 onClick={() => setShowQrModal(true)}
-                title="Am Smartphone öffnen (Tippen zum Vergrößern)"
+                title="Am Smartphone öffnen: QR-Code vergrößern für mobile Nutzung & Apple Health"
                 aria-label="QR-Code zum Öffnen auf dem Smartphone anzeigen"
               >
                 <Image

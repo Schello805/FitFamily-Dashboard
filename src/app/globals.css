@@ -225,12 +225,13 @@ body::before {
 .avatar-head { width: 32px; height: 35px; z-index: 2; border-radius: 48% 48% 44% 44%; background: #d6a57e; position: relative; box-shadow: inset 0 8px 0 #3f2a24; }
 .avatar-head span { position: absolute; width: 4px; height: 4px; background: #33201c; border-radius: 50%; top: 17px; left: 8px; box-shadow: 12px 0 #33201c; }
 .avatar-body { width: 54px; height: 42px; margin-top: -2px; border-radius: 19px 19px 12px 12px; display: grid; place-items: center; color: #071316; background: var(--profile); z-index: 1; }
-.level-chip { position: absolute; right: 3px; bottom: 3px; z-index: 3; font-size: 10px; font-weight: 800; padding: 4px 7px; border-radius: 9px; background: #f7fffe; color: #092024; box-shadow: 0 4px 14px rgba(0,0,0,.28); }
-.avatar-generated { width: 88px; height: 120px; flex: none; overflow: hidden; border-radius: 24px; isolation: isolate; background: color-mix(in srgb, var(--profile) 12%, var(--subtle-bg)); transition: box-shadow .2s ease, transform .2s ease; }
+.avatar-generated { width: 88px; height: 120px; flex: none; position: relative; overflow: visible; border-radius: 24px; isolation: isolate; }
+.avatar-canvas { width: 100%; height: 100%; border-radius: inherit; overflow: hidden; position: relative; background: color-mix(in srgb, var(--profile) 12%, var(--subtle-bg)); transition: box-shadow .2s ease, transform .2s ease; }
 .avatar-large { width: 110px; height: 148px; border-radius: 28px; }
-.avatar-large .level-chip { font-size: 11px; padding: 5px 9px; border-radius: 11px; right: 5px; bottom: 5px; }
 .avatar-small { width: 58px; height: 80px; border-radius: 18px; }
-.avatar-small .level-chip { font-size: 9px; padding: 2px 5px; border-radius: 7px; right: 2px; bottom: 2px; }
+.level-chip { position: absolute; right: 2px; bottom: 2px; z-index: 5; font-size: 10px; font-weight: 850; padding: 3px 8px; border-radius: 999px; background: #ffffff; color: #092024; border: 1.5px solid var(--panel, #ffffff); box-shadow: 0 4px 14px rgba(0,0,0,.35); pointer-events: none; line-height: 1.2; }
+.avatar-large .level-chip { font-size: 11px; padding: 4px 10px; right: 4px; bottom: 4px; }
+.avatar-small .level-chip { font-size: 9px; padding: 2px 6px; right: 1px; bottom: 1px; }
 
 .avatar-physique-strength {
   box-shadow: 0 0 0 1.5px rgba(251, 146, 60, 0.42), 0 8px 24px rgba(251, 146, 60, 0.16);
@@ -514,7 +515,7 @@ body::before {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 0 18px;
+  padding: 0 18px 5px;
   border-radius: 18px;
   background: var(--panel);
   border: 1px solid var(--line);
@@ -524,11 +525,36 @@ body::before {
   user-select: none;
   touch-action: manipulation;
   transition: all .15s ease;
+  position: relative;
+  overflow: hidden;
 }
 .profile-idle-badge:hover {
   background: var(--panel-soft);
   border-color: var(--line-strong);
   transform: translateY(-1px);
+}
+.profile-idle-badge.is-warning {
+  border-color: color-mix(in srgb, var(--profile, var(--brand)) 55%, var(--line));
+  animation: badge-pulse-warning 1.2s infinite alternate;
+}
+@keyframes badge-pulse-warning {
+  from { box-shadow: 0 0 0 0 color-mix(in srgb, var(--profile, var(--brand)) 30%, transparent); }
+  to { box-shadow: 0 0 0 5px color-mix(in srgb, var(--profile, var(--brand)) 30%, transparent); }
+}
+.profile-idle-badge-track {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: color-mix(in srgb, var(--panel-soft) 80%, var(--line));
+  overflow: hidden;
+}
+.profile-idle-badge-fill {
+  height: 100%;
+  background: var(--profile, var(--brand));
+  box-shadow: 0 0 10px var(--profile, var(--brand));
+  transition: width .25s linear;
 }
 .profile-idle-badge-text {
   display: flex;
@@ -549,15 +575,15 @@ body::before {
   font-variant-numeric: tabular-nums;
 }
 .idle-pulse-dot {
-  width: 9px;
-  height: 9px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
   background: var(--profile, var(--brand));
-  box-shadow: 0 0 8px var(--profile, var(--brand));
+  box-shadow: 0 0 10px var(--profile, var(--brand));
   animation: pulse-dot 1.4s infinite alternate;
   flex-shrink: 0;
 }
-@keyframes pulse-dot { from { opacity: .35; transform: scale(.85); } to { opacity: 1; transform: scale(1.15); } }
+@keyframes pulse-dot { from { opacity: .4; transform: scale(.85); } to { opacity: 1; transform: scale(1.15); } }
 
 .modal-idle-badge {
   display: inline-flex;
@@ -861,9 +887,68 @@ body::before {
 .exercise-scroll button.active { border-color: var(--profile); background: color-mix(in srgb, var(--profile) 10%, transparent); }
 .exercise-scroll span { font-size: 12px; font-weight: 700; }
 .exercise-scroll small { display: block; color: var(--muted); font-size: 9px; margin-top: 3px; font-weight: 500; }
-.profile-nav { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 17px; }
-.profile-nav button, .profile-nav a { min-height: 72px; border-radius: 18px; border: 1px solid var(--line); color: var(--text); background: var(--panel); display: flex; align-items: center; justify-content: center; gap: 10px; font-weight: 750; box-shadow: var(--card-shadow); }
-.profile-nav button svg, .profile-nav a svg { color: var(--profile); }
+.profile-nav {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 17px;
+}
+.profile-nav button,
+.profile-nav a {
+  min-height: 72px;
+  border-radius: 18px;
+  border: 1px solid var(--line);
+  color: var(--text);
+  background: var(--panel);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  font-weight: 750;
+  box-shadow: var(--card-shadow);
+  text-decoration: none;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: all .15s ease;
+  overflow: hidden;
+}
+.profile-nav button:hover,
+.profile-nav a:hover {
+  background: var(--panel-soft);
+  border-color: var(--line-strong);
+  transform: translateY(-1px);
+}
+.profile-nav button svg,
+.profile-nav a svg {
+  color: var(--profile);
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+}
+.profile-nav-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  text-align: left;
+  line-height: 1.25;
+}
+.profile-nav-text b {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.profile-nav-text small {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 2px;
+}
 
 @media (max-width: 850px) {
   .dashboard-shell { padding: 18px 16px 12px; }

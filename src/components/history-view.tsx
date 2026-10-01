@@ -366,7 +366,7 @@ export function HistoryView({ profile }: { profile: DashboardProfile }) {
     <main className="subpage" style={{ "--profile": profile.color } as React.CSSProperties}>
       <KioskIdleBar redirectUrl="/" seconds={60} color={profile.color} title={`Trainingsverlauf von ${profile.name}`} />
       <header>
-        <Link href={`/profil/${profile.id}`}>
+        <Link href={`/profil/${profile.id}`} title={`Zurück zur Profilseite von ${profile.name}`}>
           <ArrowLeft /> Zurück
         </Link>
         <div>
@@ -374,11 +374,13 @@ export function HistoryView({ profile }: { profile: DashboardProfile }) {
           <h1>{profile.name}</h1>
         </div>
         <button
+          type="button"
           onClick={() => {
             setManual(true);
             setManualPin("");
             setManualError("");
           }}
+          title="Vergangenes Training manuell mit Datum & Dauer nachtragen"
         >
           <Plus /> Nachtragen
         </button>

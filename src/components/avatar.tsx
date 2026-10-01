@@ -48,15 +48,17 @@ export function Avatar({
       aria-label={accessibleName}
       title={`Fitnessstufe ${level} von 5 · ${label}`}
     >
-      <Image
-        className="avatar-sprite"
-        src={`/assets/avatars/${avatarAssetForProfile(id, avatar)}.webp`}
-        alt=""
-        width={size === "large" ? 333 : 222}
-        height={size === "large" ? 666 : 444}
-        unoptimized
-        draggable={false}
-      />
+      <div className="avatar-canvas">
+        <Image
+          className="avatar-sprite"
+          src={`/assets/avatars/${avatarAssetForProfile(id, avatar)}.webp`}
+          alt=""
+          width={size === "large" ? 333 : 222}
+          height={size === "large" ? 666 : 444}
+          unoptimized
+          draggable={false}
+        />
+      </div>
       {showChip && <div className="level-chip">Lvl {level}</div>}
     </div>
   );

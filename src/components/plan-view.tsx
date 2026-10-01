@@ -76,7 +76,27 @@ export function PlanView({ profile, goals }: { profile: DashboardProfile; goals:
   return (
     <main className="subpage" style={{ "--profile": profile.color } as React.CSSProperties}>
       <KioskIdleBar redirectUrl="/" seconds={60} color={profile.color} title={`Trainingsplan von ${profile.name}`} />
-      <header><Link href={`/profil/${profile.id}`}><ArrowLeft /> Zurück</Link><div><span>Persönlicher Plan</span><h1>{profile.name}</h1></div><div className="plan-actions"><a className="plan-template" href="/assets/trainingsplan-vorlage.json" download><Download /> Vorlage</a><label className="plan-import"> <Upload /> JSON laden<input type="file" accept="application/json,.json" onChange={importJson} disabled={busy} /></label><button onClick={() => setCreating(true)}><Sparkles /> Neuer Plan</button></div></header>
+      <header>
+        <Link href={`/profil/${profile.id}`} title={`Zurück zur Profilseite von ${profile.name}`}>
+          <ArrowLeft /> Zurück
+        </Link>
+        <div>
+          <span>Persönlicher Plan</span>
+          <h1>{profile.name}</h1>
+        </div>
+        <div className="plan-actions">
+          <a className="plan-template" href="/assets/trainingsplan-vorlage.json" download title="JSON-Vorlage für Trainingspläne herunterladen">
+            <Download /> Vorlage
+          </a>
+          <label className="plan-import" title="Eigene Trainingsplan-JSON-Datei hochladen">
+            <Upload /> JSON laden
+            <input type="file" accept="application/json,.json" onChange={importJson} disabled={busy} />
+          </label>
+          <button onClick={() => setCreating(true)} title="Neuen KI-Trainingsplan generieren">
+            <Sparkles /> Neuer Plan
+          </button>
+        </div>
+      </header>
     {notice && <p className="notice">{notice}</p>}
     {active ? (
       <section className="plan-document">
