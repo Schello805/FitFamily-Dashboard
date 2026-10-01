@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { ArrowLeft, CalendarDays, CheckCircle2, Cpu, Download, Play, PlayCircle, Sparkles, Upload } from "lucide-react";
+import { ArrowLeft, CalendarDays, CheckCircle2, Cpu, Download, Play, PlayCircle, RefreshCw, Sparkles, Upload } from "lucide-react";
 import type { DashboardProfile } from "@/lib/domain";
 import { showToast } from "@/components/toast";
 import { normalizePlanJson, type NormalizedPlan } from "@/lib/plan-normalizer";
@@ -232,33 +232,42 @@ export function PlanView({ profile, goals }: { profile: DashboardProfile; goals:
                         <div className="plan-exercise-list">
                           {session.exercises.map((ex, exIndex) => {
                             const exId = resolveExerciseId(ex);
+                            const isStarting = startingEx === exId;
                             return (
                               <div key={exIndex} className="plan-exercise-row">
                                 <div className="plan-exercise-row-info">
                                   <span className="plan-exercise-num">{exIndex + 1}</span>
-                                  <Link
-                                    href={`/uebung/${exId}?profil=${profile.id}&fromPlan=1`}
-                                    className="plan-exercise-link"
-                                    title={`Video & Anleitung für ${ex} ansehen`}
-                                  >
-                                    <span className="plan-exercise-name">{ex}</span>
-                                    <span className="plan-exercise-guide-badge">
+                                  <div className="plan-exercise-details">
+                                    <Link
+                                      href={`/uebung/${exId}?profil=${profile.id}&fromPlan=1`}
+                                      className="plan-exercise-name-link"
+                                      title={`Video & Anleitung für ${ex} öffnen`}
+                                    >
+                                      <span className="plan-exercise-name">{ex}</span>
+                                    </Link>
+                                    <Link
+                                      href={`/uebung/${exId}?profil=${profile.id}&fromPlan=1`}
+                                      className="plan-exercise-guide-badge"
+                                      title={`Anleitungsvideo für ${ex} ansehen`}
+                                    >
                                       <PlayCircle size={13} />
-                                      Video
-                                    </span>
-                                  </Link>
+                                      <span>Video & Anleitung</span>
+                                    </Link>
+                                  </div>
                                 </div>
                                 <button
                                   type="button"
-                                  className="plan-exercise-round-btn"
+                                  className={`plan-exercise-circle-btn ${isStarting ? "loading" : ""}`}
                                   onClick={() => startExercise(exId, ex, session.type || "strength")}
-                                  disabled={startingEx === exId}
-                                  title={`Übung ${exIndex + 1} (${ex}) jetzt direkt starten`}
+                                  disabled={isStarting}
+                                  title={`Übung ${exIndex + 1}: „${ex}“ jetzt direkt starten`}
+                                  aria-label={`Übung ${ex} starten`}
                                 >
-                                  <span className="plan-exercise-round-icon">
-                                    <Play size={13} fill="currentColor" />
-                                  </span>
-                                  <span>{startingEx === exId ? "Startet…" : "Starten"}</span>
+                                  {isStarting ? (
+                                    <RefreshCw size={18} className="spin" />
+                                  ) : (
+                                    <Play size={18} fill="currentColor" />
+                                  )}
                                 </button>
                               </div>
                             );

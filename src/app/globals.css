@@ -1539,23 +1539,24 @@ body::before {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  background: linear-gradient(135deg, var(--brand-bright, #2dd4bf), var(--brand, #14b8a6));
-  color: #06201d;
+  background: var(--brand);
+  color: #ffffff;
   border: none;
   border-radius: 999px;
-  min-height: 40px;
-  padding: 0 16px;
+  min-height: 42px;
+  padding: 0 18px;
   font-size: 13px;
   font-weight: 850;
   cursor: pointer;
   transition: all .18s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 3px 12px color-mix(in srgb, var(--brand) 35%, transparent);
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--brand) 40%, transparent);
   flex-shrink: 0;
   touch-action: manipulation;
 }
 .plan-round-start-btn:hover {
+  filter: brightness(1.1);
   transform: translateY(-2px) scale(1.02);
-  box-shadow: 0 5px 16px color-mix(in srgb, var(--brand) 45%, transparent);
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--brand) 50%, transparent);
 }
 .plan-round-start-btn:active {
   transform: translateY(1px) scale(0.98);
@@ -1569,134 +1570,140 @@ body::before {
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  background: rgba(6, 32, 29, 0.15);
+  background: rgba(255, 255, 255, 0.24);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
 }
 
-/* Plan Exercise List & Individual Exercise Start Buttons */
+/* Plan Exercise List & 44px Round Circle Play Buttons */
 .plan-exercise-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  margin-top: 6px;
+  gap: 10px;
+  margin-top: 10px;
   padding-left: 27px;
 }
 .plan-exercise-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  background: color-mix(in srgb, var(--panel) 90%, var(--subtle-bg));
+  gap: 14px;
+  background: color-mix(in srgb, var(--panel) 92%, var(--subtle-bg));
   border: 1px solid var(--line);
-  border-radius: 16px;
-  padding: 8px 12px 8px 10px;
-  transition: all .15s ease;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+  border-radius: 20px;
+  padding: 10px 14px 10px 12px;
+  transition: all .18s ease;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.03);
 }
 .plan-exercise-row:hover {
-  border-color: color-mix(in srgb, var(--brand) 40%, var(--line));
+  border-color: color-mix(in srgb, var(--brand) 45%, var(--line));
   background: color-mix(in srgb, var(--brand) 6%, var(--panel));
+  box-shadow: 0 4px 12px rgba(0,0,0,0.06);
 }
 .plan-exercise-row-info {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   min-width: 0;
   flex: 1;
 }
 .plan-exercise-num {
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   background: color-mix(in srgb, var(--brand) 18%, var(--subtle-bg));
   color: var(--brand);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 850;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
 }
-.plan-exercise-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
+.plan-exercise-details {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  flex: 1;
+}
+.plan-exercise-name-link {
   text-decoration: none;
   color: var(--text);
   min-width: 0;
 }
-.plan-exercise-link:hover .plan-exercise-name {
+.plan-exercise-name-link:hover .plan-exercise-name {
   color: var(--brand);
 }
 .plan-exercise-name {
   font-weight: 750;
-  font-size: 13px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  font-size: 14px;
+  line-height: 1.35;
+  color: var(--text);
   transition: color .15s ease;
 }
 .plan-exercise-guide-badge {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  font-size: 10px;
+  gap: 5px;
+  font-size: 11px;
   font-weight: 750;
   color: var(--brand);
   background: color-mix(in srgb, var(--brand) 12%, transparent);
   border: 1px solid color-mix(in srgb, var(--brand) 25%, transparent);
-  padding: 2px 7px;
+  padding: 2px 8px;
   border-radius: 999px;
   flex-shrink: 0;
+  text-decoration: none;
+  width: fit-content;
+  transition: all .15s ease;
 }
-.plan-exercise-round-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: color-mix(in srgb, var(--brand) 15%, var(--panel));
-  color: var(--brand);
-  border: 1px solid color-mix(in srgb, var(--brand) 40%, transparent);
-  border-radius: 999px;
-  min-height: 34px;
-  padding: 0 13px;
-  font-size: 12px;
-  font-weight: 800;
-  cursor: pointer;
-  transition: all .18s cubic-bezier(0.4, 0, 0.2, 1);
-  flex-shrink: 0;
-  touch-action: manipulation;
-}
-.plan-exercise-round-btn:hover {
+.plan-exercise-guide-badge:hover {
   background: var(--brand);
-  color: #06201d;
+  color: #ffffff;
   border-color: var(--brand);
-  transform: translateY(-1px) scale(1.03);
-  box-shadow: 0 3px 10px color-mix(in srgb, var(--brand) 35%, transparent);
 }
-.plan-exercise-round-btn:active {
-  transform: translateY(1px) scale(0.97);
-}
-.plan-exercise-round-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-  transform: none;
-}
-.plan-exercise-round-icon {
-  width: 20px;
-  height: 20px;
+
+/* 44px Round Circle Play Button (Modern Fitness App Style) */
+.plan-exercise-circle-btn {
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
   border-radius: 50%;
-  background: color-mix(in srgb, var(--brand) 25%, transparent);
+  border: none;
+  background: var(--brand);
+  color: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
+  cursor: pointer;
+  transition: all .2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--brand) 40%, transparent);
   flex-shrink: 0;
-  transition: background .15s ease;
+  touch-action: manipulation;
+  padding: 0;
 }
-.plan-exercise-round-btn:hover .plan-exercise-round-icon {
-  background: rgba(6, 32, 29, 0.2);
+.plan-exercise-circle-btn svg:not(.spin) {
+  margin-left: 2px;
+}
+.plan-exercise-circle-btn:hover {
+  transform: scale(1.12);
+  filter: brightness(1.12);
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--brand) 55%, transparent);
+}
+.plan-exercise-circle-btn:active {
+  transform: scale(0.94);
+}
+.plan-exercise-circle-btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  transform: none;
+}
+.plan-exercise-circle-btn.loading {
+  background: color-mix(in srgb, var(--brand) 70%, var(--panel));
 }
 .ai-privacy { color: var(--muted); background: color-mix(in srgb, var(--brand) 8%, var(--subtle-bg)); padding: 10px; border-radius: 11px; font-size: 11px; }
 @media (max-width: 720px) {
