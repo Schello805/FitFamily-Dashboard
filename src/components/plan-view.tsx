@@ -1,14 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { ArrowLeft, CalendarDays, CheckCircle2, Cpu, Download, Play, PlayCircle, RefreshCw, Sparkles, Upload } from "lucide-react";
+import { ArrowLeft, BookOpen, CalendarDays, ChevronLeft, ChevronRight, Cpu, Download, Dumbbell, Play, RefreshCw, Sparkles, Square, Upload, Video, X } from "lucide-react";
 import type { DashboardProfile } from "@/lib/domain";
 import { showToast } from "@/components/toast";
-import { normalizePlanJson, type NormalizedPlan } from "@/lib/plan-normalizer";
+import { normalizePlanJson, type NormalizedPlan, type NormalizedSession } from "@/lib/plan-normalizer";
 import { resolveExerciseId } from "@/lib/exercise-guides";
 import { KioskIdleBar } from "@/components/kiosk-idle-bar";
+import { LiveDuration } from "@/components/live-duration";
 
 type Plan = {
   id: string;
@@ -19,34 +19,68 @@ type Plan = {
   plan_json: NormalizedPlan | Record<string, unknown>;
 };
 
-function getCurrentPlanWeek(weeks: { week: number }[]): number {
-  // Returns which week number is "current" based on today.
-  // Assumes week 1 started the Monday of the first session date found,
-  // or falls back to week 1 if no dates exist.
+function getCurrentPlanWeek(weeks: NormalizedPlan["weeks"]) {
   const today = new Date();
-  const dayOfYear = Math.floor((today.getTime() - new Date(today.getFullYear(), 0, 0).getTime()) / 86400000);
-  // Simple heuristic: cycle through weeks 1..n based on ISO week number
-  const isoWeek = Math.ceil(dayOfYear / 7);
-  const maxWeek = weeks.length;
-  if (maxWeek === 0) return 1;
-  // Map current ISO week to plan week (1-indexed, wraps)
-  return ((isoWeek - 1) % maxWeek) + 1;
+  const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+  const todayWeek = weeks.find((week) => week.sessions.some((session) => session.date === todayKey));
+  if (todayWeek) return todayWeek.week;
+  const upcoming = weeks
+    .flatMap((week) => week.sessions.filter((session) => session.date && session.date > todayKey).map((session) => ({ week: week.week, date: session.date! })))
+    .sort((a, b) => a.date.localeCompare(b.date))[0];
+  return upcoming?.week ?? weeks[0]?.week ?? null;
+}
+
+type ExerciseGuideData = {
+  id: string;
+  name: string;
+  equipment: string;
+  setup: string[];
+  movement: string[];
+  breathing: string;
+  tempo: string;
+  mistakes: string[];
+  safety: string[];
+};
+
+type SessionExercise = {
+  id: string;
+  name: string;
+  guide?: ExerciseGuideData;
+  videoUrl?: string | null;
+  loading?: boolean;
+};
+
+function youtubeEmbedUrl(url: string) {
+  const match = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/i);
+  if (match?.[1]) return `https://www.youtube-nocookie.com/embed/${match[1]}?rel=0&playsinline=1`;
+  if (/^[a-zA-Z0-9_-]{11}$/.test(url)) return `https://www.youtube-nocookie.com/embed/${url}?rel=0&playsinline=1`;
+  return null;
 }
 
 export function PlanView({ profile, goals }: { profile: DashboardProfile; goals: string[] }) {
-  const router = useRouter();
   const [plans, setPlans] = useState<Plan[]>([]);
   const [creating, setCreating] = useState(false);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
-  const [startingEx, setStartingEx] = useState<string | null>(null);
+  const [startingSession, setStartingSession] = useState(false);
+  const [stoppingSession, setStoppingSession] = useState(false);
+  const [unitDialog, setUnitDialog] = useState<{ session: NormalizedSession; startedAt: string } | null>(null);
+  const [selectedExercise, setSelectedExercise] = useState<SessionExercise | null>(null);
+  const [weekPage, setWeekPage] = useState<{ planId: string; page: number } | null>(null);
   const load = () => fetch(`/api/plans?profileId=${profile.id}`).then((response) => response.json()).then((data) => setPlans(data.plans || []));
   useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const active = plans.find((plan) => plan.status === "active");
   const activePlanJson = active ? normalizePlanJson(active.plan_json) : null;
+  const weeks = activePlanJson?.weeks ?? [];
+  const currentWeek = getCurrentPlanWeek(weeks);
+  const currentWeekIndex = weeks.findIndex((week) => week.week === currentWeek);
+  const weekPageCount = Math.max(1, Math.ceil(weeks.length / 4));
+  const requestedWeekPage = weekPage && weekPage.planId === active?.id ? weekPage.page : Math.floor(Math.max(0, currentWeekIndex) / 4);
+  const visibleWeekPage = Math.min(requestedWeekPage, weekPageCount - 1);
+  const visibleWeeks = weeks.slice(visibleWeekPage * 4, visibleWeekPage * 4 + 4);
 
-  async function startExercise(exId: string, exName: string, type: "strength" | "endurance" = "strength") {
-    setStartingEx(exId);
+  async function startUnit(session: NormalizedSession) {
+    setStartingSession(true);
     try {
       const response = await fetch("/api/training", {
         method: "POST",
@@ -54,18 +88,19 @@ export function PlanView({ profile, goals }: { profile: DashboardProfile; goals:
         body: JSON.stringify({
           action: "start",
           profileId: profile.id,
-          type,
-          exerciseId: exId,
+          type: session.type,
           source: "touch"
         })
       });
       if (response.ok) {
+        const startedAt = new Date().toISOString();
+        setSelectedExercise(null);
+        setUnitDialog({ session, startedAt });
         showToast({
           type: "success",
-          title: `Training gestartet: ${exName}`,
-          message: `${type === "strength" ? "Krafttraining (+1 Pkt./Min.)" : "Ausdauertraining (+2 Pkt./Min.)"} läuft.`
+          title: `Einheit gestartet: ${session.title}`,
+          message: `${session.type === "strength" ? "Krafttraining (+1 Pkt./Min.)" : "Ausdauertraining (+2 Pkt./Min.)"} läuft.`
         });
-        router.push(`/profil/${profile.id}`);
       } else {
         const data = await response.json().catch(() => null);
         showToast({
@@ -81,7 +116,40 @@ export function PlanView({ profile, goals }: { profile: DashboardProfile; goals:
         message: "Server konnte nicht erreicht werden."
       });
     } finally {
-      setStartingEx(null);
+      setStartingSession(false);
+    }
+  }
+
+  async function loadExercise(exerciseName: string) {
+    const id = resolveExerciseId(exerciseName);
+    setSelectedExercise({ id, name: exerciseName, loading: true });
+    try {
+      const response = await fetch(`/api/exercises/${encodeURIComponent(id)}`, { cache: "no-store" });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error ?? "Übungsanleitung konnte nicht geladen werden.");
+      setSelectedExercise({ id, name: exerciseName, guide: data.guide, videoUrl: data.videoUrl ?? null });
+    } catch (error) {
+      setSelectedExercise({ id, name: exerciseName });
+      showToast({ type: "error", title: "Anleitung nicht verfügbar", message: error instanceof Error ? error.message : "Bitte Verbindung prüfen." });
+    }
+  }
+
+  async function stopUnit() {
+    setStoppingSession(true);
+    try {
+      const response = await fetch("/api/training", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "stop", profileId: profile.id })
+      });
+      if (!response.ok) throw new Error("Das Training konnte nicht beendet werden.");
+      setUnitDialog(null);
+      setSelectedExercise(null);
+      showToast({ type: "success", title: "Einheit beendet", message: "Die Trainingszeit wurde gespeichert." });
+    } catch (error) {
+      showToast({ type: "error", title: "Stoppen fehlgeschlagen", message: error instanceof Error ? error.message : "Bitte Verbindung prüfen." });
+    } finally {
+      setStoppingSession(false);
     }
   }
 
@@ -158,7 +226,7 @@ export function PlanView({ profile, goals }: { profile: DashboardProfile; goals:
 
   return (
     <main className="subpage" style={{ "--profile": profile.color } as React.CSSProperties}>
-      <KioskIdleBar redirectUrl="/" seconds={60} color={profile.color} title={`Trainingsplan von ${profile.name}`} />
+      <KioskIdleBar redirectUrl="/" seconds={120} color={profile.color} title={`Trainingsplan von ${profile.name}`} paused={Boolean(selectedExercise?.videoUrl)} />
       <header>
         <Link href={`/profil/${profile.id}`} title={`Zurück zur Profilseite von ${profile.name}`}>
           <ArrowLeft /> Zurück
@@ -202,106 +270,45 @@ export function PlanView({ profile, goals }: { profile: DashboardProfile; goals:
           </div>
         </div>
 
-        {activePlanJson && activePlanJson.weeks.length > 0 ? (
-          <div className="week-grid">
-            {(() => {
-              const currentWeek = getCurrentPlanWeek(activePlanJson.weeks);
-              return activePlanJson.weeks.map((week) => {
+        {activePlanJson && weeks.length > 0 ? (
+          <>
+            {weekPageCount > 1 && (
+              <div className="plan-week-toolbar">
+                <span>Wochenübersicht · vier Wochen pro Ansicht</span>
+                <div>
+                  <button type="button" onClick={() => active && setWeekPage({ planId: active.id, page: (visibleWeekPage + weekPageCount - 1) % weekPageCount })} aria-label="Vorherige vier Wochen"><ChevronLeft /></button>
+                  <b>Woche {visibleWeeks[0]?.week}–{visibleWeeks[visibleWeeks.length - 1]?.week} von {weeks.length}</b>
+                  <button type="button" onClick={() => active && setWeekPage({ planId: active.id, page: (visibleWeekPage + 1) % weekPageCount })} aria-label="Nächste vier Wochen"><ChevronRight /></button>
+                </div>
+              </div>
+            )}
+            <div className="week-grid">
+              {visibleWeeks.map((week) => {
                 const isCurrent = week.week === currentWeek;
-                return (<article key={week.week} className={isCurrent ? "current-week" : ""}>
-                <h3>
-                  Woche {week.week}
-                  {isCurrent && <span className="week-current-badge">Diese Woche</span>}
-                </h3>
-                {week.sessions.map((session, index) => {
-                  const primaryExId = resolveExerciseId(session.exercises?.[0] || session.title);
-                  return (
-                    <div key={index} className="plan-session-card">
-                      <div className="plan-session-header">
-                        <div className="plan-session-title-wrap">
-                          <Link
-                            href={`/uebung/${primaryExId}?profil=${profile.id}&fromPlan=1`}
-                            className="plan-session-title-link"
-                            title="Anleitung & Video öffnen"
-                          >
-                            <CheckCircle2 className="plan-session-check" />
-                            <span className="plan-session-name">{session.title}</span>
-                          </Link>
-                          <div className="plan-session-meta">
-                            {session.date ? `${new Date(`${session.date}T12:00:00`).toLocaleDateString("de-DE")} · ` : ""}
-                            {session.minutes} Min.
-                            {session.distanceKm ? ` · ${session.distanceKm} km` : ""}
+                return (
+                  <article key={week.week} className={isCurrent ? "current-week" : ""}>
+                    <h3>Woche {week.week}{isCurrent && <span className="week-current-badge">Diese Woche</span>}</h3>
+                    {week.sessions.length ? week.sessions.map((session, index) => (
+                      <div key={`${week.week}-${session.date ?? index}-${index}`} className="plan-session-card compact-session-card">
+                        <div className="compact-session-main">
+                          <div className="compact-session-title">{session.title}</div>
+                          <div className="compact-session-meta">
+                            {session.date ? `${new Date(`${session.date}T12:00:00`).toLocaleDateString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit" })} · ` : ""}
+                            {session.minutes} Min.{session.distanceKm ? ` · ${session.distanceKm} km` : ""}
+                            {session.exercises?.length ? ` · ${session.exercises.length} Übungen` : ""}
                           </div>
                         </div>
-
-                        <button
-                          type="button"
-                          className="plan-round-start-btn"
-                          onClick={() => startExercise(primaryExId, session.title, session.type || "strength")}
-                          disabled={startingEx === primaryExId}
-                          title={`Einheit „${session.title}“ jetzt starten`}
-                        >
-                          <span className="plan-round-start-icon">
-                            <Play size={15} fill="currentColor" />
-                          </span>
-                          <span>{startingEx === primaryExId ? "Startet…" : "Einheit starten"}</span>
+                        <button type="button" className="plan-round-start-btn" onClick={() => void startUnit(session)} disabled={startingSession} title={`Einheit „${session.title}“ starten`}>
+                          {startingSession ? <RefreshCw className="spin" size={17} /> : <Play size={16} fill="currentColor" />}
+                          <span>{startingSession ? "Startet…" : "Einheit starten"}</span>
                         </button>
                       </div>
-
-                      {Array.isArray(session.exercises) && session.exercises.length > 0 && (
-                        <div className="plan-exercise-list">
-                          {session.exercises.map((ex, exIndex) => {
-                            const exId = resolveExerciseId(ex);
-                            const isStarting = startingEx === exId;
-                            return (
-                              <div key={exIndex} className="plan-exercise-row">
-                                <div className="plan-exercise-row-info">
-                                  <span className="plan-exercise-num">{exIndex + 1}</span>
-                                  <div className="plan-exercise-details">
-                                    <Link
-                                      href={`/uebung/${exId}?profil=${profile.id}&fromPlan=1`}
-                                      className="plan-exercise-name-link"
-                                      title={`Video & Anleitung für ${ex} öffnen`}
-                                    >
-                                      <span className="plan-exercise-name">{ex}</span>
-                                    </Link>
-                                    <Link
-                                      href={`/uebung/${exId}?profil=${profile.id}&fromPlan=1`}
-                                      className="plan-exercise-guide-badge"
-                                      title={`Anleitungsvideo für ${ex} ansehen`}
-                                    >
-                                      <PlayCircle size={13} />
-                                      <span>Video & Anleitung</span>
-                                    </Link>
-                                  </div>
-                                </div>
-                                <button
-                                  type="button"
-                                  className={`plan-exercise-circle-btn ${isStarting ? "loading" : ""}`}
-                                  onClick={() => startExercise(exId, ex, session.type || "strength")}
-                                  disabled={isStarting}
-                                  title={`Übung ${exIndex + 1}: „${ex}“ jetzt direkt starten`}
-                                  aria-label={`Übung ${ex} starten`}
-                                >
-                                  {isStarting ? (
-                                    <RefreshCw size={18} className="spin" />
-                                  ) : (
-                                    <Play size={18} fill="currentColor" />
-                                  )}
-                                </button>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </article>
-              );
-              });
-            })()}
-          </div>
+                    )) : <p className="empty-week">Ruhetag</p>}
+                  </article>
+                );
+              })}
+            </div>
+          </>
         ) : (
           <div className="empty-state" style={{ marginTop: "1.5rem" }}>
             <p>Für diesen Plan konnten keine Einheiten angezeigt werden.</p>
@@ -312,6 +319,57 @@ export function PlanView({ profile, goals }: { profile: DashboardProfile; goals:
         )}
       </section>
     ) : <section className="empty-state large"><Cpu /><h2>Noch kein Trainingsplan</h2><p>Erstelle einen einfachen, auf eure Geräte abgestimmten Vorschlag.</p><button onClick={() => setCreating(true)}>Plan erstellen</button></section>}
+    {unitDialog && (
+      <div className="modal-backdrop plan-unit-backdrop" onClick={() => { setUnitDialog(null); setSelectedExercise(null); }}>
+        <section className="plan-unit-dialog" role="dialog" aria-modal="true" aria-labelledby="plan-unit-title" onClick={(event) => event.stopPropagation()}>
+          <button type="button" className="modal-close" aria-label="Einheit schließen" onClick={() => { setUnitDialog(null); setSelectedExercise(null); }}><X /></button>
+          <div className="plan-unit-heading">
+            <span className="setup-badge">Einheit läuft · {unitDialog.session.type === "endurance" ? "Ausdauer" : "Kraft"}</span>
+            <h2 id="plan-unit-title">{unitDialog.session.title}</h2>
+            <p>{unitDialog.session.date ? `${new Date(`${unitDialog.session.date}T12:00:00`).toLocaleDateString("de-DE")} · ` : ""}{unitDialog.session.minutes} Min.{unitDialog.session.distanceKm ? ` · ${unitDialog.session.distanceKm} km` : ""}</p>
+            <div className="plan-unit-live"><Dumbbell size={18} /><span>Trainingszeit</span><strong><LiveDuration since={unitDialog.startedAt} /></strong></div>
+          </div>
+          <div className="plan-unit-content">
+            <div className="plan-unit-exercises">
+              <h3>Geplante Übungen</h3>
+              {unitDialog.session.exercises?.length ? unitDialog.session.exercises.map((exercise, index) => (
+                <article key={`${exercise}-${index}`} className="plan-unit-exercise-row">
+                  <span>{index + 1}</span>
+                  <b>{exercise}</b>
+                  <button type="button" onClick={() => void loadExercise(exercise)}><BookOpen size={17} /><span>Anleitung &amp; Video</span></button>
+                </article>
+              )) : <p className="empty-week">Für diese Einheit sind keine einzelnen Übungen hinterlegt.</p>}
+            </div>
+            {selectedExercise && (
+              <section className="plan-exercise-detail" aria-live="polite">
+                <div className="plan-exercise-detail-heading">
+                  <div><small>{selectedExercise.guide?.equipment ?? "Übungsanleitung"}</small><h3>{selectedExercise.name}</h3></div>
+                  <button type="button" aria-label="Anleitung schließen" onClick={() => setSelectedExercise(null)}><X /></button>
+                </div>
+                {selectedExercise.loading ? <p>Anleitung wird geladen…</p> : selectedExercise.guide ? (
+                  <>
+                    {selectedExercise.videoUrl && (youtubeEmbedUrl(selectedExercise.videoUrl) ? (
+                      <div className="plan-exercise-video"><iframe src={youtubeEmbedUrl(selectedExercise.videoUrl)!} title={`Anleitungsvideo: ${selectedExercise.name}`} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowFullScreen /></div>
+                    ) : <a className="plan-external-video" href={selectedExercise.videoUrl} target="_blank" rel="noreferrer"><Video size={18} /> Video öffnen</a>)}
+                    {!selectedExercise.videoUrl && <p className="plan-no-video">Für diese Übung ist noch kein Video hinterlegt.</p>}
+                    <div className="plan-guide-columns">
+                      <div><h4>Vorbereitung</h4>{selectedExercise.guide.setup.map((step) => <p key={step}>{step}</p>)}</div>
+                      <div><h4>Ausführung</h4>{selectedExercise.guide.movement.map((step) => <p key={step}>{step}</p>)}</div>
+                      <div><h4>Atmung &amp; Tempo</h4><p>{selectedExercise.guide.breathing}</p><p>{selectedExercise.guide.tempo}</p></div>
+                      <div><h4>Sicherheit</h4>{selectedExercise.guide.safety.map((step) => <p key={step}>{step}</p>)}</div>
+                    </div>
+                  </>
+                ) : <p>Die Anleitung ist derzeit nicht verfügbar.</p>}
+              </section>
+            )}
+          </div>
+          <footer className="plan-unit-footer">
+            <p>{selectedExercise?.videoUrl ? "Rückkehr-Timer pausiert, solange das Video geöffnet ist." : "Ohne geöffnetes Video läuft der Rückkehr-Timer wie gewohnt weiter."}</p>
+            <button type="button" className="plan-unit-stop" disabled={stoppingSession} onClick={() => void stopUnit()}><Square size={17} fill="currentColor" />{stoppingSession ? "Wird beendet…" : "Einheit beenden"}</button>
+          </footer>
+        </section>
+      </div>
+    )}
     {creating && (() => {
       const defaultLevel = profile.fitnessStage <= 2 ? "Einsteiger" : profile.fitnessStage <= 4 ? "Fortgeschritten" : "Erfahren";
       return (

@@ -7,12 +7,14 @@ export function KioskIdleBar({
   redirectUrl = "/",
   seconds = 60,
   color,
-  title = "Inaktivitäts-Timer: Zurück zum Dashboard"
+  title = "Inaktivitäts-Timer: Zurück zum Dashboard",
+  paused = false
 }: {
   redirectUrl?: string;
   seconds?: number;
   color?: string;
   title?: string;
+  paused?: boolean;
 }) {
   const router = useRouter();
   const [totalSeconds] = useState(() => {
@@ -30,6 +32,7 @@ export function KioskIdleBar({
   const [secondsLeft, setSecondsLeft] = useState(totalSeconds);
   const [progress, setProgress] = useState(100);
   const deadlineRef = useRef<number | null>(null);
+  const pausedRemainingRef = useRef<number | null>(null);
 
   const resetTimer = useCallback(() => {
     if (totalSeconds <= 0) return;
@@ -41,7 +44,18 @@ export function KioskIdleBar({
   useEffect(() => {
     if (typeof window === "undefined" || totalSeconds <= 0) return;
 
-    deadlineRef.current = Date.now() + totalSeconds * 1000;
+    if (paused) {
+      pausedRemainingRef.current = deadlineRef.current === null
+        ? pausedRemainingRef.current ?? totalSeconds * 1000
+        : Math.max(0, deadlineRef.current - Date.now());
+      deadlineRef.current = null;
+      setSecondsLeft(Math.ceil(pausedRemainingRef.current / 1000));
+      setProgress((pausedRemainingRef.current / (totalSeconds * 1000)) * 100);
+      return;
+    }
+
+    deadlineRef.current = Date.now() + (pausedRemainingRef.current ?? totalSeconds * 1000);
+    pausedRemainingRef.current = null;
     const handleActivity = () => resetTimer();
     const events = ["pointerdown", "keydown", "scroll", "touchstart"] as const;
     events.forEach((event) => window.addEventListener(event, handleActivity, { passive: true }));
@@ -63,16 +77,16 @@ export function KioskIdleBar({
       window.clearInterval(interval);
       events.forEach((event) => window.removeEventListener(event, handleActivity));
     };
-  }, [totalSeconds, redirectUrl, router, resetTimer]);
+  }, [totalSeconds, redirectUrl, router, resetTimer, paused]);
 
   if (totalSeconds <= 0) return null;
 
   return (
     <div
       className="profile-idle-bar-container"
-      onClick={() => router.push(redirectUrl)}
-      title={`${title}: Noch ${secondsLeft}s (Klick zum sofortigen Verlassen)`}
-      style={{ cursor: "pointer" }}
+      onClick={() => { if (!paused) router.push(redirectUrl); }}
+      title={paused ? "Rückkehr-Timer pausiert, während das Video geöffnet ist" : `${title}: Noch ${secondsLeft}s (Klick zum sofortigen Verlassen)`}
+      style={{ cursor: paused ? "default" : "pointer" }}
     >
       <div
         className="profile-idle-bar-fill"

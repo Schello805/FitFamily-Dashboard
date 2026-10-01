@@ -4,11 +4,44 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { isAllowedVideoUrl } from "@/lib/exercise-video";
 import { verifyAdminPin } from "@/lib/security";
+import { getExerciseGuide } from "@/lib/exercise-guides";
 
 const schema = z.object({
   pin: z.string().regex(/^\d{4,8}$/),
   videoUrl: z.string().url().max(500).nullable()
 });
+
+export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const guide = getExerciseGuide(id);
+  const client = await db();
+  let result = await client.execute({
+    sql: "SELECT video_url FROM exercises WHERE id = ? AND video_url IS NOT NULL AND TRIM(video_url) != '' LIMIT 1",
+    args: [id]
+  });
+  if (!result.rows[0] && guide.id !== id) {
+    result = await client.execute({
+      sql: "SELECT video_url FROM exercises WHERE id = ? AND video_url IS NOT NULL AND TRIM(video_url) != '' LIMIT 1",
+      args: [guide.id]
+    });
+  }
+  let videoUrl = result.rows[0]?.video_url ? String(result.rows[0].video_url) : null;
+  if (!videoUrl) {
+    const equipment = await client.execute({
+      sql: "SELECT video_url FROM equipment_inventory WHERE LOWER(name) = LOWER(?) AND video_url IS NOT NULL AND TRIM(video_url) != '' LIMIT 1",
+      args: [guide.equipment]
+    });
+    videoUrl = equipment.rows[0]?.video_url ? String(equipment.rows[0].video_url) : null;
+  }
+  if (!videoUrl) {
+    const sibling = await client.execute({
+      sql: "SELECT video_url FROM exercises WHERE equipment = ? AND video_url IS NOT NULL AND TRIM(video_url) != '' LIMIT 1",
+      args: [guide.equipment]
+    });
+    videoUrl = sibling.rows[0]?.video_url ? String(sibling.rows[0].video_url) : null;
+  }
+  return NextResponse.json({ guide, videoUrl }, { headers: { "Cache-Control": "no-store" } });
+}
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

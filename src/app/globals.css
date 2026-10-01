@@ -1523,7 +1523,7 @@ body::before {
 .plan-head p { color: var(--muted); margin: 0; }
 .plan-meta { display: flex; align-items: center; gap: 8px; padding: 13px 15px; border-radius: 15px; background: var(--subtle-bg); color: var(--profile); font-weight: 800; }
 .plan-meta small { color: var(--muted); font-weight: 500; border-left: 1px solid var(--line); padding-left: 9px; }
-.week-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 20px; }
+.week-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-top: 12px; }
 .week-grid article { padding: 18px; border: 1px solid var(--line); border-radius: 17px; background: var(--subtle-bg); }
 .week-grid h3 { color: var(--profile); margin: 0 0 12px; font-size: 19px; display: flex; align-items: center; gap: 8px; }
 .week-current-badge {
@@ -1536,6 +1536,57 @@ body::before {
   border-color: color-mix(in srgb, var(--brand) 50%, transparent);
   background: color-mix(in srgb, var(--brand) 7%, var(--panel));
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand) 20%, transparent), var(--card-shadow);
+}
+.plan-week-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 18px; color: var(--muted); font-size: 12px; font-weight: 700; }
+.plan-week-toolbar > div { display: flex; align-items: center; gap: 10px; }
+.plan-week-toolbar b { min-width: 145px; text-align: center; color: var(--text); font-size: 13px; }
+.plan-week-toolbar button { width: 44px; height: 44px; display: inline-grid; place-items: center; border: 1px solid var(--line); border-radius: 12px; background: var(--subtle-bg); color: var(--text); cursor: pointer; touch-action: manipulation; }
+.plan-week-toolbar button:hover { border-color: var(--profile); color: var(--profile); }
+.week-grid article { min-width: 0; padding: 13px; }
+.week-grid h3 { margin-bottom: 8px; font-size: 16px; }
+.week-grid .week-current-badge { font-size: 8px; }
+.week-grid .compact-session-card { align-items: center; flex-direction: row; justify-content: space-between; gap: 8px; padding: 10px 0; }
+.compact-session-main { min-width: 0; }
+.compact-session-title { overflow: hidden; color: var(--text); font-size: 13px; font-weight: 800; line-height: 1.25; text-overflow: ellipsis; }
+.compact-session-meta { margin-top: 4px; color: var(--muted); font-size: 10px; line-height: 1.35; }
+.week-grid .plan-round-start-btn { min-height: 44px; gap: 6px; padding: 0 10px; font-size: 11px; }
+.week-grid .empty-week { margin: 0; padding: 8px 0; color: var(--muted); font-size: 12px; }
+
+.plan-unit-backdrop { z-index: 120; padding: 20px; }
+.plan-unit-dialog { position: relative; display: flex; flex-direction: column; width: min(1120px, 96vw); max-height: min(90vh, 900px); overflow: hidden; border: 1px solid var(--line-strong); border-radius: 24px; background: var(--modal-bg); box-shadow: var(--card-shadow); }
+.plan-unit-dialog > .modal-close { position: absolute; top: 16px; right: 16px; z-index: 2; width: 48px; height: 48px; }
+.plan-unit-heading { padding: 24px 80px 18px 26px; border-bottom: 1px solid var(--line); }
+.plan-unit-heading h2 { margin: 8px 0 3px; font-size: clamp(25px, 3vw, 36px); }
+.plan-unit-heading > p { margin: 0; color: var(--muted); }
+.plan-unit-live { display: inline-flex; align-items: center; gap: 8px; margin-top: 13px; padding: 9px 13px; border: 1px solid var(--line); border-radius: 13px; background: var(--subtle-bg); color: var(--brand); }
+.plan-unit-live span { color: var(--muted); font-size: 12px; font-weight: 700; }
+.plan-unit-live strong { color: var(--text); font-variant-numeric: tabular-nums; }
+.plan-unit-content { display: grid; grid-template-columns: minmax(300px, .9fr) minmax(0, 1.4fr); gap: 18px; min-height: 0; padding: 20px 24px; overflow: auto; }
+.plan-unit-exercises h3 { margin: 0 0 10px; font-size: 17px; }
+.plan-unit-exercise-row { display: grid; grid-template-columns: 34px minmax(0, 1fr); align-items: center; gap: 7px 10px; padding: 9px 0; border-top: 1px solid var(--line); }
+.plan-unit-exercise-row > span { width: 32px; height: 32px; display: grid; place-items: center; border-radius: 50%; background: color-mix(in srgb, var(--profile) 18%, var(--subtle-bg)); color: var(--profile); font-weight: 900; }
+.plan-unit-exercise-row > b { min-width: 0; font-size: 14px; }
+.plan-unit-exercise-row > button { grid-column: 2; justify-self: start; display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 44px; padding: 0 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--subtle-bg); color: var(--text); font-size: 12px; font-weight: 750; cursor: pointer; touch-action: manipulation; }
+.plan-unit-exercise-row > button:hover { border-color: var(--profile); color: var(--profile); }
+.plan-exercise-detail { min-width: 0; padding: 16px; border: 1px solid var(--line); border-radius: 17px; background: var(--subtle-bg); }
+.plan-exercise-detail-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+.plan-exercise-detail-heading small { color: var(--muted); }
+.plan-exercise-detail-heading h3 { margin: 3px 0 0; font-size: 19px; }
+.plan-exercise-detail-heading button { width: 44px; height: 44px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); color: var(--text); cursor: pointer; }
+.plan-exercise-video { position: relative; width: 100%; aspect-ratio: 16 / 9; overflow: hidden; border-radius: 13px; background: #000; }
+.plan-exercise-video iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+.plan-external-video { display: inline-flex; align-items: center; gap: 8px; min-height: 48px; padding: 0 14px; border-radius: 12px; background: var(--brand); color: #06201d; font-weight: 850; text-decoration: none; }
+.plan-no-video { color: var(--muted); font-size: 12px; }
+.plan-guide-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }
+.plan-guide-columns h4 { margin: 0 0 5px; font-size: 12px; color: var(--profile); }
+.plan-guide-columns p { margin: 0 0 5px; color: var(--muted); font-size: 11px; line-height: 1.45; }
+.plan-unit-footer { display: flex; align-items: center; justify-content: space-between; gap: 15px; padding: 14px 24px; border-top: 1px solid var(--line); }
+.plan-unit-footer p { margin: 0; color: var(--muted); font-size: 11px; }
+.plan-unit-stop { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 50px; padding: 0 18px; border: 0; border-radius: 13px; background: #e5484d; color: white; font-weight: 850; cursor: pointer; touch-action: manipulation; }
+.plan-unit-stop:disabled { opacity: .6; cursor: wait; }
+
+@media (max-width: 1250px) {
+  .week-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 .plan-session-card { padding: 12px 0; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 6px; }
 .plan-session-card:first-of-type { border-top: none; }
@@ -1731,6 +1782,15 @@ body::before {
   .session-card-right { justify-content: space-between; width: 100%; border-top: 1px solid var(--line); padding-top: 10px; }
   .week-grid { grid-template-columns: 1fr; }
   .plan-head { flex-direction: column; }
+  .plan-week-toolbar { align-items: flex-start; flex-direction: column; }
+  .plan-week-toolbar > div { align-self: stretch; justify-content: space-between; }
+  .plan-unit-backdrop { padding: 8px; }
+  .plan-unit-dialog { width: 100%; max-height: 96vh; border-radius: 18px; }
+  .plan-unit-heading { padding: 18px 62px 14px 16px; }
+  .plan-unit-dialog > .modal-close { top: 9px; right: 9px; }
+  .plan-unit-content { grid-template-columns: 1fr; gap: 14px; padding: 14px; }
+  .plan-unit-footer { align-items: stretch; flex-direction: column; padding: 12px 14px; }
+  .plan-unit-stop { width: 100%; }
 }
 
 .admin-login { margin-top: 12vh; text-align: center; padding: 31px 24px; border: 1px solid var(--line); border-radius: 25px; background: var(--panel); box-shadow: var(--card-shadow); }
