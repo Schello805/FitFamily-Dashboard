@@ -290,9 +290,51 @@ body::before {
 .quiet-overlay strong { margin-top: 28px; color: var(--brand); text-transform: uppercase; letter-spacing: .18em; }
 .quiet-overlay small { color: #516366; margin-top: 10px; }
 .persistent-radio { position: fixed; z-index: 45; }
-.persistent-radio.dashboard-radio { top: 18px; right: clamp(200px, 15vw, 290px); }
+.persistent-radio.dashboard-radio {
+  top: 18px;
+  right: clamp(180px, 14vw, 240px);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
 .persistent-radio.subpage-radio { right: 18px; bottom: 18px; }
 .subpage-radio .music-panel { top: auto; right: 18px; bottom: 82px; max-height: min(720px, calc(100vh - 100px)); }
+
+.radio-theme-toggle {
+  width: 76px;
+  min-width: 76px;
+  height: 104px;
+  min-height: 104px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  color: var(--muted);
+  background: var(--panel);
+  box-shadow: var(--card-shadow);
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: all .15s ease;
+  text-decoration: none;
+}
+.radio-theme-toggle:hover {
+  color: var(--text);
+  border-color: var(--line-strong);
+  background: var(--panel-soft);
+}
+.radio-theme-toggle .tool-label {
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: .02em;
+  color: inherit;
+  line-height: 1;
+}
+
 .music-launch { position: relative; display: inline-flex; align-items: center; gap: 9px; min-height: 49px; max-width: min(320px, 32vw); padding: 0 15px; border: 1px solid var(--line); border-radius: 16px; background: var(--panel); box-shadow: var(--card-shadow); color: var(--text); font-weight: 750; cursor: pointer; touch-action: manipulation; }
 .music-launch > span { min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; }
 .music-launch > span b { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
@@ -850,7 +892,15 @@ body::before {
   .header-actions { gap: 8px; }
   .clock-block time { font-size: 30px; }
   .clock-block span { font-size: 10px; }
-  .persistent-radio.dashboard-radio { top: 18px; right: 124px; }
+  .persistent-radio.dashboard-radio { top: 18px; right: 124px; gap: 8px; }
+  .radio-theme-toggle {
+    width: 64px;
+    min-width: 64px;
+    height: 83px;
+    min-height: 83px;
+    border-radius: 15px;
+    padding: 6px;
+  }
   .persistent-radio.dashboard-radio .music-launch {
     height: 83px;
     min-height: 83px;
@@ -929,7 +979,20 @@ body::before {
     bottom: 20px;
     right: 16px;
     left: auto;
+    gap: 8px;
   }
+  .radio-theme-toggle {
+    width: 46px;
+    min-width: 46px;
+    height: 46px;
+    min-height: 46px;
+    border-radius: 50%;
+    padding: 0;
+    gap: 0;
+    box-shadow: 0 8px 24px rgba(0,0,0,.32);
+    backdrop-filter: blur(16px);
+  }
+  .radio-theme-toggle .tool-label { display: none !important; }
   .persistent-radio.dashboard-radio .music-launch {
     height: 46px;
     min-height: 46px;

@@ -9,7 +9,6 @@ import {
   CloudSun,
   Dumbbell,
   MapPin,
-  Moon,
   Settings,
   Smartphone,
   Square,
@@ -18,7 +17,6 @@ import {
 import type { DashboardProfile } from "@/lib/domain";
 import { LiveDuration } from "@/components/live-duration";
 import { Avatar } from "@/components/avatar";
-import { ThemeToggle } from "@/components/theme-toggle";
 import { showToast } from "@/components/toast";
 
 type Weather = { temperature: number; apparent: number; code: number; updatedAt: string } | null;
@@ -236,17 +234,6 @@ export function Dashboard({
               <Settings size={26} />
               <span className="tool-label">Setup</span>
             </Link>
-            <ThemeToggle showLabel={true} />
-            <button
-              type="button"
-              className="quiet-shortcut"
-              onClick={enterQuietMode}
-              title="Ruhemodus manuell aktivieren"
-              aria-label="Ruhemodus manuell aktivieren"
-            >
-              <Moon size={26} />
-              <span className="tool-label">Ruhe</span>
-            </button>
             {activeQr && (
               <button
                 type="button"
