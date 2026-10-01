@@ -19,7 +19,7 @@ export function KioskIdleBar({
     if (typeof window !== "undefined") {
       try {
         const stored = localStorage.getItem("fitfamily_subpage_idle_timeout");
-        if (stored && !isNaN(Number(stored)) && Number(stored) >= 10) {
+        if (stored !== null && !isNaN(Number(stored))) {
           return Number(stored);
         }
       } catch {}
@@ -32,13 +32,14 @@ export function KioskIdleBar({
   const deadlineRef = useRef<number | null>(null);
 
   const resetTimer = useCallback(() => {
+    if (totalSeconds <= 0) return;
     deadlineRef.current = Date.now() + totalSeconds * 1000;
     setSecondsLeft(totalSeconds);
     setProgress(100);
   }, [totalSeconds]);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (typeof window === "undefined" || totalSeconds <= 0) return;
 
     deadlineRef.current = Date.now() + totalSeconds * 1000;
     const handleActivity = () => resetTimer();
@@ -62,7 +63,9 @@ export function KioskIdleBar({
       window.clearInterval(interval);
       events.forEach((event) => window.removeEventListener(event, handleActivity));
     };
-  }, [resetTimer, router, redirectUrl, totalSeconds]);
+  }, [totalSeconds, redirectUrl, router, resetTimer]);
+
+  if (totalSeconds <= 0) return null;
 
   return (
     <div

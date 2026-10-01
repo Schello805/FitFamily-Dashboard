@@ -13,7 +13,10 @@ export async function GET() {
 const postSchema = z.object({
   pin: z.string().min(4),
   idleTimeoutMinutes: z.number().int().min(0).max(120).optional(),
-  nightModeEnabled: z.boolean().optional()
+  nightModeEnabled: z.boolean().optional(),
+  nightIdleTimeoutMinutes: z.number().int().min(0).max(120).optional(),
+  nightStartTime: z.string().regex(/^\d{2}:\d{2}$/).optional(),
+  nightEndTime: z.string().regex(/^\d{2}:\d{2}$/).optional()
 });
 
 export async function POST(request: Request) {
@@ -28,7 +31,10 @@ export async function POST(request: Request) {
 
   const updated = await setDisplaySettings({
     idleTimeoutMinutes: body.data.idleTimeoutMinutes,
-    nightModeEnabled: body.data.nightModeEnabled
+    nightModeEnabled: body.data.nightModeEnabled,
+    nightIdleTimeoutMinutes: body.data.nightIdleTimeoutMinutes,
+    nightStartTime: body.data.nightStartTime,
+    nightEndTime: body.data.nightEndTime
   });
 
   return NextResponse.json({ ok: true, settings: updated });

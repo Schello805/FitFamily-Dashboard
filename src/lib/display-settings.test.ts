@@ -6,17 +6,38 @@ describe("display-settings", () => {
     const settings = await getDisplaySettings();
     expect(typeof settings.idleTimeoutMinutes).toBe("number");
     expect(typeof settings.nightModeEnabled).toBe("boolean");
+    expect(typeof settings.nightIdleTimeoutMinutes).toBe("number");
+    expect(typeof settings.nightStartTime).toBe("string");
+    expect(typeof settings.nightEndTime).toBe("string");
   });
 
   it("updates and retrieves idle timeout and night mode", async () => {
-    await setDisplaySettings({ idleTimeoutMinutes: 10, nightModeEnabled: false });
+    await setDisplaySettings({
+      idleTimeoutMinutes: 10,
+      nightModeEnabled: false,
+      nightIdleTimeoutMinutes: 2,
+      nightStartTime: "23:00",
+      nightEndTime: "07:00"
+    });
     let updated = await getDisplaySettings();
     expect(updated.idleTimeoutMinutes).toBe(10);
     expect(updated.nightModeEnabled).toBe(false);
+    expect(updated.nightIdleTimeoutMinutes).toBe(2);
+    expect(updated.nightStartTime).toBe("23:00");
+    expect(updated.nightEndTime).toBe("07:00");
 
-    await setDisplaySettings({ idleTimeoutMinutes: DEFAULT_DISPLAY_SETTINGS.idleTimeoutMinutes, nightModeEnabled: true });
+    await setDisplaySettings({
+      idleTimeoutMinutes: DEFAULT_DISPLAY_SETTINGS.idleTimeoutMinutes,
+      nightModeEnabled: true,
+      nightIdleTimeoutMinutes: DEFAULT_DISPLAY_SETTINGS.nightIdleTimeoutMinutes,
+      nightStartTime: DEFAULT_DISPLAY_SETTINGS.nightStartTime,
+      nightEndTime: DEFAULT_DISPLAY_SETTINGS.nightEndTime
+    });
     updated = await getDisplaySettings();
     expect(updated.idleTimeoutMinutes).toBe(DEFAULT_DISPLAY_SETTINGS.idleTimeoutMinutes);
     expect(updated.nightModeEnabled).toBe(true);
+    expect(updated.nightIdleTimeoutMinutes).toBe(DEFAULT_DISPLAY_SETTINGS.nightIdleTimeoutMinutes);
+    expect(updated.nightStartTime).toBe(DEFAULT_DISPLAY_SETTINGS.nightStartTime);
+    expect(updated.nightEndTime).toBe(DEFAULT_DISPLAY_SETTINGS.nightEndTime);
   });
 });

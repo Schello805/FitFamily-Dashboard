@@ -134,4 +134,11 @@ describe("translateFitnessTerm", () => {
     expect(translateFitnessTerm("3x12 Squats")).toBe("3x12 Kniebeugen");
     expect(translateFitnessTerm("10 min Warm-up")).toBe("10 min Aufwärmen");
   });
+
+  it("does not produce double-nested parentheses", () => {
+    expect(translateFitnessTerm("Unterarmstütz (Plank)")).toBe("Unterarmstütz (Plank)");
+    expect(translateFitnessTerm("Unterarmstütz (Unterarmstütz (Plank))")).toBe("Unterarmstütz (Plank)");
+    expect(translateFitnessTerm("Bauchpressen (Crunches)")).toBe("Bauchpressen (Crunches)");
+  });
 });
+

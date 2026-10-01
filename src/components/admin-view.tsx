@@ -7,6 +7,7 @@ import { ArrowLeft, Bot, CheckCircle2, Database, Download, HardDrive, Lock, Moni
 import { TouchPinpad } from "@/components/touch-pinpad";
 import { showToast } from "@/components/toast";
 import { applyTheme, getStoredThemeSetting, subscribeTheme, type ThemeSetting } from "@/lib/theme";
+import { DEFAULT_DISPLAY_SETTINGS, type DisplaySettings } from "@/lib/display-settings-shared";
 
 type AiUsage = { requests: number; inputTokens: number; outputTokens: number; estimateUsd: number; updatedAt: string | null };
 type Status = { openai: boolean; gemini: boolean; nas: boolean; models: { openai: string; gemini: string }; usage: { openai: AiUsage; gemini: AiUsage } };
@@ -42,16 +43,14 @@ export function AdminView({ profiles, exercises, equipment }: { profiles: { id: 
   const [apiKeys, setApiKeys] = useState({ openai: "", gemini: "" });
   const [savingApi, setSavingApi] = useState<string | null>(null);
 
-  const [displaySettings, setDisplaySettings] = useState<{ idleTimeoutMinutes: number; nightModeEnabled: boolean }>(() => {
+  const [displaySettings, setDisplaySettings] = useState<DisplaySettings>(() => {
     if (typeof window !== "undefined") {
-      const storedTimeout = localStorage.getItem("fitfamily_idle_timeout");
-      const storedNight = localStorage.getItem("fitfamily_night_mode");
-      return {
-        idleTimeoutMinutes: storedTimeout !== null ? Number(storedTimeout) : 5,
-        nightModeEnabled: storedNight !== null ? storedNight === "true" : true
-      };
+      try {
+        const stored = localStorage.getItem("fitfamily_display_settings");
+        if (stored) return { ...DEFAULT_DISPLAY_SETTINGS, ...JSON.parse(stored) };
+      } catch {}
     }
-    return { idleTimeoutMinutes: 5, nightModeEnabled: true };
+    return DEFAULT_DISPLAY_SETTINGS;
   });
   const [savingDisplay, setSavingDisplay] = useState(false);
   const [subpageTimeout, setSubpageTimeout] = useState(() => {
@@ -176,13 +175,12 @@ export function AdminView({ profiles, exercises, equipment }: { profiles: { id: 
     }
   }
 
-  async function saveDisplaySettings(changes: { idleTimeoutMinutes?: number; nightModeEnabled?: boolean }) {
+  async function saveDisplaySettings(changes: Partial<DisplaySettings>) {
     const updated = { ...displaySettings, ...changes };
     setDisplaySettings(updated);
     setSavingDisplay(true);
     if (typeof window !== "undefined") {
-      if (updated.idleTimeoutMinutes !== undefined) localStorage.setItem("fitfamily_idle_timeout", String(updated.idleTimeoutMinutes));
-      if (updated.nightModeEnabled !== undefined) localStorage.setItem("fitfamily_night_mode", String(updated.nightModeEnabled));
+      localStorage.setItem("fitfamily_display_settings", JSON.stringify(updated));
     }
     try {
       const response = await fetch("/api/admin/display-settings", {
@@ -556,7 +554,7 @@ export function AdminView({ profiles, exercises, equipment }: { profiles: { id: 
 
         <div style={{ marginTop: "14px" }}>
           <label style={{ display: "block", fontSize: "12px", fontWeight: 750, color: "var(--muted)", marginBottom: "6px" }}>
-            Aktivieren nach Inaktivität:
+            ☀️ Tagsüber: Ruhemodus nach Inaktivität:
           </label>
           <div className="timeout-pills">
             {[
@@ -581,16 +579,105 @@ export function AdminView({ profiles, exercises, equipment }: { profiles: { id: 
           </div>
         </div>
 
+        <div style={{ marginTop: "14px", padding: "12px", borderRadius: "14px", background: "var(--subtle-bg)", border: "1px solid var(--line)" }}>
+          <label className="night-mode-toggle-wrap" style={{ margin: 0, padding: 0 }}>
+            <input
+              type="checkbox"
+              checked={displaySettings.nightModeEnabled}
+              disabled={savingDisplay}
+              onChange={(e) => void saveDisplaySettings({ nightModeEnabled: e.target.checked })}
+            />
+            <div style={{ fontSize: "12px" }}>
+              <strong>🌙 Nachtruhe-Modus aktivieren</strong>
+              <small style={{ display: "block", color: "var(--muted)", marginTop: "2px" }}>
+                Separates Verhalten und Zeitfenster für die Nacht
+              </small>
+            </div>
+          </label>
+
+          {displaySettings.nightModeEnabled && (
+            <div style={{ marginTop: "12px", display: "grid", gap: "12px" }}>
+              <div>
+                <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "var(--muted)", marginBottom: "6px" }}>
+                  Nachts aktivieren nach Inaktivität:
+                </label>
+                <div className="timeout-pills">
+                  {[
+                    { label: "1 Min.", val: 1 },
+                    { label: "2 Min.", val: 2 },
+                    { label: "5 Min.", val: 5 },
+                    { label: "10 Min.", val: 10 },
+                    { label: "Aus", val: 0 }
+                  ].map(({ label, val }) => (
+                    <button
+                      key={val}
+                      type="button"
+                      className={`timeout-pill ${displaySettings.nightIdleTimeoutMinutes === val ? "active" : ""}`}
+                      disabled={savingDisplay}
+                      onClick={() => void saveDisplaySettings({ nightIdleTimeoutMinutes: val })}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "var(--muted)", marginBottom: "6px" }}>
+                  Nachtruhe-Zeitfenster:
+                </label>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                  <span style={{ fontSize: "12px", color: "var(--muted)" }}>Von</span>
+                  <input
+                    type="time"
+                    value={displaySettings.nightStartTime || "22:30"}
+                    disabled={savingDisplay}
+                    onChange={(e) => void saveDisplaySettings({ nightStartTime: e.target.value })}
+                    style={{
+                      padding: "6px 10px",
+                      borderRadius: "10px",
+                      border: "1px solid var(--line)",
+                      background: "var(--input-bg)",
+                      color: "var(--text)",
+                      fontSize: "13px",
+                      fontWeight: 700
+                    }}
+                  />
+                  <span style={{ fontSize: "12px", color: "var(--muted)" }}>bis</span>
+                  <input
+                    type="time"
+                    value={displaySettings.nightEndTime || "06:30"}
+                    disabled={savingDisplay}
+                    onChange={(e) => void saveDisplaySettings({ nightEndTime: e.target.value })}
+                    style={{
+                      padding: "6px 10px",
+                      borderRadius: "10px",
+                      border: "1px solid var(--line)",
+                      background: "var(--input-bg)",
+                      color: "var(--text)",
+                      fontSize: "13px",
+                      fontWeight: 700
+                    }}
+                  />
+                  <span style={{ fontSize: "12px", color: "var(--muted)" }}>Uhr</span>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
         <div style={{ marginTop: "14px" }}>
           <label style={{ display: "block", fontSize: "12px", fontWeight: 750, color: "var(--muted)", marginBottom: "6px" }}>
-            Zurück zum Dashboard bei Inaktivität (Trainingsplan & Profil):
+            ⏱️ Unterseiten: Dashboard-Rückkehr nach Inaktivität:
           </label>
           <div className="timeout-pills">
             {[
               { label: "30 Sek.", val: 30 },
               { label: "60 Sek.", val: 60 },
               { label: "90 Sek.", val: 90 },
-              { label: "2 Min.", val: 120 }
+              { label: "2 Min.", val: 120 },
+              { label: "5 Min.", val: 300 },
+              { label: "Aus", val: 0 }
             ].map(({ label, val }) => (
               <button
                 key={val}
@@ -600,8 +687,8 @@ export function AdminView({ profiles, exercises, equipment }: { profiles: { id: 
                   setSubpageTimeout(val);
                   if (typeof window !== "undefined") {
                     localStorage.setItem("fitfamily_subpage_idle_timeout", String(val));
-                    showToast({ type: "success", title: "Gespeichert", message: `Inaktivitäts-Rücksprung auf ${label} gesetzt.` });
                   }
+                  showToast({ type: "success", title: "Einstellung gespeichert", message: `Unterseiten-Rückkehr auf "${label}" gesetzt.` });
                 }}
               >
                 {label}
@@ -610,22 +697,7 @@ export function AdminView({ profiles, exercises, equipment }: { profiles: { id: 
           </div>
         </div>
 
-        <label className="night-mode-toggle-wrap">
-          <input
-            type="checkbox"
-            checked={displaySettings.nightModeEnabled}
-            disabled={savingDisplay}
-            onChange={(e) => void saveDisplaySettings({ nightModeEnabled: e.target.checked })}
-          />
-          <div style={{ fontSize: "12px" }}>
-            <strong>Automatische Nachtruhe</strong>
-            <small style={{ display: "block", color: "var(--muted)", marginTop: "2px" }}>
-              Zwischen 22:30 und 06:30 Uhr bei Nichtbenutzung
-            </small>
-          </div>
-        </label>
-
-        <div style={{ marginTop: "8px" }}>
+        <div style={{ marginTop: "12px" }}>
           <button
             type="button"
             className="update-secondary-btn"

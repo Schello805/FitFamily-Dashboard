@@ -18,6 +18,7 @@ import type { DashboardProfile } from "@/lib/domain";
 import { LiveDuration } from "@/components/live-duration";
 import { Avatar } from "@/components/avatar";
 import { showToast } from "@/components/toast";
+import { DEFAULT_DISPLAY_SETTINGS, type DisplaySettings } from "@/lib/display-settings-shared";
 
 type Weather = { temperature: number; apparent: number; code: number; updatedAt: string } | null;
 
@@ -45,6 +46,16 @@ function useClock() {
 }
 
 
+function isWithinNightWindow(clock: Date, startTimeStr?: string, endTimeStr?: string): boolean {
+  const [startH, startM] = (startTimeStr || "22:30").split(":").map(Number);
+  const [endH, endM] = (endTimeStr || "06:30").split(":").map(Number);
+  const current = clock.getHours() * 60 + clock.getMinutes();
+  const start = (Number.isFinite(startH) ? startH : 22) * 60 + (Number.isFinite(startM) ? startM : 30);
+  const end = (Number.isFinite(endH) ? endH : 6) * 60 + (Number.isFinite(endM) ? endM : 30);
+  if (start > end) return current >= start || current < end;
+  return current >= start && current < end;
+}
+
 function GoalRing({ value, color, targetMinutes, targetPeriod }: { value: number; color: string; targetMinutes: number; targetPeriod: "Tag" | "Woche" }) {
   return (
     <div className="goal-ring" title={`DOSB-Bewegungsorientierung: ${targetMinutes} Minuten pro ${targetPeriod.toLowerCase()}. Der Ring zählt nur in FitFamily erfasste Trainingszeit, nicht Alltagsbewegung.`} aria-label={`${value} Prozent des Richtwerts von ${targetMinutes} Trainingsminuten pro ${targetPeriod.toLowerCase()}`} style={{ "--progress": `${Math.min(100, value) * 3.6}deg`, "--profile": color } as React.CSSProperties}>
@@ -71,22 +82,21 @@ export function Dashboard({
   const [weather, setWeather] = useState<Weather>(null);
   const clock = useClock();
   const [quietDismissed, setQuietDismissed] = useState(false);
-  const [idleTimeoutMinutes, setIdleTimeoutMinutes] = useState<number>(() => {
+  const [displaySettings, setDisplaySettings] = useState<DisplaySettings>(() => {
     if (typeof window !== "undefined") {
-      const stored = localStorage.getItem("fitfamily_idle_timeout");
-      if (stored !== null) {
-        const val = Number(stored);
-        if (!Number.isNaN(val) && val >= 0) return val;
-      }
+      try {
+        const stored = localStorage.getItem("fitfamily_display_settings");
+        if (stored) return { ...DEFAULT_DISPLAY_SETTINGS, ...JSON.parse(stored) };
+      } catch {}
+      const oldIdle = localStorage.getItem("fitfamily_idle_timeout");
+      const oldNight = localStorage.getItem("fitfamily_night_mode");
+      return {
+        ...DEFAULT_DISPLAY_SETTINGS,
+        idleTimeoutMinutes: oldIdle !== null && !Number.isNaN(Number(oldIdle)) ? Number(oldIdle) : DEFAULT_DISPLAY_SETTINGS.idleTimeoutMinutes,
+        nightModeEnabled: oldNight !== null ? oldNight === "true" : DEFAULT_DISPLAY_SETTINGS.nightModeEnabled,
+      };
     }
-    return 5;
-  });
-  const [nightModeEnabled, setNightModeEnabled] = useState<boolean>(() => {
-    if (typeof window !== "undefined") {
-      const stored = localStorage.getItem("fitfamily_night_mode");
-      if (stored !== null) return stored === "true";
-    }
-    return true;
+    return DEFAULT_DISPLAY_SETTINGS;
   });
   const [lastActivity, setLastActivity] = useState(() => {
     if (typeof window !== "undefined" && sessionStorage.getItem("fitfamily_test_quiet") === "1") {
@@ -158,11 +168,9 @@ export function Dashboard({
       const data = await response.json();
       setProfiles(data.profiles);
       if (data.displaySettings) {
-        setIdleTimeoutMinutes(data.displaySettings.idleTimeoutMinutes);
-        setNightModeEnabled(data.displaySettings.nightModeEnabled);
+        setDisplaySettings(data.displaySettings);
         if (typeof window !== "undefined") {
-          localStorage.setItem("fitfamily_idle_timeout", String(data.displaySettings.idleTimeoutMinutes));
-          localStorage.setItem("fitfamily_night_mode", String(data.displaySettings.nightModeEnabled));
+          localStorage.setItem("fitfamily_display_settings", JSON.stringify(data.displaySettings));
         }
       }
     }
@@ -189,17 +197,16 @@ export function Dashboard({
     weekday: "long", day: "2-digit", month: "long"
   }).format(clock), [clock]);
 
-  const minutesOfDay = clock.getHours() * 60 + clock.getMinutes();
   const hasActiveTraining = profiles.some((profile) => profile.activeTraining);
   const idleMinutes = (clock.getTime() - lastActivity) / 60000;
 
-  // Ruhemodus aktiviert sich nur, wenn kein aktives Training läuft:
-  // 1. Manuell per Button "Ruhe" oder Klick auf die Uhr
-  // 2. Nach Inaktivität (Timeout > 0 und idleMinutes >= idleTimeoutMinutes) – 24/7 zu jeder Uhrzeit!
-  // 3. ODER bei automatischer Nachtruhe (zwischen 22:30 und 06:30 Uhr), sofern Nachtruhe aktiv ist UND mindestens 1 Min. keine Interaktion stattfand
-  const isIdleTimeoutReached = idleTimeoutMinutes > 0 && idleMinutes >= idleTimeoutMinutes;
-  const isNightQuiet = nightModeEnabled && (minutesOfDay >= 22 * 60 + 30 || minutesOfDay < 6 * 60 + 30) && idleMinutes >= 1;
-  const quietActive = !hasActiveTraining && !quietDismissed && (manualQuietActive || isIdleTimeoutReached || isNightQuiet);
+  // Ruhemodus aktiviert sich, wenn kein aktives Training läuft:
+  // 1. Manuell per Klick auf die Uhr
+  // 2. Automatisch nach Inaktivität basierend auf Tages- oder Nacht-Timeout
+  const isNight = displaySettings.nightModeEnabled && isWithinNightWindow(clock, displaySettings.nightStartTime, displaySettings.nightEndTime);
+  const effectiveTimeout = isNight ? displaySettings.nightIdleTimeoutMinutes : displaySettings.idleTimeoutMinutes;
+  const isTimeoutReached = effectiveTimeout > 0 && idleMinutes >= effectiveTimeout;
+  const quietActive = !hasActiveTraining && !quietDismissed && (manualQuietActive || isTimeoutReached);
 
   function wakeUp() {
     setLastActivity(Date.now());
@@ -326,8 +333,15 @@ export function Dashboard({
       </footer>
       {quietActive && (
         <button type="button" className="quiet-overlay" onClick={wakeUp} aria-label="Ruhemodus beenden">
-          <span>{clock.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })}</span>
-          <strong>Ruhemodus</strong>
+          <span className="quiet-time">{clock.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })}</span>
+          <span className="quiet-date">{dateText}</span>
+          {weather && (
+            <div className="quiet-weather">
+              <CloudSun size={22} />
+              <span>{Math.round(weather.temperature)}° · {weatherLabel(weather.code)} · Bechhofen</span>
+            </div>
+          )}
+          <strong>{isNight ? "Nachtruhe" : "Ruhemodus"}</strong>
           <small>Zum Aufwecken berühren oder Taste drücken</small>
         </button>
       )}

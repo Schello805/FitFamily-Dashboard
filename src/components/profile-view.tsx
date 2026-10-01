@@ -119,7 +119,7 @@ export function ProfileView({
     if (typeof window !== "undefined") {
       try {
         const stored = localStorage.getItem("fitfamily_subpage_idle_timeout");
-        if (stored && !isNaN(Number(stored)) && Number(stored) >= 10) {
+        if (stored !== null && !isNaN(Number(stored))) {
           return Number(stored);
         }
       } catch {}
@@ -131,13 +131,14 @@ export function ProfileView({
   const deadlineRef = useRef<number | null>(null);
 
   const resetTimer = useCallback(() => {
+    if (totalIdleSeconds <= 0) return;
     deadlineRef.current = Date.now() + totalIdleSeconds * 1000;
     setSecondsLeft(totalIdleSeconds);
     setProgress(100);
   }, [totalIdleSeconds]);
 
   useEffect(() => {
-    if (isMobile) return;
+    if (isMobile || totalIdleSeconds <= 0) return;
     deadlineRef.current = Date.now() + totalIdleSeconds * 1000;
     const handleActivity = () => resetTimer();
     const events = ["pointerdown", "keydown", "scroll", "touchstart"] as const;
@@ -458,7 +459,7 @@ export function ProfileView({
   const activeType = profile.activeTraining?.type;
   return (
     <main className="profile-shell" style={{ "--profile": profile.color } as React.CSSProperties}>
-      {!isMobile && (
+      {!isMobile && totalIdleSeconds > 0 && (
         <div className="profile-idle-bar-container" title={`Automatische Rückkehr zum Dashboard in ${secondsLeft}s (Tippen zum Zurücksetzen)`} onClick={resetTimer}>
           <div className="profile-idle-bar-fill" style={{ width: `${progress}%` }} />
         </div>

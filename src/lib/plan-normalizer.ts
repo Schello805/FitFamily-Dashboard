@@ -188,12 +188,21 @@ export function translateFitnessTerm(raw: string): string {
   let result = trimmed;
   for (const english of SORTED_KEYS) {
     const german = FITNESS_TRANSLATIONS[english];
+    // Wenn der deutsche Begriff bereits im Text enthalten ist, keine doppelte Übersetzung durchführen
+    if (result.toLowerCase().includes(german.toLowerCase())) {
+      continue;
+    }
     const escaped = english.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     const regex = new RegExp(`\\b${escaped}\\b`, "gi");
     if (regex.test(result)) {
       result = result.replace(regex, german);
     }
   }
+
+  // Verschachtelte Doppel-Klammern bereinigen, z.B. "Unterarmstütz (Unterarmstütz (Plank))" -> "Unterarmstütz (Plank)"
+  result = result.replace(/([A-Za-zÄÖÜäöüß\s\-]+?)\s*\(\s*\1\s*(?:\(([^)]+)\))?\s*\)/gi, (_, word, inner) => {
+    return inner ? `${word.trim()} (${inner.trim()})` : word.trim();
+  });
 
   return result;
 }
