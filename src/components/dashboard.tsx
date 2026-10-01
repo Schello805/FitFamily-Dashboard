@@ -9,6 +9,7 @@ import {
   CloudSun,
   Dumbbell,
   MapPin,
+  Moon,
   Settings,
   Smartphone,
   Square,
@@ -96,9 +97,16 @@ export function Dashboard({
     }
     return Date.now();
   });
+  const [manualQuietActive, setManualQuietActive] = useState(false);
   const [activeQr, setActiveQr] = useState(mobileQr ?? "");
   const [activeUrl, setActiveUrl] = useState(mobileUrl ?? "");
   const [showQrModal, setShowQrModal] = useState(false);
+
+  function enterQuietMode() {
+    setQuietDismissed(false);
+    setManualQuietActive(true);
+    setLastActivity(Date.now() - 3600000);
+  }
 
   // Inaktivitäts-Tracking: Bei jeder Interaktion Timer zurücksetzen
   useEffect(() => {
@@ -109,6 +117,7 @@ export function Dashboard({
         lastRecorded = now;
         setLastActivity(now);
         setQuietDismissed(false);
+        setManualQuietActive(false);
       }
     };
 
@@ -187,15 +196,17 @@ export function Dashboard({
   const idleMinutes = (clock.getTime() - lastActivity) / 60000;
 
   // Ruhemodus aktiviert sich nur, wenn kein aktives Training läuft:
-  // 1. Nach Inaktivität (Timeout > 0 und idleMinutes >= idleTimeoutMinutes)
-  // 2. ODER bei automatischer Nachtruhe (zwischen 22:30 und 06:30 Uhr), sofern Nachtruhe aktiv ist UND mindestens 1 Min. keine Interaktion stattfand
+  // 1. Manuell per Button "Ruhe" oder Klick auf die Uhr
+  // 2. Nach Inaktivität (Timeout > 0 und idleMinutes >= idleTimeoutMinutes) – 24/7 zu jeder Uhrzeit!
+  // 3. ODER bei automatischer Nachtruhe (zwischen 22:30 und 06:30 Uhr), sofern Nachtruhe aktiv ist UND mindestens 1 Min. keine Interaktion stattfand
   const isIdleTimeoutReached = idleTimeoutMinutes > 0 && idleMinutes >= idleTimeoutMinutes;
   const isNightQuiet = nightModeEnabled && (minutesOfDay >= 22 * 60 + 30 || minutesOfDay < 6 * 60 + 30) && idleMinutes >= 1;
-  const quietActive = !hasActiveTraining && !quietDismissed && (isIdleTimeoutReached || isNightQuiet);
+  const quietActive = !hasActiveTraining && !quietDismissed && (manualQuietActive || isIdleTimeoutReached || isNightQuiet);
 
   function wakeUp() {
     setLastActivity(Date.now());
     setQuietDismissed(true);
+    setManualQuietActive(false);
   }
 
   async function stop(event: React.MouseEvent, profileId: string) {
@@ -226,6 +237,16 @@ export function Dashboard({
               <span className="tool-label">Setup</span>
             </Link>
             <ThemeToggle showLabel={true} />
+            <button
+              type="button"
+              className="quiet-shortcut"
+              onClick={enterQuietMode}
+              title="Ruhemodus manuell aktivieren"
+              aria-label="Ruhemodus manuell aktivieren"
+            >
+              <Moon size={26} />
+              <span className="tool-label">Ruhe</span>
+            </button>
             {activeQr && (
               <button
                 type="button"
@@ -259,7 +280,15 @@ export function Dashboard({
           <div className="location"><MapPin size={15} /> Bechhofen</div>
         </section>
         <section className="header-actions">
-          <div className="clock-block">
+          <div
+            className="clock-block"
+            onClick={enterQuietMode}
+            title="Tippen für Ruhemodus"
+            style={{ cursor: "pointer" }}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") enterQuietMode(); }}
+          >
             <time>{clock.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })}</time>
             <span>{dateText}</span>
           </div>
