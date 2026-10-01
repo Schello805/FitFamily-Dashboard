@@ -50,6 +50,9 @@ export function AdminView({ profiles, exercises, equipment }: { profiles: { id: 
   const [status, setStatus] = useState<Status | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [profileScores, setProfileScores] = useState<Record<string, number>>(() =>
+    Object.fromEntries(profiles.map((p) => [p.id, p.score]))
+  );
   const [confirmModal, setConfirmModal] = useState<ConfirmModalConfig | null>(null);
   const [videoUrls, setVideoUrls] = useState<Record<string, string>>(() => Object.fromEntries(exercises.map((exercise) => [exercise.id, exercise.videoUrl ?? ""])));
   const [savingVideo, setSavingVideo] = useState<string | null>(null);
@@ -545,13 +548,30 @@ export function AdminView({ profiles, exercises, equipment }: { profiles: { id: 
   }
 
   async function executeResetScore(profileId: string) {
-    const response = await fetch("/api/admin/reset-score", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pin, profileId }) });
-    if (response.ok) {
-      setNotice("Score wurde zurückgesetzt. Der Verlauf blieb erhalten.");
-      showToast({ type: "info", title: "Score zurückgesetzt", message: "Punkte wurden auf 0 gesetzt. Verlauf bleibt erhalten." });
-    } else {
-      setNotice("Zurücksetzen fehlgeschlagen.");
-      showToast({ type: "error", title: "Fehler beim Zurücksetzen", message: "Score konnte nicht zurückgesetzt werden." });
+    const prof = profiles.find((p) => p.id === profileId);
+    try {
+      const response = await fetch("/api/admin/reset-score", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pin, profileId })
+      });
+      if (response.ok) {
+        setProfileScores((prev) => ({ ...prev, [profileId]: 0 }));
+        setNotice(`Score von ${prof?.name ?? "Profil"} wurde auf 0 gesetzt. Der Trainingsverlauf blieb erhalten.`);
+        showToast({
+          type: "success",
+          title: "Score zurückgesetzt",
+          message: `Punkte für ${prof?.name ?? "Profil"} wurden auf 0 gesetzt. Der Verlauf bleibt erhalten.`
+        });
+        router.refresh();
+      } else {
+        const data = await response.json().catch(() => null);
+        const msg = data?.error ?? "Score konnte nicht zurückgesetzt werden.";
+        setNotice(msg);
+        showToast({ type: "error", title: "Fehler beim Zurücksetzen", message: msg });
+      }
+    } catch {
+      showToast({ type: "error", title: "Verbindungsfehler", message: "Server konnte nicht erreicht werden." });
     }
   }
 
@@ -1132,7 +1152,7 @@ export function AdminView({ profiles, exercises, equipment }: { profiles: { id: 
           Sichert den vollständigen Datenbestand verschlüsselt ab. Alte Stände werden automatisch nach 7 Tagen, 4 Wochen und 12 Monaten rotiert.
         </p>
       </article>
-      <article className="wide"><div className="admin-title"><RotateCcw /><div><h2>Scores zurücksetzen</h2><p>Der vollständige Trainingsverlauf bleibt erhalten.</p></div></div><div className="reset-list">{profiles.map((profile) => <div key={profile.id}><span>{profile.name}<small>{profile.score} Punkte</small></span><button onClick={() => requestResetScore(profile.id)}>Auf 0 setzen</button></div>)}</div></article>
+      <article className="wide"><div className="admin-title"><RotateCcw /><div><h2>Scores zurücksetzen</h2><p>Der vollständige Trainingsverlauf bleibt erhalten.</p></div></div><div className="reset-list">{profiles.map((profile) => <div key={profile.id}><span>{profile.name}<small>{profileScores[profile.id] ?? 0} Punkte</small></span><button type="button" onClick={() => requestResetScore(profile.id)}>Auf 0 setzen</button></div>)}</div></article>
       <article className="wide"><div className="admin-title"><HardDrive /><div><h2>Speicherorte</h2><p>Transparenz über vorhandene Daten</p></div></div><p className="data-text">Stammdaten, Training und Pläne: lokale SQLite-Datenbank · Backups: {status.nas ? "verschlüsselt auf NAS" : "noch nicht eingerichtet"} · Wetter: Open-Meteo · KI: nur bei bewusster Planerstellung.</p></article>
       <article className="wide"><div className="admin-title"><Database /><div><h2>Geräte im Sportraum</h2><p>Stückzahl und Verfügbarkeit für Übungsauswahl und neue Trainingspläne</p></div></div><div className="inventory-list">{equipmentItems.map((item) => { const edit = equipmentEdits[item.id] ?? item; return <div className="inventory-row" key={item.id}><label>Gerätename<input value={edit.name} maxLength={60} onChange={(event) => setEquipmentEdits((values) => ({ ...values, [item.id]: { ...edit, name: event.target.value } }))} /></label><label className="quantity-field">Anzahl<input type="number" min={1} max={8} value={edit.quantity} onChange={(event) => setEquipmentEdits((values) => ({ ...values, [item.id]: { ...edit, quantity: Number(event.target.value) } }))} /></label><label className="inventory-toggle"><input type="checkbox" checked={edit.available} onChange={(event) => setEquipmentEdits((values) => ({ ...values, [item.id]: { ...edit, available: event.target.checked } }))} /> Verfügbar</label><button disabled={savingEquipment === item.id} onClick={() => saveEquipment(item.id)}>{savingEquipment === item.id ? "Speichert …" : "Speichern"}</button></div>; })}</div><form className="inventory-add" onSubmit={addEquipment}><label>Weiteres Gerät<input required minLength={2} maxLength={60} placeholder="z. B. Hantelbank" value={newEquipmentName} onChange={(event) => setNewEquipmentName(event.target.value)} /></label><label className="quantity-field">Anzahl<input type="number" min={1} max={8} value={newEquipmentQuantity} onChange={(event) => setNewEquipmentQuantity(Number(event.target.value))} /></label><button><Plus /> Gerät ergänzen</button></form><p className="data-text">Deaktivierte Geräte bleiben im bisherigen Trainingsverlauf erhalten, werden aber künftig nicht zur Auswahl angeboten.</p></article>
       <article className="wide"><div className="admin-title"><CheckCircle2 /><div><h2>Übungsvideos</h2><p>Eigene YouTube-Anleitungen pro Übung hinterlegen; leere Felder zeigen eine YouTube-Suche.</p></div></div><div className="exercise-media-list">{exercises.map((exercise) => <div key={exercise.id}><label><span>{exercise.name}<small>{exercise.equipment}</small></span><input type="url" inputMode="url" placeholder="https://youtube.com/..." value={videoUrls[exercise.id] ?? ""} onChange={(event) => setVideoUrls((values) => ({ ...values, [exercise.id]: event.target.value }))} /></label><button disabled={savingVideo === exercise.id} onClick={() => saveVideo(exercise.id)}>{savingVideo === exercise.id ? "Speichert …" : "Speichern"}</button></div>)}</div></article>
