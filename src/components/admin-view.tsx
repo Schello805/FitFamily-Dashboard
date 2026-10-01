@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useSyncExternalStore } from "react";
-import { ArrowLeft, AlertTriangle, Bot, CheckCircle2, Database, Download, HardDrive, Lock, Monitor, Moon, Plus, RefreshCw, RotateCcw, ShieldCheck, Sparkles, Sun } from "lucide-react";
+import { ArrowLeft, AlertTriangle, Bot, CheckCircle2, Database, Download, HardDrive, Lock, Monitor, Moon, Plus, RefreshCw, RotateCcw, ShieldCheck, Sparkles, Sun, Users, Wrench } from "lucide-react";
 import { TouchPinpad } from "@/components/touch-pinpad";
 import { showToast } from "@/components/toast";
 import { applyTheme, getStoredThemeSetting, subscribeTheme, type ThemeSetting } from "@/lib/theme";
@@ -37,6 +37,16 @@ type ConfirmModalConfig = {
   action: (freshPin?: string) => Promise<void> | void;
 };
 
+type AdminSection = "allgemein" | "ki" | "sicherung" | "sportraum" | "familie";
+
+const ADMIN_SECTIONS: { id: AdminSection; label: string; detail: string; icon: typeof Monitor }[] = [
+  { id: "allgemein", label: "Allgemein", detail: "Design & Updates", icon: Monitor },
+  { id: "ki", label: "KI-Integrationen", detail: "Schlüssel & Kosten", icon: Bot },
+  { id: "sicherung", label: "Datensicherung", detail: "NAS & Speicherorte", icon: HardDrive },
+  { id: "sportraum", label: "Sportraum", detail: "Geräte & Videos", icon: Wrench },
+  { id: "familie", label: "Familie", detail: "Score-Verwaltung", icon: Users }
+];
+
 export function AdminView({
   profiles,
   exercises,
@@ -54,6 +64,7 @@ export function AdminView({
   const [pin, setPin] = useState("");
   const [verifying, setVerifying] = useState(false);
   const [status, setStatus] = useState<Status | null>(null);
+  const [activeAdminSection, setActiveAdminSection] = useState<AdminSection>("allgemein");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [profileScores, setProfileScores] = useState<Record<string, number>>(() =>
@@ -660,7 +671,6 @@ export function AdminView({
 
           <TouchPinpad
             value={pin}
-            maxLength={8}
             onChange={(val) => {
               setPin(val);
               if (error) setError("");
@@ -674,13 +684,13 @@ export function AdminView({
             pattern="[0-9]*"
             aria-label="Eltern-PIN"
             style={{ position: "absolute", opacity: 0, pointerEvents: "none", height: 0, width: 0 }}
-            maxLength={8}
+            maxLength={4}
             value={pin}
-            onChange={(event) => setPin(event.target.value.replace(/\D/g, "").slice(0, 8))}
+            onChange={(event) => setPin(event.target.value.replace(/\D/g, "").slice(0, 4))}
           />
 
           {error && <p className="form-error">{error}</p>}
-          <button className="primary-submit" disabled={verifying || pin.length < 4}>
+          <button className="primary-submit" disabled={verifying || pin.length !== 4}>
             {verifying ? "Wird geprüft …" : "Entsperren"}
           </button>
           <Link href="/">
@@ -710,7 +720,29 @@ export function AdminView({
         </button>
       </header>
       {notice && <p className="notice">{notice}</p>}
+      <div className="admin-layout">
+        <nav className="admin-sidebar" aria-label="Verwaltungsbereiche">
+          <p className="admin-sidebar-label">Bereiche</p>
+          {ADMIN_SECTIONS.map(({ id, label, detail, icon: Icon }) => (
+            <button
+              key={id}
+              type="button"
+              className={`admin-nav-item ${activeAdminSection === id ? "active" : ""}`}
+              aria-current={activeAdminSection === id ? "page" : undefined}
+              onClick={() => setActiveAdminSection(id)}
+            >
+              <Icon aria-hidden="true" />
+              <span><b>{label}</b><small>{detail}</small></span>
+            </button>
+          ))}
+        </nav>
+        <div className="admin-content">
+          <div className="admin-section-heading">
+            <span>Verwaltung</span>
+            <h2>{ADMIN_SECTIONS.find(({ id }) => id === activeAdminSection)?.label}</h2>
+          </div>
     <section className="admin-grid">
+      {activeAdminSection === "allgemein" && <>
       <article><div className="admin-title"><Database /><div><h2>Meine Daten</h2><p>Vollständiger lokaler Datenbestand</p></div></div><ul><li><CheckCircle2 /> Profildaten und Geburtsdaten</li><li><CheckCircle2 /> Trainings- und Punkteverlauf</li><li><CheckCircle2 /> Pläne und Änderungsprotokoll</li></ul><button onClick={download}><Download /> JSON herunterladen</button></article>
       <article className="screensaver-card">
         <div className="admin-title">
@@ -954,6 +986,8 @@ export function AdminView({
           <div className="update-countdown-alert">Dienst wurde neu gestartet. Das Dashboard lädt neu in <b>{updateCountdown}</b> Sekunden …</div>
         )}
       </article>
+      </>}
+      {activeAdminSection === "ki" && <>
       <article className="wide"><div className="admin-title"><Bot /><div><h2>KI-Integrationen</h2><p>API-Schlüssel lokal auf diesem Gerät speichern – ohne Code oder Serverdatei.</p></div></div>
         {(["openai", "gemini"] as const).map((provider) => {
           const usage = status.usage[provider];
@@ -967,6 +1001,8 @@ export function AdminView({
         })}
         <p className="data-text">Die Verbrauchserfassung beginnt ab jetzt und umfasst nur KI-Pläne, die über diese App erstellt werden. Die Kostenschätzung nutzt die erfassten Token und aktuelle Standardpreise; sie kann von der Anbieterabrechnung abweichen und zeigt keine frühere Nutzung. <a href="https://developers.openai.com/api/docs/pricing" target="_blank" rel="noreferrer">OpenAI-Preise</a> · <a href="https://ai.google.dev/gemini-api/docs/pricing" target="_blank" rel="noreferrer">Gemini-Preise</a>.</p>
       </article>
+      </>}
+      {activeAdminSection === "sicherung" && <>
       <article className="wide backup-card">
         <div className="admin-title">
           <HardDrive className={runningBackup || testingNas ? "spin" : ""} />
@@ -1148,11 +1184,18 @@ export function AdminView({
           Sichert den vollständigen Datenbestand verschlüsselt ab. Alte Stände werden automatisch nach 7 Tagen, 4 Wochen und 12 Monaten rotiert.
         </p>
       </article>
-      <article className="wide"><div className="admin-title"><RotateCcw /><div><h2>Scores zurücksetzen</h2><p>Der vollständige Trainingsverlauf bleibt erhalten.</p></div></div><div className="reset-list">{profiles.map((profile) => <div key={profile.id}><span>{profile.name}<small>{profileScores[profile.id] ?? 0} Punkte</small></span><button type="button" onClick={() => requestResetScore(profile.id)}>Auf 0 setzen</button></div>)}</div></article>
       <article className="wide"><div className="admin-title"><HardDrive /><div><h2>Speicherorte</h2><p>Transparenz über vorhandene Daten</p></div></div><p className="data-text">Stammdaten, Training und Pläne: lokale SQLite-Datenbank · Backups: {status.nas ? "verschlüsselt auf NAS" : "noch nicht eingerichtet"} · Wetter: Open-Meteo · KI: nur bei bewusster Planerstellung.</p></article>
+      </>}
+      {activeAdminSection === "sportraum" && <>
       <article className="wide"><div className="admin-title"><Database /><div><h2>Geräte im Sportraum</h2><p>Stückzahl und Verfügbarkeit für Übungsauswahl und neue Trainingspläne</p></div></div><div className="inventory-list">{equipmentItems.map((item) => { const edit = equipmentEdits[item.id] ?? item; return <div className="inventory-row" key={item.id}><label>Gerätename<input value={edit.name} maxLength={60} onChange={(event) => setEquipmentEdits((values) => ({ ...values, [item.id]: { ...edit, name: event.target.value } }))} /></label><label className="quantity-field">Anzahl<input type="number" min={1} max={8} value={edit.quantity} onChange={(event) => setEquipmentEdits((values) => ({ ...values, [item.id]: { ...edit, quantity: Number(event.target.value) } }))} /></label><label className="inventory-toggle"><input type="checkbox" checked={edit.available} onChange={(event) => setEquipmentEdits((values) => ({ ...values, [item.id]: { ...edit, available: event.target.checked } }))} /> Verfügbar</label><button disabled={savingEquipment === item.id} onClick={() => saveEquipment(item.id)}>{savingEquipment === item.id ? "Speichert …" : "Speichern"}</button></div>; })}</div><form className="inventory-add" onSubmit={addEquipment}><label>Weiteres Gerät<input required minLength={2} maxLength={60} placeholder="z. B. Hantelbank" value={newEquipmentName} onChange={(event) => setNewEquipmentName(event.target.value)} /></label><label className="quantity-field">Anzahl<input type="number" min={1} max={8} value={newEquipmentQuantity} onChange={(event) => setNewEquipmentQuantity(Number(event.target.value))} /></label><button><Plus /> Gerät ergänzen</button></form><p className="data-text">Deaktivierte Geräte bleiben im bisherigen Trainingsverlauf erhalten, werden aber künftig nicht zur Auswahl angeboten.</p></article>
       <article className="wide"><div className="admin-title"><CheckCircle2 /><div><h2>Übungsvideos</h2><p>Eigene YouTube-Anleitungen pro Übung hinterlegen; leere Felder zeigen eine YouTube-Suche.</p></div></div><div className="exercise-media-list">{exercises.map((exercise) => <div key={exercise.id}><label><span>{exercise.name}<small>{exercise.equipment}</small></span><input type="url" inputMode="url" placeholder="https://youtube.com/..." value={videoUrls[exercise.id] ?? ""} onChange={(event) => setVideoUrls((values) => ({ ...values, [exercise.id]: event.target.value }))} /></label><button disabled={savingVideo === exercise.id} onClick={() => saveVideo(exercise.id)}>{savingVideo === exercise.id ? "Speichert …" : "Speichern"}</button></div>)}</div></article>
+      </>}
+      {activeAdminSection === "familie" && <>
+      <article className="wide"><div className="admin-title"><RotateCcw /><div><h2>Scores zurücksetzen</h2><p>Der vollständige Trainingsverlauf bleibt erhalten.</p></div></div><div className="reset-list">{profiles.map((profile) => <div key={profile.id}><span>{profile.name}<small>{profileScores[profile.id] ?? 0} Punkte</small></span><button type="button" onClick={() => requestResetScore(profile.id)}>Auf 0 setzen</button></div>)}</div></article>
+      </>}
     </section>
+        </div>
+      </div>
 
       {confirmModal && (
         <div className="modal-backdrop" onClick={() => { setConfirmModal(null); setConfirmPin(""); setConfirmPinError(""); }}>
@@ -1174,7 +1217,6 @@ export function AdminView({
                 <b>Eltern-PIN erneut eingeben</b>
                 <TouchPinpad
                   value={confirmPin}
-                  maxLength={8}
                   disabled={verifyingConfirmPin}
                   onChange={(value) => { setConfirmPin(value); setConfirmPinError(""); }}
                 />
@@ -1192,7 +1234,7 @@ export function AdminView({
               <button
                 type="button"
                 className={`confirm-submit-btn ${confirmModal.confirmVariant ?? "primary"}`}
-                disabled={verifyingConfirmPin || Boolean(confirmModal.requiresPin && confirmPin.length < 4)}
+                disabled={verifyingConfirmPin || Boolean(confirmModal.requiresPin && confirmPin.length !== 4)}
                 onClick={async () => {
                   if (confirmModal.requiresPin) {
                     setVerifyingConfirmPin(true);

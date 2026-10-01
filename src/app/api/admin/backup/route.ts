@@ -4,7 +4,7 @@ import { executeBackup, getBackupSettings, setBackupSettings } from "@/lib/backu
 import { verifyAdminPin } from "@/lib/security";
 
 const postSchema = z.object({
-  pin: z.string().min(4).max(8),
+  pin: z.string().regex(/^\d{4}$/),
   action: z.enum(["save", "test", "backup"]),
   path: z.string().max(500).optional(),
   key: z.string().max(500).optional()

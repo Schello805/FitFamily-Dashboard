@@ -115,8 +115,8 @@ export function SetupForm() {
         </section>
         <section className="form-card">
           <div className="form-title"><LockKeyhole /><div><h2>Eltern-PIN</h2><p>Schützt Einstellungen, Löschungen, Backups und API-Schlüssel.</p></div></div>
-          <label>PIN (4–8 Ziffern)<input required pattern="[0-9]{4,8}" inputMode="numeric" type="password" value={pin} onChange={(event) => setPin(event.target.value)} /></label>
-          <label>PIN wiederholen<input required pattern="[0-9]{4,8}" inputMode="numeric" type="password" value={confirmPin} onChange={(event) => setConfirmPin(event.target.value)} /></label>
+          <label>Eltern-PIN (4 Ziffern)<input required minLength={4} maxLength={4} pattern="[0-9]{4}" inputMode="numeric" type="password" value={pin} onChange={(event) => setPin(event.target.value.replace(/\D/g, "").slice(0, 4))} /></label>
+          <label>PIN wiederholen<input required minLength={4} maxLength={4} pattern="[0-9]{4}" inputMode="numeric" type="password" value={confirmPin} onChange={(event) => setConfirmPin(event.target.value.replace(/\D/g, "").slice(0, 4))} /></label>
         </section>
         {error && <p className="form-error">{error}</p>}
         <button className="primary-submit" disabled={busy}>{busy ? "Wird gespeichert …" : "Dashboard einrichten"}<ChevronRight /></button>

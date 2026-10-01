@@ -23,9 +23,9 @@ export function DevicePairing({ profiles, nextPath }: { profiles: { id: string; 
   return <main className="mobile-page"><section className="pair-card">
     <div className="pair-icon"><Smartphone /></div><span className="setup-badge">Neues Gerät</span><h1>Wem gehört<br />dieses Handy?</h1><p>Die Auswahl wird sicher im Browser gespeichert und kann später widerrufen werden.</p>
     <div className="profile-choice">{profiles.map((profile) => <button key={profile.id} onClick={() => setProfileId(profile.id)} className={profileId === profile.id ? "selected" : ""} style={{ "--profile": profile.color } as React.CSSProperties}><i />{profile.name}</button>)}</div>
-    <label>Eltern-PIN<input inputMode="numeric" type="password" value={pin} onChange={(event) => setPin(event.target.value)} /></label>
+    <label>Eltern-PIN (4 Ziffern)<input inputMode="numeric" type="password" minLength={4} maxLength={4} pattern="[0-9]{4}" value={pin} onChange={(event) => setPin(event.target.value.replace(/\D/g, "").slice(0, 4))} /></label>
     {error && <p className="form-error">{error}</p>}
-    <button className="primary-submit" disabled={busy || !profileId || pin.length < 4} onClick={pair}>{busy ? "Wird gekoppelt …" : "Handy koppeln"}</button>
+    <button className="primary-submit" disabled={busy || !profileId || pin.length !== 4} onClick={pair}>{busy ? "Wird gekoppelt …" : "Handy koppeln"}</button>
     <small><ShieldCheck size={15} /> Nur im lokalen Familiennetzwerk</small>
   </section></main>;
 }

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { pairDevice, verifyAdminPin } from "@/lib/security";
 
-const schema = z.object({ profileId: z.string().min(1), pin: z.string().min(4).max(12), label: z.string().max(60).nullable().optional() });
+const schema = z.object({ profileId: z.string().min(1), pin: z.string().regex(/^\d{4}$/), label: z.string().max(60).nullable().optional() });
 
 export async function POST(request: Request) {
   const body = schema.safeParse(await request.json());

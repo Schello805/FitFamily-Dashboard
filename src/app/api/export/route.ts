@@ -3,7 +3,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { verifyAdminPin } from "@/lib/security";
 
-const schema = z.object({ pin: z.string().min(4) });
+const schema = z.object({ pin: z.string().regex(/^\d{4}$/) });
 
 export async function POST(request: Request) {
   const body = schema.safeParse(await request.json());

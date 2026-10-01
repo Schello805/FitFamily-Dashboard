@@ -336,7 +336,7 @@ export async function DELETE(request: Request) {
   if (!profileId) {
     return NextResponse.json({ error: "profileId ist erforderlich." }, { status: 400 });
   }
-  if (typeof body?.pin !== "string" || !(await verifyAdminPin(body.pin))) {
+  if (typeof body?.pin !== "string" || !/^\d{4}$/.test(body.pin) || !(await verifyAdminPin(body.pin))) {
     return NextResponse.json({ error: "Zum Löschen ist die Eltern-PIN erforderlich." }, { status: 401 });
   }
 

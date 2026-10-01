@@ -4,7 +4,7 @@ import { getAiApiKey, getAiProviderStatus, setAiApiKey, type AiProvider } from "
 import { verifyAdminPin } from "@/lib/security";
 
 const schema = z.object({
-  pin: z.string().min(4).max(8),
+  pin: z.string().regex(/^\d{4}$/),
   provider: z.enum(["openai", "gemini"]),
   action: z.enum(["save", "remove", "test"]),
   apiKey: z.string().max(500).optional()

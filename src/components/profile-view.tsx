@@ -418,8 +418,12 @@ export function ProfileView({
   }
 
   async function manageHealthToken(action: "create" | "revoke") {
-    const pin = window.prompt("Eltern-PIN eingeben, um den Apple-Health-Sync-Schlüssel " + (action === "create" ? "zu erstellen" : "zu widerrufen") + ":");
+    const pin = window.prompt("Eltern-PIN eingeben (4 Ziffern), um den Apple-Health-Sync-Schlüssel " + (action === "create" ? "zu erstellen" : "zu widerrufen") + ":");
     if (!pin) return;
+    if (!/^\d{4}$/.test(pin)) {
+      showToast({ type: "error", title: "Ungültige PIN", message: "Bitte genau vier Ziffern eingeben." });
+      return;
+    }
     try {
       const response = await fetch("/api/sync/apple-health/token", {
         method: "POST",
@@ -499,8 +503,12 @@ export function ProfileView({
   const [confirmResetHealth, setConfirmResetHealth] = useState(false);
 
   async function performHealthReset() {
-    const pin = window.prompt("Eltern-PIN eingeben, um die Apple-Health-Daten zu löschen:");
+    const pin = window.prompt("Eltern-PIN eingeben (4 Ziffern), um die Apple-Health-Daten zu löschen:");
     if (!pin) return;
+    if (!/^\d{4}$/.test(pin)) {
+      showToast({ type: "error", title: "Ungültige PIN", message: "Bitte genau vier Ziffern eingeben." });
+      return;
+    }
     setResettingHealth(true);
     try {
       const response = await fetch(`/api/sync/apple-health?profileId=${encodeURIComponent(profile.id)}`, {
@@ -801,7 +809,7 @@ export function ProfileView({
           Startstufe 1–5 legt das Ausgangslevel fest. Alle 15 Trainingsstunden (900 Min.) steigt die Stufe automatisch um 1 an (maximal Stufe 5). Das Verhältnis von Kraft zu Ausdauer bestimmt den Fokus.
         </p>
         <label>Trainingsziel<select name="goal" defaultValue={profile.goal}>{GOALS.map((goal) => <option key={goal}>{goal}</option>)}</select></label>
-        <label>Eltern-PIN<input name="pin" type="password" inputMode="numeric" autoComplete="current-password" minLength={4} maxLength={8} pattern="[0-9]{4,8}" required /></label>
+        <label>Eltern-PIN<input name="pin" type="password" inputMode="numeric" autoComplete="current-password" minLength={4} maxLength={4} pattern="[0-9]{4}" onChange={(event) => { event.currentTarget.value = event.currentTarget.value.replace(/\D/g, "").slice(0, 4); }} required /></label>
         {profileNotice && <p className="form-error" role="alert">{profileNotice}</p>}
         <button className="primary-submit" disabled={busy}>{busy ? "Wird gespeichert …" : "Änderungen speichern"}</button>
       </form></div>}

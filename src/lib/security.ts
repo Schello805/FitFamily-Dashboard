@@ -17,6 +17,7 @@ export async function hasAdminPin() {
 }
 
 export async function setAdminPin(pin: string) {
+  if (!/^\d{4}$/.test(pin)) throw new Error("Die Eltern-PIN muss aus genau vier Ziffern bestehen.");
   const client = await db();
   const hash = await bcrypt.hash(pin, 12);
   await client.execute({

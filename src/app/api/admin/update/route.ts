@@ -76,7 +76,7 @@ export async function GET(request: Request) {
   });
 }
 
-const postSchema = z.object({ pin: z.string().min(4) });
+const postSchema = z.object({ pin: z.string().regex(/^\d{4}$/) });
 
 export async function POST(request: Request) {
   const body = postSchema.safeParse(await request.json());

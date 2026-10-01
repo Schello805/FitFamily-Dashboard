@@ -6,7 +6,7 @@ import { createToken, hashToken, verifyAdminPin } from "@/lib/security";
 
 const schema = z.object({
   profileId: z.string().min(1),
-  pin: z.string().regex(/^\d{4,8}$/),
+  pin: z.string().regex(/^\d{4}$/),
   action: z.enum(["create", "revoke"])
 });
 

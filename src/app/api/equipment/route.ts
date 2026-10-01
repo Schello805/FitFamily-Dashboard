@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import { verifyAdminPin } from "@/lib/security";
 
 const schema = z.object({
-  pin: z.string().regex(/^\d{4,8}$/),
+  pin: z.string().regex(/^\d{4}$/),
   name: z.string().trim().min(2).max(60),
   quantity: z.number().int().min(1).max(8)
 });

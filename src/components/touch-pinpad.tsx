@@ -5,16 +5,16 @@ import { Delete, RotateCcw } from "lucide-react";
 export function TouchPinpad({
   value,
   onChange,
-  maxLength = 4,
   disabled = false
 }: {
   value: string;
   onChange: (val: string) => void;
-  maxLength?: number;
   disabled?: boolean;
 }) {
+  const pinLength = 4;
+
   function handleDigit(digit: string) {
-    if (disabled || value.length >= maxLength) return;
+    if (disabled || value.length >= pinLength) return;
     onChange(value + digit);
   }
 
@@ -28,7 +28,7 @@ export function TouchPinpad({
     onChange("");
   }
 
-  const dotCount = maxLength;
+  const dotCount = pinLength;
 
   return (
     <div className="touch-pinpad" role="group" aria-label="PIN-Tastenfeld">
@@ -50,7 +50,7 @@ export function TouchPinpad({
             key={num}
             type="button"
             className="pinpad-key"
-            disabled={disabled || value.length >= maxLength}
+            disabled={disabled || value.length >= pinLength}
             onClick={() => handleDigit(String(num))}
           >
             {num}
@@ -71,7 +71,7 @@ export function TouchPinpad({
         <button
           type="button"
           className="pinpad-key"
-          disabled={disabled || value.length >= maxLength}
+          disabled={disabled || value.length >= pinLength}
           onClick={() => handleDigit("0")}
         >
           0

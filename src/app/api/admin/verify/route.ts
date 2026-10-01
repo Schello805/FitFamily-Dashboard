@@ -5,7 +5,7 @@ import { getAiProviderStatus } from "@/lib/ai-config";
 import { getBackupSettings } from "@/lib/backup";
 import { getDisplaySettings } from "@/lib/display-settings";
 
-const schema = z.object({ pin: z.string().min(4) });
+const schema = z.object({ pin: z.string().regex(/^\d{4}$/) });
 
 export async function POST(request: Request) {
   const body = schema.safeParse(await request.json());

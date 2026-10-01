@@ -12,7 +12,7 @@ const profileSchema = z.object({
   startingFitness: z.number().int().min(1).max(5)
 });
 const schema = z.object({
-  pin: z.string().regex(/^\d{4,8}$/),
+  pin: z.string().regex(/^\d{4}$/),
   profiles: z.array(profileSchema).length(4)
 });
 

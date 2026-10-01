@@ -11,7 +11,7 @@ const schema = z.object({
   avatar: z.enum([...AVATAR_IDS, "female", "male", "neutral"]),
   startingFitness: z.number().int().min(1).max(5),
   goal: z.string().min(1).max(100),
-  pin: z.string().regex(/^\d{4,8}$/)
+  pin: z.string().regex(/^\d{4}$/)
 });
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ profileId: string }> }) {

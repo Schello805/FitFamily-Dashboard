@@ -473,7 +473,7 @@ export function HistoryView({ profile }: { profile: DashboardProfile }) {
             <TouchPinpad value={manualPin} onChange={setManualPin} />
             <input type="hidden" name="pin" value={manualPin} />
             {manualError && <p className="form-error">{manualError}</p>}
-            <button className="primary-submit" disabled={manualPin.length < 4}>
+            <button className="primary-submit" disabled={manualPin.length !== 4}>
               Speichern
             </button>
           </form>
@@ -538,7 +538,7 @@ export function HistoryView({ profile }: { profile: DashboardProfile }) {
             <label>Eltern-PIN zur Freigabe (4 Ziffern)</label>
             <TouchPinpad value={editPin} onChange={setEditPin} />
             {editError && <p className="form-error">{editError}</p>}
-            <button className="primary-submit" disabled={editPin.length < 4}>
+            <button className="primary-submit" disabled={editPin.length !== 4}>
               Änderungen speichern
             </button>
           </form>
@@ -591,7 +591,7 @@ export function HistoryView({ profile }: { profile: DashboardProfile }) {
             <TouchPinpad value={deletePin} onChange={setDeletePin} />
             {deleteError && <p className="form-error">{deleteError}</p>}
 
-            <button type="submit" className="delete-submit-btn" disabled={deletePin.length < 4 || busyDelete}>
+            <button type="submit" className="delete-submit-btn" disabled={deletePin.length !== 4 || busyDelete}>
               {busyDelete ? "Wird gelöscht …" : "Endgültig löschen"}
             </button>
           </form>

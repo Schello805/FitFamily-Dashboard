@@ -7,7 +7,7 @@ import { verifyAdminPin } from "@/lib/security";
 import { getExerciseGuide } from "@/lib/exercise-guides";
 
 const schema = z.object({
-  pin: z.string().regex(/^\d{4,8}$/),
+  pin: z.string().regex(/^\d{4}$/),
   videoUrl: z.string().url().max(500).nullable()
 });
 

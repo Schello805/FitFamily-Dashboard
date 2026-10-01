@@ -8,7 +8,7 @@ import { setBackupSettings } from "@/lib/backup";
 export const dynamic = "force-dynamic";
 
 const mountSchema = z.object({
-  pin: z.string().min(4),
+  pin: z.string().regex(/^\d{4}$/),
   server: z.string().min(1),
   share: z.string().min(1),
   username: z.string().optional(),

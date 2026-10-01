@@ -5,13 +5,13 @@ import { db } from "@/lib/db";
 import { verifyAdminPin } from "@/lib/security";
 
 const postSchema = z.object({
-  pin: z.string(), profileId: z.string(), type: z.enum(["strength", "endurance"]),
+  pin: z.string().regex(/^\d{4}$/), profileId: z.string(), type: z.enum(["strength", "endurance"]),
   startedAt: z.string().datetime(), endedAt: z.string().datetime(), exerciseId: z.string().nullable().optional()
 }).refine((value) => new Date(value.endedAt) > new Date(value.startedAt), { message: "Endzeit muss nach der Startzeit liegen" })
   .refine((value) => new Date(value.startedAt).getTime() <= Date.now() + 60000, { message: "Trainingsbeginn darf nicht in der Zukunft liegen" });
 
 const editSchema = z.object({
-  pin: z.string(),
+  pin: z.string().regex(/^\d{4}$/),
   sessionId: z.string(),
   profileId: z.string(),
   type: z.enum(["strength", "endurance"]),
@@ -22,7 +22,7 @@ const editSchema = z.object({
   .refine((value) => new Date(value.startedAt).getTime() <= Date.now() + 60000, { message: "Trainingsbeginn darf nicht in der Zukunft liegen" });
 
 const deleteSchema = z.object({
-  pin: z.string(),
+  pin: z.string().regex(/^\d{4}$/),
   sessionId: z.string(),
   profileId: z.string()
 });
