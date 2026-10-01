@@ -328,6 +328,26 @@ export function ProfileView({
     }
   }
 
+  const [copiedPayload, setCopiedPayload] = useState(false);
+
+  async function copySamplePayload() {
+    const payload = JSON.stringify({
+      profileId: profile.id,
+      title: "Lauftraining",
+      type: "endurance",
+      durationMinutes: 30,
+      calories: 250
+    }, null, 2);
+    try {
+      await navigator.clipboard.writeText(payload);
+      setCopiedPayload(true);
+      showToast({ type: "info", title: "JSON kopiert", message: "JSON-Muster in Zwischenablage kopiert." });
+      setTimeout(() => setCopiedPayload(false), 2000);
+    } catch {
+      showToast({ type: "info", title: "JSON-Muster", message: payload });
+    }
+  }
+
   async function testHealthSync() {
     setTestingHealth(true);
     try {
@@ -565,27 +585,30 @@ export function ProfileView({
             </div>
 
             <div className="health-action-row">
-              <a
-                href={`/api/shortcuts/${profile.id}?download=1`}
-                className="health-primary-btn"
-                download={`FitFamily_Sync_${profile.name}.shortcut`}
-              >
-                <Download size={18} />
-                <span>Kurzbefehl herunterladen</span>
-              </a>
               <button
                 type="button"
                 className="health-secondary-btn"
                 disabled={testingHealth}
                 onClick={testHealthSync}
+                style={{ flex: 1 }}
               >
                 <Zap size={18} />
                 <span>{testingHealth ? "Übertrage …" : "Test-Lauf übertragen (30 Min.)"}</span>
               </button>
+              <a
+                href={`/api/shortcuts/${profile.id}?download=1`}
+                className="health-ghost-btn"
+                download={`FitFamily_Sync_${profile.name}.shortcut`}
+                title="Rohdatei (.shortcut) herunterladen"
+                style={{ padding: "10px 14px", fontSize: "12px", border: "1px solid var(--line)", borderRadius: "10px", display: "inline-flex", alignItems: "center", gap: "6px", color: "var(--muted)" }}
+              >
+                <Download size={14} />
+                <span>.shortcut Datei</span>
+              </a>
             </div>
 
             <div className="health-url-box">
-              <label>Persönliche Webhook-Adresse</label>
+              <label>1. Deine persönliche Webhook-Adresse</label>
               <div className="health-url-input-wrap">
                 <input
                   readOnly
@@ -593,18 +616,46 @@ export function ProfileView({
                 />
                 <button type="button" className="health-copy-btn" onClick={copyWebhookUrl}>
                   {copiedWebhook ? <Check size={16} /> : <Copy size={16} />}
-                  <span>{copiedWebhook ? "Kopiert!" : "Kopieren"}</span>
+                  <span>{copiedWebhook ? "Kopiert!" : "URL Kopieren"}</span>
                 </button>
               </div>
             </div>
 
             <div className="health-steps-card">
-              <h4>So funktioniert die Einrichtung auf dem iPhone:</h4>
-              <ol>
-                <li><strong>Kurzbefehl installieren:</strong> Tippe oben auf <em>„Kurzbefehl herunterladen“</em> und öffne die Datei in der iOS <strong>Kurzbefehle</strong>-App.</li>
-                <li><strong>Zugriff erlauben:</strong> Beim ersten Ausführen die Berechtigung für HealthKit (<em>„Trainings lesen“</em>) bestätigen.</li>
-                <li><strong>Automatisieren (Empfohlen):</strong> In der Kurzbefehle-App auf den Reiter <em>„Automation“</em> tippen &rarr; <em>„Neue Automation erstellen“</em> &rarr; <em>„Apple Watch Training beendet“</em> auswählen &rarr; <em>Diesen Kurzbefehl ausführen</em>. Fertig!</li>
+              <h4>Schnell-Einrichtung in der iOS & Mac &bdquo;Kurzbefehle&ldquo;-App (ca. 60 Sek.):</h4>
+              <p style={{ margin: "4px 0 10px", fontSize: "11px", color: "var(--muted)", lineHeight: 1.4 }}>
+                Hinweis: Apple blockiert auf aktuellen Geräten den Import unsignierter .shortcut-Dateien (&bdquo;nicht signiert / ungültiges Profil&ldquo;). Das manuelle Anlegen in der Kurzbefehle-App ist kinderleicht:
+              </p>
+              <ol style={{ paddingLeft: "20px", display: "grid", gap: "8px", fontSize: "12px" }}>
+                <li>
+                  <strong>Kurzbefehl erstellen:</strong> Öffne auf iPhone oder Mac die App <em>Kurzbefehle</em> und tippe oben auf <strong>+</strong> (Neuer Kurzbefehl).
+                </li>
+                <li>
+                  <strong>Aktion 1 hinzufügen:</strong> Suche nach <em>&bdquo;Trainings suchen&bdquo;</em> (Kategorie Gesundheit/Health) &rarr; Sortieren nach <em>Startdatum (Neueste zuerst)</em>, Begrenzung: <em>1 Training</em>.
+                </li>
+                <li>
+                  <strong>Aktion 2 hinzufügen:</strong> Suche nach <em>&bdquo;Inhalte von URL abrufen&bdquo;</em>:
+                  <ul style={{ margin: "4px 0 0", paddingLeft: "16px", color: "var(--muted)" }}>
+                    <li><strong>URL:</strong> Oben auf &bdquo;URL Kopieren&ldquo; tippen und einfügen.</li>
+                    <li><strong>Methode:</strong> <code>POST</code></li>
+                    <li><strong>Anforderungstext:</strong> <code>JSON</code> mit Feld <code>profileId</code> = <code>{profile.id}</code></li>
+                  </ul>
+                </li>
+                <li>
+                  <strong>Automation (optional & empfohlen):</strong> Im Reiter <em>&bdquo;Automation&ldquo;</em> &rarr; <em>&bdquo;Neue Automation&ldquo;</em> &rarr; <em>&bdquo;Apple Watch Training beendet&ldquo;</em> &rarr; diesen Kurzbefehl automatisch ausführen lassen.
+                </li>
               </ol>
+
+              <div style={{ marginTop: "12px", display: "flex", gap: "8px" }}>
+                <button
+                  type="button"
+                  onClick={copySamplePayload}
+                  style={{ padding: "8px 12px", fontSize: "11px", fontWeight: 700, borderRadius: "8px", border: "1px solid var(--line)", background: "var(--subtle-bg)", color: "var(--text)", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "6px" }}
+                >
+                  {copiedPayload ? <Check size={14} /> : <Copy size={14} />}
+                  <span>{copiedPayload ? "JSON kopiert!" : "Muster-JSON kopieren"}</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>

@@ -27,7 +27,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ prof
     return new NextResponse(xml, {
       status: 200,
       headers: {
-        "Content-Type": "application/x-apple-aspen-config; charset=utf-8",
+        "Content-Type": "application/x-apple-shortcut",
         "Content-Disposition": `attachment; filename="FitFamily_Sync_${encodeURIComponent(profileName)}.shortcut"`,
         "Cache-Control": "no-store, no-cache, must-revalidate"
       }

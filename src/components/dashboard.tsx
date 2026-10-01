@@ -72,9 +72,60 @@ export function Dashboard({
   const [weather, setWeather] = useState<Weather>(null);
   const clock = useClock();
   const [quietDismissed, setQuietDismissed] = useState(false);
+  const [idleTimeoutMinutes, setIdleTimeoutMinutes] = useState<number>(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("fitfamily_idle_timeout");
+      if (stored !== null) {
+        const val = Number(stored);
+        if (!Number.isNaN(val) && val >= 0) return val;
+      }
+    }
+    return 5;
+  });
+  const [nightModeEnabled, setNightModeEnabled] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("fitfamily_night_mode");
+      if (stored !== null) return stored === "true";
+    }
+    return true;
+  });
+  const [lastActivity, setLastActivity] = useState(() => {
+    if (typeof window !== "undefined" && sessionStorage.getItem("fitfamily_test_quiet") === "1") {
+      sessionStorage.removeItem("fitfamily_test_quiet");
+      return Date.now() - 3600000;
+    }
+    return Date.now();
+  });
   const [activeQr, setActiveQr] = useState(mobileQr ?? "");
   const [activeUrl, setActiveUrl] = useState(mobileUrl ?? "");
   const [showQrModal, setShowQrModal] = useState(false);
+
+  // Inaktivitäts-Tracking: Bei jeder Interaktion Timer zurücksetzen
+  useEffect(() => {
+    let lastRecorded = Date.now();
+    const handleActivity = () => {
+      const now = Date.now();
+      if (now - lastRecorded > 2000) {
+        lastRecorded = now;
+        setLastActivity(now);
+        setQuietDismissed(false);
+      }
+    };
+
+    window.addEventListener("pointerdown", handleActivity, { passive: true });
+    window.addEventListener("touchstart", handleActivity, { passive: true });
+    window.addEventListener("keydown", handleActivity, { passive: true });
+    window.addEventListener("mousemove", handleActivity, { passive: true });
+    window.addEventListener("scroll", handleActivity, { passive: true });
+
+    return () => {
+      window.removeEventListener("pointerdown", handleActivity);
+      window.removeEventListener("touchstart", handleActivity);
+      window.removeEventListener("keydown", handleActivity);
+      window.removeEventListener("mousemove", handleActivity);
+      window.removeEventListener("scroll", handleActivity);
+    };
+  }, []);
 
   useEffect(() => {
     if (typeof window !== "undefined" && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1") {
@@ -96,7 +147,18 @@ export function Dashboard({
 
   const refresh = useCallback(async () => {
     const response = await fetch("/api/dashboard", { cache: "no-store" });
-    if (response.ok) setProfiles((await response.json()).profiles);
+    if (response.ok) {
+      const data = await response.json();
+      setProfiles(data.profiles);
+      if (data.displaySettings) {
+        setIdleTimeoutMinutes(data.displaySettings.idleTimeoutMinutes);
+        setNightModeEnabled(data.displaySettings.nightModeEnabled);
+        if (typeof window !== "undefined") {
+          localStorage.setItem("fitfamily_idle_timeout", String(data.displaySettings.idleTimeoutMinutes));
+          localStorage.setItem("fitfamily_night_mode", String(data.displaySettings.nightModeEnabled));
+        }
+      }
+    }
   }, []);
 
   useEffect(() => {
@@ -119,8 +181,22 @@ export function Dashboard({
   const dateText = useMemo(() => new Intl.DateTimeFormat("de-DE", {
     weekday: "long", day: "2-digit", month: "long"
   }).format(clock), [clock]);
+
   const minutesOfDay = clock.getHours() * 60 + clock.getMinutes();
-  const quietActive = !quietDismissed && (minutesOfDay >= 22 * 60 + 30 || minutesOfDay < 6 * 60 + 30) && !profiles.some((profile) => profile.activeTraining);
+  const hasActiveTraining = profiles.some((profile) => profile.activeTraining);
+  const idleMinutes = (clock.getTime() - lastActivity) / 60000;
+
+  // Ruhemodus aktiviert sich nur, wenn kein aktives Training läuft:
+  // 1. Nach Inaktivität (Timeout > 0 und idleMinutes >= idleTimeoutMinutes)
+  // 2. ODER bei automatischer Nachtruhe (zwischen 22:30 und 06:30 Uhr), sofern Nachtruhe aktiv ist UND mindestens 1 Min. keine Interaktion stattfand
+  const isIdleTimeoutReached = idleTimeoutMinutes > 0 && idleMinutes >= idleTimeoutMinutes;
+  const isNightQuiet = nightModeEnabled && (minutesOfDay >= 22 * 60 + 30 || minutesOfDay < 6 * 60 + 30) && idleMinutes >= 1;
+  const quietActive = !hasActiveTraining && !quietDismissed && (isIdleTimeoutReached || isNightQuiet);
+
+  function wakeUp() {
+    setLastActivity(Date.now());
+    setQuietDismissed(true);
+  }
 
   async function stop(event: React.MouseEvent, profileId: string) {
     event.preventDefault();
@@ -232,7 +308,13 @@ export function Dashboard({
         <span>Source Available von Michael Schellenberger</span>
         <a href={commitUrl ?? "https://github.com/Schello805/FitFamily-Dashboard"} target="_blank" rel="noreferrer"><GitHubIcon /> GitHub · Rev. {version}</a>
       </footer>
-      {quietActive && <button className="quiet-overlay" onClick={() => setQuietDismissed(true)}><span>{clock.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })}</span><strong>Ruhemodus</strong><small>Zum Aufwecken berühren</small></button>}
+      {quietActive && (
+        <button type="button" className="quiet-overlay" onClick={wakeUp} aria-label="Ruhemodus beenden">
+          <span>{clock.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })}</span>
+          <strong>Ruhemodus</strong>
+          <small>Zum Aufwecken berühren oder Taste drücken</small>
+        </button>
+      )}
 
       {showQrModal && activeQr && (
         <div className="modal-backdrop" onClick={() => setShowQrModal(false)}>

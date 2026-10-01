@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { ArrowLeft, Bot, CheckCircle2, Database, Download, HardDrive, Plus, RefreshCw, RotateCcw, ShieldCheck, Sparkles } from "lucide-react";
+import { ArrowLeft, Bot, CheckCircle2, Database, Download, HardDrive, Moon, Plus, RefreshCw, RotateCcw, ShieldCheck, Sparkles } from "lucide-react";
 import { TouchPinpad } from "@/components/touch-pinpad";
 import { showToast } from "@/components/toast";
 
@@ -24,6 +25,7 @@ type BackupStatus = {
 };
 
 export function AdminView({ profiles, exercises, equipment }: { profiles: { id: string; name: string; score: number }[]; exercises: ExerciseMedia[]; equipment: EquipmentItem[] }) {
+  const router = useRouter();
   const [pin, setPin] = useState(() => {
     if (typeof window !== "undefined") {
       try {
@@ -45,6 +47,19 @@ export function AdminView({ profiles, exercises, equipment }: { profiles: { id: 
   const [newEquipmentQuantity, setNewEquipmentQuantity] = useState(1);
   const [apiKeys, setApiKeys] = useState({ openai: "", gemini: "" });
   const [savingApi, setSavingApi] = useState<string | null>(null);
+
+  const [displaySettings, setDisplaySettings] = useState<{ idleTimeoutMinutes: number; nightModeEnabled: boolean }>(() => {
+    if (typeof window !== "undefined") {
+      const storedTimeout = localStorage.getItem("fitfamily_idle_timeout");
+      const storedNight = localStorage.getItem("fitfamily_night_mode");
+      return {
+        idleTimeoutMinutes: storedTimeout !== null ? Number(storedTimeout) : 5,
+        nightModeEnabled: storedNight !== null ? storedNight === "true" : true
+      };
+    }
+    return { idleTimeoutMinutes: 5, nightModeEnabled: true };
+  });
+  const [savingDisplay, setSavingDisplay] = useState(false);
 
   const [backupStatus, setBackupStatus] = useState<BackupStatus | null>(null);
   const [nasPathInput, setNasPathInput] = useState("");
@@ -138,11 +153,40 @@ export function AdminView({ profiles, exercises, equipment }: { profiles: { id: 
         setBackupStatus(result.backup);
         setNasPathInput(result.backup.path || "");
       }
+      if (result.displaySettings) {
+        setDisplaySettings(result.displaySettings);
+      }
       void checkUpdate(pinToTest);
     } catch {
       setError("Verbindungsfehler beim Prüfen der PIN");
     } finally {
       setVerifying(false);
+    }
+  }
+
+  async function saveDisplaySettings(changes: { idleTimeoutMinutes?: number; nightModeEnabled?: boolean }) {
+    const updated = { ...displaySettings, ...changes };
+    setDisplaySettings(updated);
+    setSavingDisplay(true);
+    if (typeof window !== "undefined") {
+      if (updated.idleTimeoutMinutes !== undefined) localStorage.setItem("fitfamily_idle_timeout", String(updated.idleTimeoutMinutes));
+      if (updated.nightModeEnabled !== undefined) localStorage.setItem("fitfamily_night_mode", String(updated.nightModeEnabled));
+    }
+    try {
+      const response = await fetch("/api/admin/display-settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pin, ...changes })
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setDisplaySettings(data.settings);
+        showToast({ type: "success", title: "Gespeichert", message: "Ruhemodus-Einstellungen wurden aktualisiert." });
+      }
+    } catch {
+      showToast({ type: "error", title: "Fehler", message: "Einstellungen konnten nicht gespeichert werden." });
+    } finally {
+      setSavingDisplay(false);
     }
   }
 
@@ -454,7 +498,76 @@ export function AdminView({ profiles, exercises, equipment }: { profiles: { id: 
   }
 
   return <main className="admin-page"><header><Link href="/"><ArrowLeft /> Dashboard</Link><div><span>Elternbereich</span><h1>Verwaltung</h1></div></header>{notice && <p className="notice">{notice}</p>}
-    <section className="admin-grid"><article><div className="admin-title"><Database /><div><h2>Meine Daten</h2><p>Vollständiger lokaler Datenbestand</p></div></div><ul><li><CheckCircle2 /> Profildaten und Geburtsdaten</li><li><CheckCircle2 /> Trainings- und Punkteverlauf</li><li><CheckCircle2 /> Pläne und Änderungsprotokoll</li></ul><button onClick={download}><Download /> JSON herunterladen</button></article>
+    <section className="admin-grid">
+      <article><div className="admin-title"><Database /><div><h2>Meine Daten</h2><p>Vollständiger lokaler Datenbestand</p></div></div><ul><li><CheckCircle2 /> Profildaten und Geburtsdaten</li><li><CheckCircle2 /> Trainings- und Punkteverlauf</li><li><CheckCircle2 /> Pläne und Änderungsprotokoll</li></ul><button onClick={download}><Download /> JSON herunterladen</button></article>
+      <article className="screensaver-card">
+        <div className="admin-title">
+          <Moon />
+          <div>
+            <h2>Ruhemodus & Inaktivität</h2>
+            <p>Bildschirmschoner nach Inaktivität und Nachtruhe</p>
+          </div>
+        </div>
+
+        <div style={{ marginTop: "10px" }}>
+          <label style={{ display: "block", fontSize: "12px", fontWeight: 750, color: "var(--muted)", marginBottom: "6px" }}>
+            Aktivieren nach Inaktivität:
+          </label>
+          <div className="timeout-pills">
+            {[
+              { label: "1 Min.", val: 1 },
+              { label: "2 Min.", val: 2 },
+              { label: "5 Min.", val: 5 },
+              { label: "10 Min.", val: 10 },
+              { label: "15 Min.", val: 15 },
+              { label: "30 Min.", val: 30 },
+              { label: "Aus", val: 0 }
+            ].map(({ label, val }) => (
+              <button
+                key={val}
+                type="button"
+                className={`timeout-pill ${displaySettings.idleTimeoutMinutes === val ? "active" : ""}`}
+                disabled={savingDisplay}
+                onClick={() => void saveDisplaySettings({ idleTimeoutMinutes: val })}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <label className="night-mode-toggle-wrap">
+          <input
+            type="checkbox"
+            checked={displaySettings.nightModeEnabled}
+            disabled={savingDisplay}
+            onChange={(e) => void saveDisplaySettings({ nightModeEnabled: e.target.checked })}
+          />
+          <div style={{ fontSize: "12px" }}>
+            <strong>Automatische Nachtruhe</strong>
+            <small style={{ display: "block", color: "var(--muted)", marginTop: "2px" }}>
+              Zwischen 22:30 und 06:30 Uhr bei Nichtbenutzung
+            </small>
+          </div>
+        </label>
+
+        <div style={{ marginTop: "8px" }}>
+          <button
+            type="button"
+            className="update-secondary-btn"
+            style={{ width: "100%", justifyContent: "center" }}
+            onClick={() => {
+              if (typeof window !== "undefined") {
+                sessionStorage.setItem("fitfamily_test_quiet", "1");
+                router.push("/");
+              }
+            }}
+          >
+            <Sparkles size={16} />
+            <span>Ruhemodus jetzt testen</span>
+          </button>
+        </div>
+      </article>
       <article className="wide update-card">
         <div className="admin-title"><RefreshCw className={checkingUpdate || runningUpdate ? "spin" : ""} /><div><h2>Software-Update</h2><p>Dashboard auf den neuesten Stand von GitHub bringen</p></div></div>
         <div className="update-status-grid">
