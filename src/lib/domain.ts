@@ -83,7 +83,7 @@ export type DashboardProfile = Profile & {
   targetPeriod: "Tag" | "Woche";
   nextTraining: string | null;
   activeTraining: ActiveTraining | null;
-  appleHealthRings: AppleHealthRings;
+  appleHealthRings?: AppleHealthRings | null;
 };
 
 export function movementTargetForAge(age: number) {

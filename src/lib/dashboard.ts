@@ -43,8 +43,6 @@ export async function getDashboardData(): Promise<DashboardProfile[]> {
     let points = 0;
     let totalSeconds = 0;
     let todaySeconds = 0;
-    let todayStrengthSeconds = 0;
-    let todayEnduranceSeconds = 0;
     let weekSeconds = 0;
     let strengthMinutes = 0;
     let enduranceMinutes = 0;
@@ -63,8 +61,6 @@ export async function getDashboardData(): Promise<DashboardProfile[]> {
       if (endTime >= todayStart) {
         const segSec = Math.max(0, (endTime - Math.max(startTime, todayStart)) / 1000);
         todaySeconds += segSec;
-        if (type === "strength") todayStrengthSeconds += segSec;
-        else todayEnduranceSeconds += segSec;
       }
       if (endTime >= weekStart) weekSeconds += Math.max(0, (endTime - Math.max(startTime, weekStart)) / 1000);
     }
@@ -129,38 +125,17 @@ export async function getDashboardData(): Promise<DashboardProfile[]> {
     }
 
     const storedRing = appleHealthResult.rows.find((r) => String(r.profile_id) === profileId);
-    let appleHealthRings: DashboardProfile["appleHealthRings"];
+    let appleHealthRings: DashboardProfile["appleHealthRings"] = null;
 
     if (storedRing) {
       appleHealthRings = {
-        moveCalories: Math.round(Number(storedRing.move_calories) + ((todayStrengthSeconds / 60) * 6.5) + ((todayEnduranceSeconds / 60) * 8.5)),
+        moveCalories: Math.round(Number(storedRing.move_calories)),
         moveGoal: Math.round(Number(storedRing.move_goal) || (age < 18 ? 400 : 500)),
-        exerciseMinutes: Math.round(Number(storedRing.exercise_minutes) + (todaySeconds / 60)),
+        exerciseMinutes: Math.round(Number(storedRing.exercise_minutes)),
         exerciseGoal: Math.round(Number(storedRing.exercise_goal) || (target.period === "Tag" ? target.minutes : 30)),
         standHours: Math.min(24, Math.round(Number(storedRing.stand_hours))),
         standGoal: Math.round(Number(storedRing.stand_goal) || 12),
         lastSyncedAt: String(storedRing.updated_at)
-      };
-    } else {
-      const todayStrengthCalories = (todayStrengthSeconds / 60) * 6.5;
-      const todayEnduranceCalories = (todayEnduranceSeconds / 60) * 8.5;
-      const currentHour = now.getHours();
-      const baselineDayBurn = Math.min(360, Math.max(40, (currentHour - 6) * 25));
-      const moveCalories = Math.round(todayStrengthCalories + todayEnduranceCalories + (todaySeconds > 0 ? 80 : 0) + baselineDayBurn);
-      const moveGoal = age < 18 ? 400 : 500;
-      const exerciseMinutes = Math.round(todaySeconds / 60);
-      const exerciseGoal = target.period === "Tag" ? target.minutes : 30;
-      const standHours = Math.min(12, Math.max(1, Math.floor(Math.max(0, currentHour - 7) * 0.75) + (todaySeconds > 0 ? 2 : 0)));
-      const standGoal = 12;
-
-      appleHealthRings = {
-        moveCalories,
-        moveGoal,
-        exerciseMinutes,
-        exerciseGoal,
-        standHours,
-        standGoal,
-        lastSyncedAt: null
       };
     }
 

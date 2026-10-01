@@ -427,6 +427,7 @@ export function ProfileView({
           message: data.message ?? "Daten wurden erfolgreich entfernt."
         });
         setConfirmResetHealth(false);
+        setProfile((prev) => ({ ...prev, appleHealthRings: null }));
         await refresh();
       } else {
         showToast({
@@ -665,12 +666,17 @@ export function ProfileView({
               <span><strong>Kompatibel mit Gymondo & Fitness-Apps:</strong> Auch Trainings aus Gymondo, Strava, Garmin oder Nike Training Club werden automatisch übernommen, sobald sie in Apple Health gespeichert sind.</span>
             </div>
 
-            {profile.appleHealthRings && (
+            {profile.appleHealthRings ? (
               <div style={{ marginBottom: "16px" }}>
                 <AppleActivityRings
                   rings={profile.appleHealthRings}
                   compact
                 />
+              </div>
+            ) : (
+              <div style={{ margin: "0 0 16px", padding: "12px 14px", borderRadius: "12px", background: "var(--subtle-bg)", border: "1px dashed var(--line)", fontSize: "12px", color: "var(--muted)", display: "flex", alignItems: "center", gap: "10px" }}>
+                <span style={{ fontSize: "16px" }}>⚪</span>
+                <span><strong>Keine Daten verknüpft:</strong> Die Aktivitätsringe werden angezeigt, sobald eine Synchronisation von deinem iPhone erfolgt ist.</span>
               </div>
             )}
 
