@@ -3,6 +3,7 @@ import { AlertTriangle, ArrowLeft, CheckCircle2, ExternalLink, PlayCircle, Video
 import { getExerciseGuide } from "@/lib/exercise-guides";
 import { db } from "@/lib/db";
 import { ExerciseStartButton } from "@/components/exercise-start-button";
+import { KioskIdleBar } from "@/components/kiosk-idle-bar";
 
 export const dynamic = "force-dynamic";
 
@@ -106,6 +107,7 @@ export default async function ExercisePage({
 
   return (
     <main className="guide-page">
+      <KioskIdleBar redirectUrl={backHref} seconds={120} title={`Übung: ${guide.name}`} />
       <header>
         <Link href={backHref} className="guide-back-link">
           <ArrowLeft size={18} /> {backLabel}

@@ -60,6 +60,13 @@ export function AdminView({ profiles, exercises, equipment }: { profiles: { id: 
     return { idleTimeoutMinutes: 5, nightModeEnabled: true };
   });
   const [savingDisplay, setSavingDisplay] = useState(false);
+  const [subpageTimeout, setSubpageTimeout] = useState(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("fitfamily_subpage_idle_timeout");
+      return stored ? Number(stored) : 60;
+    }
+    return 60;
+  });
 
   const [backupStatus, setBackupStatus] = useState<BackupStatus | null>(null);
   const [nasPathInput, setNasPathInput] = useState("");
@@ -529,6 +536,35 @@ export function AdminView({ profiles, exercises, equipment }: { profiles: { id: 
                 className={`timeout-pill ${displaySettings.idleTimeoutMinutes === val ? "active" : ""}`}
                 disabled={savingDisplay}
                 onClick={() => void saveDisplaySettings({ idleTimeoutMinutes: val })}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ marginTop: "14px" }}>
+          <label style={{ display: "block", fontSize: "12px", fontWeight: 750, color: "var(--muted)", marginBottom: "6px" }}>
+            Zurück zum Dashboard bei Inaktivität (Trainingsplan & Profil):
+          </label>
+          <div className="timeout-pills">
+            {[
+              { label: "30 Sek.", val: 30 },
+              { label: "60 Sek.", val: 60 },
+              { label: "90 Sek.", val: 90 },
+              { label: "2 Min.", val: 120 }
+            ].map(({ label, val }) => (
+              <button
+                key={val}
+                type="button"
+                className={`timeout-pill ${subpageTimeout === val ? "active" : ""}`}
+                onClick={() => {
+                  setSubpageTimeout(val);
+                  if (typeof window !== "undefined") {
+                    localStorage.setItem("fitfamily_subpage_idle_timeout", String(val));
+                    showToast({ type: "success", title: "Gespeichert", message: `Inaktivitäts-Rücksprung auf ${label} gesetzt.` });
+                  }
+                }}
               >
                 {label}
               </button>

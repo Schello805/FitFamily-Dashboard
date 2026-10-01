@@ -7,6 +7,7 @@ import type { DashboardProfile } from "@/lib/domain";
 import { showToast } from "@/components/toast";
 import { normalizePlanJson, type NormalizedPlan } from "@/lib/plan-normalizer";
 import { resolveExerciseId } from "@/lib/exercise-guides";
+import { KioskIdleBar } from "@/components/kiosk-idle-bar";
 
 type Plan = {
   id: string;
@@ -72,8 +73,10 @@ export function PlanView({ profile, goals }: { profile: DashboardProfile; goals:
     }
   }
 
-  return <main className="subpage" style={{ "--profile": profile.color } as React.CSSProperties}>
-    <header><Link href={`/profil/${profile.id}`}><ArrowLeft /> Zurück</Link><div><span>Persönlicher Plan</span><h1>{profile.name}</h1></div><div className="plan-actions"><a className="plan-template" href="/assets/trainingsplan-vorlage.json" download><Download /> Vorlage</a><label className="plan-import"> <Upload /> JSON laden<input type="file" accept="application/json,.json" onChange={importJson} disabled={busy} /></label><button onClick={() => setCreating(true)}><Sparkles /> Neuer Plan</button></div></header>
+  return (
+    <main className="subpage" style={{ "--profile": profile.color } as React.CSSProperties}>
+      <KioskIdleBar redirectUrl="/" seconds={60} color={profile.color} title={`Trainingsplan von ${profile.name}`} />
+      <header><Link href={`/profil/${profile.id}`}><ArrowLeft /> Zurück</Link><div><span>Persönlicher Plan</span><h1>{profile.name}</h1></div><div className="plan-actions"><a className="plan-template" href="/assets/trainingsplan-vorlage.json" download><Download /> Vorlage</a><label className="plan-import"> <Upload /> JSON laden<input type="file" accept="application/json,.json" onChange={importJson} disabled={busy} /></label><button onClick={() => setCreating(true)}><Sparkles /> Neuer Plan</button></div></header>
     {notice && <p className="notice">{notice}</p>}
     {active ? (
       <section className="plan-document">
@@ -166,5 +169,6 @@ export function PlanView({ profile, goals }: { profile: DashboardProfile; goals:
         <div className="modal-backdrop"><form className="plan-modal" onSubmit={create}><button type="button" className="modal-close" onClick={() => setCreating(false)}>×</button><span className="setup-badge">Neuer Trainingsplan</span><h2>Ziel für {profile.name} festlegen</h2><label>Trainingsziel<select name="goal" defaultValue={profile.goal}>{goals.map((goal) => <option key={goal}>{goal}</option>)}</select></label><label>Trainingsstand<select name="level" defaultValue={defaultLevel}><option>Einsteiger</option><option>Fortgeschritten</option><option>Erfahren</option></select></label><div className="two-fields"><label>Einheiten pro Woche<select name="sessions" defaultValue={3}>{[1,2,3,4,5,6,7].map((value) => <option key={value}>{value}</option>)}</select></label><label>Dauer<select name="minutes" defaultValue={30}>{[15,30,45,60,90].map((value) => <option key={value} value={value}>{value} Min.</option>)}</select></label></div><label>Zieldatum (optional)<input name="targetDate" type="date" /></label><label>Planerstellung<select name="provider"><option value="openai">OpenAI</option><option value="gemini">Google Gemini</option><option value="local">Ohne KI · lokal</option></select></label><p className="ai-privacy">Es werden nur Ziel, Niveau, Zeit und Geräte anonymisiert übertragen.</p><button className="primary-submit" disabled={busy}>{busy ? "Plan wird erstellt …" : "Plan erstellen"}</button></form></div>
       );
     })()}
-  </main>;
+    </main>
+  );
 }

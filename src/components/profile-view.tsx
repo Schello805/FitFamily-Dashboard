@@ -115,20 +115,30 @@ export function ProfileView({
     if (current) setProfile(current);
   }, [profile.id]);
 
-  const TOTAL_IDLE_SECONDS = 60;
-  const [secondsLeft, setSecondsLeft] = useState(TOTAL_IDLE_SECONDS);
+  const [totalIdleSeconds] = useState(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem("fitfamily_subpage_idle_timeout");
+        if (stored && !isNaN(Number(stored)) && Number(stored) >= 10) {
+          return Number(stored);
+        }
+      } catch {}
+    }
+    return 60;
+  });
+  const [secondsLeft, setSecondsLeft] = useState(totalIdleSeconds);
   const [progress, setProgress] = useState(100);
   const deadlineRef = useRef<number | null>(null);
 
   const resetTimer = useCallback(() => {
-    deadlineRef.current = Date.now() + TOTAL_IDLE_SECONDS * 1000;
-    setSecondsLeft(TOTAL_IDLE_SECONDS);
+    deadlineRef.current = Date.now() + totalIdleSeconds * 1000;
+    setSecondsLeft(totalIdleSeconds);
     setProgress(100);
-  }, []);
+  }, [totalIdleSeconds]);
 
   useEffect(() => {
     if (isMobile) return;
-    deadlineRef.current = Date.now() + TOTAL_IDLE_SECONDS * 1000;
+    deadlineRef.current = Date.now() + totalIdleSeconds * 1000;
     const handleActivity = () => resetTimer();
     const events = ["pointerdown", "keydown", "scroll", "touchstart"] as const;
     events.forEach((event) => window.addEventListener(event, handleActivity, { passive: true }));
@@ -138,7 +148,7 @@ export function ProfileView({
       const remainingMs = Math.max(0, deadlineRef.current - Date.now());
       const remainingSec = Math.ceil(remainingMs / 1000);
       setSecondsLeft(remainingSec);
-      setProgress((remainingMs / (TOTAL_IDLE_SECONDS * 1000)) * 100);
+      setProgress((remainingMs / (totalIdleSeconds * 1000)) * 100);
 
       if (remainingMs <= 0) {
         window.clearInterval(interval);
@@ -150,7 +160,7 @@ export function ProfileView({
       window.clearInterval(interval);
       events.forEach((event) => window.removeEventListener(event, handleActivity));
     };
-  }, [resetTimer, router, isMobile, prepCountdown]);
+  }, [resetTimer, router, isMobile, prepCountdown, totalIdleSeconds]);
 
   useEffect(() => {
     const interval = window.setInterval(refresh, 5000);

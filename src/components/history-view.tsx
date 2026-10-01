@@ -6,6 +6,7 @@ import { Activity, Apple, ArrowLeft, ArrowLeftRight, Dumbbell, Pencil, PencilLin
 import type { DashboardProfile } from "@/lib/domain";
 import { TouchPinpad } from "@/components/touch-pinpad";
 import { showToast } from "@/components/toast";
+import { KioskIdleBar } from "@/components/kiosk-idle-bar";
 
 type Segment = { id: string; type: "strength" | "endurance"; exerciseName: string | null; startedAt: string; endedAt: string | null };
 type Session = { id: string; startedAt: string; endedAt: string | null; status: string; source: string; edited: boolean; segments: Segment[] };
@@ -372,6 +373,7 @@ export function HistoryView({ profile }: { profile: DashboardProfile }) {
 
   return (
     <main className="subpage" style={{ "--profile": profile.color } as React.CSSProperties}>
+      <KioskIdleBar redirectUrl="/" seconds={60} color={profile.color} title={`Trainingsverlauf von ${profile.name}`} />
       <header>
         <Link href={`/profil/${profile.id}`}>
           <ArrowLeft /> Zurück
