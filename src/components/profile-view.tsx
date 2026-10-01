@@ -576,12 +576,12 @@ export function ProfileView({
             </div>
 
             <p className="health-modal-desc">
-              Synchronisiere deine Trainings (Laufen, Radfahren, Krafttraining, etc.) direkt aus Apple Health mit deinem FitFamily Profil. Jeder Lauf und jedes Workout schreibt dir automatisch Punkte gut!
+              Synchronisiere deine Trainings (Laufen, Radfahren, Krafttraining, etc.) direkt aus Apple Health mit deinem FitFamily Profil. Jeder Lauf und jedes Training schreibt dir automatisch Punkte gut!
             </p>
 
             <div style={{ margin: "0 0 16px", padding: "10px 14px", borderRadius: "12px", background: "var(--subtle-bg)", border: "1px solid var(--line)", fontSize: "12px", color: "var(--muted)", display: "flex", alignItems: "center", gap: "10px" }}>
               <span style={{ fontSize: "16px" }}>💡</span>
-              <span><strong>Kompatibel mit Gymondo & Fitness-Apps:</strong> Auch Workouts aus Gymondo, Strava, Garmin oder Nike Training Club werden automatisch übernommen, sobald sie in Apple Health gespeichert sind.</span>
+              <span><strong>Kompatibel mit Gymondo & Fitness-Apps:</strong> Auch Trainings aus Gymondo, Strava, Garmin oder Nike Training Club werden automatisch übernommen, sobald sie in Apple Health gespeichert sind.</span>
             </div>
 
             <div className="health-action-row">

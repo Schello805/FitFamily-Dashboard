@@ -66,25 +66,26 @@ async function callOpenAI(input: z.infer<typeof schema>, equipment: string[]) {
     ? process.env.OPENAI_MODEL
     : "gpt-4o-mini";
 
-  const systemPrompt = `Du bist ein professioneller Fitnesstrainer. Erstelle einen strukturierten, sicheren 4-Wochen-Trainingsplan als valides JSON.
+  const systemPrompt = `Du bist ein professioneller deutscher Fitnesstrainer. Erstelle einen strukturierten, sicheren 4-Wochen-Trainingsplan als valides JSON.
+SPRACHE (STRIKT): Alle Texte, Erklärungen, Zusammenfassungen, Einheitentitel und Übungen MÜSSEN ausnahmslos auf DEUTSCH geschrieben sein (z.B. 'Kniebeugen' statt 'Squats', 'Liegestütze' statt 'Push-ups', 'Aufwärmen' statt 'Warm-up', 'Ganzkörper-Krafttraining' statt 'Full Body Strength').
 WICHTIG: Antworte AUSSCHLIESSLICH im folgenden JSON-Format mit genau 4 Wochen und je ${input.sessionsPerWeek} Einheiten pro Woche:
 {
-  "summary": "Kurze Zusammenfassung des Trainingsplans (1-2 Sätze)",
+  "summary": "Kurze Zusammenfassung des Trainingsplans auf Deutsch (1-2 Sätze)",
   "weeks": [
     {
       "week": 1,
       "sessions": [
         {
-          "title": "Überschrift der Einheit",
+          "title": "Deutscher Einheitentitel",
           "type": "strength",
           "minutes": ${input.minutesPerSession},
-          "exercises": ["Übung 1", "Übung 2"]
+          "exercises": ["Deutsche Übung 1", "Deutsche Übung 2"]
         }
       ]
     }
   ]
 }
-Verwende zwingend die englischen Schlüssel: summary, weeks, week, sessions, title, type, minutes, exercises. Type darf nur "strength" oder "endurance" sein.`;
+Verwende als JSON-Schlüssel ausschließlich die englischen Schlüssel: summary, weeks, week, sessions, title, type, minutes, exercises. Type darf nur "strength" oder "endurance" sein.`;
 
   const userPrompt = `Ziel: ${input.goal}; Niveau: ${input.level}; ${input.sessionsPerWeek} Einheiten/Woche; ${input.minutesPerSession} Minuten je Einheit; Zieltermin: ${input.targetDate ?? "offenes Ende"}; Verfügbare Geräte: ${equipment.length ? equipment.join(", ") : "Eigengewicht / ohne Geräte"}.`;
 
@@ -135,19 +136,20 @@ async function callGemini(input: z.infer<typeof schema>, equipment: string[]) {
   const apiKey = await getAiApiKey("gemini");
   if (!apiKey) return null;
 
-  const prompt = `Du bist ein Fitnesstrainer. Erstelle einen sicheren 4-Wochen-Trainingsplan als valides JSON.
+  const prompt = `Du bist ein professioneller deutscher Fitnesstrainer. Erstelle einen sicheren 4-Wochen-Trainingsplan als valides JSON.
+SPRACHE (STRIKT): Alle Texte, Zusammenfassungen, Titel und Übungsbezeichnungen MÜSSEN zu 100% auf DEUTSCH sein (z.B. 'Kniebeugen' statt 'Squats', 'Liegestütze' statt 'Push-ups', 'Ganzkörper' statt 'Full Body').
 Struktur:
 {
-  "summary": "Kurze Zusammenfassung",
+  "summary": "Kurze Zusammenfassung auf Deutsch",
   "weeks": [
     {
       "week": 1,
       "sessions": [
         {
-          "title": "Einheitentitel",
+          "title": "Einheitentitel auf Deutsch",
           "type": "strength",
           "minutes": ${input.minutesPerSession},
-          "exercises": ["Übung 1", "Übung 2"]
+          "exercises": ["Deutsche Übung 1", "Deutsche Übung 2"]
         }
       ]
     }

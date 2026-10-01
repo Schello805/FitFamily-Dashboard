@@ -21,7 +21,7 @@ export function generateAppleShortcutXml(profileId: string, profileName: string,
 			<key>WFWorkflowActionParameters</key>
 			<dict>
 				<key>WFCommentActionText</key>
-				<string>FitFamily Apple Health Sync für ${profileName} (${profileId})&#10;Sendet Workouts an: ${syncEndpoint}</string>
+				<string>FitFamily Apple Health Sync für ${profileName} (${profileId})&#10;Sendet Trainingsdaten an: ${syncEndpoint}</string>
 			</dict>
 		</dict>
 		<dict>
@@ -69,7 +69,7 @@ export function generateAppleShortcutXml(profileId: string, profileName: string,
 					<key>profileId</key>
 					<string>${profileId}</string>
 					<key>title</key>
-					<string>Apple Health Workout</string>
+					<string>Apple Health Training</string>
 				</dict>
 			</dict>
 		</dict>

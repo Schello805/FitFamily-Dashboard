@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { normalizePlanJson } from "./plan-normalizer";
+import { normalizePlanJson, translateFitnessTerm } from "./plan-normalizer";
 
 describe("normalizePlanJson", () => {
   it("keeps already normalized plans intact", () => {
@@ -60,6 +60,46 @@ describe("normalizePlanJson", () => {
     expect(result.weeks[0].sessions[1].exercises).toEqual(["Laufband", "Gehpausen"]);
   });
 
+  it("automatically translates English exercises and session titles into German", () => {
+    const englishPlan = {
+      summary: "Full body workout for beginners",
+      weeks: [
+        {
+          week: 1,
+          sessions: [
+            {
+              title: "Full Body Workout",
+              type: "strength",
+              minutes: 40,
+              exercises: ["Push-ups", "Squats", "Plank", "Warm-up"]
+            },
+            {
+              title: "Cardio Session",
+              type: "endurance",
+              minutes: 30,
+              exercises: ["Treadmill run", "Jumping Jacks"]
+            }
+          ]
+        }
+      ]
+    };
+    const result = normalizePlanJson(englishPlan);
+    expect(result.summary).toBe("Ganzkörpertraining for beginners");
+    expect(result.weeks[0].sessions[0].title).toBe("Ganzkörpertraining");
+    expect(result.weeks[0].sessions[0].exercises).toEqual([
+      "Liegestütze",
+      "Kniebeugen",
+      "Unterarmstütz (Plank)",
+      "Aufwärmen"
+    ]);
+
+    expect(result.weeks[0].sessions[1].title).toBe("Ausdauereinheit");
+    expect(result.weeks[0].sessions[1].exercises).toEqual([
+      "Laufband-Lauf",
+      "Hampelmänner"
+    ]);
+  });
+
   it("unwraps nested root objects like { trainingsplan: ... }", () => {
     const nested = {
       trainingsplan: {
@@ -78,5 +118,20 @@ describe("normalizePlanJson", () => {
     expect(result.weeks[0].sessions[0].title).toBe("Rumpf");
     expect(result.weeks[0].sessions[0].minutes).toBe(20);
     expect(result.weeks[0].sessions[0].type).toBe("strength");
+  });
+});
+
+describe("translateFitnessTerm", () => {
+  it("translates exact terms correctly", () => {
+    expect(translateFitnessTerm("Squats")).toBe("Kniebeugen");
+    expect(translateFitnessTerm("push-ups")).toBe("Liegestütze");
+    expect(translateFitnessTerm("plank")).toBe("Unterarmstütz (Plank)");
+    expect(translateFitnessTerm("pull-ups")).toBe("Klimmzüge");
+    expect(translateFitnessTerm("deadlift")).toBe("Kreuzheben");
+  });
+
+  it("translates terms within phrases", () => {
+    expect(translateFitnessTerm("3x12 Squats")).toBe("3x12 Kniebeugen");
+    expect(translateFitnessTerm("10 min Warm-up")).toBe("10 min Aufwärmen");
   });
 });

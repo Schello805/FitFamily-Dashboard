@@ -32,7 +32,7 @@ export function physiqueLabel(physique: AvatarPhysique): string {
 
 export const FITNESS_STAGES = [
   { stage: 1, label: "1 · Gerade am Anfang", description: "Sanfter Einstieg in mehr Bewegung" },
-  { stage: 2, label: "2 · Einsteiger", description: "Gelegentliche Bewegung und Workouts" },
+  { stage: 2, label: "2 · Einsteiger", description: "Gelegentliche Bewegung und Trainingseinheiten" },
   { stage: 3, label: "3 · Aktiv", description: "Regelmäßiges, ausgewogenes Training" },
   { stage: 4, label: "4 · Fit", description: "Ambitioniertes, kontinuierliches Training" },
   { stage: 5, label: "5 · Sehr fit", description: "Hohes Trainingspensum und Routine" }
