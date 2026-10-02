@@ -1,7 +1,7 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { Sparkles, Trash2 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Camera, Sparkles, Trash2 } from "lucide-react";
 import { Avatar } from "@/components/avatar";
 import { getFitnessStageCount, type AvatarDesignId, type AvatarPhysique } from "@/lib/domain";
 
@@ -37,8 +37,76 @@ export function PersonalAvatarEditor({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [cameraOpen, setCameraOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const cameraStreamRef = useRef<MediaStream | null>(null);
   const isChild = getFitnessStageCount(profileId, birthDate) <= 3;
+
+  function stopCamera() {
+    cameraStreamRef.current?.getTracks().forEach((track) => track.stop());
+    cameraStreamRef.current = null;
+    if (videoRef.current) videoRef.current.srcObject = null;
+    setCameraOpen(false);
+  }
+
+  useEffect(() => {
+    if (!cameraOpen || !videoRef.current || !cameraStreamRef.current) return;
+    videoRef.current.srcObject = cameraStreamRef.current;
+    void videoRef.current.play().catch(() => setError("Das Kamerabild konnte nicht gestartet werden. Bitte prüfe die Browser-Berechtigung oder lade ein Bild hoch."));
+  }, [cameraOpen]);
+
+  useEffect(() => () => {
+    cameraStreamRef.current?.getTracks().forEach((track) => track.stop());
+  }, []);
+
+  async function openCamera() {
+    setError(""); setNotice("");
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setError("Der Browser erlaubt hier keinen direkten Kamerazugriff. Öffne FitFamily über HTTPS oder lade stattdessen ein Bild hoch.");
+      return;
+    }
+    try {
+      cameraStreamRef.current = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: { facingMode: { ideal: "user" }, width: { ideal: 1280 }, height: { ideal: 1280 } }
+      });
+      setCameraOpen(true);
+    } catch (cause) {
+      const name = cause instanceof DOMException ? cause.name : "";
+      setError(name === "NotAllowedError"
+        ? "Der Kamerazugriff wurde nicht erlaubt. Erlaube der Website die Kameranutzung oder lade ein Bild hoch."
+        : name === "NotFoundError"
+          ? "Es wurde keine Kamera gefunden. Du kannst stattdessen ein Bild hochladen."
+          : "Die Kamera konnte nicht geöffnet werden. Prüfe die Browser-Berechtigung oder lade ein Bild hoch.");
+    }
+  }
+
+  async function capturePhoto() {
+    const video = videoRef.current;
+    if (!video || !video.videoWidth || !video.videoHeight) {
+      setError("Das Kamerabild ist noch nicht bereit. Bitte kurz warten und erneut versuchen.");
+      return;
+    }
+    const canvas = document.createElement("canvas");
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext("2d")?.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const image = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.92));
+    if (!image) {
+      setError("Das Kamerafoto konnte nicht verarbeitet werden. Du kannst stattdessen ein Bild hochladen.");
+      return;
+    }
+    setPhoto(new File([image], "fitfamily-kamerafoto.jpg", { type: "image/jpeg" }));
+    setPreview(""); setError("");
+    setNotice("Kamerafoto aufgenommen. Du kannst jetzt die Vorschau erstellen.");
+    stopCamera();
+  }
+
+  function selectPhoto(file: File | null) {
+    stopCamera();
+    setPhoto(file); setPreview(""); setError(""); setNotice("");
+  }
 
   async function generate() {
     if (!photo || !consent || (isChild && !guardianConsent) || pin.length !== 4) return;
@@ -102,14 +170,21 @@ export function PersonalAvatarEditor({
 
   return (
     <section className="personal-avatar-editor">
-      <button type="button" className="personal-avatar-toggle" aria-expanded={expanded} onClick={() => setExpanded((value) => !value)}>
+      <button type="button" className="personal-avatar-toggle" aria-expanded={expanded} onClick={() => { if (expanded) stopCamera(); setExpanded((value) => !value); }}>
         <Sparkles size={17} /> {hasSavedAvatar ? "Eigenen KI-Avatar ansehen oder ändern" : "Eigenen KI-Avatar erstellen"}
       </button>
       {expanded && <div className="personal-avatar-content">
         <p>Wähle ein klares Frontalfoto. Die KI macht daraus einen Cartoon-Kopf im Stil der FitFamily-Figuren und setzt ihn auf den Körper. Das Originalfoto wird nur für die Umwandlung verwendet und nicht in FitFamily gespeichert. Der fertige Kopf bleibt in deinem Profil gespeichert.</p>
-        <label>Foto auswählen
-          <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => { const selected = event.target.files?.[0] ?? null; setPhoto(selected); setPreview(""); setError(""); setNotice(""); }} />
+        <label>Bild hochladen
+          <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => selectPhoto(event.target.files?.[0] ?? null)} />
         </label>
+        {!cameraOpen && <button type="button" className="personal-avatar-camera-open" onClick={() => void openCamera()}><Camera size={16} /> Foto mit Kamera aufnehmen</button>}
+        {cameraOpen && <div className="personal-avatar-camera">
+          <video ref={videoRef} autoPlay muted playsInline aria-label="Livebild der Kamera" />
+          <div><button type="button" onClick={() => void capturePhoto()}><Camera size={16} /> Foto aufnehmen</button><button type="button" className="personal-avatar-camera-cancel" onClick={stopCamera}>Kamera schließen</button></div>
+        </div>}
+        <small className="personal-avatar-camera-hint">Die Kamera benötigt HTTPS (oder localhost). Über eine normale HTTP-IP-Adresse klappt der Zugriff möglicherweise nicht; Bild-Upload bleibt verfügbar.</small>
+        {photo && <small className="personal-avatar-selected-photo">Ausgewählt: {photo.name}</small>}
         <label>KI-Anbieter
           <select value={provider} onChange={(event) => setProvider(event.target.value as "openai" | "gemini")}>
             <option value="openai">ChatGPT / OpenAI</option>
