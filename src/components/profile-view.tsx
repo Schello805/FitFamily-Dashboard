@@ -45,6 +45,7 @@ export function ProfileView({
   const [healthSyncToken, setHealthSyncToken] = useState("");
   const [healthTokenConfigured, setHealthTokenConfigured] = useState(false);
   const [showHealthSyncToken, setShowHealthSyncToken] = useState(false);
+  const [copiedShortcutPrompt, setCopiedShortcutPrompt] = useState(false);
   const [prepCountdown, setPrepCountdown] = useState<{
     type: TrainingType;
     exerciseId?: string | null;
@@ -414,6 +415,22 @@ export function ProfileView({
       setTimeout(() => setCopiedPayload(false), 2000);
     } catch {
       showToast({ type: "info", title: "JSON-Muster", message: payload });
+    }
+  }
+
+  async function copyShortcutPrompt() {
+    const prompt = `Erstelle einen iPhone-Kurzbefehl „FitFamily Health Sync“, der ausschließlich lokale Apple-Kurzbefehle-Aktionen verwendet. Füge KEINE KI-, Cloud-Modell-, ChatGPT-, Gemini- oder sonstige Drittanbieter-Aktion in den fertigen Kurzbefehl ein. Er darf keine Gesundheitsdaten an andere Ziele als meinen lokalen FitFamily-PC senden.
+
+Suche echte, abgeschlossene Apple-Health-Workouts der letzten 30 Tage und sortiere nach Startdatum. Wiederhole für jedes gefundene Workout und erstelle ein Wörterbuch mit den echten Werten: id (eindeutige Workout-ID, falls verfügbar), title (Workout-/Aktivitätstyp), startedAt und endedAt (ISO-8601 inklusive Zeitzone), calories (aktive Trainingsenergie in kcal, wenn vorhanden) und distanceKm (Workout-Distanz in Kilometern, wenn vorhanden). Verwende keine erfundenen Beispielwerte und keine zusammengefassten Aktivitätsringe als Ersatz für Workouts. Sammle die Wörterbücher in einer Liste.
+
+Sende danach per „Inhalte von URL abrufen“ einen HTTP-POST mit JSON an ${getWebhookUrl()}. Der JSON-Body muss genau diese obersten Felder enthalten: profileId = „${profile.id}“, secret = der später in FitFamily erzeugte persönliche Sync-Schlüssel, workouts = die Liste der echten Workouts. Der Sync-Schlüssel darf NICHT in den öffentlich geteilten iCloud-Kurzbefehl eingebaut werden; ich trage ihn erst in meine persönliche Kopie ein. Keine Daten an die KI senden. Zeige die Serverantwort an, damit Importanzahl oder Fehler sichtbar sind.`;
+    try {
+      await navigator.clipboard.writeText(prompt);
+      setCopiedShortcutPrompt(true);
+      showToast({ type: "success", title: "Erstellungsauftrag kopiert", message: "Füge ihn in deine KI ein. Wichtig: keine KI-Aktion im fertigen Kurzbefehl und den Sync-Schlüssel erst in der persönlichen Kopie eintragen." });
+      setTimeout(() => setCopiedShortcutPrompt(false), 2500);
+    } catch {
+      showToast({ type: "error", title: "Kopieren nicht möglich", message: prompt });
     }
   }
 
@@ -959,38 +976,28 @@ export function ProfileView({
             </div>
 
             <div className="health-steps-card">
-              <h4>Einrichtung in Apples Kurzbefehle-App</h4>
-              <p style={{ margin: "4px 0 10px", fontSize: "11px", color: "var(--muted)", lineHeight: 1.4 }}>
-                Wir stellen absichtlich keine .shortcut-Datei bereit: Apple kennzeichnet privat geladene Kurzbefehle als nicht geprüft. Apple erlaubt keine Verifizierung durch diese lokale Webapp. Lege den Kurzbefehl selbst an und prüfe seine Schritte.
+              <h4>Apple Health verbinden</h4>
+              <p style={{ margin: "4px 0 10px", fontSize: "12px", color: "var(--muted)", lineHeight: 1.5 }}>
+                FitFamily nimmt echte, abgeschlossene Workouts mit Start- und Endzeit entgegen. Die KI kann beim <em>Erstellen</em> helfen; der fertige Kurzbefehl darf aber keine KI- oder Cloud-Modell-Aktion enthalten. Der zuletzt geprüfte iCloud-Kurzbefehl sendet nur ein KI-erzeugtes Feld <code>data</code> statt <code>profileId</code>, <code>secret</code> und <code>workouts</code> und ist deshalb noch nicht kompatibel.
               </p>
-              <ol style={{ paddingLeft: "20px", display: "grid", gap: "8px", fontSize: "12px" }}>
-                <li>
-                  <strong>Schlüssel einrichten:</strong> Tippe oben auf „Sync-Schlüssel erstellen“, bestätige die Eltern-PIN und füge den angezeigten Schlüssel in den Kurzbefehl ein. Erneuern widerruft den bisherigen Schlüssel.
-                </li>
-                <li>
-                  <strong>Kurzbefehl erstellen:</strong> Öffne Apples App <em>Kurzbefehle</em> auf dem iPhone, tippe auf <strong>+</strong> und füge die Aktion <em>Trainings suchen</em> (Health) hinzu. Sortiere nach Startdatum, neueste zuerst. Für den ersten Test begrenze auf ein Training.
-                </li>
-                <li>
-                  <strong>Für echte Daten:</strong> Füge <em>Wiederhole mit jedem</em> hinzu und darin <em>Wörterbuch</em> mit <code>title</code>, <code>startedAt</code> und <code>endedAt</code>. Nimm Start/Ende aus dem aktuellen Health-Training; falls nötig, formatiere sie zuvor als <code>yyyy-MM-dd&apos;T&apos;HH:mm:ssXXXXX</code>. Wenn verfügbar, ergänze dessen eindeutige ID als <code>id</code>. Für Trainingstypen kannst du optional <code>type</code> mit <code>endurance</code> oder <code>strength</code> mitsenden. Die End-der-Wiederholung-Liste ist die Workouts-Liste.
-                </li>
-                <li>
-                  <strong>Übertragen:</strong> Nach der Wiederholung eine Liste der Wörterbücher erstellen. Danach <em>Inhalte von URL abrufen</em>:
-                  <ul style={{ margin: "4px 0 0", paddingLeft: "16px", color: "var(--muted)" }}>
-                    <li><strong>URL:</strong> Oben kopieren und einfügen.</li>
-                    <li><strong>Methode:</strong> <code>POST</code></li>
-                    <li><strong>Anforderungstext:</strong> <code>JSON</code> mit <code>profileId</code> = <code>{profile.id}</code>, <code>secret</code> = dem eben erzeugten Schlüssel und <code>workouts</code> = der Liste aus der Wiederholung.</li>
-                  </ul>
-                </li>
-                <li>
-                  <strong>Testen:</strong> Erlaube beim ersten Lauf den Zugriff auf Health-Daten und führe den Kurzbefehl manuell aus. Der Button „Verbindung testen“ prüft nur den Schlüssel und speichert nichts. Eine persönliche Automation kannst du anschließend in Kurzbefehle ergänzen.
-                </li>
+              <ol style={{ paddingLeft: "20px", display: "grid", gap: "6px", fontSize: "12px" }}>
+                <li>Auftrag unten kopieren und in deine KI einfügen.</li>
+                <li>Den persönlichen Sync-Schlüssel erst in deine eigene Kurzbefehl-Kopie eintragen – niemals in den öffentlichen iCloud-Link.</li>
+                <li>Beim ersten Lauf den Health-Zugriff erlauben. „Verbindung testen“ speichert keine Trainingsdaten.</li>
               </ol>
-
-              <div style={{ marginTop: "12px", display: "flex", gap: "8px" }}>
+              <div style={{ marginTop: "12px", display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                <button
+                  type="button"
+                  onClick={copyShortcutPrompt}
+                  style={{ padding: "9px 12px", fontSize: "12px", fontWeight: 750, borderRadius: "9px", border: 0, background: "var(--brand)", color: "#062421", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "7px" }}
+                >
+                  {copiedShortcutPrompt ? <Check size={15} /> : <Copy size={15} />}
+                  <span>{copiedShortcutPrompt ? "Auftrag kopiert" : "KI-Auftrag kopieren"}</span>
+                </button>
                 <button
                   type="button"
                   onClick={copySamplePayload}
-                  style={{ padding: "8px 12px", fontSize: "11px", fontWeight: 700, borderRadius: "8px", border: "1px solid var(--line)", background: "var(--subtle-bg)", color: "var(--text)", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "6px" }}
+                  style={{ padding: "9px 12px", fontSize: "12px", fontWeight: 700, borderRadius: "9px", border: "1px solid var(--line)", background: "var(--subtle-bg)", color: "var(--text)", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "7px" }}
                 >
                   {copiedPayload ? <Check size={14} /> : <Copy size={14} />}
                   <span>{copiedPayload ? "JSON kopiert!" : "Muster-JSON kopieren"}</span>

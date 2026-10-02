@@ -1446,6 +1446,12 @@ body::before {
   width: 14px;
 }
 
+.apple-session-stats {
+  color: var(--muted);
+  font-size: 10px;
+  white-space: nowrap;
+}
+
 .session-desktop-actions {
   display: flex;
   align-items: center;

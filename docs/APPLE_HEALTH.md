@@ -1,6 +1,6 @@
 # Apple-Health-Sync über Kurzbefehle
 
-FitFamily ist eine lokale Webapp und kann HealthKit nicht direkt aus dem Browser lesen. Auf dem iPhone übernimmt Apples Kurzbefehle-App den Transfer. Die Kurzbefehl-Datei zum Herunterladen wurde entfernt: Apple warnt bei privat geladenen Kurzbefehlen, weil Apple deren Herausgeber und Verhalten nicht verifiziert. FitFamily kann diese Prüfung nicht umgehen. Lege den Kurzbefehl deshalb selbst in Apples App an und prüfe seine Aktionen.
+FitFamily ist eine lokale Webapp und kann HealthKit nicht direkt aus dem Browser lesen. Auf dem iPhone übernimmt Apples Kurzbefehle-App den Transfer. Der vom Nutzer bereitgestellte iCloud-Kurzbefehl wurde geprüft und ist **nicht kompatibel und nicht datenschutzgerecht**: Er enthält eine Cloud-Modell/KI-Aktion und sendet nur ein KI-Ausgabefeld `data` an die API. FitFamily erwartet `profileId`, `secret` und `workouts`. Bitte diesen Kurzbefehl nicht starten und keine Health-Daten darüber senden. Erstelle einen neuen Kurzbefehl ohne KI-/Cloud-Aktionen.
 
 ## Vorbereitungen
 
@@ -24,6 +24,8 @@ Die Bezeichnungen können je nach iOS-Version leicht abweichen.
    - `endedAt`: Enddatum des aktuellen Trainings
    - `id`: eindeutige Workout-ID, falls Kurzbefehle sie anbietet (empfohlen)
    - `type`: optional `strength` oder `endurance`; ohne Angabe erkennt FitFamily Kraftbegriffe im Titel und behandelt sonst die Einheit als Ausdauer
+   - `calories`: aktive Workout-Kalorien, wenn Health sie bereitstellt
+   - `distanceKm`: Workout-Distanz in Kilometern, wenn Health sie bereitstellt
 
    Falls Kurzbefehle die Datumswerte nicht als ISO-Datum in JSON übergibt, vor dem Wörterbuch jeweils **Datum formatieren** ergänzen: benutzerdefiniertes Format `yyyy-MM-dd'T'HH:mm:ssXXXXX`.
 
@@ -34,6 +36,8 @@ Die Bezeichnungen können je nach iOS-Version leicht abweichen.
    - `profileId`: die Profil-ID (zum Beispiel `papa`)
    - `secret`: der Sync-Schlüssel aus FitFamily
    - `workouts`: die Ergebnisliste aus der Wiederholung
+
+   Workouts müssen echte Start- und Endzeitpunkte enthalten. Nur eine Dauer zu senden reicht absichtlich nicht: FitFamily erfindet keine Zeitstempel und importiert keine künstlichen Trainingseinheiten.
 
    URL: `http://<IP-ODER-LOKALE-ADRESSE>:3000/api/sync/apple-health` (die passende Adresse zeigt FitFamily im Profil).
 
@@ -47,4 +51,5 @@ Die Bezeichnungen können je nach iOS-Version leicht abweichen.
 - Trainings allein erzeugen keine geschätzten Aktivitätsring-Werte. Ringe ändern sich nur, wenn echte Werte separat mitgesendet werden.
 - Eingehende Syncs benötigen den individuellen Schlüssel; der gespeicherte Wert liegt nur als Hash in der lokalen Datenbank.
 - Der Verbindungstest prüft nur den Schlüssel und schreibt keine Trainingseinheit.
-
+- **Daten zurücksetzen & trennen** löscht Apple-Health-Workouts, zugehörige Segmente, Aktivitätsringe und Sync-Schlüssel atomar. Ein bereits laufender Import wird beim Schreiben nochmals gegen den Schlüssel geprüft; ein widerrufener Schlüssel kann danach keine neuen Daten importieren.
+- Der Server kann nur die Kopie in FitFamily löschen. Er kann keine Daten aus Apple Health auf dem iPhone löschen oder Apple Health selbst die Berechtigung entziehen; das muss in iOS/Kurzbefehle separat erfolgen.

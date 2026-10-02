@@ -98,19 +98,18 @@ export async function POST(request: Request) {
 
   const latestAllowedStart = Date.now() + 60_000;
   for (const item of rawList) {
-    const start = item.startedAt ? Date.parse(item.startedAt) : null;
-    const end = item.endedAt ? Date.parse(item.endedAt) : null;
-    const duration = item.durationMinutes ?? null;
-    if ((start !== null) !== (end !== null) && duration === null) {
-      return NextResponse.json({ error: "Bitte Start und Ende oder Start und Dauer eines Trainings mitsenden." }, { status: 400 });
+    if (!item.startedAt || !item.endedAt) {
+      return NextResponse.json({ error: "Jedes Health-Workout muss echte Start- und Endzeitpunkte enthalten." }, { status: 400 });
     }
-    if (start !== null && start > latestAllowedStart) {
+    const start = Date.parse(item.startedAt);
+    const end = Date.parse(item.endedAt);
+    if (start > latestAllowedStart) {
       return NextResponse.json({ error: "Ein Training darf nicht in der Zukunft beginnen." }, { status: 400 });
     }
-    if (end !== null && end > latestAllowedStart) {
+    if (end > latestAllowedStart) {
       return NextResponse.json({ error: "Ein Training darf nicht in der Zukunft enden." }, { status: 400 });
     }
-    if (start !== null && end !== null && (end - start < 60_000 || end - start > 24 * 60 * 60 * 1000)) {
+    if (end - start < 60_000 || end - start > 24 * 60 * 60 * 1000) {
       return NextResponse.json({ error: "Ein Training muss zwischen 1 Minute und 24 Stunden dauern." }, { status: 400 });
     }
   }
@@ -130,30 +129,10 @@ export async function POST(request: Request) {
   let totalPointsEarned = 0;
 
   for (const item of rawList) {
-    let durMinutes = item.durationMinutes ?? null;
-    let startIso: string;
-    let endIso: string;
-
-    if (item.startedAt && item.endedAt) {
-      startIso = new Date(item.startedAt).toISOString();
-      endIso = new Date(item.endedAt).toISOString();
-      const actualMinutes = (new Date(endIso).getTime() - new Date(startIso).getTime()) / 60000;
-      if (actualMinutes < 1 || actualMinutes > 1440) return NextResponse.json({ error: "Ein Training muss zwischen 1 Minute und 24 Stunden dauern." }, { status: 400 });
-      durMinutes = actualMinutes;
-    } else if (item.startedAt && durMinutes) {
-      startIso = new Date(item.startedAt).toISOString();
-      endIso = new Date(new Date(startIso).getTime() + durMinutes * 60000).toISOString();
-    } else if (item.endedAt && durMinutes) {
-      endIso = new Date(item.endedAt).toISOString();
-      startIso = new Date(new Date(endIso).getTime() - durMinutes * 60000).toISOString();
-    } else if (durMinutes) {
-      const durationMs = durMinutes * 60000;
-      endIso = now.toISOString();
-      startIso = new Date(now.getTime() - durationMs).toISOString();
-    } else {
-      // Wenn weder Dauer noch Startzeit angegeben sind, überspringen
-      continue;
-    }
+    if (!item.startedAt || !item.endedAt) continue;
+    const startIso = new Date(item.startedAt).toISOString();
+    const endIso = new Date(item.endedAt).toISOString();
+    const durMinutes = (new Date(endIso).getTime() - new Date(startIso).getTime()) / 60000;
 
     if (!Number.isFinite(Date.parse(startIso)) || !Number.isFinite(Date.parse(endIso))) {
       return NextResponse.json({ error: "Ungültige Trainingszeit." }, { status: 400 });
@@ -181,22 +160,26 @@ export async function POST(request: Request) {
     const sessionId = randomUUID();
     const segmentId = randomUUID();
     const points = durMinutes * SCORE_MULTIPLIER[trainingType];
+    const externalId = item.id ?? `start:${startIso}`;
+    const secretHash = hashToken(parsed.data.secret);
 
     try {
-      await client.batch([
+      const writeResults = await client.batch([
         {
-          sql: `INSERT INTO training_sessions (id, profile_id, started_at, ended_at, status, source, external_id, edited)
-            VALUES (?, ?, ?, ?, 'completed', 'apple_health', ?, 0)`,
-          args: [sessionId, profileId, startIso, endIso, item.id ?? null]
+          sql: `INSERT INTO training_sessions
+            (id, profile_id, started_at, ended_at, status, source, external_id, health_title, health_calories, health_distance_km, edited)
+            SELECT ?, ?, ?, ?, 'completed', 'apple_health', ?, ?, ?, ?, 0
+            WHERE EXISTS (SELECT 1 FROM apple_health_tokens WHERE profile_id = ? AND token_hash = ?)`,
+          args: [sessionId, profileId, startIso, endIso, externalId, item.title ?? "Apple Health Workout", item.calories ?? null, item.distanceKm ?? null, profileId, secretHash]
         },
         {
           sql: `INSERT INTO training_segments (id, session_id, type, exercise_id, started_at, ended_at)
-            VALUES (?, ?, ?, NULL, ?, ?)`,
-          args: [segmentId, sessionId, trainingType, startIso, endIso]
+            SELECT ?, ?, ?, NULL, ?, ? WHERE EXISTS (SELECT 1 FROM training_sessions WHERE id = ?)`,
+          args: [segmentId, sessionId, trainingType, startIso, endIso, sessionId]
         },
         {
           sql: `INSERT INTO audit_log (id, action, profile_id, details)
-            VALUES (?, 'health.apple_sync', ?, ?)`,
+            SELECT ?, 'health.apple_sync', ?, ? WHERE EXISTS (SELECT 1 FROM training_sessions WHERE id = ?)`,
           args: [
             randomUUID(),
             profileId,
@@ -205,16 +188,21 @@ export async function POST(request: Request) {
               type: trainingType,
               durationMinutes: durMinutes,
               calories: item.calories,
+              distanceKm: item.distanceKm,
               points
-            })
+            }),
+            sessionId
           ]
         }
       ], "write");
+      if (writeResults[0]?.rowsAffected !== 1) {
+        return NextResponse.json({ error: "Der Sync-Schlüssel wurde während des Imports getrennt. Es wurden keine Daten übernommen." }, { status: 401 });
+      }
     } catch (error) {
       if (!item.id) throw error;
       const concurrentDuplicate = await client.execute({
         sql: "SELECT id FROM training_sessions WHERE profile_id = ? AND source = 'apple_health' AND external_id = ? LIMIT 1",
-        args: [profileId, item.id]
+        args: [profileId, externalId]
       });
       if (!concurrentDuplicate.rows.length) throw error;
       skippedCount++;
@@ -228,9 +216,10 @@ export async function POST(request: Request) {
   const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 
   if (parsed.data.moveCalories != null || parsed.data.exerciseMinutes != null || parsed.data.standHours != null) {
-    await client.execute({
+    const ringResult = await client.execute({
       sql: `INSERT INTO apple_health_daily (profile_id, date, move_calories, move_goal, exercise_minutes, exercise_goal, stand_hours, stand_goal, updated_at)
-        VALUES (?, ?, ?, COALESCE(?, 500), ?, COALESCE(?, 30), ?, COALESCE(?, 12), CURRENT_TIMESTAMP)
+        SELECT ?, ?, ?, COALESCE(?, 500), ?, COALESCE(?, 30), ?, COALESCE(?, 12), CURRENT_TIMESTAMP
+        WHERE EXISTS (SELECT 1 FROM apple_health_tokens WHERE profile_id = ? AND token_hash = ?)
         ON CONFLICT(profile_id, date) DO UPDATE SET
           move_calories = excluded.move_calories,
           move_goal = excluded.move_goal,
@@ -247,9 +236,14 @@ export async function POST(request: Request) {
         parsed.data.exerciseMinutes ?? 0,
         parsed.data.exerciseGoal ?? 30,
         parsed.data.standHours ?? 0,
-        parsed.data.standGoal ?? 12
+        parsed.data.standGoal ?? 12,
+        profileId,
+        hashToken(parsed.data.secret)
       ]
-    }).catch(() => { /* ignorieren falls DB-Lock */ });
+    });
+    if (ringResult.rowsAffected !== 1) {
+      return NextResponse.json({ error: "Der Sync-Schlüssel wurde während des Imports getrennt. Es wurden keine Aktivitätswerte übernommen." }, { status: 401 });
+    }
   }
 
   const message = importedCount > 0
@@ -342,47 +336,33 @@ export async function DELETE(request: Request) {
 
   const client = await db();
 
+  const profile = await client.execute({ sql: "SELECT id FROM profiles WHERE id = ? LIMIT 1", args: [profileId] });
+  if (!profile.rows.length) return NextResponse.json({ error: "Profil nicht gefunden." }, { status: 404 });
+
   // 1. Finde alle Apple Health Training-Sessions für das Profil
   const sessions = await client.execute({
     sql: "SELECT id FROM training_sessions WHERE profile_id = ? AND source = 'apple_health'",
     args: [profileId]
   });
 
-  const sessionIds = sessions.rows.map((r) => String(r.id));
+  const deletedSessions = sessions.rows.length;
 
-  // 2. Lösche zugehörige Segmente & Sessions
-  if (sessionIds.length > 0) {
-    const placeholders = sessionIds.map(() => "?").join(",");
-    await client.execute({
-      sql: `DELETE FROM training_segments WHERE session_id IN (${placeholders})`,
-      args: sessionIds
-    });
-    await client.execute({
-      sql: `DELETE FROM training_sessions WHERE id IN (${placeholders})`,
-      args: sessionIds
-    });
-  }
-
-  // 3. Lösche Aktivitätsringe für dieses Profil
-  await client.execute({
-    sql: "DELETE FROM apple_health_daily WHERE profile_id = ?",
-    args: [profileId]
-  });
-
-  // 4. Audit-Log bereinigen
-  await client.execute({
-    sql: "DELETE FROM audit_log WHERE profile_id = ? AND action = 'health.apple_sync'",
-    args: [profileId]
-  });
-  await client.execute({ sql: "DELETE FROM apple_health_tokens WHERE profile_id = ?", args: [profileId] });
-  await client.execute({
-    sql: "INSERT INTO audit_log (id, action, profile_id, details) VALUES (?, 'health.apple_reset', ?, ?)",
-    args: [randomUUID(), profileId, JSON.stringify({ deletedSessions: sessionIds.length })]
-  });
+  // Alles wird atomar entfernt. Eine zeitgleich eintreffende Synchronisation
+  // prüft den Token zusätzlich direkt beim INSERT auf seine fortbestehende Gültigkeit.
+  await client.batch([
+    { sql: "DELETE FROM apple_health_tokens WHERE profile_id = ?", args: [profileId] },
+    { sql: "DELETE FROM training_segments WHERE session_id IN (SELECT id FROM training_sessions WHERE profile_id = ? AND source = 'apple_health')", args: [profileId] },
+    { sql: "DELETE FROM training_sessions WHERE profile_id = ? AND source = 'apple_health'", args: [profileId] },
+    { sql: "DELETE FROM apple_health_daily WHERE profile_id = ?", args: [profileId] },
+    { sql: `DELETE FROM audit_log WHERE profile_id = ? AND action IN (
+      'health.apple_sync', 'health.apple_token.create', 'health.apple_token.revoke', 'health.apple_reset'
+    )`, args: [profileId] },
+    { sql: "INSERT INTO audit_log (id, action, profile_id, details) VALUES (?, 'health.apple_reset', ?, ?)", args: [randomUUID(), profileId, JSON.stringify({ deletedSessions })] }
+  ], "write");
 
   return NextResponse.json({
     ok: true,
-    deletedSessions: sessionIds.length,
-    message: `Apple-Health-Daten und Sync-Schlüssel wurden zurückgesetzt (${sessionIds.length} Einheit(en) und Aktivitätsringe entfernt).`
+    deletedSessions,
+    message: `Apple-Health-Daten, Aktivitätswerte und Sync-Schlüssel wurden atomar entfernt (${deletedSessions} Einheit(en)).`
   });
 }

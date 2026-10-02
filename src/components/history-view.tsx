@@ -9,7 +9,18 @@ import { showToast } from "@/components/toast";
 import { KioskIdleBar } from "@/components/kiosk-idle-bar";
 
 type Segment = { id: string; type: "strength" | "endurance"; exerciseName: string | null; startedAt: string; endedAt: string | null };
-type Session = { id: string; startedAt: string; endedAt: string | null; status: string; source: string; edited: boolean; segments: Segment[] };
+type Session = {
+  id: string;
+  startedAt: string;
+  endedAt: string | null;
+  status: string;
+  source: string;
+  edited: boolean;
+  healthTitle?: string | null;
+  healthCalories?: number | null;
+  healthDistanceKm?: number | null;
+  segments: Segment[];
+};
 
 function minutes(start: string, end: string | null) {
   return Math.max(0, Math.round((new Date(end ?? Date.now()).getTime() - new Date(start).getTime()) / 60000));
@@ -147,9 +158,18 @@ function SwipeableSessionRow({
             </em>
           )}
           {session.source === "apple_health" && (
-            <em className="apple-source">
-              <Apple size={13} /> Apple Health
-            </em>
+            <>
+              <em className="apple-source">
+                <Apple size={13} /> Apple Health
+              </em>
+              {(session.healthDistanceKm != null || session.healthCalories != null) && (
+                <small className="apple-session-stats">
+                  {session.healthDistanceKm != null ? `${session.healthDistanceKm.toLocaleString("de-DE", { maximumFractionDigits: 2 })} km` : ""}
+                  {session.healthDistanceKm != null && session.healthCalories != null ? " · " : ""}
+                  {session.healthCalories != null ? `${Math.round(session.healthCalories)} kcal` : ""}
+                </small>
+              )}
+            </>
           )}
           <div className="session-desktop-actions">
             <button

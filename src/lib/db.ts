@@ -67,6 +67,9 @@ async function createSchema(client: Client) {
       status TEXT NOT NULL CHECK(status IN ('active','paused','completed')),
       source TEXT NOT NULL DEFAULT 'touch',
       external_id TEXT,
+      health_title TEXT,
+      health_calories REAL,
+      health_distance_km REAL,
       edited INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     )`,
@@ -146,6 +149,15 @@ async function createSchema(client: Client) {
   const sessionColumns = await client.execute("PRAGMA table_info(training_sessions)");
   if (!sessionColumns.rows.some((row) => String(row.name) === "external_id")) {
     await client.execute("ALTER TABLE training_sessions ADD COLUMN external_id TEXT");
+  }
+  if (!sessionColumns.rows.some((row) => String(row.name) === "health_title")) {
+    await client.execute("ALTER TABLE training_sessions ADD COLUMN health_title TEXT");
+  }
+  if (!sessionColumns.rows.some((row) => String(row.name) === "health_calories")) {
+    await client.execute("ALTER TABLE training_sessions ADD COLUMN health_calories REAL");
+  }
+  if (!sessionColumns.rows.some((row) => String(row.name) === "health_distance_km")) {
+    await client.execute("ALTER TABLE training_sessions ADD COLUMN health_distance_km REAL");
   }
   await client.execute(`CREATE UNIQUE INDEX IF NOT EXISTS training_sessions_health_external_id
     ON training_sessions(profile_id, external_id) WHERE source = 'apple_health' AND external_id IS NOT NULL`);
