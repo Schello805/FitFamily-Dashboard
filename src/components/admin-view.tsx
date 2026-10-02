@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { ArrowLeft, AlertTriangle, Bot, CheckCircle2, ClipboardList, Copy, Database, Download, HardDrive, Lock, Monitor, Moon, Plus, RefreshCw, RotateCcw, ShieldCheck, Sparkles, Sun, Upload, Users, Wrench, X } from "lucide-react";
 import { TouchPinpad } from "@/components/touch-pinpad";
 import { AvatarPicker } from "@/components/avatar-picker";
@@ -48,6 +48,9 @@ type ConfirmModalConfig = {
   action: (freshPin?: string) => Promise<void> | void;
 };
 
+const ADMIN_SESSION_STORAGE_KEY = "fitfamily_admin_session";
+const ADMIN_SESSION_DURATION_MS = 60 * 60 * 1000;
+
 function calculateAge(birthDate: string) {
   const birth = new Date(`${birthDate}T00:00:00`);
   if (!Number.isFinite(birth.getTime())) return null;
@@ -84,6 +87,7 @@ export function AdminView({
 }) {
   const router = useRouter();
   const [pin, setPin] = useState("");
+  const [authExpiresAt, setAuthExpiresAt] = useState<number | null>(null);
   const [verifying, setVerifying] = useState(false);
   const [status, setStatus] = useState<Status | null>(null);
   const [activeAdminSection, setActiveAdminSection] = useState<AdminSection>("allgemein");
@@ -288,7 +292,47 @@ export function AdminView({
     }
   }
 
-  async function performUnlock(pinToTest: string) {
+  useEffect(() => {
+    let restoreTimer: number | undefined;
+    try {
+      const stored = sessionStorage.getItem(ADMIN_SESSION_STORAGE_KEY);
+      if (!stored) return;
+      const session = JSON.parse(stored) as { pin?: unknown; expiresAt?: unknown };
+      if (typeof session.pin !== "string" || !/^\d{4}$/.test(session.pin) || typeof session.expiresAt !== "number" || session.expiresAt <= Date.now()) {
+        sessionStorage.removeItem(ADMIN_SESSION_STORAGE_KEY);
+        return;
+      }
+      restoreTimer = window.setTimeout(() => {
+        setPin(session.pin as string);
+        setAuthExpiresAt(session.expiresAt as number);
+        void performUnlock(session.pin as string, session.expiresAt as number);
+      }, 0);
+    } catch {
+      try { sessionStorage.removeItem(ADMIN_SESSION_STORAGE_KEY); } catch {}
+    }
+    return () => { if (restoreTimer !== undefined) window.clearTimeout(restoreTimer); };
+    // This is a one-time restoration from this tab's sessionStorage.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (!authExpiresAt) return;
+    const lock = () => {
+      setStatus(null);
+      setPin("");
+      setAuthExpiresAt(null);
+      try { sessionStorage.removeItem(ADMIN_SESSION_STORAGE_KEY); } catch {}
+    };
+    const remaining = authExpiresAt - Date.now();
+    if (remaining <= 0) {
+      lock();
+      return;
+    }
+    const timeout = window.setTimeout(lock, remaining);
+    return () => window.clearTimeout(timeout);
+  }, [authExpiresAt]);
+
+  async function performUnlock(pinToTest: string, existingExpiry?: number) {
     if (!pinToTest || pinToTest.length < 4) return;
     setVerifying(true);
     setError("");
@@ -301,9 +345,15 @@ export function AdminView({
       const result = await response.json();
       if (!response.ok) {
         setError(result.error ?? "Eltern-PIN ist falsch");
+        try { sessionStorage.removeItem(ADMIN_SESSION_STORAGE_KEY); } catch {}
         setVerifying(false);
         return;
       }
+      const expiresAt = existingExpiry && existingExpiry > Date.now() ? existingExpiry : Date.now() + ADMIN_SESSION_DURATION_MS;
+      setAuthExpiresAt(expiresAt);
+      try {
+        sessionStorage.setItem(ADMIN_SESSION_STORAGE_KEY, JSON.stringify({ pin: pinToTest, expiresAt }));
+      } catch {}
       try {
         const updateDoneRaw = sessionStorage.getItem("fitfamily_last_update_status");
         if (updateDoneRaw) {
@@ -1005,7 +1055,8 @@ export function AdminView({
           onClick={() => {
             setStatus(null);
             setPin("");
-            try { sessionStorage.removeItem("fitfamily_admin_pin"); } catch {}
+            setAuthExpiresAt(null);
+            try { sessionStorage.removeItem(ADMIN_SESSION_STORAGE_KEY); } catch {}
           }}
         >
           <Lock size={15} /> Sperren
