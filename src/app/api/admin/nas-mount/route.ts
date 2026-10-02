@@ -85,6 +85,35 @@ export async function POST(request: Request) {
       }
     } catch {}
 
+    const probeMountWriteAccess = () => {
+      const testFile = path.join(mountTarget, `.fitfamily_test_${Date.now()}`);
+      try {
+        writeFileSync(testFile, "ok", { flag: "wx" });
+        unlinkSync(testFile);
+      } catch (writeError) {
+        try { unlinkSync(testFile); } catch {}
+        throw writeError;
+      }
+    };
+
+    let alreadyWritable = false;
+    if (alreadyMounted) {
+      try {
+        probeMountWriteAccess();
+        alreadyWritable = true;
+      } catch (writeError) {
+        const permissionDenied = ["EACCES", "EPERM"].includes((writeError as NodeJS.ErrnoException).code ?? "");
+        if (!permissionDenied) throw writeError;
+        if (!username?.trim()) {
+          throw new Error("Das vorhandene Netzlaufwerk ist für FitFamily nicht beschreibbar. Gib den NAS-Benutzernamen mit Schreibrechten ein, damit FitFamily den Mount sicher erneuern kann.");
+        }
+        // Only retry after an explicit admin request with credentials. Never force-unmount
+        // an in-use share; a busy mount returns an error and remains untouched.
+        execFileSync("sudo", ["-n", "/bin/umount", mountTarget], { timeout: 10000, stdio: "pipe" });
+        alreadyMounted = false;
+      }
+    }
+
     if (!alreadyMounted) {
       execFileSync("sudo", ["-n", "/bin/mount", "-t", "cifs", "-o", optionsStr, unc, mountTarget], {
         timeout: 25000,
@@ -93,14 +122,17 @@ export async function POST(request: Request) {
       });
     }
 
-    // 4. Schreibtest auf gemountetem Pfad durchführen
-    const testFile = path.join(mountTarget, `.fitfamily_test_${Date.now()}`);
-    try {
-      writeFileSync(testFile, "ok", { flag: "wx" });
-      unlinkSync(testFile);
-    } catch (writeError) {
-      try { unlinkSync(testFile); } catch {}
-      throw new Error(`Verbindung besteht, aber der Einhängepfad ist nicht beschreibbar: ${(writeError as Error).message}`);
+    // 4. Schreibtest auf einem neuen oder reparierten Mount durchführen
+    if (!alreadyWritable) {
+      try {
+        probeMountWriteAccess();
+      } catch (writeError) {
+        const code = (writeError as NodeJS.ErrnoException).code;
+        if (code === "EACCES" || code === "EPERM") {
+          throw new Error("Das Netzlaufwerk wurde eingebunden, aber das NAS verweigert Schreibzugriffe. Prüfe, ob der angegebene SMB-Benutzer Schreibrechte für diesen Ordner hat.");
+        }
+        throw new Error(`Verbindung besteht, aber der Einhängepfad ist nicht beschreibbar: ${(writeError as Error).message}`);
+      }
     }
 
     // 5. Automatisch als NAS-Sicherungspfad abspeichern

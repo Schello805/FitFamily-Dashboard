@@ -87,8 +87,11 @@ export async function getBackupSettings(): Promise<BackupSettings> {
     statusMessage = "NAS-Ordner ist erreichbar und beschreibbar.";
   } catch (err) {
     const errorText = err instanceof Error ? err.message : String(err);
+    const errorCode = (err as NodeJS.ErrnoException).code;
     if (!accessible) {
       statusMessage = `Ordner konnte nicht geöffnet werden: ${errorText}`;
+    } else if (errorCode === "EACCES" || errorCode === "EPERM") {
+      statusMessage = `NAS-Ordner erreichbar, aber FitFamily hat dort keine Schreibrechte (${errorCode}). Prüfe Schreibrechte des verwendeten SMB-Kontos auf der NAS-Freigabe. Falls das Laufwerk schon vorher eingebunden war, muss es mit der FitFamily-Dienst-ID und -Gruppe neu eingebunden werden.`;
     } else {
       statusMessage = `Keine Schreibrechte im Zielordner: ${errorText}`;
     }
