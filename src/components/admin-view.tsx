@@ -295,11 +295,11 @@ export function AdminView({
   useEffect(() => {
     let restoreTimer: number | undefined;
     try {
-      const stored = sessionStorage.getItem(ADMIN_SESSION_STORAGE_KEY);
+      const stored = localStorage.getItem(ADMIN_SESSION_STORAGE_KEY);
       if (!stored) return;
       const session = JSON.parse(stored) as { pin?: unknown; expiresAt?: unknown };
       if (typeof session.pin !== "string" || !/^\d{4}$/.test(session.pin) || typeof session.expiresAt !== "number" || session.expiresAt <= Date.now()) {
-        sessionStorage.removeItem(ADMIN_SESSION_STORAGE_KEY);
+        localStorage.removeItem(ADMIN_SESSION_STORAGE_KEY);
         return;
       }
       restoreTimer = window.setTimeout(() => {
@@ -308,10 +308,10 @@ export function AdminView({
         void performUnlock(session.pin as string, session.expiresAt as number);
       }, 0);
     } catch {
-      try { sessionStorage.removeItem(ADMIN_SESSION_STORAGE_KEY); } catch {}
+      try { localStorage.removeItem(ADMIN_SESSION_STORAGE_KEY); } catch {}
     }
     return () => { if (restoreTimer !== undefined) window.clearTimeout(restoreTimer); };
-    // This is a one-time restoration from this tab's sessionStorage.
+    // Restore this browser's short-lived admin authorization after an app restart.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -321,7 +321,7 @@ export function AdminView({
       setStatus(null);
       setPin("");
       setAuthExpiresAt(null);
-      try { sessionStorage.removeItem(ADMIN_SESSION_STORAGE_KEY); } catch {}
+      try { localStorage.removeItem(ADMIN_SESSION_STORAGE_KEY); } catch {}
     };
     const remaining = authExpiresAt - Date.now();
     if (remaining <= 0) {
@@ -345,14 +345,14 @@ export function AdminView({
       const result = await response.json();
       if (!response.ok) {
         setError(result.error ?? "Eltern-PIN ist falsch");
-        try { sessionStorage.removeItem(ADMIN_SESSION_STORAGE_KEY); } catch {}
+        try { localStorage.removeItem(ADMIN_SESSION_STORAGE_KEY); } catch {}
         setVerifying(false);
         return;
       }
       const expiresAt = existingExpiry && existingExpiry > Date.now() ? existingExpiry : Date.now() + ADMIN_SESSION_DURATION_MS;
       setAuthExpiresAt(expiresAt);
       try {
-        sessionStorage.setItem(ADMIN_SESSION_STORAGE_KEY, JSON.stringify({ pin: pinToTest, expiresAt }));
+        localStorage.setItem(ADMIN_SESSION_STORAGE_KEY, JSON.stringify({ pin: pinToTest, expiresAt }));
       } catch {}
       try {
         const updateDoneRaw = sessionStorage.getItem("fitfamily_last_update_status");
@@ -1056,7 +1056,7 @@ export function AdminView({
             setStatus(null);
             setPin("");
             setAuthExpiresAt(null);
-            try { sessionStorage.removeItem(ADMIN_SESSION_STORAGE_KEY); } catch {}
+            try { localStorage.removeItem(ADMIN_SESSION_STORAGE_KEY); } catch {}
           }}
         >
           <Lock size={15} /> Sperren
