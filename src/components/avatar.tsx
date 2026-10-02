@@ -58,7 +58,7 @@ export function Avatar({
       aria-label={accessibleName}
       title={`Fitnessstufe ${level} von ${stageCount} · ${label}`}
     >
-      <div className="avatar-canvas">
+      <div className={`avatar-canvas ${customAvatar ? "has-personal-head" : ""}`}>
         <Image
           className="avatar-sprite"
           src={`/assets/avatars/${avatarAsset}.webp`}
