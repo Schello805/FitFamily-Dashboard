@@ -84,7 +84,24 @@ export async function POST(request: Request) {
   });
   const storedHash = tokenRow.rows[0]?.token_hash;
   if (typeof storedHash !== "string" || hashToken(parsed.data.secret) !== storedHash) {
+    await client.execute({
+      sql: "INSERT INTO audit_log (id, action, profile_id, details) VALUES (?, 'health.apple_sync.failed', ?, ?)",
+      args: [randomUUID(), profileId, JSON.stringify({ status: "failed", message: "Sync-Schlüssel ungültig", received: 0 })]
+    });
     return NextResponse.json({ error: "Sync-Schlüssel fehlt oder ist ungültig. Bitte in FitFamily neu erstellen." }, { status: 401 });
+  }
+
+  const syncLogId = randomUUID();
+  await client.execute({
+    sql: "INSERT INTO audit_log (id, action, profile_id, details) VALUES (?, 'health.apple_sync.started', ?, ?)",
+    args: [syncLogId, profileId, JSON.stringify({ status: "received", received: 0 })]
+  });
+
+  async function finishSyncLog(action: "health.apple_sync.checked" | "health.apple_sync.completed" | "health.apple_sync.failed", details: Record<string, unknown>) {
+    await client.execute({
+      sql: "UPDATE audit_log SET action = ?, details = ? WHERE id = ?",
+      args: [action, JSON.stringify(details), syncLogId]
+    });
   }
 
   const profileName = String(profileExists.rows[0].name);
@@ -99,22 +116,27 @@ export async function POST(request: Request) {
   const latestAllowedStart = Date.now() + 60_000;
   for (const item of rawList) {
     if (!item.startedAt || !item.endedAt) {
+      await finishSyncLog("health.apple_sync.failed", { status: "failed", received: rawList.length, message: "Start- oder Endzeit fehlt" });
       return NextResponse.json({ error: "Jedes Health-Workout muss echte Start- und Endzeitpunkte enthalten." }, { status: 400 });
     }
     const start = Date.parse(item.startedAt);
     const end = Date.parse(item.endedAt);
     if (start > latestAllowedStart) {
+      await finishSyncLog("health.apple_sync.failed", { status: "failed", received: rawList.length, message: "Training beginnt in der Zukunft" });
       return NextResponse.json({ error: "Ein Training darf nicht in der Zukunft beginnen." }, { status: 400 });
     }
     if (end > latestAllowedStart) {
+      await finishSyncLog("health.apple_sync.failed", { status: "failed", received: rawList.length, message: "Training endet in der Zukunft" });
       return NextResponse.json({ error: "Ein Training darf nicht in der Zukunft enden." }, { status: 400 });
     }
     if (end - start < 60_000 || end - start > 24 * 60 * 60 * 1000) {
+      await finishSyncLog("health.apple_sync.failed", { status: "failed", received: rawList.length, message: "Trainingsdauer außerhalb des erlaubten Bereichs" });
       return NextResponse.json({ error: "Ein Training muss zwischen 1 Minute und 24 Stunden dauern." }, { status: 400 });
     }
   }
 
   if (parsed.data.dryRun) {
+    await finishSyncLog("health.apple_sync.checked", { status: "checked", received: rawList.length, imported: 0, skipped: 0, message: "Schlüssel geprüft; keine Trainingsdaten gespeichert" });
     return NextResponse.json({
       ok: true,
       validToken: true,
@@ -136,6 +158,7 @@ export async function POST(request: Request) {
     const externalId = item.id ?? `start:${startIso}`;
 
     if (!Number.isFinite(Date.parse(startIso)) || !Number.isFinite(Date.parse(endIso))) {
+      await finishSyncLog("health.apple_sync.failed", { status: "failed", received: rawList.length, imported: importedCount, skipped: skippedCount, message: "Ungültige Trainingszeit" });
       return NextResponse.json({ error: "Ungültige Trainingszeit." }, { status: 400 });
     }
 
@@ -205,6 +228,7 @@ export async function POST(request: Request) {
         }
       ], "write");
       if (writeResults[0]?.rowsAffected !== 1) {
+        await finishSyncLog("health.apple_sync.failed", { status: "failed", received: rawList.length, imported: importedCount, skipped: skippedCount, message: "Sync-Schlüssel während des Imports getrennt" });
         return NextResponse.json({ error: "Der Sync-Schlüssel wurde während des Imports getrennt. Es wurden keine Daten übernommen." }, { status: 401 });
       }
     } catch (error) {
@@ -262,6 +286,15 @@ export async function POST(request: Request) {
       : skippedCount > 0
         ? "Keine neuen Einheiten (bereits vorhanden)."
         : "Keine Daten übertragen.";
+
+  await finishSyncLog("health.apple_sync.completed", {
+    status: "completed",
+    received: rawList.length,
+    imported: importedCount,
+    skipped: skippedCount,
+    pointsEarned: totalPointsEarned,
+    message
+  });
 
   return NextResponse.json({
     ok: true,
@@ -364,8 +397,10 @@ export async function DELETE(request: Request) {
     { sql: "DELETE FROM training_sessions WHERE profile_id = ? AND source = 'apple_health'", args: [profileId] },
     { sql: "DELETE FROM apple_health_daily WHERE profile_id = ?", args: [profileId] },
     { sql: "DELETE FROM apple_health_ignored_workouts WHERE profile_id = ?", args: [profileId] },
-    { sql: `DELETE FROM audit_log WHERE profile_id = ? AND action IN (
-      'health.apple_sync', 'health.apple_token.create', 'health.apple_token.revoke', 'health.apple_reset'
+    { sql: `DELETE FROM audit_log WHERE profile_id = ? AND (
+      action LIKE 'health.apple_sync%' OR action IN (
+        'health.apple_token.create', 'health.apple_token.revoke', 'health.apple_reset'
+      )
     )`, args: [profileId] },
     { sql: "INSERT INTO audit_log (id, action, profile_id, details) VALUES (?, 'health.apple_reset', ?, ?)", args: [randomUUID(), profileId, JSON.stringify({ deletedSessions })] }
   ], "write");

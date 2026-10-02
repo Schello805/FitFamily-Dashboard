@@ -24,6 +24,7 @@ import { AppleActivityRings } from "@/components/apple-activity-rings";
 import { TouchPinpad } from "@/components/touch-pinpad";
 
 type Exercise = { id: string; name: string; type: string; equipment: string };
+type AppleHealthSyncLog = { id: string; action: string; createdAt: string; details: Record<string, unknown> };
 
 async function copyTextToClipboard(text: string): Promise<boolean> {
   if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
@@ -73,10 +74,11 @@ export function ProfileView({
   const [editingProfile, setEditingProfile] = useState(false);
   const [healthModal, setHealthModal] = useState(false);
   const [testingHealth, setTestingHealth] = useState(false);
-  const [healthPinAction, setHealthPinAction] = useState<"create" | "revoke" | "delete">();
+  const [healthPinAction, setHealthPinAction] = useState<"create" | "revoke" | "delete" | "logs">();
   const [healthPin, setHealthPin] = useState("");
   const [healthPinError, setHealthPinError] = useState("");
   const [healthPinBusy, setHealthPinBusy] = useState(false);
+  const [healthSyncLogs, setHealthSyncLogs] = useState<AppleHealthSyncLog[] | null>(null);
   const [healthSyncToken, setHealthSyncToken] = useState("");
   const [healthTokenConfigured, setHealthTokenConfigured] = useState(false);
   const [showHealthSyncToken, setShowHealthSyncToken] = useState(false);
@@ -455,7 +457,7 @@ Sende danach per „Inhalte von URL abrufen“ einen HTTP-POST mit JSON an ${get
     }
   }
 
-  function requestHealthPin(action: "create" | "revoke" | "delete") {
+  function requestHealthPin(action: "create" | "revoke" | "delete" | "logs") {
     setHealthPin("");
     setHealthPinError("");
     setHealthPinAction(action);
@@ -586,7 +588,17 @@ Sende danach per „Inhalte von URL abrufen“ einen HTTP-POST mit JSON an ${get
     setHealthPinError("");
     try {
       let succeeded: boolean;
-      if (healthPinAction === "delete") {
+      if (healthPinAction === "logs") {
+        const response = await fetch("/api/sync/apple-health/log", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ profileId: profile.id, pin: healthPin })
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error ?? "Protokoll konnte nicht geladen werden.");
+        setHealthSyncLogs(Array.isArray(data.logs) ? data.logs : []);
+        succeeded = true;
+      } else if (healthPinAction === "delete") {
         succeeded = await performHealthReset(healthPin);
       } else {
         succeeded = await manageHealthToken(healthPinAction, healthPin);
@@ -956,6 +968,9 @@ Sende danach per „Inhalte von URL abrufen“ einen HTTP-POST mit JSON an ${get
             </section>
 
             <section className="health-danger-zone">
+              <button type="button" disabled={testingHealth || resettingHealth} onClick={() => requestHealthPin("logs")}>
+                <History size={14} /> Sync-Protokoll anzeigen
+              </button>
               {confirmResetHealth ? (
                 <>
                   <strong>Apple-Health-Daten dieses Profils unwiderruflich löschen und Verbindung trennen?</strong>
@@ -968,6 +983,34 @@ Sende danach per „Inhalte von URL abrufen“ einen HTTP-POST mit JSON an ${get
                 </button>
               )}
             </section>
+            {healthSyncLogs && (
+              <section className="health-sync-log" aria-label="Apple-Health-Sync-Protokoll">
+                <div className="health-sync-log-heading">
+                  <strong>Letzte Sync-Aufrufe</strong>
+                  <button type="button" onClick={() => setHealthSyncLogs(null)} aria-label="Protokoll schließen"><X size={16} /></button>
+                </div>
+                {healthSyncLogs.length === 0 ? (
+                  <p>Noch kein gültiger Sync-Aufruf beim Dashboard angekommen. Wenn der Kurzbefehl vorher hängen bleibt, wird hier kein Eintrag erscheinen.</p>
+                ) : (
+                  <ol>
+                    {healthSyncLogs.map((entry) => {
+                      const status = String(entry.details.status ?? (entry.action.endsWith("failed") ? "failed" : "received"));
+                      const label = status === "completed" ? "Abgeschlossen" : status === "checked" ? "Schlüssel geprüft · kein Import" : status === "failed" ? "Fehler" : "Angekommen · keine Abschlussmeldung";
+                      const counts = [
+                        entry.details.received !== undefined ? `${entry.details.received} empfangen` : null,
+                        entry.details.imported !== undefined ? `${entry.details.imported} importiert` : null,
+                        entry.details.skipped !== undefined ? `${entry.details.skipped} übersprungen` : null
+                      ].filter(Boolean).join(" · ");
+                      return <li key={entry.id} className={`health-sync-log-entry ${status}`}>
+                        <div><b>{label}</b><time>{new Date(entry.createdAt.replace(" ", "T") + (entry.createdAt.endsWith("Z") ? "" : "Z")).toLocaleString("de-DE")}</time></div>
+                        {counts && <span>{counts}</span>}
+                        {typeof entry.details.message === "string" && <small>{entry.details.message}</small>}
+                      </li>;
+                    })}
+                  </ol>
+                )}
+              </section>
+            )}
           </div>
         </div>
       )}
@@ -982,9 +1025,9 @@ Sende danach per „Inhalte von URL abrufen“ einen HTTP-POST mit JSON an ${get
               </div>
             </div>
             <h3 id="health-pin-title">
-              {healthPinAction === "delete" ? "Health-Daten löschen" : healthPinAction === "create" ? "Sync-Schlüssel erstellen" : "Sync-Schlüssel widerrufen"}
+              {healthPinAction === "delete" ? "Health-Daten löschen" : healthPinAction === "create" ? "Sync-Schlüssel erstellen" : healthPinAction === "revoke" ? "Sync-Schlüssel widerrufen" : "Sync-Protokoll anzeigen"}
             </h3>
-            <p>{healthPinAction === "delete" ? "Apple-Health-Daten dieses Profils und die Verbindung werden unwiderruflich gelöscht. Zur Bestätigung Eltern-PIN eingeben." : "Zur Bestätigung bitte die vierstellige Eltern-PIN eingeben."}</p>
+            <p>{healthPinAction === "delete" ? "Apple-Health-Daten dieses Profils und die Verbindung werden unwiderruflich gelöscht. Zur Bestätigung Eltern-PIN eingeben." : healthPinAction === "logs" ? "Das Protokoll enthält Zeitpunkte, importierte und übersprungene Einheiten sowie Serverfehler. Zur Freigabe Eltern-PIN eingeben." : "Zur Bestätigung bitte die vierstellige Eltern-PIN eingeben."}</p>
             <div className="confirm-pin-section">
               <b>Eltern-PIN</b>
               <TouchPinpad value={healthPin} disabled={healthPinBusy} onChange={(value) => { setHealthPin(value); setHealthPinError(""); }} />
@@ -993,7 +1036,7 @@ Sende danach per „Inhalte von URL abrufen“ einen HTTP-POST mit JSON an ${get
             <div className="confirm-modal-actions">
               <button type="button" className="confirm-cancel-btn" disabled={healthPinBusy} onClick={() => setHealthPinAction(undefined)}>Abbrechen</button>
               <button type="button" className={`confirm-submit-btn ${healthPinAction === "delete" ? "danger" : "primary"}`} disabled={healthPinBusy || healthPin.length !== 4} onClick={() => void submitHealthPin()}>
-                {healthPinBusy ? "Wird verarbeitet …" : healthPinAction === "delete" ? "Löschen & trennen" : "Bestätigen"}
+                {healthPinBusy ? "Wird verarbeitet …" : healthPinAction === "delete" ? "Löschen & trennen" : healthPinAction === "logs" ? "Protokoll öffnen" : "Bestätigen"}
               </button>
             </div>
           </div>

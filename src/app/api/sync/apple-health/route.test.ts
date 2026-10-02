@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { DELETE, POST } from "./route";
+import { POST as readSyncLogs } from "./log/route";
 import { DELETE as deleteTrainingEntry } from "@/app/api/manual-training/route";
 import { db } from "@/lib/db";
 import { hashToken, setAdminPin } from "@/lib/security";
@@ -85,6 +86,31 @@ describe("Apple Health sync endpoint", () => {
     expect(result.validToken).toBe(true);
     expect(result.received).toBe(1);
     expect(String(after.rows[0]?.total)).toBe(String(before.rows[0]?.total));
+  });
+
+  it("records sync attempts and protects the log with the parent PIN", async () => {
+    const loggedCheck = await POST(new Request("http://localhost/api/sync/apple-health", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ profileId, secret, dryRun: true })
+    }));
+    expect(loggedCheck.status).toBe(200);
+
+    const unauthorized = await readSyncLogs(new Request("http://localhost/api/sync/apple-health/log", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ profileId, pin: "0000" })
+    }));
+    expect(unauthorized.status).toBe(401);
+
+    const response = await readSyncLogs(new Request("http://localhost/api/sync/apple-health/log", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ profileId, pin: "2468" })
+    }));
+    const result = await response.json();
+    expect(response.status).toBe(200);
+    expect(result.logs.some((entry: { action: string; details: { status?: string } }) => entry.action === "health.apple_sync.checked" && entry.details.status === "checked")).toBe(true);
   });
 
   it("rejects reversed or malformed workout times before importing", async () => {
