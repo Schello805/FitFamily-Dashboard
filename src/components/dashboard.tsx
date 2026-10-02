@@ -312,10 +312,10 @@ export function Dashboard({
           <article className={`profile-card ${profile.activeTraining ? "is-active" : ""}`} key={profile.id} style={{ "--profile": profile.color } as React.CSSProperties}>
             <div className="card-accent" />
             <div className="profile-heading">
-              <div className="profile-identity">
+              <Link className="profile-identity profile-card-link" href={`/profil/${profile.id}`} aria-label={`${profile.name}: Profil öffnen`}>
                 <Avatar profile={profile} />
                 <div className="profile-name"><span>Profil</span><h2>{profile.name}</h2><p>{profile.goal}</p></div>
-              </div>
+              </Link>
               <div className="dashboard-history-placeholder" aria-label="Platzhalter für den späteren Entwicklungsverlauf">
                 <span>BEISPIEL · VERLAUF</span>
                 <svg viewBox="0 0 260 72" aria-hidden="true" focusable="false" preserveAspectRatio="none">
