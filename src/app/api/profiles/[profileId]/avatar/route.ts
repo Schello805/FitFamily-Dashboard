@@ -16,8 +16,8 @@ const generationWindow = globalThis as typeof globalThis & {
   fitFamilyAvatarGenerations?: Map<string, number[]>;
 };
 
-const generationPrompt = `Erstelle aus dem ERSTEN Bild einen hochwertigen, freundlichen 3D-Cartoon-Kopf derselben Person. Verwende das ZWEITE Bild ausschließlich als Stil- und Größenreferenz für den FitFamily-Familienavatar. Die Person soll klar wiedererkennbar bleiben; übernimm natürliche Gesichtsform, Hautton, Frisur und markante Merkmale, aber keine fotorealistische Haut.
-Ausgabe: nur Kopf mit Haaren, Ohren und einem kurzen Stück Hals, gerade von vorn, neutral-freundlicher Ausdruck, mittig und groß im Bild, freigestellt auf vollständig transparentem Hintergrund. Falls deine Bildausgabe keine Transparenz unterstützt, verwende stattdessen einen vollkommen einfarbigen, nicht schattierten, reinen Magenta-Hintergrund (#FF00FF). Keine Schultern, kein Oberkörper, keine Schrift, kein Rahmen, kein Schatten außerhalb der Figur. Die Kopfgrafik wird später über den Kopf des vorhandenen Ganzkörper-Avatars gelegt. Keine Verjüngung/Verälterung und keine zusätzlichen Personen. Kinderfotos nur als harmlose, altersgerechte Cartoon-Darstellung.`;
+const generationPrompt = `Erstelle aus dem ERSTEN Bild einen deutlich stilisierten, freundlichen 3D-COMIC-/Animationsfilm-Kopf derselben Person. Das Ergebnis muss sichtbar eine gezeichnete, hochwertige FitFamily-Cartoonfigur sein: glatte illustrative Oberflächen, leicht vereinfachte Formen und ausdrucksstarke, stilisierte Züge. KEIN Foto, KEINE fotorealistische Haut und kein fotorealistisches Gesicht. Verwende das ZWEITE Bild ausschließlich als Stil- und Größenreferenz für den FitFamily-Familienavatar. Die Person soll trotzdem klar wiedererkennbar bleiben; übernimm natürliche Gesichtsform, Hautton, Frisur und markante Merkmale, ohne sie zu verschönern oder zu verändern.
+Ausgabe: ausschließlich der vollständige Kopf mit Haaren und Ohren sowie einem kurzen Stück Hals, gerade von vorn, neutral-freundlicher Ausdruck. Der Kopf soll groß sein und das Bild fast vollständig ausfüllen, einschließlich der gesamten Frisur und des Kinns. Freigestellt auf vollständig transparentem Hintergrund. Falls deine Bildausgabe keine Transparenz unterstützt, verwende stattdessen einen vollkommen einfarbigen, nicht schattierten, reinen Magenta-Hintergrund (#FF00FF). Keine Schultern, kein Oberkörper, keine Schrift, kein Rahmen, kein Schatten außerhalb der Figur und keine leeren Ränder. Keine Verjüngung/Verälterung und keine zusätzlichen Personen. Kinderfotos nur als harmlose, altersgerechte Cartoon-Darstellung.`;
 
 function jsonError(message: string, status = 400) {
   return NextResponse.json({ error: message }, { status });
@@ -134,6 +134,38 @@ async function removeGeminiChromaKey(image: Buffer) {
   return sharp(data, { raw: info }).webp({ quality: 88, alphaQuality: 95 }).toBuffer();
 }
 
+async function normalizePersonalHead(image: Buffer) {
+  const { data, info } = await sharp(image, { limitInputPixels: 20_000_000 })
+    .rotate().ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+  let left = info.width;
+  let top = info.height;
+  let right = -1;
+  let bottom = -1;
+  for (let y = 0; y < info.height; y += 1) {
+    for (let x = 0; x < info.width; x += 1) {
+      if (data[(y * info.width + x) * info.channels + info.channels - 1] <= 12) continue;
+      left = Math.min(left, x);
+      top = Math.min(top, y);
+      right = Math.max(right, x);
+      bottom = Math.max(bottom, y);
+    }
+  }
+  if (right < left || bottom < top) throw new Error("Das erzeugte Avatarbild ist leer.");
+
+  // Remove transparent margins so the generated head can fully cover the built-in face.
+  const paddingX = Math.max(8, Math.round((right - left + 1) * 0.06));
+  const paddingY = Math.max(8, Math.round((bottom - top + 1) * 0.06));
+  left = Math.max(0, left - paddingX);
+  top = Math.max(0, top - paddingY);
+  right = Math.min(info.width - 1, right + paddingX);
+  bottom = Math.min(info.height - 1, bottom + paddingY);
+  return sharp(image, { limitInputPixels: 20_000_000 })
+    .rotate()
+    .extract({ left, top, width: right - left + 1, height: bottom - top + 1 })
+    .resize(512, 512, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
+    .webp({ quality: 88, alphaQuality: 95 }).toBuffer();
+}
+
 export async function GET(_request: Request, { params }: { params: Promise<{ profileId: string }> }) {
   const { profileId } = await params;
   const profile = await getProfile(profileId);
@@ -187,11 +219,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ pro
       const generated = provider === "openai"
         ? await generateWithOpenAI(apiKey, photo, style)
         : await generateWithGemini(apiKey, photo, style);
-      const optimized = provider === "gemini"
-        ? await removeGeminiChromaKey(generated)
-        : await sharp(generated, { limitInputPixels: 20_000_000 })
-          .rotate().resize(512, 512, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
-          .webp({ quality: 88, alphaQuality: 95 }).toBuffer();
+      const prepared = provider === "gemini" ? await removeGeminiChromaKey(generated) : generated;
+      const optimized = await normalizePersonalHead(prepared);
       if (!optimized.length || optimized.length > MAX_AVATAR_BYTES) return jsonError("Das erzeugte Avatarbild ist zu groß. Bitte erneut versuchen.", 502);
       return NextResponse.json({ image: `data:image/webp;base64,${optimized.toString("base64")}` });
     } catch {
