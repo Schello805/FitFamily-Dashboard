@@ -214,6 +214,9 @@ async function createSchema(client: Client) {
   if (!equipmentColumns.rows.some((row) => String(row.name) === "instructions")) {
     await client.execute("ALTER TABLE equipment_inventory ADD COLUMN instructions TEXT");
   }
+  if (!equipmentColumns.rows.some((row) => String(row.name) === "manual_pdf_url")) {
+    await client.execute("ALTER TABLE equipment_inventory ADD COLUMN manual_pdf_url TEXT");
+  }
 
   const exerciseColumns = await client.execute("PRAGMA table_info(exercises)");
   if (!exerciseColumns.rows.some((row) => String(row.name) === "active")) {

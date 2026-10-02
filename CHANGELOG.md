@@ -6,6 +6,8 @@ Alle wichtigen Änderungen werden hier nach dem Prinzip von Keep a Changelog dok
 
 ### Hinzugefügt
 
+- Geräte-PDFs separat von Übungsvideos verwalten und in der Trainingseinheit anzeigen
+- Tagesgenauer Apple-Health-30-Tage-Sync für Aktivitätswerte und automatische Browser-Aktualisierung nach App-Updates
 - Lokales Dashboard und mobile Profilansicht
 - Parallele Kraft- und Ausdauertimer
 - NFC-Gerätewechsel und sichere QR-Übergabe

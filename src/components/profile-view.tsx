@@ -425,15 +425,8 @@ export function ProfileView({
     const payload = JSON.stringify({
       profileId: profile.id,
       secret: healthSyncToken || "HIER_DEN_SYNC_SCHLUESSEL_EINFUEGEN",
-      workouts: [{
-        id: "apple-health-workout-id",
-        title: "Lauftraining",
-        type: "endurance",
-        startedAt: new Date(Date.now() - 30 * 60000).toISOString(),
-        endedAt: new Date().toISOString(),
-        calories: 250,
-        distanceKm: 5
-      }]
+      dailyActivity: [{ date: new Date().toISOString().slice(0, 10), moveCalories: 420, exerciseMinutes: 32, standHours: 10, stepCount: 7350, walkingRunningDistanceKm: 5.2, flightsClimbed: 7 }],
+      workouts: []
     }, null, 2);
     if (await copyTextToClipboard(payload)) {
       setCopiedPayload(true);
@@ -445,11 +438,24 @@ export function ProfileView({
   }
 
   async function copyShortcutPrompt() {
-    const prompt = `Erstelle einen iPhone-Kurzbefehl „FitFamily Health Sync“, der ausschließlich lokale Apple-Kurzbefehle-Aktionen verwendet. Füge KEINE KI-, Cloud-Modell-, ChatGPT-, Gemini- oder sonstige Drittanbieter-Aktion in den fertigen Kurzbefehl ein. Er darf keine Gesundheitsdaten an andere Ziele als meinen lokalen FitFamily-PC senden.
+    const prompt = `Erstelle einen iPhone-Kurzbefehl „FitFamily Health Sync“ ausschließlich mit den eingebauten Apple-Kurzbefehle- und Health-Aktionen. Keine KI-, Cloud-Modell- oder Drittanbieter-Aktion im fertigen Kurzbefehl. Gesundheitsdaten dürfen nur an diesen FitFamily-Server gesendet werden: ${getWebhookUrl()}.
 
-Suche echte, abgeschlossene Apple-Health-Workouts der letzten 30 Tage und sortiere nach Startdatum. Wiederhole für jedes gefundene Workout und erstelle ein Wörterbuch mit den echten Werten: id (eindeutige Workout-ID, falls verfügbar), title (Workout-/Aktivitätstyp), startedAt und endedAt (ISO-8601 inklusive Zeitzone), calories (aktive Trainingsenergie in kcal, wenn vorhanden) und distanceKm (Workout-Distanz in Kilometern, wenn vorhanden). Verwende keine erfundenen Beispielwerte und keine zusammengefassten Aktivitätsringe als Ersatz für Workouts. Sammle die Wörterbücher in einer Liste.
+Der Kurzbefehl soll zwei Arten echter Daten für die letzten 30 Kalendertage übertragen: (A) Tageswerte der Aktivitätsringe und (B) echte abgeschlossene Workouts. Es dürfen niemals eine 30-Tage-Gesamtsumme anstelle von Tageswerten oder erfundene Beispieldaten übertragen werden.
 
-Sende danach per „Inhalte von URL abrufen“ einen HTTP-POST mit JSON an ${getWebhookUrl()}. Der JSON-Body muss genau diese obersten Felder enthalten: profileId = „${profile.id}“, secret = „HIER_DEN_SYNC_SCHLUESSEL_EINFUEGEN“, workouts = die Liste der echten Workouts. Der Secret-Platzhalter bleibt zunächst exakt so stehen. Ich ersetze ihn nach dem Hinzufügen des Kurzbefehls selbst durch meinen persönlichen FitFamily-Schlüssel. Erfinde keinen Schlüssel und baue keinen echten Schlüssel in einen öffentlich geteilten iCloud-Kurzbefehl ein. Keine Health-Daten an eine KI senden. Zeige die Serverantwort an, damit Importanzahl oder Fehler sichtbar sind.`;
+A) Baue eine Liste dailyActivity mit höchstens einem Wörterbuch je Datum. Verwende „Health-Proben suchen“ jeweils für die letzten 30 Tage, gruppiere bzw. summiere die Treffer pro Kalendertag und füge den Wert in das Wörterbuch dieses Datums ein. Verwende diese Health-Typen, Einheiten und JSON-Feldnamen:
+- Aktive Energie / Active Energy: Summe pro Tag in kcal -> moveCalories (Zahl)
+- Trainingsminuten / Exercise Time: Summe pro Tag in Minuten -> exerciseMinutes (Zahl)
+- Stehstunden / Stand Hours: Tageswert -> standHours (Zahl 0 bis 24)
+- Schritte / Steps: Summe pro Tag als ganze Zahl -> stepCount (ganze Zahl)
+- Geh- und Laufdistanz / Walking + Running Distance: Summe pro Tag in Kilometern -> walkingRunningDistanceKm (Zahl)
+- Gestiegene Etagen / Flights Climbed: Summe pro Tag als ganze Zahl -> flightsClimbed (ganze Zahl)
+Jedes Tageswörterbuch braucht date im Format YYYY-MM-DD. Wenn ein Typ an einem Tag keinen Wert hat, lass dieses Feld weg; trage keine Null als Ersatz für fehlende Daten ein. Alle sechs Typen getrennt abfragen und anschließend anhand date in dieselbe Tagesliste zusammenführen. Achte darauf, dass Zahlen numerische JSON-Zahlen bleiben, keine Texte mit Einheit. Die Kurzbefehle-Aktion „Summe“ darf nur auf Treffer des jeweiligen einzelnen Tages angewendet werden, niemals auf den ganzen 30-Tage-Zeitraum.
+
+B) Suche zusätzlich echte abgeschlossene Apple-Health-Workouts der letzten 30 Tage. Erstelle je Workout ein Wörterbuch mit echter id, falls verfügbar, title, startedAt und endedAt als ISO-8601 mit Zeitzone sowie calories und distanceKm, wenn Health sie liefert. Nicht durch Aktivitätsringe ersetzen. Sammle sie in workouts.
+
+Führe am Ende genau eine Aktion „Inhalte von URL abrufen“ aus: POST an ${getWebhookUrl()}, Haupttext JSON. Der Body hat genau diese drei obersten Felder: profileId = „${profile.id}“, secret = „HIER_DEN_SYNC_SCHLUESSEL_EINFUEGEN“, dailyActivity = Tagesliste, workouts = Workoutliste. Den Secret-Platzhalter unverändert lassen; ich ersetze ihn nach dem Erstellen selbst durch meinen privaten FitFamily-Schlüssel. Kein echter Schlüssel in einen geteilten Kurzbefehl. Zeige die Antwort des Servers an.
+
+Wichtig für den Aufbau: Erstelle zuerst alle 6 Tageswert-Abfragen einzeln und füge deren Ergebnisse nach Datum zu dailyActivity zusammen; danach die Workout-Abfrage und dann den einen POST. Falls Kurzbefehle einen Schritt nicht unterstützt, erfinde keine andere Datenstruktur, sondern erkläre mir genau, welche Aktion ich stattdessen antippen muss. iPhone und FitFamily-Server müssen im selben WLAN sein oder über VPN erreichbar sein.`;
     if (await copyTextToClipboard(prompt)) {
       setCopiedShortcutPrompt(true);
       showToast({ type: "success", title: "Erstellungsauftrag kopiert", message: "Füge ihn in deine KI ein. Wichtig: keine KI-Aktion im fertigen Kurzbefehl und den Sync-Schlüssel erst in der persönlichen Kopie eintragen." });
@@ -931,7 +937,7 @@ Sende danach per „Inhalte von URL abrufen“ einen HTTP-POST mit JSON an ${get
 
             <section className="health-workflow-step">
               <h3><span>2</span> Kurzbefehl erstellen lassen</h3>
-              <p>Auftrag kopieren und einer KI geben. Er enthält Zieladresse und Profil, aber keinen echten Schlüssel. Den bisherigen iCloud-Kurzbefehl bitte nicht verwenden.</p>
+              <p>Der Erstellungsauftrag umfasst Workouts sowie bis zu 30 einzelne Tageswerte: Bewegungsenergie, Trainingsminuten, Stehstunden, Schritte, Geh-/Laufstrecke und Etagen. Die Tageswerte werden nach Datum zusammengeführt, nicht als Monatssumme gesendet. Er enthält Zieladresse und Profil, aber keinen echten Schlüssel. Den bisherigen iCloud-Kurzbefehl bitte nicht verwenden.</p>
               <small className="health-webhook-note"><b>Zieladresse (automatisch enthalten):</b> {getWebhookUrl()}</small>
               <div className="health-workflow-actions">
                 <button

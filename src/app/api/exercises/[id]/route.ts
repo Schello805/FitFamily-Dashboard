@@ -38,22 +38,13 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       args: [resolvedGuide.id]
     });
   }
-  let videoUrl = result.rows[0]?.video_url ? String(result.rows[0].video_url) : null;
-  if (!videoUrl) {
-    const equipment = await client.execute({
-      sql: "SELECT video_url FROM equipment_inventory WHERE LOWER(name) = LOWER(?) AND video_url IS NOT NULL AND TRIM(video_url) != '' LIMIT 1",
-      args: [resolvedGuide.equipment]
-    });
-    videoUrl = equipment.rows[0]?.video_url ? String(equipment.rows[0].video_url) : null;
-  }
-  if (!videoUrl) {
-    const sibling = await client.execute({
-      sql: "SELECT video_url FROM exercises WHERE equipment = ? AND active = 1 AND video_url IS NOT NULL AND TRIM(video_url) != '' LIMIT 1",
-      args: [resolvedGuide.equipment]
-    });
-    videoUrl = sibling.rows[0]?.video_url ? String(sibling.rows[0].video_url) : null;
-  }
-  return NextResponse.json({ guide: resolvedGuide, videoUrl }, { headers: { "Cache-Control": "no-store" } });
+  const videoUrl = result.rows[0]?.video_url ? String(result.rows[0].video_url) : null;
+  const equipmentMedia = await client.execute({
+    sql: "SELECT manual_pdf_url FROM equipment_inventory WHERE LOWER(name) = LOWER(?) LIMIT 1",
+    args: [resolvedGuide.equipment]
+  });
+  const manualPdfUrl = equipmentMedia.rows[0]?.manual_pdf_url ? String(equipmentMedia.rows[0].manual_pdf_url) : null;
+  return NextResponse.json({ guide: resolvedGuide, videoUrl, manualPdfUrl }, { headers: { "Cache-Control": "no-store" } });
 }
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {

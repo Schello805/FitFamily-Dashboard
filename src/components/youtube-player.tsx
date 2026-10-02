@@ -57,12 +57,13 @@ export function YoutubePlayer({ videoId, title, onPlayingChange }: { videoId: st
   const [apiUnavailable, setApiUnavailable] = useState(false);
   const [blocked, setBlocked] = useState(false);
   const origin = typeof window === "undefined" ? "" : window.location.origin;
-  const embedUrl = `https://www.youtube-nocookie.com/embed/${videoId}?enablejsapi=1&playsinline=1&rel=0&origin=${encodeURIComponent(origin)}`;
+  const embedUrl = `https://www.youtube-nocookie.com/embed/${videoId}?enablejsapi=1&playsinline=1&rel=0&autoplay=1&origin=${encodeURIComponent(origin)}`;
   const watchUrl = `https://www.youtube.com/watch?v=${encodeURIComponent(videoId)}`;
 
   useEffect(() => {
     let disposed = false;
     let player: Player | null = null;
+    // The iframe loads immediately; its larger control API loads alongside it.
     void loadYoutubeApi().then((api) => {
       if (disposed || !iframeRef.current) return;
       player = new api.Player(iframeRef.current, {
@@ -93,6 +94,7 @@ export function YoutubePlayer({ videoId, title, onPlayingChange }: { videoId: st
           ref={iframeRef}
           src={embedUrl}
           title={title}
+          loading="eager"
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
           allowFullScreen
           referrerPolicy="strict-origin-when-cross-origin"

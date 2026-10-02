@@ -50,6 +50,8 @@ type SessionExercise = {
   name: string;
   guide?: ExerciseGuideData;
   videoUrl?: string | null;
+  manualPdfUrl?: string | null;
+  mode?: "video" | "manual";
   loading?: boolean;
 };
 
@@ -212,22 +214,22 @@ export function PlanView({ profile, goals }: { profile: DashboardProfile; goals:
     }
   }
 
-  async function loadExercise(exerciseName: string) {
+  async function loadExercise(exerciseName: string, mode: "video" | "manual" = "video") {
     let id = resolveExerciseId(exerciseName);
-    setSelectedExercise({ id, name: exerciseName, loading: true });
+    setSelectedExercise({ id, name: exerciseName, mode, loading: true });
     try {
       const matchResponse = await fetch(`/api/exercises?name=${encodeURIComponent(exerciseName)}`, { cache: "no-store" });
       if (matchResponse.ok) {
         const matchData = await matchResponse.json();
         if (matchData.exercise?.id) id = String(matchData.exercise.id);
       }
-      setSelectedExercise({ id, name: exerciseName, loading: true });
+      setSelectedExercise({ id, name: exerciseName, mode, loading: true });
       const response = await fetch(`/api/exercises/${encodeURIComponent(id)}`, { cache: "no-store" });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error ?? "Übungsanleitung konnte nicht geladen werden.");
-      setSelectedExercise({ id, name: exerciseName, guide: data.guide, videoUrl: data.videoUrl ?? null });
+      setSelectedExercise({ id, name: exerciseName, mode, guide: data.guide, videoUrl: data.videoUrl ?? null, manualPdfUrl: data.manualPdfUrl ?? null });
     } catch (error) {
-      setSelectedExercise({ id, name: exerciseName });
+      setSelectedExercise({ id, name: exerciseName, mode });
       showToast({ type: "error", title: "Anleitung nicht verfügbar", message: error instanceof Error ? error.message : "Bitte Verbindung prüfen." });
     }
   }
@@ -482,7 +484,7 @@ export function PlanView({ profile, goals }: { profile: DashboardProfile; goals:
                 <article key={`${exercise}-${index}`} className={`plan-unit-exercise-row ${index === currentExerciseIndex ? "is-current-exercise" : ""}`}>
                   <span>{index + 1}</span>
                   <button type="button" className="plan-exercise-name" onClick={() => void loadExercise(exercise)}><span>{exercise}</span><small>{formatCountdown(exerciseSlotSeconds(unitTotalSeconds, unitDialog.session.exercises.length, index))}</small></button>
-                  <button type="button" className="plan-exercise-guide" onClick={() => void loadExercise(exercise)}><BookOpen size={17} /><span>Anleitung</span></button>
+                  <button type="button" className="plan-exercise-guide" onClick={() => void loadExercise(exercise, "manual")}><BookOpen size={17} /><span>PDF-Anleitung</span></button>
                 </article>
               )) : <p className="empty-week">Für diese Einheit sind keine einzelnen Übungen hinterlegt.</p>}
             </div>
@@ -492,18 +494,25 @@ export function PlanView({ profile, goals }: { profile: DashboardProfile; goals:
                   <div><small>{selectedExercise.guide?.equipment ?? "Übungsanleitung"}</small><h3>{selectedExercise.name}</h3></div>
                   <button type="button" aria-label="Anleitung schließen" onClick={() => setSelectedExercise(null)}><X /></button>
                 </div>
-                {selectedExercise.loading ? <p>Anleitung wird geladen…</p> : selectedExercise.guide ? (
+                {selectedExercise.loading ? <p>{selectedExercise.mode === "manual" ? "Geräte-PDF wird geöffnet …" : "Video wird geladen …"}</p> : selectedExercise.guide ? (
                   <>
-                    {selectedExercise.videoUrl && (youtubeVideoId(selectedExercise.videoUrl) ? (
-                      <YoutubePlayer videoId={youtubeVideoId(selectedExercise.videoUrl)!} title={`Anleitungsvideo: ${selectedExercise.name}`} onPlayingChange={setIsVideoPlaying} />
-                    ) : <a className="plan-external-video" href={selectedExercise.videoUrl} target="_blank" rel="noreferrer"><Video size={18} /> Video öffnen</a>)}
-                    {!selectedExercise.videoUrl && <p className="plan-no-video">Für diese Übung ist noch kein Video hinterlegt.</p>}
-                    <div className="plan-guide-columns">
+                    {selectedExercise.mode === "manual" ? selectedExercise.manualPdfUrl ? (
+                      <>
+                        <div className="plan-manual-toolbar"><b>Geräteanleitung · {selectedExercise.guide.equipment}</b><a href={selectedExercise.manualPdfUrl} target="_blank" rel="noreferrer">PDF separat öffnen ↗</a></div>
+                        <iframe className="plan-manual-pdf" src={selectedExercise.manualPdfUrl} title={`PDF-Geräteanleitung: ${selectedExercise.guide.equipment}`} />
+                      </>
+                    ) : <p className="plan-no-video">Für „{selectedExercise.guide.equipment}“ ist noch keine PDF-Geräteanleitung hinterlegt. Du kannst sie in der Verwaltung beim Gerät ergänzen.</p> : <>
+                      {selectedExercise.videoUrl && (youtubeVideoId(selectedExercise.videoUrl) ? (
+                        <YoutubePlayer videoId={youtubeVideoId(selectedExercise.videoUrl)!} title={`Übungsvideo: ${selectedExercise.name}`} onPlayingChange={setIsVideoPlaying} />
+                      ) : <a className="plan-external-video" href={selectedExercise.videoUrl} target="_blank" rel="noreferrer"><Video size={18} /> Übungsvideo öffnen</a>)}
+                      {!selectedExercise.videoUrl && <p className="plan-no-video">Für diese Übung ist noch kein YouTube-Video hinterlegt.</p>}
+                    </>}
+                    {selectedExercise.mode !== "manual" && <div className="plan-guide-columns">
                       <div><h4>Vorbereitung</h4>{selectedExercise.guide.setup.map((step) => <p key={step}>{step}</p>)}</div>
                       <div><h4>Ausführung</h4>{selectedExercise.guide.movement.map((step) => <p key={step}>{step}</p>)}</div>
                       <div><h4>Atmung &amp; Tempo</h4><p>{selectedExercise.guide.breathing}</p><p>{selectedExercise.guide.tempo}</p></div>
                       <div><h4>Sicherheit</h4>{selectedExercise.guide.safety.map((step) => <p key={step}>{step}</p>)}</div>
-                    </div>
+                    </div>}
                   </>
                 ) : <p>Die Anleitung ist derzeit nicht verfügbar.</p>}
               </section>

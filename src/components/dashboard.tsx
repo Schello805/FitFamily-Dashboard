@@ -118,6 +118,7 @@ export function Dashboard({
   const [showQrModal, setShowQrModal] = useState(false);
   const [goalInfoProfileId, setGoalInfoProfileId] = useState<string | null>(null);
   const [stoppingProfileId, setStoppingProfileId] = useState<string | null>(null);
+  const [appUpdateAvailable, setAppUpdateAvailable] = useState(false);
   const goalInfoProfile = profiles.find((profile) => profile.id === goalInfoProfileId) ?? null;
 
   useEffect(() => {
@@ -199,6 +200,25 @@ export function Dashboard({
     const timer = window.setInterval(refresh, 5000);
     return () => window.clearInterval(timer);
   }, [refresh]);
+
+  useEffect(() => {
+    let disposed = false;
+    const checkForAppUpdate = async () => {
+      try {
+        const response = await fetch("/api/version", { cache: "no-store" });
+        if (!response.ok) return;
+        const current = await response.json() as { version?: string; commit?: string };
+        if (!disposed && (current.version !== version || current.commit !== revision)) setAppUpdateAvailable(true);
+      } catch { /* A temporarily unavailable version endpoint should not disturb the dashboard. */ }
+    };
+    void checkForAppUpdate();
+    const timer = window.setInterval(() => void checkForAppUpdate(), 30_000);
+    return () => { disposed = true; window.clearInterval(timer); };
+  }, [revision, version]);
+
+  useEffect(() => {
+    if (appUpdateAvailable && !profiles.some((profile) => profile.activeTraining)) window.location.reload();
+  }, [appUpdateAvailable, profiles]);
 
   useEffect(() => {
     fetch("/api/weather")

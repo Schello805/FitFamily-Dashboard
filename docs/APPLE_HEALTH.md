@@ -58,7 +58,7 @@ Für Tageswerte sendet der Kurzbefehl nur zusammengefasste Zahlen für **heute**
 
 Es ist nicht nötig, alle Felder in einem Lauf zu senden. Ein späterer Teil-Sync lässt nicht mitgesendete Tageswerte unverändert. Health-Proben bitte zuerst in Kurzbefehle zusammenfassen und nicht als hunderte einzelne Health-Objekte an den Webhook weiterreichen. Aktivitätswerte erzeugen keine Trainingspunkte.
 
-Für einen Nachsync kann statt der einzelnen obersten Tagesfelder eine Liste `dailyActivity` gesendet werden. Sie enthält bis zu 30 verschiedene Tage mit `date` im Format `YYYY-MM-DD` und den jeweils vorhandenen Aktivitätsfeldern, zum Beispiel:
+Für einen Nachsync kann statt der einzelnen obersten Tagesfelder eine Liste `dailyActivity` gesendet werden. Sie enthält bis zu 30 verschiedene Tage mit `date` im Format `YYYY-MM-DD` und den jeweils vorhandenen Aktivitätsfeldern. Der Kurzbefehl muss jeden Health-Typ getrennt abfragen und pro Datum aggregieren; eine einzelne Summe über den gesamten 30-Tage-Zeitraum ist kein gültiger Tagesverlauf. Unterstützt werden `moveCalories`, `exerciseMinutes`, `standHours`, `stepCount`, `walkingRunningDistanceKm` und `flightsClimbed`, zum Beispiel:
 
 ```json
 {
