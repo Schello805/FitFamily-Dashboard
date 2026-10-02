@@ -5,6 +5,7 @@ type AvatarProps = {
   profile?: {
     id: string;
     avatar: ProfileAvatar;
+    customAvatar?: boolean;
     color?: string;
     fitnessStage: number;
     physique: AvatarPhysique;
@@ -13,6 +14,8 @@ type AvatarProps = {
   };
   id?: string;
   avatar?: ProfileAvatar;
+  customAvatar?: boolean;
+  customAvatarSrc?: string;
   color?: string;
   birthDate?: string | null;
   fitnessStage?: number;
@@ -27,6 +30,8 @@ export function Avatar({
   profile,
   id = profile?.id ?? "neutral",
   avatar = profile?.avatar ?? "neutral",
+  customAvatar = profile?.customAvatar ?? false,
+  customAvatarSrc,
   color = profile?.color ?? "#22d3ee",
   birthDate = profile?.birthDate,
   fitnessStage = profile?.fitnessStage ?? 1,
@@ -63,6 +68,17 @@ export function Avatar({
           unoptimized
           draggable={false}
         />
+        {customAvatar && (
+          <Image
+            className="avatar-personal-head"
+            src={customAvatarSrc ?? `/api/profiles/${encodeURIComponent(id)}/avatar`}
+            alt=""
+            width={512}
+            height={512}
+            unoptimized
+            draggable={false}
+          />
+        )}
       </div>
       {showChip && <div className="level-chip">Lvl {level}</div>}
     </div>

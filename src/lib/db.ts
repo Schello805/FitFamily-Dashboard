@@ -33,6 +33,7 @@ async function createSchema(client: Client) {
       name TEXT NOT NULL,
       color TEXT NOT NULL,
       avatar TEXT NOT NULL,
+      custom_avatar_data TEXT,
       email TEXT,
       starting_fitness INTEGER NOT NULL DEFAULT 1 CHECK(starting_fitness BETWEEN 1 AND 7),
       starting_fitness_stage INTEGER NOT NULL DEFAULT 1,
@@ -170,6 +171,9 @@ async function createSchema(client: Client) {
   const profileColumns = await client.execute("PRAGMA table_info(profiles)");
   if (!profileColumns.rows.some((row) => String(row.name) === "email")) {
     await client.execute("ALTER TABLE profiles ADD COLUMN email TEXT");
+  }
+  if (!profileColumns.rows.some((row) => String(row.name) === "custom_avatar_data")) {
+    await client.execute("ALTER TABLE profiles ADD COLUMN custom_avatar_data TEXT");
   }
   if (!profileColumns.rows.some((row) => String(row.name) === "starting_fitness")) {
     await client.execute("ALTER TABLE profiles ADD COLUMN starting_fitness INTEGER NOT NULL DEFAULT 1");

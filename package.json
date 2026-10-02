@@ -1,6 +1,6 @@
 {
   "name": "fitfamily-dashboard",
-  "version": "0.2.45",
+  "version": "0.2.46",
   "private": true,
   "license": "LicenseRef-PolyForm-Noncommercial-1.0.0",
   "scripts": {
@@ -26,6 +26,7 @@
     "qrcode": "latest",
     "react": "latest",
     "react-dom": "latest",
+    "sharp": "^0.35.5",
     "zod": "latest"
   },
   "devDependencies": {

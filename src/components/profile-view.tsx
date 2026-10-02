@@ -18,6 +18,7 @@ import {
 } from "@/lib/domain";
 import { LiveDuration } from "@/components/live-duration";
 import { AvatarPicker } from "@/components/avatar-picker";
+import { PersonalAvatarEditor } from "@/components/personal-avatar-editor";
 import { Avatar } from "@/components/avatar";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { showToast } from "@/components/toast";
@@ -90,6 +91,7 @@ export function ProfileView({
     secondsLeft: number;
   } | null>(null);
   const [editAvatar, setEditAvatar] = useState<AvatarDesignId>(avatarAssetForProfile(initialProfile.id, initialProfile.avatar) as AvatarDesignId);
+  const [editPin, setEditPin] = useState("");
   const [editStartingFitness, setEditStartingFitness] = useState<number>(Math.min(initialProfile.startingFitness, getStartingFitnessStages(initialProfile.id, initialProfile.birthDate).length));
   const [editBirthDate, setEditBirthDate] = useState(initialProfile.birthDate ?? "");
   const [profileNotice, setProfileNotice] = useState("");
@@ -386,7 +388,7 @@ export function ProfileView({
           avatar: editAvatar,
           startingFitness: Number(editStartingFitness),
           goal: form.get("goal"),
-          pin: form.get("pin")
+          pin: editPin
         })
       });
       const result = await response.json();
@@ -627,6 +629,7 @@ Wichtig für den Aufbau: Erstelle zuerst alle 6 Tageswert-Abfragen einzeln und f
     setEditAvatar(avatarAssetForProfile(profile.id, profile.avatar) as AvatarDesignId);
     setEditBirthDate(profile.birthDate ?? "");
     setEditStartingFitness(Math.min(profile.startingFitness, getStartingFitnessStages(profile.id, profile.birthDate).length));
+    setEditPin("");
     setEditingProfile(true);
   }
 
@@ -856,6 +859,7 @@ Wichtig für den Aufbau: Erstelle zuerst alle 6 Tageswert-Abfragen einzeln und f
           <Avatar
             id={profile.id}
             avatar={editAvatar}
+            customAvatar={profile.customAvatar}
             color={profile.color}
             fitnessStage={previewProgress.fitnessStage}
             physique={previewProgress.physique}
@@ -874,6 +878,19 @@ Wichtig für den Aufbau: Erstelle zuerst alle 6 Tageswert-Abfragen einzeln und f
           <span>Figur im Dashboard</span>
           <AvatarPicker value={editAvatar} onChange={setEditAvatar} />
         </div>
+        <label>Eltern-PIN · 4 Ziffern<input name="pin" type="password" inputMode="numeric" autoComplete="current-password" minLength={4} maxLength={4} pattern="[0-9]{4}" value={editPin} onChange={(event) => setEditPin(event.target.value.replace(/\D/g, "").slice(0, 4))} required /></label>
+        <PersonalAvatarEditor
+          profileId={profile.id}
+          profileName={profile.name}
+          avatar={editAvatar}
+          fitnessStage={previewProgress.fitnessStage}
+          physique={previewProgress.physique}
+          birthDate={editBirthDate || null}
+          pin={editPin}
+          setPin={setEditPin}
+          hasSavedAvatar={Boolean(profile.customAvatar)}
+          onSaved={(saved) => { setProfile((current) => ({ ...current, customAvatar: saved })); void refresh(); }}
+        />
         <label>Meine Fitness-Stufe (Selbsteinschätzung)
           <select name="startingFitness" value={editStartingFitness} onChange={(e) => setEditStartingFitness(Number(e.target.value))}>
             {getStartingFitnessStages(profile.id, editBirthDate || null).map((st) => (
@@ -885,7 +902,6 @@ Wichtig für den Aufbau: Erstelle zuerst alle 6 Tageswert-Abfragen einzeln und f
           Wähle die Stufe, die deiner aktuellen Fitness am besten entspricht. Erwachsene haben sieben Stufen, Kinder drei. Trainingszeiten ändern diese Selbsteinschätzung nicht automatisch.
         </p>
         <label>Trainingsziel<select name="goal" defaultValue={profile.goal}>{GOALS.map((goal) => <option key={goal}>{goal}</option>)}</select></label>
-        <label>Eltern-PIN<input name="pin" type="password" inputMode="numeric" autoComplete="current-password" minLength={4} maxLength={4} pattern="[0-9]{4}" onChange={(event) => { event.currentTarget.value = event.currentTarget.value.replace(/\D/g, "").slice(0, 4); }} required /></label>
         {profileNotice && <p className="form-error" role="alert">{profileNotice}</p>}
         <button className="primary-submit" disabled={busy}>{busy ? "Wird gespeichert …" : "Änderungen speichern"}</button>
       </form></div>}

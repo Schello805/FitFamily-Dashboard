@@ -19,6 +19,7 @@ import type { DashboardProfile } from "@/lib/domain";
 import { LiveDuration } from "@/components/live-duration";
 import { Avatar } from "@/components/avatar";
 import { AppleActivityRings } from "@/components/apple-activity-rings";
+import { UserHelp } from "@/components/user-help";
 import { showToast } from "@/components/toast";
 import { DEFAULT_DISPLAY_SETTINGS, type DisplaySettings } from "@/lib/display-settings-shared";
 
@@ -311,6 +312,7 @@ export function Dashboard({
         <section className="brand-block">
           <Image className="brand-logo" src="/assets/fitfamily-logo.png" alt="FitFamily Dashboard – Gesund, aktiv, gemeinsam" width={112} height={112} priority unoptimized />
           <div className="brand-tools">
+            <UserHelp />
             <Link className="admin-shortcut" href="/verwaltung" aria-label="Verwaltung öffnen" title="Einstellungen & Verwaltung öffnen (PIN, Backup, Ruhezustand, Updates)">
               <Settings size={26} />
               <span className="tool-label">Setup</span>

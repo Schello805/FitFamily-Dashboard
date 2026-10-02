@@ -12,6 +12,7 @@ export type Profile = {
   email?: string | null;
   color: string;
   avatar: ProfileAvatar;
+  customAvatar?: boolean;
   startingFitness: number;
   birthDate: string | null;
   scoreBaseline: number;

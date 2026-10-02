@@ -95,7 +95,8 @@ body::before {
 /* Header-Buttons im Dashboard: Exakt gleiche Höhe wie das 104px Logo */
 .brand-tools .admin-shortcut,
 .brand-tools .theme-toggle,
-.brand-tools .quiet-shortcut {
+.brand-tools .quiet-shortcut,
+.brand-tools .user-help-launch {
   width: 76px;
   min-width: 76px;
   height: 104px;
@@ -117,9 +118,11 @@ body::before {
   transition: var(--transition-ui);
   text-decoration: none;
 }
+.brand-tools .user-help-launch { font: inherit; font-size: 11px; font-weight: 750; }
 .brand-tools .admin-shortcut:hover,
 .brand-tools .theme-toggle:hover,
-.brand-tools .quiet-shortcut:hover {
+.brand-tools .quiet-shortcut:hover,
+.brand-tools .user-help-launch:hover {
   color: var(--text);
   border-color: var(--line-strong);
   background: var(--panel-soft);
@@ -261,6 +264,7 @@ body::before {
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--profile) 50%, transparent), 0 10px 28px color-mix(in srgb, var(--profile) 25%, transparent);
 }
 .avatar-sprite { position: absolute; z-index: 2; inset: 0; width: 100%; height: 100%; object-fit: contain; object-position: center bottom; filter: drop-shadow(0 5px 6px rgba(0,0,0,.18)); pointer-events: none; }
+.avatar-personal-head { position: absolute; z-index: 3; top: 0; left: 50%; width: 48%; height: 24%; object-fit: contain; object-position: center top; transform: translateX(-50%); pointer-events: none; }
 .goal-ring-button { width: 116px; display: grid; justify-items: center; gap: 6px; padding: 4px 0; border: 0; border-radius: 12px; color: inherit; background: transparent; cursor: pointer; }
 .goal-ring-button:focus-visible { outline: 3px solid var(--profile); outline-offset: 3px; }
 .goal-ring { --progress: 0deg; width: 92px; height: 92px; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; background: conic-gradient(var(--profile) var(--progress), var(--ring-track) 0); box-shadow: 0 0 0 5px color-mix(in srgb, var(--ring-track) 72%, transparent); }
@@ -999,7 +1003,8 @@ body::before {
   .brand-logo { width: 83px; height: 83px; }
   .brand-tools .admin-shortcut,
   .brand-tools .theme-toggle,
-  .brand-tools .quiet-shortcut {
+  .brand-tools .quiet-shortcut,
+  .brand-tools .user-help-launch {
     width: 62px;
     min-width: 62px;
     height: 83px;
@@ -1087,7 +1092,8 @@ body::before {
   .brand-tools { display: flex; align-items: center; gap: 6px; margin-left: 0; }
   .brand-tools .admin-shortcut,
   .brand-tools .theme-toggle,
-  .brand-tools .quiet-shortcut {
+  .brand-tools .quiet-shortcut,
+  .brand-tools .user-help-launch {
     width: 44px;
     min-width: 44px;
     height: 44px;
@@ -1100,8 +1106,10 @@ body::before {
   }
   .brand-tools .admin-shortcut svg,
   .brand-tools .theme-toggle svg,
-  .brand-tools .quiet-shortcut svg { width: 20px; height: 20px; }
+  .brand-tools .quiet-shortcut svg,
+  .brand-tools .user-help-launch svg { width: 20px; height: 20px; }
   .brand-tools .tool-label { display: none !important; }
+  .brand-tools .user-help-launch span { display: none; }
   .header-qr-button { display: none !important; }
   .header-actions { display: flex; align-items: center; gap: 6px; }
   .clock-block { align-items: flex-end; }
@@ -1330,6 +1338,32 @@ body::before {
 .avatar-picker img { width: 35px; height: 55px; object-fit: contain; object-position: center bottom; pointer-events: none; }
 .avatar-picker label span { color: var(--text); font-size: 10px; }
 .avatar-picker label:has(input:focus-visible) { outline: 3px solid var(--brand-bright); outline-offset: 2px; }
+.personal-avatar-editor { margin-top: 13px; padding: 12px; border: 1px solid var(--line); border-radius: 15px; background: var(--subtle-bg); }
+.personal-avatar-toggle { width: 100%; display: flex; justify-content: center; align-items: center; gap: 8px; min-height: 42px; border: 1px solid var(--line); border-radius: 11px; background: var(--panel); color: var(--text); font: inherit; font-size: 12px; font-weight: 800; cursor: pointer; }
+.personal-avatar-content > p:first-child { margin: 9px 0; color: var(--muted); font-size: 11px; line-height: 1.45; }
+.profile-edit-modal .personal-avatar-content input[type="file"] { height: auto; min-height: 43px; padding: 9px; font-size: 11px; }
+.profile-edit-modal .personal-avatar-consent { display: flex; align-items: flex-start; gap: 8px; margin-top: 11px; line-height: 1.4; font-size: 10px; font-weight: 600; }
+.profile-edit-modal .personal-avatar-consent input { flex: none; width: 18px; height: 18px; margin: 0; accent-color: var(--brand); }
+.personal-avatar-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.personal-avatar-actions button, .personal-avatar-preview button { display: inline-flex; justify-content: center; align-items: center; gap: 6px; min-height: 40px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 10px; color: var(--text); background: var(--panel); font: inherit; font-size: 11px; font-weight: 800; cursor: pointer; }
+.personal-avatar-actions button:disabled, .personal-avatar-preview button:disabled { opacity: .5; cursor: not-allowed; }
+.personal-avatar-actions .personal-avatar-remove { color: var(--danger); }
+.personal-avatar-preview { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 12px; margin-top: 12px; padding: 10px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
+.personal-avatar-preview > div:last-child { display: grid; gap: 6px; }
+.personal-avatar-preview b { font-size: 11px; }
+.personal-avatar-preview p, .personal-avatar-footnote { margin: 0; color: var(--muted); font-size: 10px; line-height: 1.4; }
+.personal-avatar-preview .personal-avatar-cancel { background: transparent; }
+.personal-avatar-notice { margin: 9px 0 0; color: var(--brand-bright); font-size: 11px; }
+.personal-avatar-footnote { margin-top: 10px; }
+.user-help-modal { width: min(720px, 100%); max-height: 90vh; overflow-y: auto; position: relative; padding: 28px; border: 1px solid var(--line-strong); border-radius: 24px; background: var(--modal-bg); box-shadow: var(--card-shadow); }
+.user-help-modal h2 { max-width: 580px; margin: 12px 48px 16px 0; font-size: clamp(21px, 3vw, 29px); line-height: 1.12; }
+.user-help-steps { display: grid; gap: 9px; padding: 0; margin: 0; list-style: none; counter-reset: help-step; }
+.user-help-steps li { display: grid; grid-template-columns: 30px 1fr; column-gap: 10px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 13px; background: var(--subtle-bg); counter-increment: help-step; }
+.user-help-steps li::before { content: counter(help-step); grid-row: span 2; display: grid; place-items: center; width: 27px; height: 27px; border-radius: 50%; color: var(--brand-bright); background: color-mix(in srgb, var(--brand) 15%, transparent); font-weight: 850; }
+.user-help-steps b { font-size: 12px; color: var(--text); }
+.user-help-steps span { margin-top: 3px; color: var(--muted); font-size: 11px; line-height: 1.42; }
+.user-help-note { margin: 12px 0 0; color: var(--muted); font-size: 10px; line-height: 1.4; }
+.user-help-modal .primary-submit { width: 100%; margin-top: 14px; }
 .profile-edit-modal .primary-submit { margin-top: 20px; }
 .profile-notice { color: var(--brand-bright); text-align: center; font-size: 13px; }
 .modal-close { position: absolute; right: 13px; top: 13px; width: 44px; height: 44px; border-radius: 12px; border: 1px solid var(--line); background: var(--subtle-bg); color: var(--text); font-size: 25px; cursor: pointer; touch-action: manipulation; }
