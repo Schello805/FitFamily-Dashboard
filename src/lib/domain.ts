@@ -119,6 +119,12 @@ export type AppleHealthRings = {
   lastSyncedAt?: string | null;
 };
 
+export type ActivityTrendPoint = {
+  date: string;
+  activityMinutes: number | null;
+  targetMinutes: number;
+};
+
 export type DashboardProfile = Profile & {
   strengthMinutes: number;
   enduranceMinutes: number;
@@ -135,6 +141,7 @@ export type DashboardProfile = Profile & {
   nextTraining: string | null;
   activeTraining: ActiveTraining | null;
   appleHealthRings?: AppleHealthRings | null;
+  activityTrend: ActivityTrendPoint[];
 };
 
 export function movementTargetForAge(age: number) {

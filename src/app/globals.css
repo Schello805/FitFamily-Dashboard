@@ -224,14 +224,18 @@ body::before {
 .card-accent { position: absolute; inset: 0 auto 0 0; width: 5px; background: linear-gradient(180deg, var(--profile), transparent 85%); }
 .profile-heading { display: grid; grid-template-columns: minmax(0, 1fr) minmax(180px, .62fr) auto; align-items: center; gap: 18px; }
 .profile-identity { min-width: 0; display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 18px; }
-.dashboard-history-placeholder { min-width: 0; min-height: 76px; box-sizing: border-box; align-self: center; display: grid; align-content: center; gap: 4px; padding: 7px 11px; border: 1px dashed color-mix(in srgb, var(--profile) 26%, var(--line)); border-radius: 13px; color: var(--muted); background: linear-gradient(180deg, color-mix(in srgb, var(--profile) 5%, transparent), color-mix(in srgb, var(--profile) 1%, transparent)); box-shadow: inset 0 1px 8px color-mix(in srgb, var(--profile) 5%, transparent); pointer-events: none; }
-.dashboard-history-placeholder span { font-size: 8px; font-weight: 800; letter-spacing: .12em; text-align: center; }
-.dashboard-history-placeholder svg { display: block; width: 100%; height: 54px; overflow: visible; }
-.dashboard-history-placeholder path { fill: none; stroke-linecap: round; stroke-linejoin: round; stroke-width: 2.5; }
-.dashboard-history-placeholder-grid { stroke: var(--line-strong); stroke-width: 1; opacity: .62; }
-.dashboard-history-placeholder-fill { fill: color-mix(in srgb, var(--profile) 12%, transparent); stroke: none; }
-.dashboard-history-placeholder-target { stroke: var(--muted); stroke-dasharray: 5 5; opacity: .72; }
-.dashboard-history-placeholder-actual { stroke: var(--profile); stroke-width: 3.2 !important; opacity: .9; filter: drop-shadow(0 2px 2px color-mix(in srgb, var(--profile) 25%, transparent)); }
+.dashboard-history-chart { min-width: 0; min-height: 76px; box-sizing: border-box; align-self: center; display: grid; align-content: center; gap: 2px; padding: 6px 10px 4px; border-radius: 13px; color: var(--muted); background: linear-gradient(180deg, color-mix(in srgb, var(--profile) 4%, transparent), color-mix(in srgb, var(--profile) 1%, transparent)); pointer-events: none; }
+.dashboard-history-chart-heading, .dashboard-history-chart-footer { display: flex; justify-content: space-between; align-items: center; gap: 6px; font-size: 7px; font-weight: 800; letter-spacing: .08em; }
+.dashboard-history-chart-heading { color: var(--muted); }
+.dashboard-history-chart-footer { font-size: 7px; letter-spacing: .02em; font-weight: 700; }
+.dashboard-history-chart svg { display: block; width: 100%; height: 43px; overflow: visible; }
+.dashboard-history-chart path { fill: none; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8; }
+.dashboard-history-grid { stroke: var(--line-strong); stroke-width: 1; opacity: .48; }
+.dashboard-history-target { stroke: var(--muted); stroke-dasharray: 4 4; opacity: .7; }
+.dashboard-history-actual { stroke-width: 2.5 !important; opacity: .9; filter: drop-shadow(0 1px 2px color-mix(in srgb, var(--profile) 22%, transparent)); }
+.dashboard-history-legend { display: flex; align-items: center; gap: 3px; }
+.history-legend-actual, .history-legend-target { width: 9px; height: 2px; border-radius: 2px; display: inline-block; }
+.history-legend-target { margin-left: 3px; background: repeating-linear-gradient(90deg, var(--muted) 0 3px, transparent 3px 5px); }
 .profile-name span { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .13em; font-weight: 700; }
 .profile-name h2 { margin: 3px 0 2px; font-size: clamp(26px, 2.1vw, 38px); letter-spacing: -.045em; line-height: 1; }
 .profile-name p { margin: 7px 0 0; color: var(--muted); font-size: 13px; }
@@ -2652,8 +2656,8 @@ body::before {
 @media (max-width: 680px) { .admin-grid { grid-template-columns: 1fr; } .admin-grid article.wide { grid-column: auto; } .reset-list { grid-template-columns: 1fr; } }
 @media (max-width: 900px) and (min-width: 621px) { .dashboard-apple-rings .apple-rings-widget.compact .apple-rings-graphic { width: 128px; height: 128px; } .dashboard-apple-rings .ring-title { font-size: 11px; } .dashboard-apple-rings .ring-label-box strong { font-size: 15px; } .dashboard-apple-rings .ring-label-box strong small { font-size: 12px; } }
 @media (max-width: 620px) { .admin-edit-fields { grid-template-columns: 1fr; } .admin-edit-fields .wide-field { grid-column: auto; } .admin-edit-modal { padding: 20px 16px; } .dashboard-apple-rings { margin-inline: 10px; } .dashboard-apple-rings .apple-rings-widget.compact .apple-rings-graphic { width: 96px; height: 96px; } .dashboard-apple-rings .apple-rings-widget { gap: 10px; } .dashboard-apple-rings .rings-apple-badge { font-size: 11px; } .dashboard-apple-rings .ring-title { font-size: 9px; } .dashboard-apple-rings .ring-label-box strong { font-size: 13px; } .dashboard-apple-rings .ring-label-box strong small { font-size: 10px; } .dashboard-apple-rings .health-activity-stats div { font-size: 10px; } .dashboard-apple-rings .health-activity-stats strong { font-size: 12px; } }
-@media (max-width: 900px) { .profile-heading { grid-template-columns: minmax(0, 1fr) auto; } .goal-ring-summary { grid-column: 2; grid-row: 1; } .dashboard-history-placeholder { grid-column: 1 / -1; grid-row: 2; width: 90%; justify-self: center; } }
-@media (max-width: 620px) { .profile-heading { grid-template-columns: minmax(0, 1fr) auto; } .dashboard-history-placeholder { width: 100%; } .dashboard-history-placeholder svg { height: 46px; } }
+@media (max-width: 900px) { .profile-heading { grid-template-columns: minmax(0, 1fr) auto; } .goal-ring-summary { grid-column: 2; grid-row: 1; } .dashboard-history-chart { grid-column: 1 / -1; grid-row: 2; width: 90%; justify-self: center; } }
+@media (max-width: 620px) { .profile-heading { grid-template-columns: minmax(0, 1fr) auto; } .dashboard-history-chart { width: 100%; } .dashboard-history-chart svg { height: 38px; } }
 @media (max-height: 800px) and (min-width: 900px) { .profile-grid { grid-template-rows: repeat(2, minmax(390px, auto)); } }
 
 /* Kompakte Kiosk-Ansicht: vier Familienkarten ohne Scrollen auf 16:9. */
@@ -2680,9 +2684,8 @@ body::before {
   .profile-heading { gap: 8px; }
   .profile-heading { grid-template-columns: minmax(0, 1fr) minmax(70px, .45fr) auto; }
   .profile-identity { gap: 10px; }
-  .dashboard-history-placeholder { min-height: 68px; gap: 2px; padding: 4px 8px; }
-  .dashboard-history-placeholder span { font-size: 7px; }
-  .dashboard-history-placeholder svg { height: 48px; }
+  .dashboard-history-chart { min-height: 68px; gap: 2px; padding: 4px 8px; }
+  .dashboard-history-chart svg { height: 38px; }
   .avatar-generated.avatar-small { width: 48px; height: 66px; }
   .profile-name span { font-size: 9px; }
   .profile-name h2 { font-size: clamp(21px, 1.7vw, 30px); }

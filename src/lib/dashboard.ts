@@ -14,12 +14,19 @@ export async function getDashboardData(): Promise<DashboardProfile[]> {
   const now = new Date();
   const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const trendDates = Array.from({ length: 30 }, (_, index) => {
+    const date = new Date(todayStart);
+    date.setDate(date.getDate() - (29 - index));
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+  });
+  const trendStart = new Date(`${trendDates[0]}T00:00:00`).toISOString();
+  const trendEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).toISOString();
   const weekStartDate = new Date(todayStart);
   const weekday = weekStartDate.getDay() || 7;
   weekStartDate.setDate(weekStartDate.getDate() - weekday + 1);
   const weekStart = weekStartDate.getTime();
 
-  const [profilesResult, segmentsResult, activeResult, plansResult, appleHealthResult] = await Promise.all([
+  const [profilesResult, segmentsResult, activeResult, plansResult, appleHealthResult, trendHealthResult, trendSegmentsResult] = await Promise.all([
     client.execute("SELECT * FROM profiles ORDER BY CASE id WHEN 'mama' THEN 1 WHEN 'papa' THEN 2 WHEN 'fabian' THEN 3 WHEN 'frieda' THEN 4 ELSE 5 END, name ASC"),
     client.execute(`SELECT ts.profile_id, sg.type, sg.started_at, sg.ended_at, p.target_reset_at, p.score_reset_at
       FROM training_segments sg JOIN training_sessions ts ON ts.id = sg.session_id
@@ -35,8 +42,48 @@ export async function getDashboardData(): Promise<DashboardProfile[]> {
     client.execute({
       sql: "SELECT profile_id, move_calories, move_goal, exercise_minutes, exercise_goal, stand_hours, stand_goal, step_count, walking_running_distance_km, flights_climbed, updated_at FROM apple_health_daily WHERE date = ?",
       args: [todayStr]
+    }).catch(() => ({ rows: [] })),
+    client.execute({
+      sql: "SELECT profile_id, date, exercise_minutes FROM apple_health_daily WHERE date >= ? AND date <= ?",
+      args: [trendDates[0], todayStr]
+    }).catch(() => ({ rows: [] })),
+    client.execute({
+      sql: `SELECT ts.profile_id, sg.started_at, sg.ended_at
+        FROM training_segments sg JOIN training_sessions ts ON ts.id = sg.session_id
+        WHERE ts.status = 'completed' AND sg.ended_at IS NOT NULL
+          AND sg.started_at < ? AND sg.ended_at > ?`,
+      args: [trendEnd, trendStart]
     }).catch(() => ({ rows: [] }))
   ]);
+
+  const healthMinutesByProfile = new Map<string, Map<string, number>>();
+  for (const row of trendHealthResult.rows) {
+    const profileId = String(row.profile_id);
+    const dates = healthMinutesByProfile.get(profileId) ?? new Map<string, number>();
+    dates.set(String(row.date), Math.max(0, asNumber(row.exercise_minutes)));
+    healthMinutesByProfile.set(profileId, dates);
+  }
+
+  const workoutMinutesByProfile = new Map<string, Map<string, number>>();
+  for (const row of trendSegmentsResult.rows) {
+    const profileId = String(row.profile_id);
+    const start = new Date(String(row.started_at));
+    const end = new Date(String(row.ended_at));
+    if (!Number.isFinite(start.getTime()) || !Number.isFinite(end.getTime()) || end <= start) continue;
+    const dates = workoutMinutesByProfile.get(profileId) ?? new Map<string, number>();
+    const day = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+    while (day < end) {
+      const nextDay = new Date(day);
+      nextDay.setDate(nextDay.getDate() + 1);
+      const overlap = Math.max(0, Math.min(end.getTime(), nextDay.getTime()) - Math.max(start.getTime(), day.getTime()));
+      if (overlap > 0) {
+        const dateKey = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, "0")}-${String(day.getDate()).padStart(2, "0")}`;
+        dates.set(dateKey, (dates.get(dateKey) ?? 0) + overlap / 60000);
+      }
+      day.setTime(nextDay.getTime());
+    }
+    workoutMinutesByProfile.set(profileId, dates);
+  }
 
   return profilesResult.rows.map((row) => {
     const profileId = String(row.id);
@@ -94,6 +141,19 @@ export async function getDashboardData(): Promise<DashboardProfile[]> {
       ? Math.floor((now.getTime() - birthTime) / (365.2425 * 24 * 60 * 60 * 1000))
       : (["fabian", "frieda"].includes(profile.id) ? 17 : 30);
     const target = movementTargetForAge(age);
+    const healthMinutes = healthMinutesByProfile.get(profileId);
+    const workoutMinutes = workoutMinutesByProfile.get(profileId);
+    const dailyTarget = target.period === "Woche" ? target.minutes / 7 : target.minutes;
+    const activityTrend = trendDates.map((date) => {
+      const healthValue = healthMinutes?.get(date);
+      const workoutValue = workoutMinutes?.get(date);
+      const hasData = healthValue !== undefined || workoutValue !== undefined;
+      return {
+        date,
+        activityMinutes: hasData ? Math.round(Math.max(healthValue ?? 0, workoutValue ?? 0) * 10) / 10 : null,
+        targetMinutes: dailyTarget
+      };
+    });
     const targetActualMinutes = (target.period === "Tag" ? targetTodaySeconds : targetWeekSeconds) / 60;
     const avatarProgress = getAvatarProgress(profile.startingFitness, strengthMinutes, enduranceMinutes, getFitnessStageCount(profile.id, profile.birthDate));
     const plan = plansResult.rows.find((item) => String(item.profile_id) === profileId);
@@ -176,7 +236,8 @@ export async function getDashboardData(): Promise<DashboardProfile[]> {
             segmentStartedAt: String(active.segment_started_at)
           }
         : null,
-      appleHealthRings
+      appleHealthRings,
+      activityTrend
     };
   });
 }

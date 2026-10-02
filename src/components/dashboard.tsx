@@ -14,6 +14,7 @@ import type { DashboardProfile } from "@/lib/domain";
 import { LiveDuration } from "@/components/live-duration";
 import { Avatar } from "@/components/avatar";
 import { AppleActivityRings } from "@/components/apple-activity-rings";
+import { ActivityTrendChart } from "@/components/activity-trend-chart";
 import { UserHelp } from "@/components/user-help";
 import { DEFAULT_DISPLAY_SETTINGS, type DisplaySettings } from "@/lib/display-settings-shared";
 
@@ -316,15 +317,7 @@ export function Dashboard({
                 <Avatar profile={profile} />
                 <div className="profile-name"><span>Profil</span><h2>{profile.name}</h2><p>{profile.goal}</p></div>
               </Link>
-              <div className="dashboard-history-placeholder" aria-label="Platzhalter für den späteren Entwicklungsverlauf">
-                <span>BEISPIEL · VERLAUF</span>
-                <svg viewBox="0 0 260 72" aria-hidden="true" focusable="false" preserveAspectRatio="none">
-                  <path className="history-placeholder-grid" d="M2 12H258 M2 36H258 M2 60H258" />
-                  <path className="history-placeholder-fill" d="M2 58 C28 56 38 40 66 44 S102 60 132 37 S178 34 206 20 S236 18 258 9 L258 70 L2 70 Z" />
-                  <path className="history-placeholder-target" d="M2 36 C28 34 38 21 66 25 S102 42 132 22 S178 19 206 14 S236 12 258 6" />
-                  <path className="history-placeholder-actual" d="M2 58 C28 56 38 40 66 44 S102 60 132 37 S178 34 206 20 S236 18 258 9" />
-                </svg>
-              </div>
+              <ActivityTrendChart points={profile.activityTrend} color={profile.color} targetMinutes={profile.targetMinutes} targetPeriod={profile.targetPeriod} />
               <GoalRing value={profile.targetPercent} color={profile.color} targetMinutes={profile.targetMinutes} targetPeriod={profile.targetPeriod} />
             </div>
 
