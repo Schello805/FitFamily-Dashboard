@@ -1594,6 +1594,8 @@ body::before {
 .week-grid .compact-session-card { align-items: center; flex-direction: row; justify-content: space-between; gap: 8px; padding: 10px 0; }
 .compact-session-main { min-width: 0; }
 .compact-session-title { overflow: hidden; color: var(--text); font-size: 13px; font-weight: 800; line-height: 1.25; text-overflow: ellipsis; }
+.compact-session-open { display: block; max-width: 100%; padding: 0; border: 0; background: transparent; text-align: left; cursor: pointer; }
+.compact-session-open:hover { color: var(--brand); }
 .compact-session-meta { margin-top: 4px; color: var(--muted); font-size: 10px; line-height: 1.35; }
 .week-grid .plan-round-start-btn { min-height: 44px; gap: 6px; padding: 0 10px; font-size: 11px; }
 .week-grid .empty-week { margin: 0; padding: 8px 0; color: var(--muted); font-size: 12px; }
@@ -2538,6 +2540,88 @@ body::before {
 @media (max-width: 900px) and (min-width: 621px) { .dashboard-apple-rings .apple-rings-widget.compact .apple-rings-graphic { width: 128px; height: 128px; } .dashboard-apple-rings .ring-title { font-size: 11px; } .dashboard-apple-rings .ring-label-box strong { font-size: 15px; } .dashboard-apple-rings .ring-label-box strong small { font-size: 12px; } }
 @media (max-width: 620px) { .admin-edit-fields { grid-template-columns: 1fr; } .admin-edit-fields .wide-field { grid-column: auto; } .admin-edit-modal { padding: 20px 16px; } .dashboard-apple-rings { margin-inline: 10px; } .dashboard-apple-rings .apple-rings-widget.compact .apple-rings-graphic { width: 96px; height: 96px; } .dashboard-apple-rings .apple-rings-widget { gap: 10px; } .dashboard-apple-rings .rings-apple-badge { font-size: 11px; } .dashboard-apple-rings .ring-title { font-size: 9px; } .dashboard-apple-rings .ring-label-box strong { font-size: 13px; } .dashboard-apple-rings .ring-label-box strong small { font-size: 10px; } .dashboard-apple-rings .health-activity-stats div { font-size: 10px; } .dashboard-apple-rings .health-activity-stats strong { font-size: 12px; } }
 @media (max-height: 800px) and (min-width: 900px) { .profile-grid { grid-template-rows: repeat(2, minmax(390px, auto)); } }
+
+/* Kompakte Kiosk-Ansicht: vier Familienkarten ohne Scrollen auf 16:9. */
+@media (min-width: 901px) and (min-height: 650px) {
+  .dashboard-shell { min-height: 100dvh; height: 100dvh; padding: 9px 18px 7px; gap: 9px; }
+  .topbar { min-height: 68px; gap: 14px; }
+  .brand-block { gap: 8px; }
+  .brand-logo { width: 68px; height: 68px; border-radius: 13px; }
+  .brand-tools .admin-shortcut, .brand-tools .theme-toggle, .brand-tools .quiet-shortcut,
+  .header-qr-button { height: 68px; min-height: 68px; }
+  .header-qr-thumbnail { width: 48px; height: 48px; }
+  .weather-block { padding: 7px 12px; gap: 9px; }
+  .weather-block > svg { width: 25px; height: 25px; }
+  .weather-block strong { font-size: 20px; }
+  .location { padding-left: 9px; font-size: 11px; }
+  .clock-block time { font-size: clamp(28px, 2.6vw, 40px); }
+  .clock-block span { margin-top: 4px; font-size: 11px; }
+  .profile-grid { grid-template-rows: repeat(2, minmax(0, 1fr)); grid-auto-rows: minmax(0, 1fr); gap: 10px; }
+  .profile-card { padding: 11px 15px 10px; border-radius: 19px; }
+  .profile-heading { gap: 11px; }
+  .avatar-generated.avatar-small { width: 48px; height: 66px; }
+  .profile-name span { font-size: 9px; }
+  .profile-name h2 { font-size: clamp(21px, 1.7vw, 30px); }
+  .profile-name p { margin-top: 4px; font-size: 11px; }
+  .goal-ring { width: 58px; height: 58px; }
+  .goal-ring::after { inset: 5px; }
+  .goal-ring span { font-size: 14px; }
+  .goal-ring small { font-size: 7px; }
+  .score-row { margin: 6px 0; }
+  .score strong { font-size: clamp(23px, 1.7vw, 30px); }
+  .score span, .today span { margin-top: 3px; font-size: 8px; }
+  .today strong { font-size: 18px; }
+  .dashboard-apple-rings { margin: 0; padding: 2px 0; }
+  .dashboard-apple-rings .apple-rings-widget.compact .apple-rings-graphic { width: 106px; height: 106px; }
+  .dashboard-apple-rings .apple-rings-widget { gap: 9px; padding: 0; }
+  .dashboard-apple-rings .ring-title { font-size: 10px; }
+  .dashboard-apple-rings .ring-label-box strong { font-size: 14px; }
+  .dashboard-apple-rings .health-activity-stats { margin-top: 3px; padding-top: 4px; gap: 4px; }
+  .dashboard-apple-rings .health-activity-stats div { font-size: 9px; }
+  .dashboard-apple-rings .health-activity-stats strong { font-size: 11px; }
+  .active-strip, .plan-strip { min-height: 39px; padding: 5px 8px; border-radius: 12px; }
+  .active-strip strong { font-size: 16px; }
+  .stop-button { width: 36px; height: 36px; }
+  .app-footer { min-height: 18px; font-size: 9px; }
+}
+
+/* Einheit: Timer prominent, Übungen und Video symmetrisch nebeneinander. */
+.plan-unit-heading { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 20px; padding-right: 86px; }
+.plan-unit-title-block h2 { margin: 5px 0 2px; }
+.plan-unit-live { display: grid; justify-items: end; gap: 1px; min-width: 230px; margin: 0; padding: 5px 12px; border: 0; background: transparent; }
+.plan-unit-live > span { font-size: 11px; letter-spacing: .12em; font-weight: 850; }
+.plan-unit-live strong { font-size: clamp(36px, 5vw, 72px); line-height: .95; letter-spacing: -.04em; }
+.plan-unit-live small { color: var(--muted); font-size: 11px; }
+.plan-unit-content { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; padding: 14px 20px; overflow: hidden; }
+.plan-unit-exercises { min-width: 0; overflow: hidden; }
+.plan-unit-exercises h3 { margin-bottom: 6px; }
+.plan-unit-exercise-row { grid-template-columns: 30px minmax(0, 1fr) auto; gap: 7px; padding: 7px 0; }
+.plan-exercise-name { min-width: 0; padding: 0; border: 0; color: var(--text); background: transparent; font: inherit; font-size: 13px; font-weight: 800; text-align: left; cursor: pointer; }
+.plan-exercise-name:hover { color: var(--profile); }
+.plan-unit-exercise-row > .plan-exercise-guide { grid-column: auto; min-height: 36px; padding: 0 9px; font-size: 11px; }
+.plan-exercise-detail, .plan-exercise-placeholder { height: 100%; min-height: 0; max-height: 100%; overflow: auto; }
+.plan-unit-heading.is-countdown-warning .plan-unit-live { color: #fff; background: #cf3037; border-radius: 15px; animation: countdown-pulse 1s infinite alternate; }
+.plan-unit-heading.is-countdown-warning .plan-unit-live span, .plan-unit-heading.is-countdown-warning .plan-unit-live small { color: rgba(255,255,255,.88); }
+.plan-unit-live .countdown-last-five { animation: countdown-number .45s infinite alternate; }
+@keyframes countdown-pulse { to { background: #a91e2a; } }
+@keyframes countdown-number { to { transform: scale(1.12); } }
+
+/* Verwaltungsbereich: Geräte und Übungen als Namenskarten, Details im Modal. */
+.equipment-card-grid, .exercise-admin-list { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; margin-top: 12px; }
+.equipment-card, .exercise-admin-card { min-width: 0; min-height: 66px; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 4px; padding: 9px 11px; border: 1px solid var(--line); border-radius: 12px; color: var(--text); background: var(--subtle-bg); text-align: left; cursor: pointer; }
+.equipment-card:hover, .exercise-admin-card:hover { border-color: var(--brand); background: color-mix(in srgb, var(--brand) 8%, var(--panel)); }
+.equipment-card span, .exercise-admin-card b { font-size: 12px; font-weight: 850; }
+.equipment-card small, .exercise-admin-card small { color: var(--muted); font-size: 10px; }
+.equipment-card.archived, .exercise-admin-card.archived { opacity: .58; }
+.exercise-admin-list { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.exercise-admin-card { min-height: 76px; }
+.exercise-add-card { align-items: center; border-style: dashed; color: var(--brand); }
+.exercise-details-modal > label { display: grid; gap: 6px; margin: 10px 0; color: var(--muted); font-size: 11px; font-weight: 750; }
+.exercise-details-modal > label input, .exercise-details-modal > label select, .exercise-details-modal > label textarea { width: 100%; min-height: 42px; padding: 9px 11px; border: 1px solid var(--line); border-radius: 10px; background: var(--input-bg); color: var(--text); font: inherit; font-size: 13px; }
+.exercise-details-modal > label textarea { resize: vertical; }
+.exercise-create-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (max-width: 900px) { .equipment-card-grid, .exercise-admin-list { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 620px) { .equipment-card-grid, .exercise-admin-list { grid-template-columns: repeat(2, minmax(0, 1fr)); } .plan-unit-heading { grid-template-columns: 1fr auto; gap: 4px; padding: 14px 58px 12px 13px; } .plan-unit-live { min-width: 105px; padding: 3px 6px; } .plan-unit-live strong { font-size: 30px; } .plan-unit-content { grid-template-columns: 1fr 1fr; gap: 7px; padding: 8px; } .plan-unit-exercise-row { grid-template-columns: 24px 1fr; gap: 4px; } .plan-unit-exercise-row > .plan-exercise-guide { grid-column: 2; } .plan-exercise-name { font-size: 11px; } }
 
 .screensaver-card {
   display: flex;

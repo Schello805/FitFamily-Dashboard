@@ -99,6 +99,8 @@ export function AdminView({
   const [exerciseItems, setExerciseItems] = useState(exercises);
   const [exerciseEdits, setExerciseEdits] = useState<Record<string, ExerciseMedia>>(() => Object.fromEntries(exercises.map((exercise) => [exercise.id, exercise])));
   const [savingExercise, setSavingExercise] = useState<string | null>(null);
+  const [exerciseModalId, setExerciseModalId] = useState<string | null>(null);
+  const [showExerciseCreateModal, setShowExerciseCreateModal] = useState(false);
   const [newExercise, setNewExercise] = useState<ExerciseDraft>({ name: "", type: "strength", equipment: "", instructions: "", safetyNotes: "", videoUrl: "" });
   const [equipmentItems, setEquipmentItems] = useState(equipment);
   const [equipmentEdits, setEquipmentEdits] = useState<Record<string, EquipmentItem>>(() => Object.fromEntries(equipment.map((item) => [item.id, item])));
@@ -789,14 +791,17 @@ export function AdminView({
         setExerciseEdits((items) => ({ ...items, [exerciseId]: result.exercise }));
         setNotice("Übung und Anleitung gespeichert.");
         showToast({ type: "success", title: "Übung gespeichert", message: `${result.exercise.name} wurde aktualisiert.` });
+        return true;
       } else {
         const msg = result.error ?? "Übung konnte nicht gespeichert werden.";
         setNotice(msg);
         showToast({ type: "error", title: "Fehler beim Speichern", message: msg });
+        return false;
       }
     } catch {
       setNotice("Keine Verbindung. Bitte Heimnetz prüfen und erneut versuchen.");
       showToast({ type: "error", title: "Verbindungsfehler", message: "Keine Verbindung zum Dashboard." });
+      return false;
     } finally {
       setSavingExercise(null);
     }
@@ -821,6 +826,7 @@ export function AdminView({
       setNewExercise({ name: "", type: "strength", equipment: "", instructions: "", safetyNotes: "", videoUrl: "" });
       setNotice("Übung wurde angelegt.");
       showToast({ type: "success", title: "Übung angelegt", message: `${result.exercise.name} ist jetzt verfügbar.` });
+      setShowExerciseCreateModal(false);
     } catch {
       showToast({ type: "error", title: "Verbindungsfehler", message: "Übung konnte nicht angelegt werden." });
     }
@@ -1531,9 +1537,9 @@ export function AdminView({
       </>}
       {activeAdminSection === "sportraum" && <>
       <article className="wide"><div className="sportraum-header"><div className="admin-title"><Database /><div><h2>Geräte im Sportraum</h2><p>Geräte, Verfügbarkeit und gerätebezogene Videos verwalten. Archivierte Einträge bleiben für die Historie erhalten.</p></div></div><button type="button" className="equipment-add-open" onClick={() => setShowEquipmentCreateModal(true)}><Plus size={17} /> Gerät hinzufügen</button></div>
-        <div className="equipment-table-wrap"><table className="equipment-table"><thead><tr><th>Gerät</th><th>Anzahl</th><th>Status</th><th>Anleitung</th><th>Video</th><th></th></tr></thead><tbody>
-          {equipmentItems.map((item) => <tr key={item.id} className={item.active ? "" : "archived"}><td><b>{item.name}</b></td><td>{item.quantity}</td><td>{item.active ? item.available ? "Verfügbar" : "Nicht verfügbar" : "Archiviert"}</td><td>{item.instructions?.trim() ? "Hinterlegt" : "–"}</td><td>{item.videoUrl ? "Hinterlegt" : "–"}</td><td><button type="button" onClick={() => { setEquipmentEdits((values) => ({ ...values, [item.id]: { ...item } })); setEquipmentModalId(item.id); }}>Öffnen</button></td></tr>)}
-        </tbody></table></div>
+        <div className="equipment-card-grid" aria-label="Geräte im Sportraum">
+          {equipmentItems.map((item) => <button type="button" key={item.id} className={`equipment-card ${item.active ? "" : "archived"}`} onClick={() => { setEquipmentEdits((values) => ({ ...values, [item.id]: { ...item } })); setEquipmentModalId(item.id); }}><span>{item.name}</span><small>{item.quantity} {item.quantity === 1 ? "Stück" : "Stück"}</small></button>)}
+        </div>
       </article>
       {showEquipmentCreateModal && <div className="modal-backdrop" onClick={() => setShowEquipmentCreateModal(false)}><form className="admin-edit-modal equipment-create-modal" onClick={(event) => event.stopPropagation()} onSubmit={addEquipment}><button type="button" className="modal-close" onClick={() => setShowEquipmentCreateModal(false)} aria-label="Schließen"><X /></button><span className="setup-badge">Sportraum · Neues Gerät</span><h2>Gerät hinzufügen</h2><div className="admin-edit-fields"><label>Gerätename<input autoFocus required minLength={2} maxLength={60} placeholder="z. B. Hantelbank" value={newEquipmentName} onChange={(event) => setNewEquipmentName(event.target.value)} /></label><label>Anzahl<input type="number" min={1} max={8} value={newEquipmentQuantity} onChange={(event) => setNewEquipmentQuantity(Number(event.target.value))} /></label><label className="wide-field">Anleitung<textarea rows={4} maxLength={3000} value={newEquipmentInstructions} onChange={(event) => setNewEquipmentInstructions(event.target.value)} placeholder="Hinweise zur sicheren Nutzung …" /></label><label className="wide-field">YouTube-Video<input type="url" inputMode="url" maxLength={500} placeholder="Optionaler YouTube-Link" value={newEquipmentVideoUrl} onChange={(event) => setNewEquipmentVideoUrl(event.target.value)} /></label></div><div className="exercise-admin-actions"><button type="button" className="confirm-cancel-btn" onClick={() => setShowEquipmentCreateModal(false)}>Abbrechen</button><button type="submit"><Plus size={16} /> Gerät ergänzen</button></div></form></div>}
       {equipmentModalId && equipmentEdits[equipmentModalId] && (() => { const edit = equipmentEdits[equipmentModalId]; return <div className="modal-backdrop" onClick={() => setEquipmentModalId(null)}><form className="admin-edit-modal" onClick={(event) => event.stopPropagation()} onSubmit={(event) => { event.preventDefault(); void saveEquipment(edit.id).then((saved) => { if (saved) setEquipmentModalId(null); }); }}><button type="button" className="modal-close" onClick={() => setEquipmentModalId(null)} aria-label="Schließen"><X /></button><span className="setup-badge">Sportraum · Gerät</span><h2>{edit.name}</h2><div className="admin-edit-fields"><label>Gerätename<input required minLength={2} maxLength={60} value={edit.name} onChange={(event) => setEquipmentEdits((values) => ({ ...values, [edit.id]: { ...edit, name: event.target.value } }))} /></label><label>Anzahl<input type="number" min={1} max={8} value={edit.quantity} onChange={(event) => setEquipmentEdits((values) => ({ ...values, [edit.id]: { ...edit, quantity: Number(event.target.value) } }))} /></label><label className="wide-field">Anleitung<textarea rows={5} maxLength={3000} value={edit.instructions ?? ""} onChange={(event) => setEquipmentEdits((values) => ({ ...values, [edit.id]: { ...edit, instructions: event.target.value } }))} placeholder="Hinweise zur sicheren Nutzung …" /></label><label className="wide-field">YouTube-Video<input type="url" inputMode="url" maxLength={500} placeholder="https://www.youtube.com/watch?v=…" value={edit.videoUrl ?? ""} onChange={(event) => setEquipmentEdits((values) => ({ ...values, [edit.id]: { ...edit, videoUrl: event.target.value || null } }))} /></label><label className="inventory-toggle"><input type="checkbox" checked={edit.available} onChange={(event) => setEquipmentEdits((values) => ({ ...values, [edit.id]: { ...edit, available: event.target.checked } }))} /> Verfügbar</label></div><div className="exercise-admin-actions"><button type="submit" disabled={savingEquipment === edit.id}>{savingEquipment === edit.id ? "Speichert …" : "Änderungen speichern"}</button>{edit.active ? <button type="button" className="archive-action" onClick={() => requestArchiveEquipment(edit)}>Archivieren</button> : <button type="button" onClick={() => void saveEquipment(edit.id, { active: true })}>Wiederherstellen</button>}</div></form></div>; })()}
@@ -1541,22 +1547,26 @@ export function AdminView({
         <div className="exercise-admin-list">
           {exerciseItems.map((exercise) => {
             const edit = exerciseEdits[exercise.id] ?? exercise;
-            return <details className={`exercise-admin-item ${edit.active ? "" : "archived"}`} key={exercise.id}>
-              <summary><span><b>{edit.name}</b><small>{edit.equipment} · {edit.type === "strength" ? "Kraft" : "Ausdauer"}</small></span><em>{edit.active ? "Aktiv" : "Archiviert"}</em></summary>
-              <form className="exercise-admin-editor" onSubmit={(event) => { event.preventDefault(); void saveExercise(exercise.id); }}>
-                <label>Übungsname<input required minLength={2} maxLength={80} value={edit.name} onChange={(event) => setExerciseEdits((values) => ({ ...values, [exercise.id]: { ...edit, name: event.target.value } }))} /></label>
-                <label>Trainingsart<select value={edit.type} onChange={(event) => setExerciseEdits((values) => ({ ...values, [exercise.id]: { ...edit, type: event.target.value as ExerciseMedia["type"] } }))}><option value="strength">Kraft</option><option value="endurance">Ausdauer</option></select></label>
-                <label>Gerät<select required value={edit.equipment} onChange={(event) => setExerciseEdits((values) => ({ ...values, [exercise.id]: { ...edit, equipment: event.target.value } }))}><option value={edit.equipment}>{edit.equipment}</option>{equipmentItems.filter((entry) => entry.active && entry.name !== edit.equipment).map((entry) => <option key={entry.id} value={entry.name}>{entry.name}</option>)}<option value="Ohne Gerät">Ohne Gerät</option><option value="Körpergewicht">Körpergewicht</option></select></label>
-                <label className="wide-field">Bewegungsanleitung (ein Schritt pro Zeile)<textarea rows={3} maxLength={3000} value={edit.instructions} onChange={(event) => setExerciseEdits((values) => ({ ...values, [exercise.id]: { ...edit, instructions: event.target.value } }))} placeholder="Ruhig starten …&#10;Bewegung kontrolliert ausführen …" /></label>
-                <label className="wide-field">Sicherheitshinweise (ein Hinweis pro Zeile)<textarea rows={2} maxLength={1200} value={edit.safetyNotes} onChange={(event) => setExerciseEdits((values) => ({ ...values, [exercise.id]: { ...edit, safetyNotes: event.target.value } }))} placeholder="Bei Schmerzen abbrechen …" /></label>
-                <label className="wide-field">Video-Link<input type="url" inputMode="url" maxLength={500} placeholder="https://www.youtube.com/... (leer = Video entfernen)" value={edit.videoUrl ?? ""} onChange={(event) => setExerciseEdits((values) => ({ ...values, [exercise.id]: { ...edit, videoUrl: event.target.value || null } }))} /></label>
-                <div className="exercise-admin-actions"><button type="submit" disabled={savingExercise === exercise.id}>{savingExercise === exercise.id ? "Speichert …" : "Änderungen speichern"}</button>{edit.active ? <button type="button" className="archive-action" onClick={() => requestArchiveExercise(edit)}>Archivieren</button> : <button type="button" onClick={() => void saveExercise(exercise.id, { active: true })}>Wiederherstellen</button>}</div>
-              </form>
-            </details>;
+            return <button type="button" className={`exercise-admin-card ${edit.active ? "" : "archived"}`} key={exercise.id} onClick={() => setExerciseModalId(exercise.id)}>
+              <b>{edit.name}</b><small>{edit.equipment} · {edit.type === "strength" ? "Kraft" : "Ausdauer"}</small>
+            </button>;
           })}
+          <button type="button" className="exercise-admin-card exercise-add-card" onClick={() => setShowExerciseCreateModal(true)}><Plus size={20} /><b>Übung hinzufügen</b></button>
         </div>
-        <form className="exercise-create-form" onSubmit={addExercise}>
-          <h3>Neue Übung anlegen</h3>
+        {exerciseModalId && exerciseEdits[exerciseModalId] && (() => { const edit = exerciseEdits[exerciseModalId]; return <div className="modal-backdrop" onClick={() => setExerciseModalId(null)}><form className="admin-edit-modal exercise-details-modal" onClick={(event) => event.stopPropagation()} onSubmit={(event) => { event.preventDefault(); void saveExercise(edit.id).then((saved) => { if (saved) setExerciseModalId(null); }); }}>
+              <button type="button" className="modal-close" onClick={() => setExerciseModalId(null)} aria-label="Schließen"><X /></button><span className="setup-badge">Sportraum · Übung</span><h2>{edit.name}</h2>
+                <div className="exercise-admin-editor">
+                <label>Übungsname<input required minLength={2} maxLength={80} value={edit.name} onChange={(event) => setExerciseEdits((values) => ({ ...values, [edit.id]: { ...edit, name: event.target.value } }))} /></label>
+                <label>Trainingsart<select value={edit.type} onChange={(event) => setExerciseEdits((values) => ({ ...values, [edit.id]: { ...edit, type: event.target.value as ExerciseMedia["type"] } }))}><option value="strength">Kraft</option><option value="endurance">Ausdauer</option></select></label>
+                <label>Gerät<select required value={edit.equipment} onChange={(event) => setExerciseEdits((values) => ({ ...values, [edit.id]: { ...edit, equipment: event.target.value } }))}><option value={edit.equipment}>{edit.equipment}</option>{equipmentItems.filter((entry) => entry.active && entry.name !== edit.equipment).map((entry) => <option key={entry.id} value={entry.name}>{entry.name}</option>)}<option value="Ohne Gerät">Ohne Gerät</option><option value="Körpergewicht">Körpergewicht</option></select></label>
+                <label className="wide-field">Bewegungsanleitung (ein Schritt pro Zeile)<textarea rows={3} maxLength={3000} value={edit.instructions} onChange={(event) => setExerciseEdits((values) => ({ ...values, [edit.id]: { ...edit, instructions: event.target.value } }))} placeholder="Ruhig starten …&#10;Bewegung kontrolliert ausführen …" /></label>
+                <label className="wide-field">Sicherheitshinweise (ein Hinweis pro Zeile)<textarea rows={2} maxLength={1200} value={edit.safetyNotes} onChange={(event) => setExerciseEdits((values) => ({ ...values, [edit.id]: { ...edit, safetyNotes: event.target.value } }))} placeholder="Bei Schmerzen abbrechen …" /></label>
+                <label className="wide-field">Video-Link<input type="url" inputMode="url" maxLength={500} placeholder="https://www.youtube.com/... (leer = Video entfernen)" value={edit.videoUrl ?? ""} onChange={(event) => setExerciseEdits((values) => ({ ...values, [edit.id]: { ...edit, videoUrl: event.target.value || null } }))} /></label>
+                <div className="exercise-admin-actions"><button type="submit" disabled={savingExercise === edit.id}>{savingExercise === edit.id ? "Speichert …" : "Änderungen speichern"}</button>{edit.active ? <button type="button" className="archive-action" onClick={() => requestArchiveExercise(edit)}>Archivieren</button> : <button type="button" onClick={() => void saveExercise(edit.id, { active: true })}>Wiederherstellen</button>}</div>
+                </div>
+              </form></div>; })()}
+        {showExerciseCreateModal && <div className="modal-backdrop" onClick={() => setShowExerciseCreateModal(false)}><form className="admin-edit-modal" onClick={(event) => event.stopPropagation()} onSubmit={(event) => { void addExercise(event); }}>
+          <button type="button" className="modal-close" onClick={() => setShowExerciseCreateModal(false)} aria-label="Schließen"><X /></button><span className="setup-badge">Sportraum · Neue Übung</span><h2>Übung anlegen</h2>
           <div className="exercise-create-grid">
             <label>Übungsname<input required minLength={2} maxLength={80} value={newExercise.name} onChange={(event) => setNewExercise((draft) => ({ ...draft, name: event.target.value }))} /></label>
             <label>Trainingsart<select value={newExercise.type} onChange={(event) => setNewExercise((draft) => ({ ...draft, type: event.target.value as ExerciseMedia["type"] }))}><option value="strength">Kraft</option><option value="endurance">Ausdauer</option></select></label>
@@ -1564,9 +1574,9 @@ export function AdminView({
             <label className="wide-field">Bewegungsanleitung (ein Schritt pro Zeile)<textarea required minLength={5} rows={3} maxLength={3000} value={newExercise.instructions} onChange={(event) => setNewExercise((draft) => ({ ...draft, instructions: event.target.value }))} /></label>
             <label className="wide-field">Sicherheitshinweise<textarea required minLength={5} rows={2} maxLength={1200} value={newExercise.safetyNotes} onChange={(event) => setNewExercise((draft) => ({ ...draft, safetyNotes: event.target.value }))} /></label>
             <label className="wide-field">Video-Link (optional)<input type="url" inputMode="url" maxLength={500} placeholder="https://www.youtube.com/..." value={newExercise.videoUrl} onChange={(event) => setNewExercise((draft) => ({ ...draft, videoUrl: event.target.value }))} /></label>
-            <button><Plus /> Übung anlegen</button>
+            <button type="submit"><Plus /> Übung anlegen</button>
           </div>
-        </form>
+        </form></div>}
       </article>
       </>}
       {activeAdminSection === "familie" && <>

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, BookOpen, CalendarDays, ChevronLeft, ChevronRight, Cpu, Download, Dumbbell, Play, RefreshCw, Sparkles, Square, Trash2, Upload, Video, X } from "lucide-react";
+import { ArrowLeft, BookOpen, CalendarDays, ChevronLeft, ChevronRight, Cpu, Download, Play, RefreshCw, Sparkles, Square, Trash2, Upload, Video, X } from "lucide-react";
 import type { DashboardProfile } from "@/lib/domain";
 import { showToast } from "@/components/toast";
 import { normalizePlanJson, type NormalizedPlan, type NormalizedSession } from "@/lib/plan-normalizer";
@@ -66,8 +66,11 @@ export function PlanView({ profile, goals }: { profile: DashboardProfile; goals:
   const [startingSession, setStartingSession] = useState(false);
   const [stoppingSession, setStoppingSession] = useState(false);
   const [unitDialog, setUnitDialog] = useState<{ session: NormalizedSession; startedAt: string } | null>(null);
+  const [remainingSeconds, setRemainingSeconds] = useState(0);
   const [selectedExercise, setSelectedExercise] = useState<SessionExercise | null>(null);
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
+  const audioContext = useRef<AudioContext | null>(null);
+  const lastBeep = useRef<number | null>(null);
   const unitCloseTimer = useRef<number | null>(null);
   const [weekPage, setWeekPage] = useState<{ planId: string; page: number } | null>(null);
   const load = () => fetch(`/api/plans?profileId=${profile.id}`).then((response) => response.json()).then((data) => setPlans(data.plans || []));
@@ -102,7 +105,56 @@ export function PlanView({ profile, goals }: { profile: DashboardProfile; goals:
     };
   }, [unitDialog, isVideoPlaying]);
 
+  useEffect(() => {
+    if (!unitDialog) return;
+    const duration = Math.max(1, unitDialog.session.minutes) * 60;
+    const updateCountdown = () => {
+      const left = Math.max(0, Math.ceil((new Date(unitDialog.startedAt).getTime() + duration * 1000 - Date.now()) / 1000));
+      setRemainingSeconds(left);
+      if ((left === 30 || left <= 5) && left !== lastBeep.current) {
+        lastBeep.current = left;
+        try {
+          const context = audioContext.current;
+          if (context && context.state !== "closed") {
+            const oscillator = context.createOscillator();
+            const gain = context.createGain();
+            oscillator.frequency.value = left <= 5 ? 880 : 660;
+            gain.gain.value = 0.08;
+            oscillator.connect(gain);
+            gain.connect(context.destination);
+            oscillator.start();
+            oscillator.stop(context.currentTime + 0.12);
+          }
+        } catch { /* Audio ist optional; der visuelle Countdown bleibt verfügbar. */ }
+      }
+      if (left === 0) {
+        setUnitDialog(null);
+        setSelectedExercise(null);
+      }
+    };
+    updateCountdown();
+    const interval = window.setInterval(updateCountdown, 250);
+    return () => window.clearInterval(interval);
+  }, [unitDialog]);
+
+  function openUnitView(session: NormalizedSession, startedAt: string) {
+    setSelectedExercise(null);
+    lastBeep.current = null;
+    if (!audioContext.current && typeof window !== "undefined") {
+      try { audioContext.current = new window.AudioContext(); void audioContext.current.resume(); } catch { /* Browser ohne AudioContext */ }
+    }
+    setUnitDialog({ session, startedAt });
+  }
+
   async function startUnit(session: NormalizedSession) {
+    const sessionKey = `${profile.id}:${session.date ?? ""}:${session.title}`;
+    try {
+      const saved = JSON.parse(localStorage.getItem("fitfamily_running_plan_unit") ?? "null") as { key?: string; startedAt?: string } | null;
+      if (saved?.key === sessionKey && saved.startedAt) {
+        openUnitView(session, saved.startedAt);
+        return;
+      }
+    } catch { /* Ein defekter lokaler Eintrag wird beim nächsten Start ersetzt. */ }
     setStartingSession(true);
     try {
       const response = await fetch("/api/training", {
@@ -117,8 +169,8 @@ export function PlanView({ profile, goals }: { profile: DashboardProfile; goals:
       });
       if (response.ok) {
         const startedAt = new Date().toISOString();
-        setSelectedExercise(null);
-        setUnitDialog({ session, startedAt });
+        localStorage.setItem("fitfamily_running_plan_unit", JSON.stringify({ key: sessionKey, startedAt }));
+        openUnitView(session, startedAt);
         showToast({
           type: "success",
           title: `Einheit gestartet: ${session.title}`,
@@ -172,6 +224,7 @@ export function PlanView({ profile, goals }: { profile: DashboardProfile; goals:
         body: JSON.stringify({ action: "stop", profileId: profile.id })
       });
       if (!response.ok) throw new Error("Das Training konnte nicht beendet werden.");
+      localStorage.removeItem("fitfamily_running_plan_unit");
       setUnitDialog(null);
       setSelectedExercise(null);
       showToast({ type: "success", title: "Einheit beendet", message: "Die Trainingszeit wurde gespeichert." });
@@ -354,7 +407,7 @@ export function PlanView({ profile, goals }: { profile: DashboardProfile; goals:
                     {week.sessions.length ? week.sessions.map((session, index) => (
                       <div key={`${week.week}-${session.date ?? index}-${index}`} className="plan-session-card compact-session-card">
                         <div className="compact-session-main">
-                          <div className="compact-session-title">{session.title}</div>
+                          <button type="button" className="compact-session-title compact-session-open" onClick={() => void startUnit(session)} disabled={startingSession} title={`Einheit „${session.title}“ öffnen oder starten`}>{session.title}</button>
                           <div className="compact-session-meta">
                             {session.date ? `${new Date(`${session.date}T12:00:00`).toLocaleDateString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit" })} · ` : ""}
                             {session.minutes} Min.{session.distanceKm ? ` · ${session.distanceKm} km` : ""}
@@ -387,11 +440,12 @@ export function PlanView({ profile, goals }: { profile: DashboardProfile; goals:
       <div className="modal-backdrop plan-unit-backdrop" onClick={() => { setUnitDialog(null); setSelectedExercise(null); setIsVideoPlaying(false); }}>
         <section className="plan-unit-dialog" role="dialog" aria-modal="true" aria-labelledby="plan-unit-title" onClick={(event) => event.stopPropagation()}>
           <button type="button" className="modal-close" aria-label="Einheit schließen" onClick={() => { setUnitDialog(null); setSelectedExercise(null); setIsVideoPlaying(false); }}><X /></button>
-          <div className="plan-unit-heading">
-            <span className="setup-badge">Einheit läuft · {unitDialog.session.type === "endurance" ? "Ausdauer" : "Kraft"}</span>
-            <h2 id="plan-unit-title">{unitDialog.session.title}</h2>
-            <p>{unitDialog.session.date ? `${new Date(`${unitDialog.session.date}T12:00:00`).toLocaleDateString("de-DE")} · ` : ""}{unitDialog.session.minutes} Min.{unitDialog.session.distanceKm ? ` · ${unitDialog.session.distanceKm} km` : ""}</p>
-            <div className="plan-unit-live"><Dumbbell size={18} /><span>Trainingszeit</span><strong><LiveDuration since={unitDialog.startedAt} /></strong></div>
+          <div className={`plan-unit-heading ${remainingSeconds <= 30 ? "is-countdown-warning" : ""}`}>
+            <div className="plan-unit-title-block"><span className="setup-badge">Einheit läuft · {unitDialog.session.type === "endurance" ? "Ausdauer" : "Kraft"}</span>
+              <h2 id="plan-unit-title">{unitDialog.session.title}</h2>
+              <p>{unitDialog.session.date ? `${new Date(`${unitDialog.session.date}T12:00:00`).toLocaleDateString("de-DE")} · ` : ""}{unitDialog.session.minutes} Min.{unitDialog.session.distanceKm ? ` · ${unitDialog.session.distanceKm} km` : ""}</p>
+            </div>
+            <div className="plan-unit-live"><span>VERBLEIBEND</span><strong className={remainingSeconds <= 5 ? "countdown-last-five" : ""}>{String(Math.floor(remainingSeconds / 60)).padStart(2, "0")}:{String(remainingSeconds % 60).padStart(2, "0")}</strong><small>Trainingszeit <LiveDuration since={unitDialog.startedAt} /></small></div>
           </div>
           <div className="plan-unit-content">
             <div className="plan-unit-exercises">
@@ -399,8 +453,8 @@ export function PlanView({ profile, goals }: { profile: DashboardProfile; goals:
               {unitDialog.session.exercises?.length ? unitDialog.session.exercises.map((exercise, index) => (
                 <article key={`${exercise}-${index}`} className="plan-unit-exercise-row">
                   <span>{index + 1}</span>
-                  <b>{exercise}</b>
-                  <button type="button" onClick={() => void loadExercise(exercise)}><BookOpen size={17} /><span>Anleitung &amp; Video</span></button>
+                  <button type="button" className="plan-exercise-name" onClick={() => void loadExercise(exercise)}>{exercise}</button>
+                  <button type="button" className="plan-exercise-guide" onClick={() => void loadExercise(exercise)}><BookOpen size={17} /><span>Anleitung</span></button>
                 </article>
               )) : <p className="empty-week">Für diese Einheit sind keine einzelnen Übungen hinterlegt.</p>}
             </div>
