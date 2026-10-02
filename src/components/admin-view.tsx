@@ -64,11 +64,11 @@ function calculateAge(birthDate: string) {
 type AdminSection = "allgemein" | "ki" | "sicherung" | "daten" | "protokolle" | "sportraum" | "familie";
 
 const ADMIN_SECTIONS: { id: AdminSection; label: string; detail: string; icon: typeof Monitor }[] = [
-  { id: "allgemein", label: "Allgemein", detail: "Design & Updates", icon: Monitor },
+  { id: "allgemein", label: "Allgemein", detail: "Design & Ruhemodus", icon: Monitor },
   { id: "ki", label: "KI-Integrationen", detail: "Schlüssel & Kosten", icon: Bot },
   { id: "sicherung", label: "Datensicherung", detail: "NAS & Speicherorte", icon: HardDrive },
-  { id: "daten", label: "Daten & Speicher", detail: "Export, Import, Platz", icon: Database },
-  { id: "protokolle", label: "Protokolle", detail: "Fehler, Updates, Backup", icon: ClipboardList },
+  { id: "daten", label: "System, Daten & Speicher", detail: "Updates, Export & Speicher", icon: Database },
+  { id: "protokolle", label: "Protokolle", detail: "Fehler & Backup-Ereignisse", icon: ClipboardList },
   { id: "sportraum", label: "Sportraum", detail: "Geräte & Videos", icon: Wrench },
   { id: "familie", label: "Familie", detail: "Score-Verwaltung", icon: Users }
 ];
@@ -1300,50 +1300,6 @@ export function AdminView({
           </button>
         </div>
       </article>
-      <article className="wide update-card">
-        <div className="admin-title"><RefreshCw className={checkingUpdate || runningUpdate ? "spin" : ""} /><div><h2>Software-Update</h2><p>Dashboard auf den neuesten Stand von GitHub bringen</p></div></div>
-        {postUpdateSuccess && (
-          <div className="update-alert-banner" style={{ background: "color-mix(in srgb, var(--brand) 15%, var(--subtle-bg))", borderColor: "var(--brand)", marginBottom: "16px" }}>
-            <Sparkles size={24} style={{ color: "var(--brand-bright)", flexShrink: 0 }} />
-            <div style={{ flex: 1 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
-                <b style={{ color: "var(--text)" }}>Update erfolgreich installiert!</b>
-                <span style={{ fontSize: "11px", fontWeight: "800", padding: "2px 8px", borderRadius: "999px", background: "var(--brand)", color: "#06201d" }}>
-                  v{postUpdateSuccess.version}{postUpdateSuccess.commit ? ` · Build ${postUpdateSuccess.commit}` : ""}
-                </span>
-              </div>
-              <p className="update-commit-log" style={{ margin: "4px 0 0" }}>
-                Das Dashboard wurde neu gebaut, neu gestartet und läuft ab sofort auf der aktuellsten Version.
-              </p>
-            </div>
-            <button
-              type="button"
-              className="modal-close"
-              style={{ position: "static", width: "32px", height: "32px", fontSize: "18px" }}
-              onClick={() => setPostUpdateSuccess(null)}
-              aria-label="Hinweis schließen"
-            >
-              ×
-            </button>
-          </div>
-        )}
-        <div className="update-status-grid">
-          <div className="update-meta-box"><span>Auf diesem Gerät installiert</span><b>v{currentInstalledVersion}</b>{currentInstalledCommit && <small>Build {currentInstalledCommit}</small>}</div>
-          <div className="update-meta-box"><span>Neuer Stand auf GitHub</span><b className={updateInfo?.hasUpdate ? "update-tag-new" : "update-tag-current"}>{updateInfo ? (updateInfo.hasUpdate ? `Update verfügbar · v${updateInfo.latestVersion || currentInstalledVersion}` : `Auf aktuellem Stand · v${currentInstalledVersion}`) : (checkingUpdate ? "Prüfung läuft …" : "Noch nicht geprüft")}</b>{updateInfo?.latestCommit && <small>Build {updateInfo.latestCommit}</small>}</div>
-        </div>
-        {updateInfo?.hasUpdate && (
-          <div className="update-alert-banner"><Sparkles /><div><b>Ein Update ist bereit.</b><p className="update-commit-log">Vor der Installation wird automatisch eine Sicherung deiner Daten erstellt.</p></div></div>
-        )}
-        <div className="update-action-row">
-          <button type="button" className="update-secondary-btn" disabled={checkingUpdate || runningUpdate} onClick={() => void checkUpdate()}><RefreshCw className={checkingUpdate ? "spin" : ""} />{checkingUpdate ? "Prüfe …" : "Nach Updates suchen"}</button>
-          {updateInfo?.hasUpdate && (
-            <button type="button" className="primary-update-btn" disabled={runningUpdate} onClick={requestApplyUpdate}>{runningUpdate ? (<><RefreshCw className="spin" />Update läuft …</>) : (<><Sparkles />Update installieren</>)}</button>
-          )}
-        </div>
-        {updateCountdown !== null && (
-          <div className="update-countdown-alert">Dienst wurde neu gestartet. Das Dashboard lädt neu in <b>{updateCountdown}</b> Sekunden …</div>
-        )}
-      </article>
       </>}
       {activeAdminSection === "ki" && <>
       <article className="wide"><div className="admin-title"><Bot /><div><h2>KI-Integrationen</h2><p>API-Schlüssel lokal auf diesem Gerät speichern – ohne Code oder Serverdatei.</p></div></div>
@@ -1545,6 +1501,36 @@ export function AdminView({
       </article>
       </>}
       {activeAdminSection === "daten" && <>
+        <article className="wide update-card">
+          <div className="admin-title"><RefreshCw className={checkingUpdate || runningUpdate ? "spin" : ""} /><div><h2>Software-Update</h2><p>Dashboard auf den neuesten Stand von GitHub bringen</p></div></div>
+          {postUpdateSuccess && (
+            <div className="update-alert-banner" style={{ background: "color-mix(in srgb, var(--brand) 15%, var(--subtle-bg))", borderColor: "var(--brand)", marginBottom: "16px" }}>
+              <Sparkles size={24} style={{ color: "var(--brand-bright)", flexShrink: 0 }} />
+              <div style={{ flex: 1 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                  <b style={{ color: "var(--text)" }}>Update erfolgreich installiert!</b>
+                  <span style={{ fontSize: "11px", fontWeight: "800", padding: "2px 8px", borderRadius: "999px", background: "var(--brand)", color: "#06201d" }}>
+                    v{postUpdateSuccess.version}{postUpdateSuccess.commit ? ` · Build ${postUpdateSuccess.commit}` : ""}
+                  </span>
+                </div>
+                <p className="update-commit-log" style={{ margin: "4px 0 0" }}>
+                  Das Dashboard wurde neu gebaut, neu gestartet und läuft ab sofort auf der aktuellsten Version.
+                </p>
+              </div>
+              <button type="button" className="modal-close" style={{ position: "static", width: "32px", height: "32px", fontSize: "18px" }} onClick={() => setPostUpdateSuccess(null)} aria-label="Hinweis schließen">×</button>
+            </div>
+          )}
+          <div className="update-status-grid">
+            <div className="update-meta-box"><span>Auf diesem Gerät installiert</span><b>v{currentInstalledVersion}</b>{currentInstalledCommit && <small>Build {currentInstalledCommit}</small>}</div>
+            <div className="update-meta-box"><span>Neuer Stand auf GitHub</span><b className={updateInfo?.hasUpdate ? "update-tag-new" : "update-tag-current"}>{updateInfo ? (updateInfo.hasUpdate ? `Update verfügbar · v${updateInfo.latestVersion || currentInstalledVersion}` : `Auf aktuellem Stand · v${currentInstalledVersion}`) : (checkingUpdate ? "Prüfung läuft …" : "Noch nicht geprüft")}</b>{updateInfo?.latestCommit && <small>Build {updateInfo.latestCommit}</small>}</div>
+          </div>
+          {updateInfo?.hasUpdate && <div className="update-alert-banner"><Sparkles /><div><b>Ein Update ist bereit.</b><p className="update-commit-log">Vor der Installation wird automatisch eine Sicherung deiner Daten erstellt.</p></div></div>}
+          <div className="update-action-row">
+            <button type="button" className="update-secondary-btn" disabled={checkingUpdate || runningUpdate} onClick={() => void checkUpdate()}><RefreshCw className={checkingUpdate ? "spin" : ""} />{checkingUpdate ? "Prüfe …" : "Nach Updates suchen"}</button>
+            {updateInfo?.hasUpdate && <button type="button" className="primary-update-btn" disabled={runningUpdate} onClick={requestApplyUpdate}>{runningUpdate ? (<><RefreshCw className="spin" />Update läuft …</>) : (<><Sparkles />Update installieren</>)}</button>}
+          </div>
+          {updateCountdown !== null && <div className="update-countdown-alert">Dienst wurde neu gestartet. Das Dashboard lädt neu in <b>{updateCountdown}</b> Sekunden …</div>}
+        </article>
         <article className="wide">
           <div className="admin-title"><HardDrive /><div><h2>Speicherstatus</h2><p>Datenbankdatei und freier Speicher auf dem Server</p></div></div>
           <div className="update-status-grid data-status-grid">
