@@ -83,6 +83,39 @@ export async function POST(request: Request) {
 
   const parsed = bodySchema.safeParse(json);
   if (!parsed.success) {
+    // Record authenticated payload errors (for example an aggregated 30-day step
+    // total sent as a single-day field) without ever storing the health payload
+    // or the sync secret itself.
+    try {
+      const candidate = json && typeof json === "object" && !Array.isArray(json)
+        ? json as Record<string, unknown>
+        : null;
+      const profileId = typeof candidate?.profileId === "string" ? candidate.profileId : "";
+      const secret = typeof candidate?.secret === "string" ? candidate.secret : "";
+      if (profileId && secret.length >= 32 && secret.length <= 256) {
+        const client = await db();
+        const token = await client.execute({
+          sql: "SELECT token_hash FROM apple_health_tokens WHERE profile_id = ? LIMIT 1",
+          args: [profileId]
+        });
+        if (typeof token.rows[0]?.token_hash === "string" && hashToken(secret) === token.rows[0].token_hash) {
+          const validationErrors = parsed.error.issues
+            .slice(0, 12)
+            .map((issue) => `${issue.path.map(String).join(".") || "Anfrage"}: ${issue.message}`);
+          await client.execute({
+            sql: "INSERT INTO audit_log (id, action, profile_id, details) VALUES (?, 'health.apple_sync.failed', ?, ?)",
+            args: [randomUUID(), profileId, JSON.stringify({
+              status: "failed",
+              received: 0,
+              reason: "validation",
+              message: `Ungültige Anfrage: ${validationErrors.join("; ")}`.slice(0, 500)
+            })]
+          });
+        }
+      }
+    } catch {
+      // Logging must never replace the validation response to the Shortcut.
+    }
     return NextResponse.json({ error: "Ungültige Anfrage.", details: parsed.error.flatten() }, { status: 400 });
   }
 
@@ -333,6 +366,7 @@ export async function POST(request: Request) {
       args: [profileId, day.date, ...providedFields.map(({ key }) => day[key] as number), profileId, hashToken(parsed.data.secret)]
     });
     if (ringResult.rowsAffected !== 1) {
+      await finishSyncLog("health.apple_sync.failed", { status: "failed", received: rawList.length, imported: importedCount, skipped: skippedCount, activityDaysSynced, message: "Sync-Schlüssel während des Imports getrennt" });
       return NextResponse.json({ error: "Der Sync-Schlüssel wurde während des Imports getrennt. Es wurden keine Aktivitätswerte übernommen." }, { status: 401 });
     }
     activityDaysSynced++;

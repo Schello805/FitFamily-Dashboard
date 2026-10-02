@@ -10,6 +10,7 @@ const secret = "fitfamily-test-sync-token-which-is-long-enough";
 const workoutId = "fitfamily-apple-health-test-workout";
 let previousTokenHash: string | null = null;
 let previousAdminPinHash: string | null = null;
+let validationLogId: string | null = null;
 
 describe("Apple Health sync endpoint", () => {
   beforeAll(async () => {
@@ -28,6 +29,7 @@ describe("Apple Health sync endpoint", () => {
 
   afterAll(async () => {
     const client = await db();
+    if (validationLogId) await client.execute({ sql: "DELETE FROM audit_log WHERE id = ?", args: [validationLogId] });
     await client.execute({ sql: "DELETE FROM apple_health_ignored_workouts WHERE profile_id = ? AND external_id = ?", args: [profileId, workoutId] });
     const sessions = await client.execute({ sql: "SELECT id FROM training_sessions WHERE external_id = ?", args: [workoutId] });
     for (const row of sessions.rows) {
@@ -111,6 +113,27 @@ describe("Apple Health sync endpoint", () => {
     const result = await response.json();
     expect(response.status).toBe(200);
     expect(result.logs.some((entry: { action: string; details: { status?: string } }) => entry.action === "health.apple_sync.checked" && entry.details.status === "checked")).toBe(true);
+  });
+
+  it("records authenticated payload validation errors without logging health values", async () => {
+    const invalid = await POST(new Request("http://localhost/api/sync/apple-health", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ profileId, secret, stepCount: 200_001 })
+    }));
+    expect(invalid.status).toBe(400);
+
+    const response = await readSyncLogs(new Request("http://localhost/api/sync/apple-health/log", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ profileId, pin: "2468" })
+    }));
+    const result = await response.json();
+    const validationLog = result.logs.find((entry: { id: string; action: string; details: { reason?: string; message?: string } }) =>
+      entry.action === "health.apple_sync.failed" && entry.details.reason === "validation" && entry.details.message?.includes("stepCount")
+    );
+    expect(validationLog).toBeTruthy();
+    validationLogId = validationLog?.id ?? null;
   });
 
   it("rejects reversed or malformed workout times before importing", async () => {

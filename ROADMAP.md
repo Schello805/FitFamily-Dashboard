@@ -15,12 +15,20 @@
 - [x] Kontomodell festlegen: lokale Familienprofile mit PIN-Schutz statt persönlicher E-Mail-Konten (siehe [docs/KONTOMODELL_UND_AVATARE.md](docs/KONTOMODELL_UND_AVATARE.md)).
 - [x] Avatar-Erstellung in den Einrichtungsablauf integrieren: Person/Stil und selbst eingeschätzte Start-Fitness auswählen; Geburtsdatum und Profilzuordnung berücksichtigen.
 - [x] Für jedes Avatar-Design passende Einzelbilder bereitstellen (transparente 222×444 WebP-Assets für alle Profile in `public/assets/avatars/`).
-- [x] Avatar-Entwicklung aus Trainingsdaten umsetzen: Ausdauer und Kraft getrennt auswerten; eine ausdauerbetonte, schlanke und eine kraftbetonte, muskulöse Entwicklung sichtbar unterscheiden.
+- [x] Trainingsart auswerten: Kraft- und Ausdauerminuten getrennt erfassen und daraus Fitnessstufe sowie Entwicklungsfokus ableiten.
+- [ ] Avatarentwicklung auch sichtbar im Körperdesign darstellen: mehrere Fitnessstufen und kraft-/ausdauerbetonte Varianten mit passenden Assets statt nur Levelanzeige und Farbakzent.
 - [x] Start-Fitness und Entwicklung in verständliche Stufen übersetzen; die Regeln transparent und ohne medizinische Aussagen oder abwertende Körperlabels darstellen.
 - [x] Avatar-Vorschau und Einstellungen im Profil anbieten, einschließlich späterer Anpassung der Start-Fitness.
 - [x] Entwicklungsstufe auf Dashboard und Profil konsistent anzeigen und nach gespeicherten Trainings aktualisieren.
 - [x] Migration und Standardwerte für bestehende Profile absichern; Setup, Profilbearbeitung, Avatar-Stufen und historische Trainingsdaten testen.
 - [x] Bildgenerierung bzw. benötigte Bildrechte und den Asset-Workflow festlegen (dokumentiert in [docs/KONTOMODELL_UND_AVATARE.md](docs/KONTOMODELL_UND_AVATARE.md)).
+
+## Offene Punkte – Apple-Health-Verlauf
+
+- [x] Authentifizierte, aber ungültige Anfragen im PIN-geschützten Sync-Protokoll anzeigen (z. B. 30-Tage-Schritt-Summe im Tagesfeld), ohne Gesundheitswerte oder Schlüssel zu speichern.
+- [ ] Kurzbefehl für einen 30-Tage-Backfill so vereinfachen, dass jeder Tageswert mit Datum übertragen wird und Urlaubszeiten nachgetragen werden können.
+- [ ] Kompakte Dashboard-Sparkline: Soll (DOSB-Ziel) gegen Ist (Apple Health und FitFamily-Training), mit Detailmodal, Zeitbereich und sauberer Deduplizierung importierter Workouts.
+- [ ] Entscheiden und testen, ob die tägliche iPhone-Automation genügt oder eine sichere Verbindung von außerhalb des Heimnetzes bzw. Offline-Warteschlange für Urlaube nötig ist.
 
 ## Version 2.0 – Apple Health
 
