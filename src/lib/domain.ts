@@ -121,8 +121,12 @@ export type AppleHealthRings = {
 
 export type ActivityTrendPoint = {
   date: string;
+  label: string;
+  resolution: "Tag" | "Monat" | "Jahr";
   activityMinutes: number | null;
   targetMinutes: number;
+  measuredDays: number;
+  periodDays: number;
 };
 
 export type DashboardProfile = Profile & {

@@ -4,6 +4,10 @@ import { getAvatarProgress, getFitnessStageCount, movementTargetForAge, SCORE_MU
 import { enforceSafetyPauses } from "@/lib/training";
 import { normalizePlanJson } from "@/lib/plan-normalizer";
 
+function calendarDaysBetween(start: string, end: string) {
+  return Math.max(0, Math.round((Date.parse(`${end}T00:00:00Z`) - Date.parse(`${start}T00:00:00Z`)) / 86400000));
+}
+
 function durationSeconds(start: string, end: string | null) {
   return Math.max(0, (new Date(end ?? Date.now()).getTime() - new Date(start).getTime()) / 1000);
 }
@@ -14,19 +18,20 @@ export async function getDashboardData(): Promise<DashboardProfile[]> {
   const now = new Date();
   const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-  const trendDates = Array.from({ length: 30 }, (_, index) => {
+  const recentDates = Array.from({ length: 30 }, (_, index) => {
     const date = new Date(todayStart);
     date.setDate(date.getDate() - (29 - index));
     return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
   });
-  const trendStart = new Date(`${trendDates[0]}T00:00:00`).toISOString();
-  const trendEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).toISOString();
+  const recentStart = recentDates[0];
+  const monthlyStartDate = new Date(now.getFullYear(), now.getMonth() - 11, 1);
+  const monthlyStart = `${monthlyStartDate.getFullYear()}-${String(monthlyStartDate.getMonth() + 1).padStart(2, "0")}-01`;
   const weekStartDate = new Date(todayStart);
   const weekday = weekStartDate.getDay() || 7;
   weekStartDate.setDate(weekStartDate.getDate() - weekday + 1);
   const weekStart = weekStartDate.getTime();
 
-  const [profilesResult, segmentsResult, activeResult, plansResult, appleHealthResult, trendHealthResult, trendSegmentsResult] = await Promise.all([
+  const [profilesResult, segmentsResult, activeResult, plansResult, appleHealthResult, trendHealthResult] = await Promise.all([
     client.execute("SELECT * FROM profiles ORDER BY CASE id WHEN 'mama' THEN 1 WHEN 'papa' THEN 2 WHEN 'fabian' THEN 3 WHEN 'frieda' THEN 4 ELSE 5 END, name ASC"),
     client.execute(`SELECT ts.profile_id, sg.type, sg.started_at, sg.ended_at, p.target_reset_at, p.score_reset_at
       FROM training_segments sg JOIN training_sessions ts ON ts.id = sg.session_id
@@ -44,15 +49,8 @@ export async function getDashboardData(): Promise<DashboardProfile[]> {
       args: [todayStr]
     }).catch(() => ({ rows: [] })),
     client.execute({
-      sql: "SELECT profile_id, date, exercise_minutes FROM apple_health_daily WHERE date >= ? AND date <= ?",
-      args: [trendDates[0], todayStr]
-    }).catch(() => ({ rows: [] })),
-    client.execute({
-      sql: `SELECT ts.profile_id, sg.started_at, sg.ended_at
-        FROM training_segments sg JOIN training_sessions ts ON ts.id = sg.session_id
-        WHERE ts.status = 'completed' AND sg.ended_at IS NOT NULL
-          AND sg.started_at < ? AND sg.ended_at > ?`,
-      args: [trendEnd, trendStart]
+      sql: "SELECT profile_id, date, exercise_minutes FROM apple_health_daily WHERE date <= ?",
+      args: [todayStr]
     }).catch(() => ({ rows: [] }))
   ]);
 
@@ -65,7 +63,8 @@ export async function getDashboardData(): Promise<DashboardProfile[]> {
   }
 
   const workoutMinutesByProfile = new Map<string, Map<string, number>>();
-  for (const row of trendSegmentsResult.rows) {
+  for (const row of segmentsResult.rows) {
+    if (!row.ended_at) continue;
     const profileId = String(row.profile_id);
     const start = new Date(String(row.started_at));
     const end = new Date(String(row.ended_at));
@@ -144,16 +143,61 @@ export async function getDashboardData(): Promise<DashboardProfile[]> {
     const healthMinutes = healthMinutesByProfile.get(profileId);
     const workoutMinutes = workoutMinutesByProfile.get(profileId);
     const dailyTarget = target.period === "Woche" ? target.minutes / 7 : target.minutes;
-    const activityTrend = trendDates.map((date) => {
+    const dailyActivity = new Map<string, number>();
+    for (const date of new Set([...(healthMinutes?.keys() ?? []), ...(workoutMinutes?.keys() ?? [])])) {
       const healthValue = healthMinutes?.get(date);
       const workoutValue = workoutMinutes?.get(date);
-      const hasData = healthValue !== undefined || workoutValue !== undefined;
+      dailyActivity.set(date, Math.max(healthValue ?? 0, workoutValue ?? 0));
+    }
+    const observedDates = [...dailyActivity.keys()].sort();
+    const firstObservedDate = observedDates[0];
+    const monthlyStartMonth = new Date(monthlyStartDate.getFullYear(), monthlyStartDate.getMonth(), 1);
+    const recentStartDate = new Date(`${recentStart}T00:00:00`);
+    const activityTrend: DashboardProfile["activityTrend"] = [];
+    const bucket = (date: string, label: string, resolution: "Tag" | "Monat" | "Jahr", start: string, end: string, periodDays: number) => {
+      const values = [...dailyActivity.entries()].filter(([day]) => day >= start && day < end).map(([, minutes]) => minutes);
       return {
         date,
-        activityMinutes: hasData ? Math.round(Math.max(healthValue ?? 0, workoutValue ?? 0) * 10) / 10 : null,
-        targetMinutes: dailyTarget
+        label,
+        resolution,
+        activityMinutes: values.length ? Math.round((values.reduce((sum, value) => sum + value, 0) / values.length) * 10) / 10 : null,
+        targetMinutes: dailyTarget,
+        measuredDays: values.length,
+        periodDays
       };
-    });
+    };
+
+    if (firstObservedDate && firstObservedDate < monthlyStart) {
+      const firstYear = Number(firstObservedDate.slice(0, 4));
+      for (let year = firstYear; year <= monthlyStartDate.getFullYear(); year += 1) {
+        const start = `${year}-01-01`;
+        const end = `${year + 1}-01-01`;
+        const bucketEnd = end < monthlyStart ? end : monthlyStart;
+        const periodDays = calendarDaysBetween(start, bucketEnd);
+        activityTrend.push(bucket(start, String(year), "Jahr", start, bucketEnd, periodDays));
+      }
+    }
+
+    const monthCursor = new Date(monthlyStartMonth);
+    const lastMonthlyDate = new Date(recentStartDate.getFullYear(), recentStartDate.getMonth(), 1);
+    while (monthCursor <= lastMonthlyDate) {
+      const nextMonth = new Date(monthCursor.getFullYear(), monthCursor.getMonth() + 1, 1);
+      const date = `${monthCursor.getFullYear()}-${String(monthCursor.getMonth() + 1).padStart(2, "0")}-01`;
+      const label = new Intl.DateTimeFormat("de-DE", { month: "short", year: "2-digit" }).format(monthCursor);
+      const nextMonthKey = `${nextMonth.getFullYear()}-${String(nextMonth.getMonth() + 1).padStart(2, "0")}-01`;
+      const bucketEnd = nextMonthKey < recentStart ? nextMonthKey : recentStart;
+      const fullMonthDays = new Date(Date.UTC(monthCursor.getFullYear(), monthCursor.getMonth() + 1, 0)).getUTCDate();
+      const periodDays = bucketEnd === nextMonthKey ? fullMonthDays : calendarDaysBetween(date, bucketEnd);
+      if (date < recentStart) activityTrend.push(bucket(date, label, "Monat", date, bucketEnd, periodDays));
+      monthCursor.setTime(nextMonth.getTime());
+    }
+
+    for (const date of recentDates) {
+      const dateObj = new Date(`${date}T12:00:00`);
+      const label = new Intl.DateTimeFormat("de-DE", { day: "2-digit", month: "2-digit" }).format(dateObj);
+      const value = dailyActivity.get(date);
+      activityTrend.push({ date, label, resolution: "Tag", activityMinutes: value === undefined ? null : Math.round(value * 10) / 10, targetMinutes: dailyTarget, measuredDays: value === undefined ? 0 : 1, periodDays: 1 });
+    }
     const targetActualMinutes = (target.period === "Tag" ? targetTodaySeconds : targetWeekSeconds) / 60;
     const avatarProgress = getAvatarProgress(profile.startingFitness, strengthMinutes, enduranceMinutes, getFitnessStageCount(profile.id, profile.birthDate));
     const plan = plansResult.rows.find((item) => String(item.profile_id) === profileId);
