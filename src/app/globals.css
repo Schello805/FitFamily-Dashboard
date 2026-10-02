@@ -239,10 +239,10 @@ body::before {
 .avatar-body { width: 54px; height: 42px; margin-top: -2px; border-radius: 19px 19px 12px 12px; display: grid; place-items: center; color: #071316; background: var(--profile); z-index: 1; }
 .avatar-generated { width: 88px; height: 120px; flex: none; position: relative; overflow: visible; border-radius: 24px; isolation: isolate; }
 .avatar-canvas { width: 100%; height: 100%; border-radius: inherit; overflow: hidden; position: relative; background: color-mix(in srgb, var(--profile) 12%, var(--subtle-bg)); transition: box-shadow .2s ease, transform .2s ease; }
-.avatar-large { width: 110px; height: 148px; border-radius: 28px; }
+.avatar-large { width: 166px; height: 222px; border-radius: 32px; }
 .avatar-small { width: 58px; height: 80px; border-radius: 18px; }
 .level-chip { position: absolute; right: 2px; bottom: 2px; z-index: 5; font-size: 10px; font-weight: 850; padding: 3px 8px; border-radius: 999px; background: #ffffff; color: #092024; border: 1.5px solid var(--panel, #ffffff); box-shadow: 0 4px 14px rgba(0,0,0,.35); pointer-events: none; line-height: 1.2; }
-.avatar-large .level-chip { font-size: 11px; padding: 4px 10px; right: 4px; bottom: 4px; }
+.avatar-large .level-chip { font-size: 13px; padding: 5px 12px; right: 5px; bottom: 5px; }
 .avatar-small .level-chip { font-size: 9px; padding: 2px 6px; right: 1px; bottom: 1px; }
 
 .avatar-physique-strength {
@@ -673,7 +673,7 @@ body::before {
   line-height: 1;
   margin-top: 3px;
 }
-.training-hero { min-height: 160px; margin: 26px 0 18px; padding: 28px 31px; border: 1px solid var(--line); border-radius: var(--radius); background: linear-gradient(120deg, color-mix(in srgb, var(--profile) 12%, var(--panel)), var(--panel)); box-shadow: var(--card-shadow); display: flex; align-items: center; justify-content: space-between; }
+.training-hero { min-height: 230px; margin: 26px 0 18px; padding: 30px 34px; border: 1px solid var(--line); border-radius: var(--radius); background: linear-gradient(120deg, color-mix(in srgb, var(--profile) 12%, var(--panel)), var(--panel)); box-shadow: var(--card-shadow); display: flex; align-items: center; justify-content: space-between; }
 .profile-hero-left { display: flex; align-items: center; gap: 26px; min-width: 0; }
 .avatar-meta-pills { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 10px; }
 .avatar-pill { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 999px; font-size: 11px; font-weight: 700; line-height: 1; border: 1px solid var(--line); background: var(--subtle-bg); color: var(--text); }
@@ -908,7 +908,7 @@ body::before {
 }
 
 .training-actions { display: grid; grid-template-columns: 1fr 1fr .56fr; gap: 16px; }
-.training-button { min-height: 155px; border: 1px solid var(--line); color: var(--text); border-radius: 24px; padding: 22px; background: var(--panel); box-shadow: var(--card-shadow); display: flex; align-items: center; gap: 19px; text-align: left; cursor: pointer; transition: transform .15s, border-color .15s; }
+.training-button { min-height: 184px; border: 1px solid var(--line); color: var(--text); border-radius: 24px; padding: 26px; background: var(--panel); box-shadow: var(--card-shadow); display: flex; align-items: center; gap: 22px; text-align: left; cursor: pointer; transition: transform .15s, border-color .15s; }
 .training-button.strength { border-color: rgba(34,197,94,.38); background: linear-gradient(135deg, rgba(34,197,94,.12), var(--panel) 75%); }
 .training-button.endurance { border-color: rgba(249,115,22,.38); background: linear-gradient(135deg, rgba(249,115,22,.14), var(--panel) 75%); }
 [data-theme="dark"] .training-button.strength { border-color: rgba(74,222,128,.38); background: linear-gradient(135deg, rgba(34,197,94,.22), rgba(13,35,31,.96) 72%); }
@@ -920,19 +920,19 @@ body::before {
 .training-button.selected { border-color: var(--profile); box-shadow: inset 0 0 0 1px var(--profile), 0 15px 45px color-mix(in srgb, var(--profile) 13%, transparent); }
 .training-button.strength.selected { border-color: #22c55e; box-shadow: inset 0 0 0 2px rgba(34,197,94,.7), 0 15px 45px rgba(34,197,94,.18); }
 .training-button.endurance.selected { border-color: #f97316; box-shadow: inset 0 0 0 2px rgba(249,115,22,.75), 0 15px 45px rgba(249,115,22,.2); }
-.button-icon { min-width: 83px; height: 83px; display: grid; place-items: center; border-radius: 25px; background: var(--subtle-bg); }
+.button-icon { min-width: 98px; height: 98px; display: grid; place-items: center; border-radius: 28px; background: var(--subtle-bg); }
 .strength .button-icon { color: #16a34a; background: rgba(34,197,94,.15); }
 [data-theme="dark"] .strength .button-icon { color: #86efac; background: rgba(34,197,94,.2); }
 .endurance .button-icon { color: #ea580c; background: rgba(249,115,22,.15); }
 [data-theme="dark"] .endurance .button-icon { color: #fdba74; background: rgba(249,115,22,.2); }
 .training-button small, .training-button em { display: block; color: var(--muted); font-style: normal; }
-.training-button strong { display: block; font-size: 32px; letter-spacing: -.03em; margin: 2px 0 4px; }
+.training-button strong { display: block; font-size: 36px; letter-spacing: -.03em; margin: 2px 0 4px; }
 .training-button.strength em { color: #16a34a; }
 [data-theme="dark"] .training-button.strength em { color: #86efac; }
 .training-button.endurance em { color: #ea580c; }
 [data-theme="dark"] .training-button.endurance em { color: #fdba74; }
 .training-button.stop { flex-direction: column; justify-content: center; text-align: center; color: var(--danger); }
-.training-button.stop strong { font-size: 23px; color: var(--text); }
+.training-button.stop strong { font-size: 26px; color: var(--text); }
 .exercise-picker { margin-top: 17px; padding: 19px 22px; background: var(--panel); border: 1px solid var(--line); border-radius: 22px; display: grid; grid-template-columns: auto 1fr; gap: 25px; align-items: center; box-shadow: var(--card-shadow); }
 .exercise-picker h3 { margin: 4px 0 0; }
 .exercise-scroll { display: flex; gap: 9px; overflow-x: auto; padding-bottom: 2px; }
@@ -948,7 +948,7 @@ body::before {
 }
 .profile-nav button,
 .profile-nav a {
-  min-height: 72px;
+  min-height: 84px;
   border-radius: 18px;
   border: 1px solid var(--line);
   color: var(--text);
@@ -1084,7 +1084,9 @@ body::before {
   .apple-rings-widget { width: 100%; max-width: 100%; }
   .running-clock { border: 0; padding: 0 0 10px; text-align: left; }
   .training-actions { grid-template-columns: 1fr; }
-  .training-button { min-height: 125px; }
+  .training-button { min-height: 156px; padding: 22px; }
+  .button-icon { min-width: 84px; height: 84px; }
+  .training-button strong { font-size: 32px; }
   .training-button.stop { flex-direction: row; }
   .exercise-picker { grid-template-columns: 1fr; }
   .profile-nav { grid-template-columns: repeat(2, 1fr); }
@@ -1182,6 +1184,9 @@ body::before {
 
   /* Profil-Header auf Smartphones */
   .profile-shell { padding: 14px 12px 78px; }
+  .avatar-large { width: 148px; height: 198px; }
+  .training-hero { padding: 24px 20px; }
+  .training-button { min-height: 148px; padding: 20px; }
   .profile-topbar {
     display: flex;
     justify-content: space-between;
@@ -1259,7 +1264,7 @@ body::before {
   .profile-idle-badge,
   .profile-idle-bar-container { display: none !important; }
   .profile-nav.mobile-nav { grid-template-columns: repeat(3, 1fr); }
-  .profile-nav.mobile-nav button, .profile-nav.mobile-nav a { min-height: 58px; padding: 6px; font-size: 12px; }
+  .profile-nav.mobile-nav button, .profile-nav.mobile-nav a { min-height: 68px; padding: 8px; font-size: 12px; }
 }
 
 @media (max-height: 800px) and (min-width: 900px) {
