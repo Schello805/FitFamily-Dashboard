@@ -2,13 +2,13 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db, getSetting } from "@/lib/db";
 import { setAdminPin } from "@/lib/security";
-import { AVATAR_IDS } from "@/lib/domain";
+import { AVATAR_DESIGN_IDS, getStartingFitnessStages } from "@/lib/domain";
 
 const profileSchema = z.object({
   id: z.enum(["mama", "papa", "fabian", "frieda"]),
   name: z.string().min(1).max(30),
   birthDate: z.string().date().nullable(),
-  avatar: z.enum([...AVATAR_IDS, "female", "male", "neutral"]),
+  avatar: z.enum([...AVATAR_DESIGN_IDS, "female", "male", "neutral"]),
   startingFitness: z.number().int().min(1).max(5)
 });
 const schema = z.object({
@@ -29,12 +29,15 @@ export async function POST(request: Request) {
   }
   const body = schema.safeParse(await request.json());
   if (!body.success) return NextResponse.json({ error: "Bitte alle Pflichtfelder prüfen." }, { status: 400 });
+  if (body.data.profiles.some((profile) => profile.startingFitness > getStartingFitnessStages(profile.id, profile.birthDate).length)) {
+    return NextResponse.json({ error: "Die gewählte Startstufe passt nicht zum Alter des Profils." }, { status: 400 });
+  }
   await setAdminPin(body.data.pin);
   const client = await db();
   await client.batch([
     ...body.data.profiles.map((profile) => ({
-      sql: "UPDATE profiles SET name = ?, birth_date = ?, avatar = ?, starting_fitness = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-      args: [profile.name, profile.birthDate, profile.avatar, profile.startingFitness, profile.id]
+      sql: "UPDATE profiles SET name = ?, birth_date = ?, avatar = ?, starting_fitness = ?, starting_fitness_stage = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+      args: [profile.name, profile.birthDate, profile.avatar, profile.startingFitness, profile.startingFitness, profile.id]
     })),
     {
       sql: `INSERT INTO settings (key, value, updated_at) VALUES ('setup_complete', 'true', CURRENT_TIMESTAMP)

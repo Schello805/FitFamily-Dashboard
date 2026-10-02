@@ -11,9 +11,15 @@ describe("Familien-Avatare", () => {
 
   it("stellt die erwachsenen Entwicklungsstufen transparent bereit", () => {
     for (const profileId of ["mama", "papa"]) {
-      for (const variant of ["stage1", "strength", "endurance"]) {
+      for (const variant of ["stage1", "stage2", "stage3", "strength", "endurance"]) {
         expect(existsSync(path.join(process.cwd(), "public", "assets", "avatars", `${profileId}-${variant}.webp`))).toBe(true);
       }
+    }
+  });
+
+  it("stellt für jedes Kind ein zweites transparentes Design bereit", () => {
+    for (const profileId of ["fabian", "frieda"]) {
+      expect(existsSync(path.join(process.cwd(), "public", "assets", "avatars", `${profileId}-alt.webp`))).toBe(true);
     }
   });
 });

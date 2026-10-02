@@ -1,5 +1,5 @@
 import Image from "next/image";
-import { avatarProgressAssetForProfile, physiqueLabel, type AvatarPhysique, type ProfileAvatar } from "@/lib/domain";
+import { avatarProgressAssetForProfile, getFitnessStageCount, physiqueLabel, type AvatarPhysique, type ProfileAvatar } from "@/lib/domain";
 
 type AvatarProps = {
   profile?: {
@@ -9,10 +9,12 @@ type AvatarProps = {
     fitnessStage: number;
     physique: AvatarPhysique;
     name?: string;
+    birthDate?: string | null;
   };
   id?: string;
   avatar?: ProfileAvatar;
   color?: string;
+  birthDate?: string | null;
   fitnessStage?: number;
   physique?: AvatarPhysique;
   name?: string;
@@ -26,6 +28,7 @@ export function Avatar({
   id = profile?.id ?? "neutral",
   avatar = profile?.avatar ?? "neutral",
   color = profile?.color ?? "#22d3ee",
+  birthDate = profile?.birthDate,
   fitnessStage = profile?.fitnessStage ?? 3,
   physique = profile?.physique ?? "balanced",
   name = profile?.name,
@@ -35,11 +38,12 @@ export function Avatar({
 }: AvatarProps) {
   const level = fitnessStage;
   const label = physiqueLabel(physique);
-  const avatarAsset = avatarProgressAssetForProfile(id, avatar, fitnessStage, physique);
+  const stageCount = getFitnessStageCount(id, birthDate);
+  const avatarAsset = avatarProgressAssetForProfile(id, avatar, fitnessStage, physique, stageCount);
   const sizeClass = size === "small" ? "avatar-small" : size === "large" ? "avatar-large" : "";
   const accessibleName = name
-    ? `Avatar von ${name}: Fitnessstufe ${level} von 5, ${label}`
-    : `Avatar: Fitnessstufe ${level} von 5, ${label}`;
+    ? `Avatar von ${name}: Fitnessstufe ${level} von ${stageCount}, ${label}`
+    : `Avatar: Fitnessstufe ${level} von ${stageCount}, ${label}`;
 
   return (
     <div
@@ -47,7 +51,7 @@ export function Avatar({
       style={{ "--profile": color } as React.CSSProperties}
       data-fitness-stage={fitnessStage}
       aria-label={accessibleName}
-      title={`Fitnessstufe ${level} von 5 · ${label}`}
+      title={`Fitnessstufe ${level} von ${stageCount} · ${label}`}
     >
       <div className="avatar-canvas">
         <Image

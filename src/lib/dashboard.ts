@@ -1,6 +1,6 @@
 import { asNumber, asString, db } from "@/lib/db";
 import type { DashboardProfile, Profile, TrainingType } from "@/lib/domain";
-import { getAvatarProgress, movementTargetForAge, SCORE_MULTIPLIER } from "@/lib/domain";
+import { getAvatarProgress, getFitnessStageCount, movementTargetForAge, SCORE_MULTIPLIER } from "@/lib/domain";
 import { enforceSafetyPauses } from "@/lib/training";
 import { normalizePlanJson } from "@/lib/plan-normalizer";
 
@@ -81,7 +81,7 @@ export async function getDashboardData(): Promise<DashboardProfile[]> {
       email: asString(row.email),
       color: String(row.color),
       avatar: String(row.avatar) as Profile["avatar"],
-      startingFitness: asNumber(row.starting_fitness) || 3,
+      startingFitness: asNumber(row.starting_fitness_stage) || asNumber(row.starting_fitness) || 3,
       birthDate: asString(row.birth_date),
       scoreBaseline: asNumber(row.score_baseline),
       scoreResetAt: asString(row.score_reset_at),
@@ -94,7 +94,7 @@ export async function getDashboardData(): Promise<DashboardProfile[]> {
       : (["fabian", "frieda"].includes(profile.id) ? 17 : 30);
     const target = movementTargetForAge(age);
     const targetActualMinutes = (target.period === "Tag" ? targetTodaySeconds : targetWeekSeconds) / 60;
-    const avatarProgress = getAvatarProgress(profile.startingFitness, strengthMinutes, enduranceMinutes);
+    const avatarProgress = getAvatarProgress(profile.startingFitness, strengthMinutes, enduranceMinutes, getFitnessStageCount(profile.id, profile.birthDate));
     const plan = plansResult.rows.find((item) => String(item.profile_id) === profileId);
     let nextTrainingText: string | null = null;
     if (plan) {

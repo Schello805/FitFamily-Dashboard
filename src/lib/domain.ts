@@ -1,7 +1,9 @@
 export type TrainingType = "strength" | "endurance";
 export const AVATAR_IDS = ["mama", "papa", "fabian", "frieda"] as const;
 export type AvatarId = typeof AVATAR_IDS[number];
-export type ProfileAvatar = AvatarId | "female" | "male" | "neutral";
+export const AVATAR_DESIGN_IDS = [...AVATAR_IDS, "fabian-alt", "frieda-alt"] as const;
+export type AvatarDesignId = typeof AVATAR_DESIGN_IDS[number];
+export type ProfileAvatar = AvatarDesignId | "female" | "male" | "neutral";
 export type AvatarPhysique = "balanced" | "endurance" | "strength";
 
 export type Profile = {
@@ -19,16 +21,19 @@ export type Profile = {
 };
 
 export function avatarAssetForProfile(profileId: string, avatar: ProfileAvatar) {
+  if (AVATAR_DESIGN_IDS.includes(avatar as AvatarDesignId)) return avatar as AvatarDesignId;
   return AVATAR_IDS.includes(avatar as AvatarId) ? avatar : AVATAR_IDS.includes(profileId as AvatarId) ? profileId as AvatarId : "neutral";
 }
 
-export function avatarProgressAssetForProfile(profileId: string, avatar: ProfileAvatar, fitnessStage: number, physique: AvatarPhysique) {
+export function avatarProgressAssetForProfile(profileId: string, avatar: ProfileAvatar, fitnessStage: number, physique: AvatarPhysique, stageCount = 7) {
   const base = avatarAssetForProfile(profileId, avatar);
   // Keep children's avatars age-appropriate: their progress is reflected by the stage UI,
   // not by changes to their body shape.
-  if (profileId === "fabian" || profileId === "frieda") return base;
+  if (stageCount <= 3 || ["fabian", "fabian-alt", "frieda", "frieda-alt"].includes(base)) return base;
   if (fitnessStage <= 1) return `${base}-stage1`;
-  if (fitnessStage >= 5 && physique !== "balanced") return `${base}-${physique}`;
+  if (fitnessStage === 2) return `${base}-stage2`;
+  if (fitnessStage === 3) return `${base}-stage3`;
+  if (fitnessStage >= 6 && physique !== "balanced") return `${base}-${physique}`;
   return base;
 }
 
@@ -44,18 +49,45 @@ export function physiqueLabel(physique: AvatarPhysique): string {
 }
 
 export const FITNESS_STAGES = [
-  { stage: 1, label: "1 · Gerade am Anfang", description: "Sanfter Einstieg in mehr Bewegung" },
-  { stage: 2, label: "2 · Einsteiger", description: "Gelegentliche Bewegung und Trainingseinheiten" },
-  { stage: 3, label: "3 · Aktiv", description: "Regelmäßiges, ausgewogenes Training" },
-  { stage: 4, label: "4 · Fit", description: "Ambitioniertes, kontinuierliches Training" },
-  { stage: 5, label: "5 · Sehr fit", description: "Hohes Trainingspensum und Routine" }
+  { stage: 1, label: "1 · Sanfter Neustart", description: "Der Einstieg beginnt ruhig und ohne Druck" },
+  { stage: 2, label: "2 · Wieder in Bewegung", description: "Erste regelmäßige Bewegung" },
+  { stage: 3, label: "3 · Einsteiger", description: "Gelegentliche Bewegung und Trainingseinheiten" },
+  { stage: 4, label: "4 · Aktiv", description: "Regelmäßiges, ausgewogenes Training" },
+  { stage: 5, label: "5 · Fit", description: "Kontinuierliches Training" },
+  { stage: 6, label: "6 · Sehr fit", description: "Ambitioniertes Training mit Routine" },
+  { stage: 7, label: "7 · Topform", description: "Hohes, langfristig aufgebautes Trainingspensum" }
 ] as const;
 
-export function getAvatarProgress(startingFitness: number, strengthMinutes: number, enduranceMinutes: number) {
+export const CHILD_FITNESS_STAGES = [
+  { stage: 1, label: "1 · Start", description: "Jede Bewegung zählt" },
+  { stage: 2, label: "2 · Aktiv", description: "Regelmäßig in Bewegung" },
+  { stage: 3, label: "3 · Fit", description: "Bewegung ist Teil des Alltags" }
+] as const;
+
+export function getFitnessStageCount(profileId: string, birthDate?: string | null) {
+  if (birthDate) {
+    const birth = new Date(`${birthDate}T00:00:00`);
+    if (!Number.isNaN(birth.getTime())) {
+      const now = new Date();
+      let age = now.getFullYear() - birth.getFullYear();
+      const monthDifference = now.getMonth() - birth.getMonth();
+      if (monthDifference < 0 || (monthDifference === 0 && now.getDate() < birth.getDate())) age -= 1;
+      return age < 18 ? 3 : 7;
+    }
+  }
+  return profileId === "fabian" || profileId === "frieda" ? 3 : 7;
+}
+
+export function getStartingFitnessStages(profileId: string, birthDate?: string | null) {
+  const count = getFitnessStageCount(profileId, birthDate);
+  return count === 3 ? CHILD_FITNESS_STAGES : FITNESS_STAGES.slice(0, 5);
+}
+
+export function getAvatarProgress(startingFitness: number, strengthMinutes: number, enduranceMinutes: number, stageCount = 5) {
   const strength = Math.max(0, strengthMinutes);
   const endurance = Math.max(0, enduranceMinutes);
   const trainingMinutes = strength + endurance;
-  const fitnessStage = Math.max(1, Math.min(5, Math.round(startingFitness) + Math.floor(trainingMinutes / 900)));
+  const fitnessStage = Math.max(1, Math.min(stageCount, Math.round(startingFitness) + Math.floor(trainingMinutes / 900)));
   const strengthShare = trainingMinutes ? strength / trainingMinutes : 0.5;
   const physique: AvatarPhysique = strengthShare >= 0.62 ? "strength" : strengthShare <= 0.38 ? "endurance" : "balanced";
   return { fitnessStage, physique, strengthShare, trainingMinutes, strengthMinutes: strength, enduranceMinutes: endurance };
@@ -114,8 +146,8 @@ export const SCORE_MULTIPLIER: Record<TrainingType, number> = {
 };
 
 export const PROFILE_SEEDS: Profile[] = [
-  { id: "mama", name: "Mama", color: "#a78bfa", avatar: "female", startingFitness: 3, birthDate: null, scoreBaseline: 0, goal: "Allgemeine Fitness" },
-  { id: "papa", name: "Papa", color: "#22d3ee", avatar: "male", startingFitness: 3, birthDate: null, scoreBaseline: 0, goal: "Allgemeine Fitness" },
+  { id: "mama", name: "Mama", color: "#a78bfa", avatar: "female", startingFitness: 5, birthDate: null, scoreBaseline: 0, goal: "Allgemeine Fitness" },
+  { id: "papa", name: "Papa", color: "#22d3ee", avatar: "male", startingFitness: 5, birthDate: null, scoreBaseline: 0, goal: "Allgemeine Fitness" },
   { id: "fabian", name: "Fabian", color: "#fb923c", avatar: "male", startingFitness: 2, birthDate: null, scoreBaseline: 0, goal: "Allgemeine Fitness" },
   { id: "frieda", name: "Frieda", color: "#4ade80", avatar: "female", startingFitness: 2, birthDate: null, scoreBaseline: 0, goal: "Allgemeine Fitness" }
 ];

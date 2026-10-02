@@ -6,12 +6,13 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Activity, Apple, ArrowLeft, CalendarRange, Check, CheckCircle2, Copy, Dumbbell, History, LockKeyhole, QrCode, RotateCcw, Settings2, Smartphone, Square, X, XCircle, Zap } from "lucide-react";
 import {
-  AVATAR_IDS,
-  FITNESS_STAGES,
+  avatarAssetForProfile,
   GOALS,
   getAvatarProgress,
+  getFitnessStageCount,
+  getStartingFitnessStages,
   physiqueLabel,
-  type AvatarId,
+  type AvatarDesignId,
   type DashboardProfile,
   type TrainingType
 } from "@/lib/domain";
@@ -88,10 +89,9 @@ export function ProfileView({
     exerciseId?: string | null;
     secondsLeft: number;
   } | null>(null);
-  const [editAvatar, setEditAvatar] = useState<AvatarId>(
-    AVATAR_IDS.includes(initialProfile.avatar as AvatarId) ? (initialProfile.avatar as AvatarId) : (initialProfile.id as AvatarId)
-  );
-  const [editStartingFitness, setEditStartingFitness] = useState<number>(initialProfile.startingFitness);
+  const [editAvatar, setEditAvatar] = useState<AvatarDesignId>(avatarAssetForProfile(initialProfile.id, initialProfile.avatar) as AvatarDesignId);
+  const [editStartingFitness, setEditStartingFitness] = useState<number>(Math.min(initialProfile.startingFitness, getStartingFitnessStages(initialProfile.id, initialProfile.birthDate).length));
+  const [editBirthDate, setEditBirthDate] = useState(initialProfile.birthDate ?? "");
   const [profileNotice, setProfileNotice] = useState("");
   const [isMobile, setIsMobile] = useState(false);
   const router = useRouter();
@@ -154,7 +154,8 @@ export function ProfileView({
   const previewProgress = getAvatarProgress(
     editStartingFitness,
     profile.strengthMinutes,
-    profile.enduranceMinutes
+    profile.enduranceMinutes,
+    getFitnessStageCount(profile.id, editBirthDate || null)
   );
 
   const refresh = useCallback(async () => {
@@ -617,10 +618,9 @@ Sende danach per „Inhalte von URL abrufen“ einen HTTP-POST mit JSON an ${get
 
   function openProfileEditor() {
     setProfileNotice("");
-    setEditAvatar(
-      AVATAR_IDS.includes(profile.avatar as AvatarId) ? (profile.avatar as AvatarId) : (profile.id as AvatarId)
-    );
-    setEditStartingFitness(profile.startingFitness);
+    setEditAvatar(avatarAssetForProfile(profile.id, profile.avatar) as AvatarDesignId);
+    setEditBirthDate(profile.birthDate ?? "");
+    setEditStartingFitness(Math.min(profile.startingFitness, getStartingFitnessStages(profile.id, profile.birthDate).length));
     setEditingProfile(true);
   }
 
@@ -698,7 +698,7 @@ Sende danach per „Inhalte von URL abrufen“ einen HTTP-POST mit JSON an ${get
             <h2>{profile.activeTraining ? "Dein Training läuft" : "Bereit, wenn du es bist."}</h2>
             <p>Starte direkt oder setze deinen persönlichen Trainingsplan fort.</p>
             <div className="avatar-meta-pills">
-              <span className="avatar-pill stage">Stufe {profile.fitnessStage} von 5</span>
+              <span className="avatar-pill stage">Stufe {profile.fitnessStage} von {getFitnessStageCount(profile.id, profile.birthDate)}</span>
               <span className={`avatar-pill physique ${profile.physique}`}>{physiqueLabel(profile.physique)}</span>
               <span className="avatar-pill minutes">
                 {Math.round(profile.strengthMinutes)}m Kraft · {Math.round(profile.enduranceMinutes)}m Ausdauer
@@ -853,29 +853,30 @@ Sende danach per „Inhalte von URL abrufen“ einen HTTP-POST mit JSON an ${get
             color={profile.color}
             fitnessStage={previewProgress.fitnessStage}
             physique={previewProgress.physique}
+            birthDate={editBirthDate || null}
             name={profile.name}
             size="medium"
           />
           <div className="preview-info">
-            <strong>Vorschau: {physiqueLabel(previewProgress.physique)} (Stufe {previewProgress.fitnessStage} von 5)</strong>
+            <strong>Vorschau: {physiqueLabel(previewProgress.physique)} (Stufe {previewProgress.fitnessStage} von {getFitnessStageCount(profile.id, editBirthDate || null)})</strong>
             <p>Basiert auf {Math.round(profile.strengthMinutes)} Min. Kraft und {Math.round(profile.enduranceMinutes)} Min. Ausdauer.</p>
           </div>
         </div>
         <label>Anzeigename<input name="name" required maxLength={30} defaultValue={profile.name} /></label>
-        <label>Geburtsdatum<input name="birthDate" type="date" defaultValue={profile.birthDate ?? ""} /></label>
+        <label>Geburtsdatum<input name="birthDate" type="date" value={editBirthDate} onChange={(event) => { const birthDate = event.target.value; setEditBirthDate(birthDate); setEditStartingFitness((value) => Math.min(value, getStartingFitnessStages(profile.id, birthDate || null).length)); }} /></label>
         <div className="avatar-choice">
           <span>Figur im Dashboard</span>
           <AvatarPicker value={editAvatar} onChange={setEditAvatar} />
         </div>
         <label>Start-Fitness
           <select name="startingFitness" value={editStartingFitness} onChange={(e) => setEditStartingFitness(Number(e.target.value))}>
-            {FITNESS_STAGES.map((st) => (
+            {getStartingFitnessStages(profile.id, editBirthDate || null).map((st) => (
               <option key={st.stage} value={st.stage}>{st.label} ({st.description})</option>
             ))}
           </select>
         </label>
         <p className="field-hint">
-          Startstufe 1–5 legt das Ausgangslevel fest. Alle 15 Trainingsstunden (900 Min.) steigt die Stufe automatisch um 1 an (maximal Stufe 5). Das Verhältnis von Kraft zu Ausdauer bestimmt den Fokus.
+          Die Stufe steigt mit je 15 Trainingsstunden automatisch an. Erwachsene haben sieben Stufen, Kinder drei; das Verhältnis aus Kraft und Ausdauer bestimmt den Trainingsfokus.
         </p>
         <label>Trainingsziel<select name="goal" defaultValue={profile.goal}>{GOALS.map((goal) => <option key={goal}>{goal}</option>)}</select></label>
         <label>Eltern-PIN<input name="pin" type="password" inputMode="numeric" autoComplete="current-password" minLength={4} maxLength={4} pattern="[0-9]{4}" onChange={(event) => { event.currentTarget.value = event.currentTarget.value.replace(/\D/g, "").slice(0, 4); }} required /></label>

@@ -35,9 +35,10 @@ FitFamily verwendet **ausschließlich lokale Familienprofile** mit einem zentral
    - `papa.webp`
    - `fabian.webp`
    - `frieda.webp`
-2. **Künftige Stufen- und Fokus-Varianten (optional):**
-   - Schema: `<avatar-id>-<physique>-stage<1-5>.webp` (z. B. `mama-strength-stage4.webp`).
-   - Das System nutzt standardmäßig das Basis-Bild und passt Auren, Rahmen und Level-Badges dynamisch per CSS an (`avatar-physique-strength`, `avatar-physique-endurance`, `avatar-physique-balanced`).
+2. **Entwicklungsbilder:**
+   - Erwachsene haben sieben Fitnessstufen. Stufe 1–3 nutzen `mama-stageN.webp` bzw. `papa-stageN.webp`; Stufe 4–5 das Basisbild und Stufe 6–7 je nach Trainingsfokus `mama-strength.webp` / `mama-endurance.webp` bzw. `papa-strength.webp` / `papa-endurance.webp`.
+   - Kinder haben drei Stufen ohne körperliche Veränderung. Sie wählen zwischen dem Basisbild und dem zweiten Design (`fabian-alt.webp` bzw. `frieda-alt.webp`).
+   - Fitnessstufen und Trainingsfokus werden zusätzlich durch Level-Badges, Auren und Rahmen kenntlich gemacht (`avatar-physique-strength`, `avatar-physique-endurance`, `avatar-physique-balanced`).
 
 ### Bildrechte und Generierung
 - FitFamily ist unter der **PolyForm Noncommercial License 1.0.0** lizenziert.

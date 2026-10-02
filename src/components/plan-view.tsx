@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, BookOpen, CalendarDays, ChevronLeft, ChevronRight, Cpu, Download, Play, RefreshCw, Sparkles, Square, Trash2, Upload, Video, X } from "lucide-react";
-import type { DashboardProfile } from "@/lib/domain";
+import { getFitnessStageCount, type DashboardProfile } from "@/lib/domain";
 import { showToast } from "@/components/toast";
 import { normalizePlanJson, type NormalizedPlan, type NormalizedSession } from "@/lib/plan-normalizer";
 import { resolveExerciseId } from "@/lib/exercise-guides";
@@ -492,7 +492,10 @@ export function PlanView({ profile, goals }: { profile: DashboardProfile; goals:
       </div>
     )}
     {creating && (() => {
-      const defaultLevel = profile.fitnessStage <= 2 ? "Einsteiger" : profile.fitnessStage <= 4 ? "Fortgeschritten" : "Erfahren";
+      const stageCount = getFitnessStageCount(profile.id, profile.birthDate);
+      const defaultLevel = stageCount === 3
+        ? profile.fitnessStage <= 1 ? "Einsteiger" : profile.fitnessStage === 2 ? "Fortgeschritten" : "Erfahren"
+        : profile.fitnessStage <= 3 ? "Einsteiger" : profile.fitnessStage <= 5 ? "Fortgeschritten" : "Erfahren";
       return (
         <div className="modal-backdrop"><form className="plan-modal" onSubmit={create}><button type="button" className="modal-close" onClick={() => setCreating(false)}>×</button><span className="setup-badge">Neuer Trainingsplan</span><h2>Ziel für {profile.name} festlegen</h2><label>Trainingsziel<select name="goal" defaultValue={profile.goal}>{goals.map((goal) => <option key={goal}>{goal}</option>)}</select></label><label>Trainingsstand<select name="level" defaultValue={defaultLevel}><option>Einsteiger</option><option>Fortgeschritten</option><option>Erfahren</option></select></label><div className="two-fields"><label>Einheiten pro Woche<select name="sessions" defaultValue={3}>{[1,2,3,4,5,6,7].map((value) => <option key={value}>{value}</option>)}</select></label><label>Dauer<select name="minutes" defaultValue={30}>{[15,30,45,60,90].map((value) => <option key={value} value={value}>{value} Min.</option>)}</select></label></div><label>Zieldatum (optional)<input name="targetDate" type="date" /></label><label>Planerstellung<select name="provider"><option value="openai">OpenAI</option><option value="gemini">Google Gemini</option><option value="local">Ohne KI · lokal</option></select></label><p className="ai-privacy">Es werden nur Ziel, Niveau, Zeit und Geräte anonymisiert übertragen.</p><button className="primary-submit" disabled={busy}>{busy ? "Plan wird erstellt …" : "Plan erstellen"}</button></form></div>
       );

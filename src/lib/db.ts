@@ -35,6 +35,7 @@ async function createSchema(client: Client) {
       avatar TEXT NOT NULL,
       email TEXT,
       starting_fitness INTEGER NOT NULL DEFAULT 3 CHECK(starting_fitness BETWEEN 1 AND 5),
+      starting_fitness_stage INTEGER NOT NULL DEFAULT 3,
       birth_date TEXT,
       score_baseline REAL NOT NULL DEFAULT 0,
       score_reset_at TEXT,
@@ -173,6 +174,13 @@ async function createSchema(client: Client) {
   if (!profileColumns.rows.some((row) => String(row.name) === "starting_fitness")) {
     await client.execute("ALTER TABLE profiles ADD COLUMN starting_fitness INTEGER NOT NULL DEFAULT 3");
   }
+  if (!profileColumns.rows.some((row) => String(row.name) === "starting_fitness_stage")) {
+    await client.execute("ALTER TABLE profiles ADD COLUMN starting_fitness_stage INTEGER NOT NULL DEFAULT 3");
+    await client.execute(`UPDATE profiles SET starting_fitness_stage = CASE
+      WHEN birth_date IS NOT NULL THEN CASE WHEN birth_date > date('now', '-18 years') THEN MIN(starting_fitness, 3) ELSE MIN(starting_fitness + 2, 7) END
+      WHEN id IN ('fabian', 'frieda') THEN MIN(starting_fitness, 3)
+      ELSE MIN(starting_fitness + 2, 7) END`);
+  }
   if (!profileColumns.rows.some((row) => String(row.name) === "target_reset_at")) {
     await client.execute("ALTER TABLE profiles ADD COLUMN target_reset_at TEXT");
   }
@@ -215,9 +223,9 @@ async function createSchema(client: Client) {
   for (const profile of PROFILE_SEEDS) {
     await client.execute({
       sql: `INSERT OR IGNORE INTO profiles
-        (id, name, color, avatar, starting_fitness, birth_date, score_baseline, goal)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      args: [profile.id, profile.name, profile.color, profile.avatar, profile.startingFitness, profile.birthDate, profile.scoreBaseline, profile.goal]
+        (id, name, color, avatar, starting_fitness, starting_fitness_stage, birth_date, score_baseline, goal)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      args: [profile.id, profile.name, profile.color, profile.avatar, profile.startingFitness, profile.startingFitness, profile.birthDate, profile.scoreBaseline, profile.goal]
     });
   }
 
