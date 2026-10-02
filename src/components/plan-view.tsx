@@ -71,6 +71,7 @@ export function PlanView({ profile, goals }: { profile: DashboardProfile; goals:
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
   const audioContext = useRef<AudioContext | null>(null);
   const lastBeep = useRef<number | null>(null);
+  const previousCountdown = useRef<number | null>(null);
   const unitCloseTimer = useRef<number | null>(null);
   const [weekPage, setWeekPage] = useState<{ planId: string; page: number } | null>(null);
   const load = () => fetch(`/api/plans?profileId=${profile.id}`).then((response) => response.json()).then((data) => setPlans(data.plans || []));
@@ -127,10 +128,11 @@ export function PlanView({ profile, goals }: { profile: DashboardProfile; goals:
           }
         } catch { /* Audio ist optional; der visuelle Countdown bleibt verfügbar. */ }
       }
-      if (left === 0) {
+      if (left === 0 && previousCountdown.current !== null && previousCountdown.current > 0) {
         setUnitDialog(null);
         setSelectedExercise(null);
       }
+      previousCountdown.current = left;
     };
     updateCountdown();
     const interval = window.setInterval(updateCountdown, 250);
@@ -140,6 +142,7 @@ export function PlanView({ profile, goals }: { profile: DashboardProfile; goals:
   function openUnitView(session: NormalizedSession, startedAt: string) {
     setSelectedExercise(null);
     lastBeep.current = null;
+    previousCountdown.current = null;
     if (!audioContext.current && typeof window !== "undefined") {
       try { audioContext.current = new window.AudioContext(); void audioContext.current.resume(); } catch { /* Browser ohne AudioContext */ }
     }
