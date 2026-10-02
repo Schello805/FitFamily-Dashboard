@@ -222,13 +222,13 @@ body::before {
 .profile-card-link::after { content: ""; position: absolute; inset: 0; z-index: 2; border-radius: inherit; }
 .profile-card-link:focus-visible::after { outline: 3px solid var(--profile); outline-offset: -4px; }
 .card-accent { position: absolute; inset: 0 auto 0 0; width: 5px; background: linear-gradient(180deg, var(--profile), transparent 85%); }
-.profile-heading { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr) auto; align-items: center; gap: 18px; }
+.profile-heading { display: grid; grid-template-columns: minmax(190px, .45fr) minmax(0, 1fr) auto; align-items: center; gap: 18px; }
 .profile-identity { min-width: 0; display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 18px; }
-.dashboard-history-chart { min-width: 0; min-height: 128px; box-sizing: border-box; align-self: stretch; display: grid; grid-template-rows: auto minmax(0,1fr) auto; align-content: stretch; gap: 4px; padding: 9px 12px 7px; border-radius: 13px; color: var(--muted); background: linear-gradient(180deg, color-mix(in srgb, var(--profile) 7%, transparent), color-mix(in srgb, var(--profile) 2%, transparent)); pointer-events: none; }
+.dashboard-history-chart { min-width: 0; min-height: 188px; box-sizing: border-box; align-self: stretch; display: grid; grid-template-rows: auto minmax(0,1fr) auto; align-content: stretch; gap: 4px; padding: 9px 12px 7px; border-radius: 13px; color: var(--muted); background: linear-gradient(180deg, color-mix(in srgb, var(--profile) 7%, transparent), color-mix(in srgb, var(--profile) 2%, transparent)); pointer-events: none; }
 .dashboard-history-chart-heading, .dashboard-history-chart-footer { display: flex; justify-content: space-between; align-items: center; gap: 6px; font-size: 9px; font-weight: 800; letter-spacing: .08em; }
 .dashboard-history-chart-heading { color: var(--muted); }
 .dashboard-history-chart-footer { font-size: 8px; letter-spacing: .02em; font-weight: 700; }
-.dashboard-history-chart svg { display: block; width: 100%; height: 88px; overflow: visible; }
+.dashboard-history-chart svg { display: block; width: 100%; height: 144px; overflow: visible; }
 .dashboard-history-chart path { fill: none; stroke-linecap: round; stroke-linejoin: round; stroke-width: 2.4; }
 .dashboard-history-grid { stroke: var(--line-strong); stroke-width: 1.4; opacity: .62; }
 .dashboard-history-target { stroke: var(--muted); stroke-width: 2; stroke-dasharray: 5 5; opacity: .8; }
@@ -286,7 +286,7 @@ body::before {
 .goal-ring strong, .goal-ring small { position: relative; z-index: 1; }
 .goal-ring strong { font-weight: 850; font-size: 25px; line-height: 1; font-variant-numeric: tabular-nums; }
 .goal-ring small { margin-top: 4px; font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .12em; }
-.goal-ring-target { color: var(--muted); font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; white-space: nowrap; }
+.goal-ring-target { max-width: 100%; color: var(--muted); font-size: 9px; font-weight: 800; text-align: center; line-height: 1.2; text-transform: uppercase; letter-spacing: .04em; white-space: normal; }
 .score-row { margin: 14px 0 12px; display: flex; justify-content: space-between; align-items: flex-end; }
 .score { display: flex; gap: 10px; align-items: center; }
 .score svg { color: var(--profile); }
@@ -2670,7 +2670,7 @@ body::before {
 @media (max-width: 900px) and (min-width: 621px) { .dashboard-apple-rings .apple-rings-widget.compact .apple-rings-graphic { width: 128px; height: 128px; } .dashboard-apple-rings .ring-title { font-size: 11px; } .dashboard-apple-rings .ring-label-box strong { font-size: 15px; } .dashboard-apple-rings .ring-label-box strong small { font-size: 12px; } }
 @media (max-width: 620px) { .admin-edit-fields { grid-template-columns: 1fr; } .admin-edit-fields .wide-field { grid-column: auto; } .admin-edit-modal { padding: 20px 16px; } .dashboard-apple-rings { margin-inline: 10px; } .dashboard-apple-rings .apple-rings-widget.compact .apple-rings-graphic { width: 96px; height: 96px; } .dashboard-apple-rings .apple-rings-widget { gap: 10px; } .dashboard-apple-rings .rings-apple-badge { font-size: 11px; } .dashboard-apple-rings .ring-title { font-size: 9px; } .dashboard-apple-rings .ring-label-box strong { font-size: 13px; } .dashboard-apple-rings .ring-label-box strong small { font-size: 10px; } .dashboard-apple-rings .health-activity-stats div { font-size: 10px; } .dashboard-apple-rings .health-activity-stats strong { font-size: 12px; } }
 @media (max-width: 900px) { .profile-heading { grid-template-columns: minmax(0, 1fr) auto; } .goal-ring-summary { grid-column: 2; grid-row: 1; } .dashboard-history-chart { grid-column: 1 / -1; grid-row: 2; width: 100%; justify-self: center; } }
-@media (max-width: 620px) { .profile-heading { grid-template-columns: minmax(0, 1fr) auto; } .dashboard-history-chart { width: 100%; min-height: 112px; } .dashboard-history-chart svg { height: 72px; } }
+@media (max-width: 620px) { .profile-heading { grid-template-columns: minmax(0, 1fr) auto; } .dashboard-history-chart { width: 100%; min-height: 150px; } .dashboard-history-chart svg { height: 106px; } }
 @media (max-height: 800px) and (min-width: 900px) { .profile-grid { grid-template-rows: repeat(2, minmax(390px, auto)); } }
 
 /* Kompakte Kiosk-Ansicht: vier Familienkarten ohne Scrollen auf 16:9. */
@@ -2695,10 +2695,10 @@ body::before {
   .profile-grid { grid-template-rows: repeat(2, minmax(0, 1fr)); grid-auto-rows: minmax(0, 1fr); gap: 10px; }
   .profile-card { padding: 11px 15px 10px; border-radius: 19px; }
   .profile-heading { gap: 8px; }
-  .profile-heading { grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr) auto; }
+  .profile-heading { grid-template-columns: minmax(190px, .45fr) minmax(0, 1fr) auto; }
   .profile-identity { gap: 10px; }
-  .dashboard-history-chart { min-height: 116px; gap: 3px; padding: 7px 9px 5px; }
-  .dashboard-history-chart svg { height: 78px; }
+  .dashboard-history-chart { min-height: 188px; gap: 4px; padding: 9px 12px 7px; }
+  .dashboard-history-chart svg { height: 144px; }
   .avatar-generated.avatar-small { width: 48px; height: 66px; }
   .profile-name span { font-size: 9px; }
   .profile-name h2 { font-size: clamp(21px, 1.7vw, 30px); }

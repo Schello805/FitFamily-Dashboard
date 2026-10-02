@@ -28,8 +28,8 @@ export function ActivityTrendChart({ points, color, targetMinutes, targetPeriod 
   const targetLine = makeLine(points, (point) => point.targetMinutes, scaleMax);
   const actualLine = makeLine(points, (point) => point.activityMinutes, scaleMax);
   const targetLabel = targetPeriod === "Woche"
-    ? `${targetMinutes} Min./Woche (gleichmäßig ${new Intl.NumberFormat("de-DE", { maximumFractionDigits: 1 }).format(targetMinutes / 7)} Min./Tag)`
-    : `${targetMinutes} Min./Tag`;
+    ? `${targetMinutes} Minuten/Woche (gleichmäßig ${new Intl.NumberFormat("de-DE", { maximumFractionDigits: 1 }).format(targetMinutes / 7)} Minuten/Tag)`
+    : `${targetMinutes} Minuten/Tag`;
   const firstMonthlyIndex = points.findIndex((point) => point.resolution === "Monat");
   const firstDailyIndex = points.findIndex((point) => point.resolution === "Tag");
   const yearIndex = points.findIndex((point) => point.resolution === "Jahr");
@@ -50,7 +50,7 @@ export function ActivityTrendChart({ points, color, targetMinutes, targetPeriod 
         {hasData && <path className="dashboard-history-actual" d={actualLine} style={{ stroke: color }} />}
         {points.map((point, index) => point.activityMinutes === null ? null : (
           <circle key={`${point.resolution}-${point.date}`} className="dashboard-history-point" cx={(3 + (254 * index) / Math.max(1, points.length - 1)).toFixed(1)} cy={(92 - (84 * Math.max(0, point.activityMinutes)) / scaleMax).toFixed(1)} r="2.5" style={{ fill: color }}>
-            <title>{point.label}: Ø {new Intl.NumberFormat("de-DE", { maximumFractionDigits: 1 }).format(point.activityMinutes)} Min./Tag, Daten für {point.measuredDays} von {point.periodDays} Tagen.</title>
+            <title>{point.label}: Ø {new Intl.NumberFormat("de-DE", { maximumFractionDigits: 1 }).format(point.activityMinutes)} Minuten/Tag, Daten für {point.measuredDays} von {point.periodDays} Tagen.</title>
           </circle>
         ))}
       </svg>
@@ -58,7 +58,7 @@ export function ActivityTrendChart({ points, color, targetMinutes, targetPeriod 
         <span>{points[0]?.label ?? ""}</span>
         <span>{points[firstDailyIndex]?.label ?? ""}</span>
         <span>{points.at(-1)?.label ?? ""}</span>
-        <span className="dashboard-history-legend"><i className="history-legend-actual" style={{ background: color }} /> IST <i className="history-legend-target" /> SOLL {new Intl.NumberFormat("de-DE", { maximumFractionDigits: 1 }).format(points.at(-1)?.targetMinutes ?? 0)} Min./Tag</span>
+        <span className="dashboard-history-legend"><i className="history-legend-actual" style={{ background: color }} /> IST <i className="history-legend-target" /> SOLL {new Intl.NumberFormat("de-DE", { maximumFractionDigits: 1 }).format(points.at(-1)?.targetMinutes ?? 0)} Minuten/Tag</span>
       </div>
     </div>
   );

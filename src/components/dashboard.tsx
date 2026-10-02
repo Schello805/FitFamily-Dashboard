@@ -61,7 +61,7 @@ function GoalRing({ value, color, targetMinutes, targetPeriod }: { value: number
         <strong>{value}%</strong>
         <small>IST</small>
       </span>
-      <span className="goal-ring-target">SOLL {targetMinutes} Min/{targetPeriod === "Tag" ? "Tag" : "Woche"}</span>
+      <span className="goal-ring-target">SOLL {targetMinutes} Minuten/{targetPeriod === "Tag" ? "Tag" : "Woche"}</span>
     </div>
   );
 }
@@ -323,7 +323,7 @@ export function Dashboard({
 
             <div className="score-row">
               <div className="score"><Trophy size={22} /><div><strong>{profile.score.toLocaleString("de-DE")}</strong><span>Gesamtpunkte</span></div></div>
-              <div className="today"><strong>{profile.todayMinutes}</strong><span>Min. heute</span></div>
+              <div className="today"><strong>{profile.todayMinutes}</strong><span>Minuten heute</span></div>
             </div>
 
             {profile.appleHealthRings && <div className="dashboard-apple-rings"><AppleActivityRings rings={profile.appleHealthRings} compact /></div>}
