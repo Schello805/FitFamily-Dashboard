@@ -36,6 +36,7 @@ async function createSchema(client: Client) {
       starting_fitness INTEGER NOT NULL DEFAULT 3 CHECK(starting_fitness BETWEEN 1 AND 5),
       birth_date TEXT,
       score_baseline REAL NOT NULL DEFAULT 0,
+      target_reset_at TEXT,
       goal TEXT NOT NULL DEFAULT 'Allgemeine Fitness',
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
       updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -144,6 +145,9 @@ async function createSchema(client: Client) {
   const profileColumns = await client.execute("PRAGMA table_info(profiles)");
   if (!profileColumns.rows.some((row) => String(row.name) === "starting_fitness")) {
     await client.execute("ALTER TABLE profiles ADD COLUMN starting_fitness INTEGER NOT NULL DEFAULT 3");
+  }
+  if (!profileColumns.rows.some((row) => String(row.name) === "target_reset_at")) {
+    await client.execute("ALTER TABLE profiles ADD COLUMN target_reset_at TEXT");
   }
 
   const sessionColumns = await client.execute("PRAGMA table_info(training_sessions)");

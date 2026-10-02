@@ -39,10 +39,11 @@ export async function POST(request: Request) {
   }
 
   // Setze score_baseline exakt so, dass scoreBaseline + totalEarnedPoints = 0 ergibt
+  const resetAt = new Date().toISOString();
   await client.execute({
-    sql: "UPDATE profiles SET score_baseline = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-    args: [-totalEarnedPoints, body.data.profileId]
+    sql: "UPDATE profiles SET score_baseline = ?, target_reset_at = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+    args: [-totalEarnedPoints, resetAt, body.data.profileId]
   });
 
-  return NextResponse.json({ ok: true, newScore: 0, profileId: body.data.profileId });
+  return NextResponse.json({ ok: true, newScore: 0, targetPercent: 0, resetAt, profileId: body.data.profileId });
 }

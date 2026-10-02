@@ -24,6 +24,37 @@ import { AppleActivityRings } from "@/components/apple-activity-rings";
 
 type Exercise = { id: string; name: string; type: string; equipment: string };
 
+async function copyTextToClipboard(text: string): Promise<boolean> {
+  if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch {
+      // Fall through to the manual-selection-compatible browser API.
+    }
+  }
+
+  if (typeof document === "undefined" || typeof document.execCommand !== "function") return false;
+  const field = document.createElement("textarea");
+  field.value = text;
+  field.setAttribute("readonly", "");
+  field.style.position = "fixed";
+  field.style.left = "0";
+  field.style.top = "0";
+  field.style.opacity = "0";
+  document.body.appendChild(field);
+  field.focus();
+  field.select();
+  field.setSelectionRange(0, field.value.length);
+  let copied = false;
+  try {
+    copied = document.execCommand("copy");
+  } finally {
+    document.body.removeChild(field);
+  }
+  return copied;
+}
+
 export function ProfileView({
   initialProfile,
   exercises,
@@ -382,12 +413,11 @@ export function ProfileView({
 
   async function copyWebhookUrl() {
     const url = getWebhookUrl();
-    try {
-      await navigator.clipboard.writeText(url);
+    if (await copyTextToClipboard(url)) {
       setCopiedWebhook(true);
       showToast({ type: "info", title: "URL kopiert", message: "Webhook-URL in Zwischenablage kopiert." });
       setTimeout(() => setCopiedWebhook(false), 2000);
-    } catch {
+    } else {
       showToast({ type: "info", title: "Webhook-URL", message: url });
     }
   }
@@ -408,12 +438,11 @@ export function ProfileView({
         distanceKm: 5
       }]
     }, null, 2);
-    try {
-      await navigator.clipboard.writeText(payload);
+    if (await copyTextToClipboard(payload)) {
       setCopiedPayload(true);
       showToast({ type: "info", title: "JSON kopiert", message: "JSON-Muster in Zwischenablage kopiert." });
       setTimeout(() => setCopiedPayload(false), 2000);
-    } catch {
+    } else {
       showToast({ type: "info", title: "JSON-Muster", message: payload });
     }
   }
@@ -424,12 +453,11 @@ export function ProfileView({
 Suche echte, abgeschlossene Apple-Health-Workouts der letzten 30 Tage und sortiere nach Startdatum. Wiederhole für jedes gefundene Workout und erstelle ein Wörterbuch mit den echten Werten: id (eindeutige Workout-ID, falls verfügbar), title (Workout-/Aktivitätstyp), startedAt und endedAt (ISO-8601 inklusive Zeitzone), calories (aktive Trainingsenergie in kcal, wenn vorhanden) und distanceKm (Workout-Distanz in Kilometern, wenn vorhanden). Verwende keine erfundenen Beispielwerte und keine zusammengefassten Aktivitätsringe als Ersatz für Workouts. Sammle die Wörterbücher in einer Liste.
 
 Sende danach per „Inhalte von URL abrufen“ einen HTTP-POST mit JSON an ${getWebhookUrl()}. Der JSON-Body muss genau diese obersten Felder enthalten: profileId = „${profile.id}“, secret = der später in FitFamily erzeugte persönliche Sync-Schlüssel, workouts = die Liste der echten Workouts. Der Sync-Schlüssel darf NICHT in den öffentlich geteilten iCloud-Kurzbefehl eingebaut werden; ich trage ihn erst in meine persönliche Kopie ein. Keine Daten an die KI senden. Zeige die Serverantwort an, damit Importanzahl oder Fehler sichtbar sind.`;
-    try {
-      await navigator.clipboard.writeText(prompt);
+    if (await copyTextToClipboard(prompt)) {
       setCopiedShortcutPrompt(true);
       showToast({ type: "success", title: "Erstellungsauftrag kopiert", message: "Füge ihn in deine KI ein. Wichtig: keine KI-Aktion im fertigen Kurzbefehl und den Sync-Schlüssel erst in der persönlichen Kopie eintragen." });
       setTimeout(() => setCopiedShortcutPrompt(false), 2500);
-    } catch {
+    } else {
       showToast({ type: "error", title: "Kopieren nicht möglich", message: prompt });
     }
   }
@@ -453,8 +481,14 @@ Sende danach per „Inhalte von URL abrufen“ einen HTTP-POST mit JSON an ${get
         setHealthSyncToken(data.token);
         setShowHealthSyncToken(true);
         setHealthTokenConfigured(true);
-        await navigator.clipboard.writeText(data.token).catch(() => undefined);
-        showToast({ type: "success", title: "Sync-Schlüssel erstellt", message: "Der Schlüssel wurde kopiert. Bitte sicher in den Kurzbefehl übernehmen – er wird nur jetzt angezeigt." });
+        const copied = await copyTextToClipboard(data.token);
+        showToast({
+          type: "success",
+          title: "Sync-Schlüssel erstellt",
+          message: copied
+            ? "Der Schlüssel wurde kopiert. Bitte sicher in den Kurzbefehl übernehmen – er wird nur jetzt angezeigt."
+            : "Der Schlüssel wurde erstellt und wird im Feld angezeigt. Die Zwischenablage ist hier nicht verfügbar; markiere und kopiere ihn manuell."
+        });
       } else {
         setHealthSyncToken("");
         setShowHealthSyncToken(false);
@@ -467,10 +501,9 @@ Sende danach per „Inhalte von URL abrufen“ einen HTTP-POST mit JSON an ${get
   }
 
   async function copyHealthToken() {
-    try {
-      await navigator.clipboard.writeText(healthSyncToken);
+    if (await copyTextToClipboard(healthSyncToken)) {
       showToast({ type: "info", title: "Schlüssel kopiert", message: "Jetzt im Kurzbefehle-Wörterbuch als secret einfügen." });
-    } catch {
+    } else {
       showToast({ type: "error", title: "Kopieren nicht möglich", message: "Markiere den Schlüssel im Eingabefeld und kopiere ihn manuell." });
     }
   }

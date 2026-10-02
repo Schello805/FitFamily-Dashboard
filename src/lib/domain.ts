@@ -12,6 +12,7 @@ export type Profile = {
   startingFitness: number;
   birthDate: string | null;
   scoreBaseline: number;
+  targetResetAt?: string | null;
   goal: string;
 };
 

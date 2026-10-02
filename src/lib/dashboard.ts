@@ -21,8 +21,9 @@ export async function getDashboardData(): Promise<DashboardProfile[]> {
 
   const [profilesResult, segmentsResult, activeResult, plansResult, appleHealthResult] = await Promise.all([
     client.execute("SELECT * FROM profiles ORDER BY CASE id WHEN 'mama' THEN 1 WHEN 'papa' THEN 2 WHEN 'fabian' THEN 3 WHEN 'frieda' THEN 4 ELSE 5 END, name ASC"),
-    client.execute(`SELECT ts.profile_id, sg.type, sg.started_at, sg.ended_at
-      FROM training_segments sg JOIN training_sessions ts ON ts.id = sg.session_id`),
+    client.execute(`SELECT ts.profile_id, sg.type, sg.started_at, sg.ended_at, p.target_reset_at
+      FROM training_segments sg JOIN training_sessions ts ON ts.id = sg.session_id
+      JOIN profiles p ON p.id = ts.profile_id`),
     client.execute(`SELECT ts.profile_id, ts.id session_id, ts.started_at session_started_at,
       sg.id segment_id, sg.type, sg.exercise_id, sg.started_at segment_started_at, ex.name exercise_name
       FROM training_sessions ts
@@ -43,7 +44,8 @@ export async function getDashboardData(): Promise<DashboardProfile[]> {
     let points = 0;
     let totalSeconds = 0;
     let todaySeconds = 0;
-    let weekSeconds = 0;
+    let targetTodaySeconds = 0;
+    let targetWeekSeconds = 0;
     let strengthMinutes = 0;
     let enduranceMinutes = 0;
 
@@ -61,8 +63,13 @@ export async function getDashboardData(): Promise<DashboardProfile[]> {
       if (endTime >= todayStart) {
         const segSec = Math.max(0, (endTime - Math.max(startTime, todayStart)) / 1000);
         todaySeconds += segSec;
+        const resetAt = row.target_reset_at ? new Date(String(row.target_reset_at)).getTime() : Number.NEGATIVE_INFINITY;
+        targetTodaySeconds += Math.max(0, (endTime - Math.max(startTime, todayStart, resetAt)) / 1000);
       }
-      if (endTime >= weekStart) weekSeconds += Math.max(0, (endTime - Math.max(startTime, weekStart)) / 1000);
+      if (endTime >= weekStart) {
+        const resetAt = row.target_reset_at ? new Date(String(row.target_reset_at)).getTime() : Number.NEGATIVE_INFINITY;
+        targetWeekSeconds += Math.max(0, (endTime - Math.max(startTime, weekStart, resetAt)) / 1000);
+      }
     }
 
     const active = activeResult.rows.find((entry) => String(entry.profile_id) === profileId);
@@ -74,6 +81,7 @@ export async function getDashboardData(): Promise<DashboardProfile[]> {
       startingFitness: asNumber(row.starting_fitness) || 3,
       birthDate: asString(row.birth_date),
       scoreBaseline: asNumber(row.score_baseline),
+      targetResetAt: asString(row.target_reset_at),
       goal: String(row.goal)
     };
     const birthTime = profile.birthDate ? new Date(profile.birthDate).getTime() : NaN;
@@ -81,7 +89,7 @@ export async function getDashboardData(): Promise<DashboardProfile[]> {
       ? Math.floor((now.getTime() - birthTime) / (365.2425 * 24 * 60 * 60 * 1000))
       : (["fabian", "frieda"].includes(profile.id) ? 17 : 30);
     const target = movementTargetForAge(age);
-    const targetActualMinutes = (target.period === "Tag" ? todaySeconds : weekSeconds) / 60;
+    const targetActualMinutes = (target.period === "Tag" ? targetTodaySeconds : targetWeekSeconds) / 60;
     const avatarProgress = getAvatarProgress(profile.startingFitness, strengthMinutes, enduranceMinutes);
     const plan = plansResult.rows.find((item) => String(item.profile_id) === profileId);
     let nextTrainingText: string | null = null;
