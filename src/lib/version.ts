@@ -51,7 +51,8 @@ export function getAppRevision(): AppRevision {
 
   const commit = liveCommit || (envRev ? envRev.slice(0, 7) : versionData.commit);
   const fullCommit = fullLiveCommit || (envRev ? envRev : versionData.fullCommit) || commit;
-  const version = commit && commit !== "aktuell" ? commit : versionData.version;
+  // Keep the human-facing release version separate from the Git revision.
+  const version = versionData.version;
   const commitUrl = fullCommit && fullCommit !== "aktuell"
     ? `https://github.com/Schello805/FitFamily-Dashboard/commit/${fullCommit}`
     : "https://github.com/Schello805/FitFamily-Dashboard";

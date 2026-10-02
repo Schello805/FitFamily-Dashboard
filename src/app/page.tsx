@@ -24,5 +24,5 @@ export default async function Home() {
     color: { dark: "#06191d", light: "#ffffff" }
   });
   const revision = getAppRevision();
-  return <Dashboard initialProfiles={profiles} version={revision.version} commitUrl={revision.commitUrl} mobileQr={mobileQr} mobileUrl={baseUrl} />;
+  return <Dashboard initialProfiles={profiles} version={revision.version} revision={revision.commit} commitUrl={revision.commitUrl} mobileQr={mobileQr} mobileUrl={baseUrl} />;
 }

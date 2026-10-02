@@ -9,7 +9,7 @@ describe("getAppRevision", () => {
     const revision = getAppRevision();
     expect(revision).toBeDefined();
     expect(typeof revision.version).toBe("string");
-    expect(revision.version.length).toBeGreaterThan(0);
+    expect(revision.version).toMatch(/^\d+\.\d+\.\d+$/);
     expect(typeof revision.commit).toBe("string");
     expect(revision.commitUrl).toContain("https://github.com/Schello805/FitFamily-Dashboard");
   });

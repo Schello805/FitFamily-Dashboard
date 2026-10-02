@@ -69,12 +69,14 @@ function GoalRing({ value, color, targetMinutes, targetPeriod }: { value: number
 export function Dashboard({
   initialProfiles,
   version,
+  revision,
   commitUrl,
   mobileQr,
   mobileUrl
 }: {
   initialProfiles: DashboardProfile[];
   version: string;
+  revision: string;
   commitUrl?: string;
   mobileQr?: string;
   mobileUrl?: string;
@@ -360,7 +362,7 @@ export function Dashboard({
       <footer className="app-footer">
         <span className="system-online"><i /> Lokal verbunden</span>
         <span>Source Available von Michael Schellenberger</span>
-        <a href={commitUrl ?? "https://github.com/Schello805/FitFamily-Dashboard"} target="_blank" rel="noreferrer"><GitHubIcon /> GitHub · Rev. {version}</a>
+        <a href={commitUrl ?? "https://github.com/Schello805/FitFamily-Dashboard"} target="_blank" rel="noreferrer"><GitHubIcon /> GitHub · v{version} · Rev. {revision}</a>
       </footer>
       {quietActive && (
         <button

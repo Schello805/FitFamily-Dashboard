@@ -14,7 +14,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, "..");
 
 const pkgPath = path.join(rootDir, "package.json");
-const versionPath = path.join(rootDir, "src", "lib", "version.json");
+const lockPath = path.join(rootDir, "package-lock.json");
 
 const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf8"));
 const level = process.argv[2] || "patch";
@@ -27,6 +27,13 @@ else newVersion = `${maj}.${min}.${patch + 1}`;
 
 pkg.version = newVersion;
 fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + "\n");
+
+if (fs.existsSync(lockPath)) {
+  const lock = JSON.parse(fs.readFileSync(lockPath, "utf8"));
+  lock.version = newVersion;
+  if (lock.packages?.[""]) lock.packages[""].version = newVersion;
+  fs.writeFileSync(lockPath, JSON.stringify(lock, null, 2) + "\n");
+}
 
 // version.json sofort mit aktuellem Commit synchronisieren
 try {

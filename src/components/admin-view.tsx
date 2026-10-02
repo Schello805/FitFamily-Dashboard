@@ -1047,7 +1047,7 @@ export function AdminView({
     <main className="admin-page">
       <header>
         <Link href="/"><ArrowLeft /> Dashboard</Link>
-        <div><span>Elternbereich</span><h1>Verwaltung</h1></div>
+        <div><span>Elternbereich</span><h1>Verwaltung</h1><small className="admin-build-stamp">v{currentInstalledVersion} · Rev. {currentInstalledCommit ?? "unbekannt"}</small></div>
         <button
           type="button"
           className="admin-lock-btn"
