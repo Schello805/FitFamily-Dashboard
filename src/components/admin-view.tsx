@@ -1166,7 +1166,7 @@ export function AdminView({
           </div>
         </div>
 
-        <div style={{ marginTop: "14px", padding: "12px", borderRadius: "14px", background: "var(--subtle-bg)", border: "1px solid var(--line)" }}>
+        <div className="screensaver-night-settings" style={{ marginTop: "14px", borderRadius: "14px", background: "var(--subtle-bg)", border: "1px solid var(--line)" }}>
           <label className="night-mode-toggle-wrap" style={{ margin: 0, padding: 0 }}>
             <input
               type="checkbox"
