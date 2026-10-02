@@ -11,6 +11,7 @@ import { youtubeVideoId } from "@/lib/exercise-video";
 import { exerciseSlotSeconds, formatCountdown, getCurrentExerciseIndex, getExerciseRemainingSeconds } from "@/lib/plan-timers";
 import { KioskIdleBar } from "@/components/kiosk-idle-bar";
 import { LiveDuration } from "@/components/live-duration";
+import { formatGermanDate } from "@/lib/date-format";
 import { YoutubePlayer } from "@/components/youtube-player";
 
 type Plan = {
@@ -395,7 +396,7 @@ export function PlanView({ profile, goals }: { profile: DashboardProfile; goals:
           </div>
           <div className="plan-meta">
             <CalendarDays />
-            {active.target_date ? new Date(active.target_date).toLocaleDateString("de-DE") : "Offenes Ende"}
+            {active.target_date ? formatGermanDate(active.target_date) : "Offenes Ende"}
             <small>
               {activePlanJson?.provider === "local"
                 ? "Lokaler Vorschlag"
@@ -432,7 +433,7 @@ export function PlanView({ profile, goals }: { profile: DashboardProfile; goals:
                           <div className="compact-session-main">
                             <button type="button" className="compact-session-title compact-session-open" onClick={() => void startUnit(session)} disabled={startingSession} title={`Einheit „${session.title}“ öffnen oder starten`}>{session.title}</button>
                             <div className="compact-session-meta">
-                              {session.date ? `${new Date(`${session.date}T12:00:00`).toLocaleDateString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit" })} · ` : ""}
+                              {session.date ? `${formatGermanDate(session.date, { weekday: "short" })} · ` : ""}
                               {session.minutes} Min.{session.distanceKm ? ` · ${session.distanceKm} km` : ""}
                               {session.exercises?.length ? ` · ${session.exercises.length} Übungen` : ""}
                             </div>
@@ -467,7 +468,7 @@ export function PlanView({ profile, goals }: { profile: DashboardProfile; goals:
           <div className={`plan-unit-heading ${remainingSeconds <= 30 && remainingSeconds > 0 ? "is-countdown-warning" : ""} ${remainingSeconds === 0 ? "is-countdown-finished" : ""}`}>
             <div className="plan-unit-title-block"><span className="setup-badge">Einheit läuft · {unitDialog.session.type === "endurance" ? "Ausdauer" : "Kraft"}</span>
               <h2 id="plan-unit-title">{unitDialog.session.title}</h2>
-              <p>{unitDialog.session.date ? `${new Date(`${unitDialog.session.date}T12:00:00`).toLocaleDateString("de-DE")} · ` : ""}{unitDialog.session.minutes} Min.{unitDialog.session.distanceKm ? ` · ${unitDialog.session.distanceKm} km` : ""}</p>
+              <p>{unitDialog.session.date ? `${formatGermanDate(unitDialog.session.date)} · ` : ""}{unitDialog.session.minutes} Min.{unitDialog.session.distanceKm ? ` · ${unitDialog.session.distanceKm} km` : ""}</p>
             </div>
             <div className="plan-unit-live"><span>{remainingSeconds === 0 ? "ZEIT ERREICHT" : "EINHEIT · GESAMT"}</span><strong className={remainingSeconds <= 5 && remainingSeconds > 0 ? "countdown-last-five" : ""}>{formatCountdown(remainingSeconds)}</strong><small>Trainingszeit <LiveDuration since={unitDialog.startedAt} /></small></div>
           </div>

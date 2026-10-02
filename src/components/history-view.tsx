@@ -6,6 +6,7 @@ import { Activity, Apple, ArrowLeft, ArrowLeftRight, Dumbbell, Pencil, PencilLin
 import type { DashboardProfile } from "@/lib/domain";
 import { TouchPinpad } from "@/components/touch-pinpad";
 import { showToast } from "@/components/toast";
+import { formatGermanDate, formatGermanWeekday } from "@/lib/date-format";
 import { KioskIdleBar } from "@/components/kiosk-idle-bar";
 
 type Segment = { id: string; type: "strength" | "endurance"; exerciseName: string | null; startedAt: string; endedAt: string | null };
@@ -134,8 +135,8 @@ function SwipeableSessionRow({
         onPointerCancel={handleEnd}
       >
         <div className="session-date">
-          <strong>{new Date(session.startedAt).toLocaleDateString("de-DE", { day: "2-digit", month: "short" })}</strong>
-          <span>{new Date(session.startedAt).toLocaleDateString("de-DE", { weekday: "long", year: "numeric" })}</span>
+          <strong>{formatGermanDate(session.startedAt)}</strong>
+          <span>{formatGermanWeekday(session.startedAt)}</span>
         </div>
         <div className="segment-list">
           {session.segments.map((segment) => (
@@ -603,11 +604,7 @@ export function HistoryView({ profile }: { profile: DashboardProfile }) {
             <div className="confirm-delete-box">
               <p>
                 <b>
-                  {new Date(deletingSession.startedAt).toLocaleDateString("de-DE", {
-                    weekday: "short",
-                    day: "2-digit",
-                    month: "short"
-                  })}{" "}
+                  {formatGermanDate(deletingSession.startedAt, { weekday: "short" })}{" "}
                   um{" "}
                   {new Date(deletingSession.startedAt).toLocaleTimeString("de-DE", {
                     hour: "2-digit",
