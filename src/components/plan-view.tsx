@@ -7,6 +7,7 @@ import { getFitnessStageCount, type DashboardProfile } from "@/lib/domain";
 import { showToast } from "@/components/toast";
 import { normalizePlanJson, type NormalizedPlan, type NormalizedSession } from "@/lib/plan-normalizer";
 import { resolveExerciseId } from "@/lib/exercise-guides";
+import { youtubeVideoId } from "@/lib/exercise-video";
 import { KioskIdleBar } from "@/components/kiosk-idle-bar";
 import { LiveDuration } from "@/components/live-duration";
 import { YoutubePlayer } from "@/components/youtube-player";
@@ -50,13 +51,6 @@ type SessionExercise = {
   videoUrl?: string | null;
   loading?: boolean;
 };
-
-function youtubeVideoId(url: string) {
-  const match = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/i);
-  if (match?.[1]) return match[1];
-  if (/^[a-zA-Z0-9_-]{11}$/.test(url)) return url;
-  return null;
-}
 
 export function PlanView({ profile, goals }: { profile: DashboardProfile; goals: string[] }) {
   const [plans, setPlans] = useState<Plan[]>([]);

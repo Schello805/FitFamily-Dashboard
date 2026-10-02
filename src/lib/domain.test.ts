@@ -13,7 +13,7 @@ import {
   PROFILE_SEEDS,
   SCORE_MULTIPLIER
 } from "@/lib/domain";
-import { isAllowedVideoUrl } from "@/lib/exercise-video";
+import { isAllowedVideoUrl, youtubeVideoId } from "@/lib/exercise-video";
 
 describe("FitFamily-Domänenregeln", () => {
   it("bewertet Ausdauer doppelt so hoch wie Kraft", () => {
@@ -96,5 +96,13 @@ describe("FitFamily-Domänenregeln", () => {
     expect(isAllowedVideoUrl("https://youtube.com.evil.example/watch?v=abc123")).toBe(false);
     expect(isAllowedVideoUrl("http://youtube.com/watch?v=abc123")).toBe(false);
     expect(isAllowedVideoUrl(null)).toBe(true);
+  });
+
+  it("liest YouTube-IDs aus gängigen Link- und Freigabeformaten", () => {
+    expect(youtubeVideoId("https://youtu.be/abcdefghijk?si=share")).toBe("abcdefghijk");
+    expect(youtubeVideoId("https://www.youtube.com/watch?v=abcdefghijk&list=PL123")).toBe("abcdefghijk");
+    expect(youtubeVideoId("https://m.youtube.com/shorts/abcdefghijk")).toBe("abcdefghijk");
+    expect(youtubeVideoId("https://youtube.com/live/abcdefghijk?feature=share")).toBe("abcdefghijk");
+    expect(youtubeVideoId("not-a-youtube-link")).toBeNull();
   });
 });
