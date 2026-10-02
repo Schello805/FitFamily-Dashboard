@@ -2091,6 +2091,9 @@ body::before {
 .admin-edit-fields textarea { resize: vertical; }
 .admin-edit-fields .wide-field { grid-column: 1 / -1; }
 .admin-field-label { display: block; margin-bottom: 8px; color: var(--muted); font-size: 11px; font-weight: 750; }
+.family-fitness-stage-field { min-width: 0; display: grid; grid-template-columns: minmax(0,1fr) 58px; align-items: end; gap: 10px; }
+.family-fitness-stage-field > label { min-width: 0; display: grid; gap: 6px; color: var(--muted); font-size: 11px; font-weight: 750; }
+.family-fitness-stage-field .avatar { justify-self: center; }
 .admin-edit-modal .exercise-admin-actions { margin-top: 16px; }
 .dashboard-apple-rings { margin: 0 20px 12px; padding-top: 10px; border-top: 1px solid var(--line); }
 .dashboard-apple-rings .apple-rings-widget { padding: 5px 8px; border: 0; border-radius: 12px; background: transparent; box-shadow: none; backdrop-filter: none; }
