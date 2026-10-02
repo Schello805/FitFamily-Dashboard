@@ -58,9 +58,9 @@ function isWithinNightWindow(clock: Date, startTimeStr?: string, endTimeStr?: st
 
 function GoalRing({ value, color, targetMinutes, targetPeriod }: { value: number; color: string; targetMinutes: number; targetPeriod: "Tag" | "Woche" }) {
   return (
-    <div className="goal-ring" title={`DOSB-Bewegungsorientierung: ${targetMinutes} Minuten pro ${targetPeriod.toLowerCase()}. Der Ring zählt nur in FitFamily erfasste Trainingszeit, nicht Alltagsbewegung.`} aria-label={`${value} Prozent des Richtwerts von ${targetMinutes} Trainingsminuten pro ${targetPeriod.toLowerCase()}`} style={{ "--progress": `${Math.min(100, value) * 3.6}deg`, "--profile": color } as React.CSSProperties}>
+    <div className="goal-ring" title={`DOSB-Bewegungsorientierung: ${targetMinutes} Minuten pro ${targetPeriod.toLowerCase()}. Zählt FitFamily-Trainingszeit aus Touch- und Apple-Health-Einheiten, nicht Alltagsbewegung.`} aria-label={`${value} Prozent des DOSB-Trainingsrichtwerts von ${targetMinutes} Minuten pro ${targetPeriod.toLowerCase()}`} style={{ "--progress": `${Math.min(100, value) * 3.6}deg`, "--profile": color } as React.CSSProperties}>
       <span>{value}%</span>
-      <small>{targetMinutes}/{targetPeriod === "Tag" ? "Tag" : "Wo."}</small>
+      <small>DOSB/{targetPeriod === "Tag" ? "Tag" : "Wo."}</small>
     </div>
   );
 }
