@@ -374,6 +374,13 @@ export function Dashboard({
                 <Avatar profile={profile} />
                 <div className="profile-name"><span>Profil</span><h2>{profile.name}</h2><p>{profile.goal}</p></div>
               </Link>
+              <div className="dashboard-history-placeholder" aria-label="Platzhalter für den späteren Entwicklungsverlauf">
+                <span>VERLAUF FOLGT</span>
+                <svg viewBox="0 0 180 42" aria-hidden="true" focusable="false">
+                  <path className="history-placeholder-target" d="M2 30 C28 28 36 17 58 20 S88 31 112 18 S147 14 178 7" />
+                  <path className="history-placeholder-actual" d="M2 35 C22 34 35 29 54 31 S83 20 103 26 S143 20 178 17" />
+                </svg>
+              </div>
               <GoalRing value={profile.targetPercent} color={profile.color} targetMinutes={profile.targetMinutes} targetPeriod={profile.targetPeriod} onClick={() => setGoalInfoProfileId(profile.id)} />
             </div>
 

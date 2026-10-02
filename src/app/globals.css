@@ -222,8 +222,14 @@ body::before {
 .profile-card:hover { border-color: color-mix(in srgb, var(--profile) 55%, transparent); }
 .profile-card::after { content: ""; position: absolute; width: 220px; height: 220px; border-radius: 50%; right: -100px; top: -110px; background: var(--profile); opacity: .07; filter: blur(6px); pointer-events: none; }
 .card-accent { position: absolute; inset: 0 auto 0 0; width: 5px; background: linear-gradient(180deg, var(--profile), transparent 85%); }
-.profile-heading { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 18px; }
+.profile-heading { display: grid; grid-template-columns: minmax(0, 1fr) minmax(90px, .55fr) auto; align-items: center; gap: 18px; }
 .profile-heading-link { min-width: 0; display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 18px; color: inherit; text-decoration: none; }
+.dashboard-history-placeholder { min-width: 0; align-self: center; display: grid; gap: 3px; color: var(--muted); opacity: .46; pointer-events: none; }
+.dashboard-history-placeholder span { font-size: 8px; font-weight: 800; letter-spacing: .12em; text-align: center; }
+.dashboard-history-placeholder svg { display: block; width: 100%; height: 35px; overflow: visible; }
+.dashboard-history-placeholder path { fill: none; stroke-linecap: round; stroke-linejoin: round; stroke-width: 2.5; }
+.dashboard-history-placeholder-target { stroke: var(--muted); stroke-dasharray: 4 5; opacity: .75; }
+.dashboard-history-placeholder-actual { stroke: var(--profile); opacity: .85; }
 .profile-name span { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .13em; font-weight: 700; }
 .profile-name h2 { margin: 3px 0 2px; font-size: clamp(26px, 2.1vw, 38px); letter-spacing: -.045em; line-height: 1; }
 .profile-name p { margin: 7px 0 0; color: var(--muted); font-size: 13px; }
@@ -2658,6 +2664,8 @@ body::before {
 @media (max-width: 680px) { .admin-grid { grid-template-columns: 1fr; } .admin-grid article.wide { grid-column: auto; } .reset-list { grid-template-columns: 1fr; } }
 @media (max-width: 900px) and (min-width: 621px) { .dashboard-apple-rings .apple-rings-widget.compact .apple-rings-graphic { width: 128px; height: 128px; } .dashboard-apple-rings .ring-title { font-size: 11px; } .dashboard-apple-rings .ring-label-box strong { font-size: 15px; } .dashboard-apple-rings .ring-label-box strong small { font-size: 12px; } }
 @media (max-width: 620px) { .admin-edit-fields { grid-template-columns: 1fr; } .admin-edit-fields .wide-field { grid-column: auto; } .admin-edit-modal { padding: 20px 16px; } .dashboard-apple-rings { margin-inline: 10px; } .dashboard-apple-rings .apple-rings-widget.compact .apple-rings-graphic { width: 96px; height: 96px; } .dashboard-apple-rings .apple-rings-widget { gap: 10px; } .dashboard-apple-rings .rings-apple-badge { font-size: 11px; } .dashboard-apple-rings .ring-title { font-size: 9px; } .dashboard-apple-rings .ring-label-box strong { font-size: 13px; } .dashboard-apple-rings .ring-label-box strong small { font-size: 10px; } .dashboard-apple-rings .health-activity-stats div { font-size: 10px; } .dashboard-apple-rings .health-activity-stats strong { font-size: 12px; } }
+@media (max-width: 900px) { .profile-heading { grid-template-columns: minmax(0, 1fr) auto; } .dashboard-history-placeholder { display: none; } }
+@media (max-width: 620px) { .profile-heading { grid-template-columns: minmax(0, 1fr) auto; } .dashboard-history-placeholder { display: grid; grid-column: 1 / -1; grid-row: 2; width: 62%; justify-self: center; } }
 @media (max-height: 800px) and (min-width: 900px) { .profile-grid { grid-template-rows: repeat(2, minmax(390px, auto)); } }
 
 /* Kompakte Kiosk-Ansicht: vier Familienkarten ohne Scrollen auf 16:9. */
@@ -2678,7 +2686,11 @@ body::before {
   .profile-grid { grid-template-rows: repeat(2, minmax(0, 1fr)); grid-auto-rows: minmax(0, 1fr); gap: 10px; }
   .profile-card { padding: 11px 15px 10px; border-radius: 19px; }
   .profile-heading { gap: 8px; }
+  .profile-heading { grid-template-columns: minmax(0, 1fr) minmax(70px, .45fr) auto; }
   .profile-heading-link { gap: 10px; }
+  .dashboard-history-placeholder { gap: 1px; opacity: .35; }
+  .dashboard-history-placeholder span { font-size: 6px; }
+  .dashboard-history-placeholder svg { height: 25px; }
   .avatar-generated.avatar-small { width: 48px; height: 66px; }
   .profile-name span { font-size: 9px; }
   .profile-name h2 { font-size: clamp(21px, 1.7vw, 30px); }
@@ -2694,13 +2706,20 @@ body::before {
   .score span, .today span { margin-top: 3px; font-size: 8px; }
   .today strong { font-size: 18px; }
   .dashboard-apple-rings { margin: 0; padding: 2px 0; }
-  .dashboard-apple-rings .apple-rings-widget.compact .apple-rings-graphic { width: 106px; height: 106px; }
-  .dashboard-apple-rings .apple-rings-widget { gap: 9px; padding: 0; }
-  .dashboard-apple-rings .ring-title { font-size: 10px; }
-  .dashboard-apple-rings .ring-label-box strong { font-size: 14px; }
-  .dashboard-apple-rings .health-activity-stats { margin-top: 3px; padding-top: 4px; gap: 4px; }
-  .dashboard-apple-rings .health-activity-stats div { font-size: 9px; }
-  .dashboard-apple-rings .health-activity-stats strong { font-size: 11px; }
+  .dashboard-apple-rings .apple-rings-widget.compact .apple-rings-graphic { width: 84px; height: 84px; }
+  .dashboard-apple-rings .apple-rings-widget { align-items: center; gap: 8px; padding: 0; }
+  .dashboard-apple-rings .apple-rings-legend { gap: 2px; }
+  .dashboard-apple-rings .rings-header-row { margin-bottom: 0; }
+  .dashboard-apple-rings .rings-apple-badge { font-size: 10px; }
+  .dashboard-apple-rings .rings-status { font-size: 8px; padding: 1px 5px; }
+  .dashboard-apple-rings .ring-row { gap: 7px; }
+  .dashboard-apple-rings .ring-dot { width: 9px; height: 9px; }
+  .dashboard-apple-rings .ring-title { font-size: 9px; }
+  .dashboard-apple-rings .ring-label-box strong { font-size: 12px; }
+  .dashboard-apple-rings .ring-label-box strong small { font-size: 10px; }
+  .dashboard-apple-rings .health-activity-stats { margin-top: 1px; padding-top: 3px; gap: 2px; }
+  .dashboard-apple-rings .health-activity-stats div { font-size: 8px; line-height: 1.1; }
+  .dashboard-apple-rings .health-activity-stats strong { font-size: 10px; line-height: 1.1; }
   .active-strip, .plan-strip { min-height: 39px; padding: 5px 8px; border-radius: 12px; }
   .active-strip strong { font-size: 16px; }
   .stop-button { min-width: 46px; height: 36px; padding: 2px 5px; font-size: 8px; }
