@@ -1,5 +1,5 @@
 import Image from "next/image";
-import { avatarAssetForProfile, physiqueLabel, type AvatarPhysique, type ProfileAvatar } from "@/lib/domain";
+import { avatarProgressAssetForProfile, physiqueLabel, type AvatarPhysique, type ProfileAvatar } from "@/lib/domain";
 
 type AvatarProps = {
   profile?: {
@@ -35,6 +35,7 @@ export function Avatar({
 }: AvatarProps) {
   const level = fitnessStage;
   const label = physiqueLabel(physique);
+  const avatarAsset = avatarProgressAssetForProfile(id, avatar, fitnessStage, physique);
   const sizeClass = size === "small" ? "avatar-small" : size === "large" ? "avatar-large" : "";
   const accessibleName = name
     ? `Avatar von ${name}: Fitnessstufe ${level} von 5, ${label}`
@@ -51,7 +52,7 @@ export function Avatar({
       <div className="avatar-canvas">
         <Image
           className="avatar-sprite"
-          src={`/assets/avatars/${avatarAssetForProfile(id, avatar)}.webp`}
+          src={`/assets/avatars/${avatarAsset}.webp`}
           alt=""
           width={size === "large" ? 333 : 222}
           height={size === "large" ? 666 : 444}

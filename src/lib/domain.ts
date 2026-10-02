@@ -22,6 +22,16 @@ export function avatarAssetForProfile(profileId: string, avatar: ProfileAvatar) 
   return AVATAR_IDS.includes(avatar as AvatarId) ? avatar : AVATAR_IDS.includes(profileId as AvatarId) ? profileId as AvatarId : "neutral";
 }
 
+export function avatarProgressAssetForProfile(profileId: string, avatar: ProfileAvatar, fitnessStage: number, physique: AvatarPhysique) {
+  const base = avatarAssetForProfile(profileId, avatar);
+  // Keep children's avatars age-appropriate: their progress is reflected by the stage UI,
+  // not by changes to their body shape.
+  if (profileId === "fabian" || profileId === "frieda") return base;
+  if (fitnessStage <= 1) return `${base}-stage1`;
+  if (fitnessStage >= 5 && physique !== "balanced") return `${base}-${physique}`;
+  return base;
+}
+
 export function physiqueLabel(physique: AvatarPhysique): string {
   switch (physique) {
     case "strength":

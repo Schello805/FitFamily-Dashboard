@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   avatarAssetForProfile,
+  avatarProgressAssetForProfile,
   EQUIPMENT_SEEDS,
   EXERCISE_SEEDS,
   FITNESS_STAGES,
@@ -34,6 +35,16 @@ describe("FitFamily-Domänenregeln", () => {
     expect(getAvatarProgress(3, 500, 500)).toMatchObject({ fitnessStage: 4, physique: "balanced" });
     expect(getAvatarProgress(0, -10, -50)).toMatchObject({ fitnessStage: 1, physique: "balanced" });
     expect(getAvatarProgress(5, 20_000, 20_000).fitnessStage).toBe(5);
+  });
+
+  it("wählt sichtbare Avatar-Entwicklungen nur für Erwachsene", () => {
+    expect(avatarProgressAssetForProfile("papa", "male", 1, "balanced")).toBe("papa-stage1");
+    expect(avatarProgressAssetForProfile("mama", "female", 5, "strength")).toBe("mama-strength");
+    expect(avatarProgressAssetForProfile("papa", "male", 5, "endurance")).toBe("papa-endurance");
+    expect(avatarProgressAssetForProfile("mama", "female", 5, "balanced")).toBe("mama");
+    expect(avatarProgressAssetForProfile("fabian", "male", 1, "balanced")).toBe("fabian");
+    expect(avatarProgressAssetForProfile("frieda", "female", 5, "strength")).toBe("frieda");
+    expect(avatarProgressAssetForProfile("fabian", "papa", 5, "strength")).toBe("papa");
   });
 
   it("liefert verständliche Bezeichnungen für Ausprägungen und 5 transparente Fitnessstufen", () => {
