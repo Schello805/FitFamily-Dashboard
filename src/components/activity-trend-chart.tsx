@@ -47,7 +47,7 @@ export function ActivityTrendChart({ points, color, targetMinutes, targetPeriod 
         {yearIndex > 0 && <path className="dashboard-history-period-separator" d={`M${marker(firstMonthlyIndex)} 3V97`} />}
         {firstDailyIndex > 0 && <path className="dashboard-history-period-separator" d={`M${marker(firstDailyIndex)} 3V97`} />}
         {points.length > 1 && <path className="dashboard-history-target" d={targetLine} />}
-        {hasData && <path className="dashboard-history-actual" d={actualLine} style={{ stroke: color }} />}
+        {hasData && <path className="dashboard-history-actual" d={actualLine} pathLength={1} style={{ stroke: color }} />}
         {points.map((point, index) => point.activityMinutes === null ? null : (
           <circle key={`${point.resolution}-${point.date}`} className="dashboard-history-point" cx={(3 + (254 * index) / Math.max(1, points.length - 1)).toFixed(1)} cy={(92 - (84 * Math.max(0, point.activityMinutes)) / scaleMax).toFixed(1)} r="2.5" style={{ fill: color }}>
             <title>{point.label}: Ø {new Intl.NumberFormat("de-DE", { maximumFractionDigits: 1 }).format(point.activityMinutes)} Minuten/Tag, Daten für {point.measuredDays} von {point.periodDays} Tagen.</title>
