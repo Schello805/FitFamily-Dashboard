@@ -1641,7 +1641,7 @@ export function AdminView({
 
       {confirmModal && (
         <div className="modal-backdrop" onClick={() => { setConfirmModal(null); setConfirmPin(""); setConfirmPinError(""); }}>
-          <div className="confirm-modal-card" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+          <div className={`confirm-modal-card${confirmModal.icon === "update" ? " confirm-modal-update" : ""}`} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
             <button type="button" className="modal-close" onClick={() => { setConfirmModal(null); setConfirmPin(""); setConfirmPinError(""); }} aria-label="Schließen">×</button>
             <div className="confirm-modal-top">
               {confirmModal.badge && <span className="setup-badge">{confirmModal.badge}</span>}

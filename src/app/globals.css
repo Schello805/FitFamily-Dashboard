@@ -3937,6 +3937,14 @@ body::before {
   margin-bottom: 14px;
 }
 
+.confirm-modal-update .confirm-modal-top {
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 12px;
+  padding-right: 54px;
+}
+
 .confirm-modal-icon {
   width: 54px;
   height: 54px;
