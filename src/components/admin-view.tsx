@@ -388,7 +388,7 @@ export function AdminView({
       } else {
         const msg = data.message ?? "Verbindung erfolgreich! Der NAS-Ordner ist beschreibbar.";
         setNotice(msg);
-        showToast({ type: "success", title: "NAS-Verbindung erfolgreich", message: msg });
+        showToast({ type: "success", title: "NAS-Zugriff verfügbar", message: msg });
       }
     } catch {
       const msg = "Keine Verbindung zum Dashboard. Bitte Heimnetz prüfen.";
@@ -505,7 +505,7 @@ export function AdminView({
       if (action === "test") {
         const msg = result.message ?? "API-Schlüssel ist gültig.";
         setNotice(msg);
-        showToast({ type: "success", title: "API-Test erfolgreich", message: msg });
+        showToast({ type: "success", title: "API-Schlüssel gültig", message: msg });
       } else {
         setStatus((current) => current ? { ...current, ...result.status, nas: current.nas } : current);
         if (action === "save") setApiKeys((current) => ({ ...current, [provider]: "" }));
@@ -1069,7 +1069,7 @@ export function AdminView({
           return <section className="ai-provider" key={provider}>
             <div className="ai-provider-heading"><div><b>{label}</b><small>{status.models[provider]}</small></div><b className={status[provider] ? "ok" : "off"}>{status[provider] ? "Eingerichtet" : "Nicht eingerichtet"}</b></div>
             <label className="api-key-field">API-Schlüssel<input type="password" autoComplete="new-password" placeholder={status[provider] ? "Gespeichert – leer lassen, um ihn beizubehalten" : "Schlüssel hier einfügen"} value={apiKeys[provider]} onChange={(event) => setApiKeys((current) => ({ ...current, [provider]: event.target.value }))} /></label>
-            <div className="api-key-actions"><button disabled={Boolean(savingApi)} onClick={() => manageApiKey(provider, "save")}>Schlüssel speichern</button><button disabled={Boolean(savingApi)} onClick={() => manageApiKey(provider, "test")}>Schlüssel testen</button>{status[provider] && <button className="api-remove" disabled={Boolean(savingApi)} onClick={() => requestRemoveApiKey(provider)}>Entfernen</button>}</div>
+            <div className="api-key-actions"><button disabled={Boolean(savingApi)} onClick={() => manageApiKey(provider, "save")}>Schlüssel speichern</button><button disabled={Boolean(savingApi)} onClick={() => manageApiKey(provider, "test")}>API-Zugang prüfen</button>{status[provider] && <button className="api-remove" disabled={Boolean(savingApi)} onClick={() => requestRemoveApiKey(provider)}>Entfernen</button>}</div>
             <div className="ai-usage"><b>{usage.estimateUsd.toLocaleString("de-DE", { style: "currency", currency: "USD", minimumFractionDigits: 4, maximumFractionDigits: 4 })}</b><span>geschätzte API-Kosten · {usage.requests} Anfragen · {(usage.inputTokens + usage.outputTokens).toLocaleString("de-DE")} Token</span></div>
           </section>;
         })}
@@ -1215,7 +1215,7 @@ export function AdminView({
             onClick={() => void testNasBackupConnection()}
           >
             <RefreshCw className={testingNas ? "spin" : ""} />
-            {testingNas ? "Prüfe Zugriff …" : "Verbindung testen"}
+            {testingNas ? "Prüfe Freigabe …" : "Freigabe-Zugriff prüfen"}
           </button>
 
           <button

@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Activity, Apple, ArrowLeft, CalendarRange, Check, CheckCircle2, Copy, Dumbbell, History, QrCode, RotateCcw, Settings2, Smartphone, Square, XCircle, Zap } from "lucide-react";
+import { Activity, Apple, ArrowLeft, CalendarRange, Check, CheckCircle2, Copy, Dumbbell, History, LockKeyhole, QrCode, RotateCcw, Settings2, Smartphone, Square, X, XCircle, Zap } from "lucide-react";
 import {
   AVATAR_IDS,
   FITNESS_STAGES,
@@ -21,6 +21,7 @@ import { Avatar } from "@/components/avatar";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { showToast } from "@/components/toast";
 import { AppleActivityRings } from "@/components/apple-activity-rings";
+import { TouchPinpad } from "@/components/touch-pinpad";
 
 type Exercise = { id: string; name: string; type: string; equipment: string };
 
@@ -72,6 +73,10 @@ export function ProfileView({
   const [editingProfile, setEditingProfile] = useState(false);
   const [healthModal, setHealthModal] = useState(false);
   const [testingHealth, setTestingHealth] = useState(false);
+  const [healthPinAction, setHealthPinAction] = useState<"create" | "revoke" | "delete">();
+  const [healthPin, setHealthPin] = useState("");
+  const [healthPinError, setHealthPinError] = useState("");
+  const [healthPinBusy, setHealthPinBusy] = useState(false);
   const [healthSyncToken, setHealthSyncToken] = useState("");
   const [healthTokenConfigured, setHealthTokenConfigured] = useState(false);
   const [showHealthSyncToken, setShowHealthSyncToken] = useState(false);
@@ -450,13 +455,13 @@ Sende danach per „Inhalte von URL abrufen“ einen HTTP-POST mit JSON an ${get
     }
   }
 
-  async function manageHealthToken(action: "create" | "revoke") {
-    const pin = window.prompt("Eltern-PIN eingeben (4 Ziffern), um den Apple-Health-Sync-Schlüssel " + (action === "create" ? "zu erstellen" : "zu widerrufen") + ":");
-    if (!pin) return;
-    if (!/^\d{4}$/.test(pin)) {
-      showToast({ type: "error", title: "Ungültige PIN", message: "Bitte genau vier Ziffern eingeben." });
-      return;
-    }
+  function requestHealthPin(action: "create" | "revoke" | "delete") {
+    setHealthPin("");
+    setHealthPinError("");
+    setHealthPinAction(action);
+  }
+
+  async function manageHealthToken(action: "create" | "revoke", pin: string): Promise<boolean> {
     try {
       const response = await fetch("/api/sync/apple-health/token", {
         method: "POST",
@@ -483,8 +488,10 @@ Sende danach per „Inhalte von URL abrufen“ einen HTTP-POST mit JSON an ${get
         setHealthTokenConfigured(false);
         showToast({ type: "info", title: "Sync-Schlüssel widerrufen", message: "Apple-Health-Übertragungen dieses Profils sind jetzt gesperrt." });
       }
+      return true;
     } catch (error) {
-      showToast({ type: "error", title: "Sync-Schlüssel", message: error instanceof Error ? error.message : "Keine Verbindung zum Dashboard." });
+      setHealthPinError(error instanceof Error ? error.message : "Keine Verbindung zum Dashboard.");
+      return false;
     }
   }
 
@@ -516,14 +523,14 @@ Sende danach per „Inhalte von URL abrufen“ einen HTTP-POST mit JSON an ${get
       if (response.ok) {
         showToast({
           type: "sparkles",
-          title: "Verbindung erfolgreich",
+          title: "Schlüsselprüfung erfolgreich",
           message: data.message ?? "Der Sync-Schlüssel ist gültig. Es wurden keine Trainingsdaten gespeichert."
         });
       } else {
         showToast({
           type: "error",
           title: "Sync-Fehler",
-          message: data.error ?? "Fehler beim Testen des Apple Health Syncs."
+          message: data.error ?? "Der Schlüssel konnte nicht geprüft werden."
         });
       }
     } catch {
@@ -540,13 +547,7 @@ Sende danach per „Inhalte von URL abrufen“ einen HTTP-POST mit JSON an ${get
   const [resettingHealth, setResettingHealth] = useState(false);
   const [confirmResetHealth, setConfirmResetHealth] = useState(false);
 
-  async function performHealthReset() {
-    const pin = window.prompt("Eltern-PIN eingeben (4 Ziffern), um die Apple-Health-Daten zu löschen:");
-    if (!pin) return;
-    if (!/^\d{4}$/.test(pin)) {
-      showToast({ type: "error", title: "Ungültige PIN", message: "Bitte genau vier Ziffern eingeben." });
-      return;
-    }
+  async function performHealthReset(pin: string): Promise<boolean> {
     setResettingHealth(true);
     try {
       const response = await fetch(`/api/sync/apple-health?profileId=${encodeURIComponent(profile.id)}`, {
@@ -566,21 +567,38 @@ Sende danach per „Inhalte von URL abrufen“ einen HTTP-POST mit JSON an ${get
         setHealthTokenConfigured(false);
         setProfile((prev) => ({ ...prev, appleHealthRings: null }));
         await refresh();
+        return true;
       } else {
-        showToast({
-          type: "error",
-          title: "Fehler beim Zurücksetzen",
-          message: data.error ?? "Vorgang fehlgeschlagen."
-        });
+        setHealthPinError(data.error ?? "Vorgang fehlgeschlagen.");
+        return false;
       }
     } catch {
-      showToast({
-        type: "error",
-        title: "Verbindungsfehler",
-        message: "Konnte nicht mit dem Server kommunizieren."
-      });
+      setHealthPinError("Konnte nicht mit dem Server kommunizieren.");
+      return false;
     } finally {
       setResettingHealth(false);
+    }
+  }
+
+  async function submitHealthPin() {
+    if (!healthPinAction || healthPin.length !== 4) return;
+    setHealthPinBusy(true);
+    setHealthPinError("");
+    try {
+      let succeeded: boolean;
+      if (healthPinAction === "delete") {
+        succeeded = await performHealthReset(healthPin);
+      } else {
+        succeeded = await manageHealthToken(healthPinAction, healthPin);
+      }
+      if (succeeded) {
+        setHealthPinAction(undefined);
+        setHealthPin("");
+      }
+    } catch (error) {
+      setHealthPinError(error instanceof Error ? error.message : "Die PIN konnte nicht geprüft werden.");
+    } finally {
+      setHealthPinBusy(false);
     }
   }
 
@@ -889,10 +907,10 @@ Sende danach per „Inhalte von URL abrufen“ einen HTTP-POST mit JSON an ${get
                 {healthSyncToken && <button type="button" className="health-copy-btn" onClick={() => void copyHealthToken()} aria-label="Sync-Schlüssel kopieren"><Copy size={16} /></button>}
               </div>
               <div className="health-workflow-actions">
-                <button type="button" className="health-primary-btn" onClick={() => void manageHealthToken("create")}>
+                <button type="button" className="health-primary-btn" onClick={() => requestHealthPin("create")}>
                   <Zap size={16} /> {healthTokenConfigured ? "Schlüssel neu erstellen" : "Schlüssel erstellen"}
                 </button>
-                {healthTokenConfigured && <button type="button" className="health-ghost-btn" onClick={() => void manageHealthToken("revoke")}>Widerrufen</button>}
+                {healthTokenConfigured && <button type="button" className="health-ghost-btn" onClick={() => requestHealthPin("revoke")}>Widerrufen</button>}
                 <small>{healthSyncToken ? "Nach Schritt 2 hier erneut kopieren und in Schritt 3 bei secret einsetzen." : healthTokenConfigured ? "Der bisherige Schlüssel ist nicht erneut abrufbar. Erzeuge hier einen neuen; der alte wird ungültig." : "Der Schlüssel wird einmal angezeigt. Nach Schritt 2 hier kopieren und in Schritt 3 einsetzen."}</small>
               </div>
             </section>
@@ -926,9 +944,9 @@ Sende danach per „Inhalte von URL abrufen“ einen HTTP-POST mit JSON an ${get
               <p>Den von der KI erstellten Kurzbefehl in Apples „Kurzbefehle“ hinzufügen und öffnen. Im JSON-Feld <code>secret</code> den Platzhalter <code>HIER_DEN_SYNC_SCHLUESSEL_EINFUEGEN</code> durch deinen persönlichen Schlüssel ersetzen. Zieladresse und Profil sind schon eingetragen. Speichern; den Schlüssel nicht öffentlich teilen.</p>
               {healthSyncToken && <button type="button" className="health-copy-btn" onClick={() => void copyHealthToken()}><Copy size={16} /> Schlüssel kopieren</button>}
               <button type="button" className="health-secondary-btn" disabled={testingHealth || resettingHealth || !healthSyncToken} onClick={testHealthSync}>
-                <Zap size={16} /> {testingHealth ? "Prüfe …" : "Optional: Schlüssel in FitFamily prüfen"}
+                <Zap size={16} /> {testingHealth ? "Prüfe Schlüssel …" : "Schlüssel prüfen (ohne Import)"}
               </button>
-              <small>Prüft nur den Schlüssel – startet keinen Kurzbefehl und importiert keine Daten.</small>
+              <small>Nur eine folgenlose Prüfung. Für den echten Import den Kurzbefehl in Schritt 4 auf dem iPhone ausführen.</small>
             </section>
 
             <section className="health-workflow-step">
@@ -941,7 +959,7 @@ Sende danach per „Inhalte von URL abrufen“ einen HTTP-POST mit JSON an ${get
               {confirmResetHealth ? (
                 <>
                   <strong>Apple-Health-Daten dieses Profils unwiderruflich löschen und Verbindung trennen?</strong>
-                  <button type="button" disabled={resettingHealth} onClick={performHealthReset}>{resettingHealth ? "Löscht …" : "Ja, löschen & trennen"}</button>
+                  <button type="button" disabled={resettingHealth} onClick={() => requestHealthPin("delete")}>{resettingHealth ? "Löscht …" : "Weiter zur PIN-Eingabe"}</button>
                   <button type="button" onClick={() => setConfirmResetHealth(false)}>Abbrechen</button>
                 </>
               ) : (
@@ -950,6 +968,34 @@ Sende danach per „Inhalte von URL abrufen“ einen HTTP-POST mit JSON an ${get
                 </button>
               )}
             </section>
+          </div>
+        </div>
+      )}
+
+      {healthPinAction && (
+        <div className="modal-backdrop health-pin-backdrop" onClick={() => !healthPinBusy && setHealthPinAction(undefined)}>
+          <div className="confirm-modal-card health-pin-card" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="health-pin-title">
+            <button type="button" className="modal-close" disabled={healthPinBusy} onClick={() => setHealthPinAction(undefined)} aria-label="Schließen"><X size={20} /></button>
+            <div className="confirm-modal-top">
+              <div className={`confirm-modal-icon ${healthPinAction === "delete" ? "danger" : "primary"}`}>
+                {healthPinAction === "delete" ? <RotateCcw size={26} /> : <LockKeyhole size={26} />}
+              </div>
+            </div>
+            <h3 id="health-pin-title">
+              {healthPinAction === "delete" ? "Health-Daten löschen" : healthPinAction === "create" ? "Sync-Schlüssel erstellen" : "Sync-Schlüssel widerrufen"}
+            </h3>
+            <p>{healthPinAction === "delete" ? "Apple-Health-Daten dieses Profils und die Verbindung werden unwiderruflich gelöscht. Zur Bestätigung Eltern-PIN eingeben." : "Zur Bestätigung bitte die vierstellige Eltern-PIN eingeben."}</p>
+            <div className="confirm-pin-section">
+              <b>Eltern-PIN</b>
+              <TouchPinpad value={healthPin} disabled={healthPinBusy} onChange={(value) => { setHealthPin(value); setHealthPinError(""); }} />
+              {healthPinError && <p className="form-error" role="alert">{healthPinError}</p>}
+            </div>
+            <div className="confirm-modal-actions">
+              <button type="button" className="confirm-cancel-btn" disabled={healthPinBusy} onClick={() => setHealthPinAction(undefined)}>Abbrechen</button>
+              <button type="button" className={`confirm-submit-btn ${healthPinAction === "delete" ? "danger" : "primary"}`} disabled={healthPinBusy || healthPin.length !== 4} onClick={() => void submitHealthPin()}>
+                {healthPinBusy ? "Wird verarbeitet …" : healthPinAction === "delete" ? "Löschen & trennen" : "Bestätigen"}
+              </button>
+            </div>
           </div>
         </div>
       )}

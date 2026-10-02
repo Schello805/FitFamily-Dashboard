@@ -3509,6 +3509,14 @@ body::before {
   grid-template-columns: 1fr 1.3fr;
   gap: 12px;
 }
+.health-pin-backdrop { z-index: 1100; }
+.health-pin-card { max-height: min(92dvh, 760px); overflow-y: auto; }
+.health-pin-card .confirm-modal-top { margin-bottom: 10px; }
+.health-pin-card > p { margin-bottom: 16px; }
+.health-pin-card .confirm-pin-section { margin: 0 0 18px; }
+.health-pin-card .confirm-pin-section > b { display: block; margin-bottom: 8px; color: var(--muted); font-size: 12px; }
+.health-pin-card .confirm-pin-section .form-error { margin: 10px 0 0; }
+.health-pin-card .confirm-modal-actions { margin-top: 8px; }
 
 .confirm-cancel-btn {
   min-height: 48px;
@@ -3523,6 +3531,7 @@ body::before {
   touch-action: manipulation;
   transition: all 0.15s ease;
 }
+.confirm-cancel-btn:disabled, .confirm-submit-btn:disabled, .modal-close:disabled { opacity: .6; cursor: wait; }
 
 .confirm-cancel-btn:hover {
   background: var(--subtle-bg-hover);
