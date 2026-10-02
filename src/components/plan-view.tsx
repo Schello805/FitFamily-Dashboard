@@ -501,7 +501,7 @@ export function PlanView({ profile, goals }: { profile: DashboardProfile; goals:
                         <div className="plan-manual-toolbar"><b>Geräteanleitung · {selectedExercise.guide.equipment}</b><a href={selectedExercise.manualPdfUrl} target="_blank" rel="noreferrer">PDF separat öffnen ↗</a></div>
                         <iframe className="plan-manual-pdf" src={selectedExercise.manualPdfUrl} title={`PDF-Geräteanleitung: ${selectedExercise.guide.equipment}`} />
                       </>
-                    ) : <p className="plan-no-video">Für „{selectedExercise.guide.equipment}“ ist noch keine PDF-Geräteanleitung hinterlegt. Du kannst sie in der Verwaltung beim Gerät ergänzen.</p> : <>
+                    ) : <p className="plan-no-video">Für „{selectedExercise.guide.equipment}“ ist hier keine PDF-Geräteanleitung hinterlegt.</p> : <>
                       {selectedExercise.videoUrl && (youtubeVideoId(selectedExercise.videoUrl) ? (
                         <YoutubePlayer videoId={youtubeVideoId(selectedExercise.videoUrl)!} title={`Übungsvideo: ${selectedExercise.name}`} onPlayingChange={setIsVideoPlaying} />
                       ) : <a className="plan-external-video" href={selectedExercise.videoUrl} target="_blank" rel="noreferrer"><Video size={18} /> Übungsvideo öffnen</a>)}

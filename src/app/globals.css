@@ -1117,6 +1117,24 @@ body::before {
   .clock-block span { font-size: 10px; margin-top: 2px; }
   .weather-block { display: none !important; }
 
+  /* Keep the persistent radio control compact on profile and subpages so it
+     doesn't cover the primary training controls on narrow screens. */
+  .persistent-radio.subpage-radio { right: 12px; bottom: 12px; }
+  .subpage-radio .music-launch {
+    width: 46px;
+    min-width: 46px;
+    max-width: 46px;
+    height: 46px;
+    min-height: 46px;
+    justify-content: center;
+    padding: 0;
+    gap: 0;
+    border-radius: 50%;
+    box-shadow: 0 8px 24px rgba(0,0,0,.32);
+    backdrop-filter: blur(16px);
+  }
+  .subpage-radio .music-launch > span { display: none; }
+
   /* Radio am Smartphone unten rechts schwebend, damit der Header frei bleibt */
   .persistent-radio.dashboard-radio {
     top: auto;
@@ -1157,7 +1175,7 @@ body::before {
   }
 
   /* Profil-Header auf Smartphones */
-  .profile-shell { padding: 14px 12px; }
+  .profile-shell { padding: 14px 12px 78px; }
   .profile-topbar {
     display: flex;
     justify-content: space-between;
@@ -2599,13 +2617,35 @@ body::before {
     justify-content: center;
   }
   .guide-body {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
+    flex: 0 0 auto;
+    min-width: 0;
     overflow: visible;
     height: auto;
   }
+  .guide-col-media,
+  .guide-col-instructions {
+    height: auto;
+  }
+  .guide-body > *,
+  .guide-col-media,
+  .guide-col-instructions,
+  .guide-video-empty-card,
+  .guide-hero,
+  .guide-grid,
+  .guide-grid article {
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+  .guide-video-empty-text,
+  .guide-grid article p {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
   .guide-grid {
     grid-template-columns: 1fr;
-    grid-template-rows: auto;
+    grid-template-rows: none;
     height: auto;
   }
   .guide-grid article {

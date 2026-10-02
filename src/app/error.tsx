@@ -20,7 +20,7 @@ export default function ErrorPage({ error, reset }: { error: Error & { digest?: 
         <span className="app-error-icon"><AlertTriangle size={28} /></span>
         <p className="setup-badge">FitFamily Dashboard</p>
         <h1>Das hat gerade nicht geklappt.</h1>
-        <p>Der Fehler wurde – sofern das Dashboard erreichbar war – für die Verwaltung protokolliert. Bitte versuche es erneut.</p>
+        <p>Die technische Meldung wurde – sofern das Dashboard erreichbar war – aufgezeichnet. Bitte versuche es erneut.</p>
         {error.digest && <small>Fehlerkennung: {error.digest}</small>}
         <div>
           <button type="button" onClick={reset}><RefreshCw size={16} /> Erneut versuchen</button>

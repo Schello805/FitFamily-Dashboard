@@ -179,14 +179,9 @@ export default async function ExercisePage({
               <div className="guide-video-empty-text">
                 <span className="setup-badge">Gerät: {guide.equipment}</span>
                 <h3>Noch kein Video hinterlegt</h3>
-                <p>
-                  In den <b>Einstellungen</b> kannst du eine Video-URL für <b>{guide.equipment}</b> oder <b>{guide.name}</b> eintragen.
-                </p>
+                <p>Für dieses Gerät oder diese Übung ist noch kein Video verfügbar.</p>
               </div>
               <div className="guide-video-empty-actions">
-                <Link href="/verwaltung" className="guide-btn-settings">
-                  In Einstellungen verlinken
-                </Link>
                 <a href={videoSearch} target="_blank" rel="noreferrer" className="guide-btn-yt">
                   <ExternalLink size={13} /> YouTube Suche
                 </a>
