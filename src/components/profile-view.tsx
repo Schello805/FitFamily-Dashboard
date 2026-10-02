@@ -844,8 +844,8 @@ Wichtig für den Aufbau: Erstelle zuerst alle 6 Tageswert-Abfragen einzeln und f
         </button>
       </nav>
       {profileNotice && <p className="profile-notice" role="status">{profileNotice}</p>}
-      {editingProfile && <div className="modal-backdrop" onClick={() => setEditingProfile(false)}><form className="profile-edit-modal" onSubmit={saveProfile} onClick={(event) => event.stopPropagation()}>
-        <button type="button" className="modal-close" onClick={() => setEditingProfile(false)}>×</button>
+      {editingProfile && <div className="modal-backdrop" onClick={() => setEditingProfile(false)}><form className="profile-edit-modal" role="dialog" aria-modal="true" aria-labelledby="profile-edit-title" onSubmit={saveProfile} onClick={(event) => event.stopPropagation()}>
+        <button type="button" className="modal-close" onClick={() => setEditingProfile(false)} aria-label="Profilbearbeitung schließen">×</button>
         <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
           <span className="setup-badge">Profil bearbeiten</span>
           {!isMobile && (
@@ -854,7 +854,7 @@ Wichtig für den Aufbau: Erstelle zuerst alle 6 Tageswert-Abfragen einzeln und f
             </span>
           )}
         </div>
-        <h2>Angaben für {profile.name}</h2>
+        <h2 id="profile-edit-title">Angaben für {profile.name}</h2>
         <div className="profile-edit-preview-row">
           <Avatar
             id={profile.id}
@@ -872,8 +872,21 @@ Wichtig für den Aufbau: Erstelle zuerst alle 6 Tageswert-Abfragen einzeln und f
             <p>Basiert auf {Math.round(profile.strengthMinutes)} Min. Kraft und {Math.round(profile.enduranceMinutes)} Min. Ausdauer.</p>
           </div>
         </div>
-        <label>Anzeigename<input name="name" required maxLength={30} defaultValue={profile.name} /></label>
-        <label>Geburtsdatum<input name="birthDate" type="date" value={editBirthDate} onChange={(event) => { const birthDate = event.target.value; setEditBirthDate(birthDate); setEditStartingFitness((value) => Math.min(value, getStartingFitnessStages(profile.id, birthDate || null).length)); }} /></label>
+        <div className="profile-edit-basics">
+          <label>Anzeigename<input name="name" required maxLength={30} defaultValue={profile.name} /></label>
+          <label>Geburtsdatum<input name="birthDate" type="date" value={editBirthDate} onChange={(event) => { const birthDate = event.target.value; setEditBirthDate(birthDate); setEditStartingFitness((value) => Math.min(value, getStartingFitnessStages(profile.id, birthDate || null).length)); }} /></label>
+        </div>
+        <div className="profile-edit-goals">
+          <label>Meine Fitness-Stufe (Selbsteinschätzung)
+            <select name="startingFitness" value={editStartingFitness} onChange={(e) => setEditStartingFitness(Number(e.target.value))}>
+              {getStartingFitnessStages(profile.id, editBirthDate || null).map((st) => (
+                <option key={st.stage} value={st.stage}>{st.label} ({st.description})</option>
+              ))}
+            </select>
+            <small className="profile-field-hint">Erwachsene: 7 Stufen, Kinder: 3. Wähle deine aktuelle Stufe selbst; Trainingszeiten ändern sie nicht automatisch.</small>
+          </label>
+          <label>Trainingsziel<select name="goal" defaultValue={profile.goal}>{GOALS.map((goal) => <option key={goal}>{goal}</option>)}</select></label>
+        </div>
         <div className="avatar-choice">
           <span>Figur im Dashboard</span>
           <AvatarPicker value={editAvatar} onChange={setEditAvatar} />
@@ -891,17 +904,6 @@ Wichtig für den Aufbau: Erstelle zuerst alle 6 Tageswert-Abfragen einzeln und f
           hasSavedAvatar={Boolean(profile.customAvatar)}
           onSaved={(saved) => { setProfile((current) => ({ ...current, customAvatar: saved })); void refresh(); }}
         />
-        <label>Meine Fitness-Stufe (Selbsteinschätzung)
-          <select name="startingFitness" value={editStartingFitness} onChange={(e) => setEditStartingFitness(Number(e.target.value))}>
-            {getStartingFitnessStages(profile.id, editBirthDate || null).map((st) => (
-              <option key={st.stage} value={st.stage}>{st.label} ({st.description})</option>
-            ))}
-          </select>
-        </label>
-        <p className="field-hint">
-          Wähle die Stufe, die deiner aktuellen Fitness am besten entspricht. Erwachsene haben sieben Stufen, Kinder drei. Trainingszeiten ändern diese Selbsteinschätzung nicht automatisch.
-        </p>
-        <label>Trainingsziel<select name="goal" defaultValue={profile.goal}>{GOALS.map((goal) => <option key={goal}>{goal}</option>)}</select></label>
         {profileNotice && <p className="form-error" role="alert">{profileNotice}</p>}
         <button className="primary-submit" disabled={busy}>{busy ? "Wird gespeichert …" : "Änderungen speichern"}</button>
       </form></div>}
