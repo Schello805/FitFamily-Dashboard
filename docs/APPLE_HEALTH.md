@@ -58,6 +58,23 @@ Für Tageswerte sendet der Kurzbefehl nur zusammengefasste Zahlen für **heute**
 
 Es ist nicht nötig, alle Felder in einem Lauf zu senden. Ein späterer Teil-Sync lässt nicht mitgesendete Tageswerte unverändert. Health-Proben bitte zuerst in Kurzbefehle zusammenfassen und nicht als hunderte einzelne Health-Objekte an den Webhook weiterreichen. Aktivitätswerte erzeugen keine Trainingspunkte.
 
+Für einen Nachsync kann statt der einzelnen obersten Tagesfelder eine Liste `dailyActivity` gesendet werden. Sie enthält bis zu 30 verschiedene Tage mit `date` im Format `YYYY-MM-DD` und den jeweils vorhandenen Aktivitätsfeldern, zum Beispiel:
+
+```json
+{
+  "profileId": "papa",
+  "secret": "PERSOENLICHER_SYNC_SCHLUESSEL",
+  "dailyActivity": [
+    { "date": "2026-10-01", "exerciseMinutes": 28, "stepCount": 6420 },
+    { "date": "2026-10-02", "exerciseMinutes": 35, "stepCount": 8100 }
+  ]
+}
+```
+
+Pro Profil und Datum existiert genau ein Tagesdatensatz. Erneute Übertragung aktualisiert diesen Datensatz statt Duplikate anzulegen. Mehrere Objekte mit demselben Datum innerhalb einer Anfrage werden zu einem Tag zusammengeführt; dabei werden nicht übermittelte Felder bewahrt. Tageswerte außerhalb der letzten 30 Kalendertage werden abgewiesen. Workouts haben eigene Duplikatregeln anhand der Workout-ID bzw. ersatzweise des Startzeitpunkts.
+
+Der lokale Heimserver ist unterwegs ohne VPN nicht erreichbar. Der Kurzbefehl kann die auf dem iPhone gespeicherten letzten 30 Tage nach der Rückkehr ins Heim-WLAN nachsenden; dafür muss er Tageswerte je Datum statt nur eine Monatssumme senden.
+
 - Doppelte Übertragungen werden anhand der Apple-Workout-ID erkannt; ohne ID anhand des Trainingsbeginns.
 - Start- und Enddatum müssen gültig sein; Einheiten über 24 Stunden oder mit Start in der Zukunft werden abgewiesen.
 - Punkte werden nach der FitFamily-Regel berechnet: Kraft 1 Punkt/Minute, Ausdauer 2 Punkte/Minute.

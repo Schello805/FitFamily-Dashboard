@@ -31,11 +31,27 @@ const workoutItemSchema = z.object({
   source: z.string().max(80).optional()
 });
 
+const dailyActivitySchema = z.object({
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  moveCalories: z.number().nonnegative().max(100_000).optional().nullable(),
+  moveGoal: z.number().positive().max(100_000).optional().nullable(),
+  exerciseMinutes: z.number().nonnegative().max(1440).optional().nullable(),
+  exerciseGoal: z.number().positive().max(1440).optional().nullable(),
+  standHours: z.number().nonnegative().max(24).optional().nullable(),
+  standGoal: z.number().positive().max(24).optional().nullable(),
+  stepCount: z.number().int().nonnegative().max(200_000).optional().nullable(),
+  walkingRunningDistanceKm: z.number().nonnegative().max(500).optional().nullable(),
+  flightsClimbed: z.number().nonnegative().max(1_000).optional().nullable()
+}).refine((entry) => Object.entries(entry).some(([key, value]) => key !== "date" && value != null), {
+  message: "Jeder Tag braucht mindestens einen Aktivitätswert."
+});
+
 const bodySchema = z.object({
   profileId: z.string().min(1),
   secret: z.string().min(32).max(256),
   dryRun: z.boolean().optional(),
   workouts: z.array(workoutItemSchema).max(500).optional(),
+  dailyActivity: z.array(dailyActivitySchema).max(90).optional(),
   // Single workout fallback fields for simple Shortcuts
   id: z.string().max(200).optional(),
   title: z.string().max(200).optional().nullable(),
@@ -262,14 +278,50 @@ export async function POST(request: Request) {
     { key: "walkingRunningDistanceKm", column: "walking_running_distance_km" },
     { key: "flightsClimbed", column: "flights_climbed" }
   ] as const;
-  const providedRingFields = ringFields.filter(({ key }) => parsed.data[key] != null);
-  const hasActivityData = providedRingFields.some(({ key }) => !key.endsWith("Goal"));
+  const dailyByDate = new Map<string, z.infer<typeof dailyActivitySchema>>();
+  for (const day of parsed.data.dailyActivity ?? []) {
+    const existing = dailyByDate.get(day.date);
+    dailyByDate.set(day.date, existing ? { ...existing, ...day } : day);
+  }
+  const hasLegacyActivity = ringFields.some(({ key }) => parsed.data[key] != null);
+  if (hasLegacyActivity) {
+    const legacyDay = Object.fromEntries([
+      ["date", todayStr],
+      ...ringFields.flatMap(({ key }) => parsed.data[key] == null ? [] : [[key, parsed.data[key]]])
+    ]) as z.infer<typeof dailyActivitySchema>;
+    const existing = dailyByDate.get(todayStr);
+    dailyByDate.set(todayStr, existing ? { ...existing, ...legacyDay } : legacyDay);
+  }
 
-  if (providedRingFields.length) {
-    const columns = ["profile_id", "date", ...providedRingFields.map(({ column }) => column), "updated_at"];
-    const selectedValues = ["?", "?", ...providedRingFields.map(() => "?"), "CURRENT_TIMESTAMP"];
+  const dailyActivity = [...dailyByDate.values()];
+  if (dailyActivity.length > 30) {
+    await finishSyncLog("health.apple_sync.failed", { status: "failed", received: rawList.length, message: "Mehr als 30 verschiedene Aktivitätstage empfangen" });
+    return NextResponse.json({ error: "Pro Sync sind höchstens 30 verschiedene Aktivitätstage erlaubt." }, { status: 400 });
+  }
+
+  const dateTimestamp = (value: string) => {
+    const timestamp = Date.parse(`${value}T00:00:00Z`);
+    return Number.isFinite(timestamp) && new Date(timestamp).toISOString().slice(0, 10) === value ? timestamp : null;
+  };
+  const todayTimestamp = dateTimestamp(todayStr)!;
+  const oldestAllowedTimestamp = todayTimestamp - 29 * 24 * 60 * 60 * 1000;
+  let activityDaysSynced = 0;
+  let hasActivityData = false;
+
+  for (const day of dailyActivity) {
+    const dayTimestamp = dateTimestamp(day.date);
+    if (dayTimestamp == null || dayTimestamp > todayTimestamp || dayTimestamp < oldestAllowedTimestamp) {
+      await finishSyncLog("health.apple_sync.failed", { status: "failed", received: rawList.length, message: "Tagesaktivität muss ein gültiges Datum innerhalb der letzten 30 Tage haben" });
+      return NextResponse.json({ error: "Tagesaktivität darf nur gültige Datumswerte der letzten 30 Tage enthalten." }, { status: 400 });
+    }
+
+    const providedFields = ringFields.filter(({ key }) => day[key] != null);
+    if (!providedFields.length) continue;
+    hasActivityData = hasActivityData || providedFields.some(({ key }) => !key.endsWith("Goal"));
+    const columns = ["profile_id", "date", ...providedFields.map(({ column }) => column), "updated_at"];
+    const selectedValues = ["?", "?", ...providedFields.map(() => "?"), "CURRENT_TIMESTAMP"];
     const updates = [
-      ...providedRingFields.map(({ column }) => `${column} = excluded.${column}`),
+      ...providedFields.map(({ column }) => `${column} = excluded.${column}`),
       "updated_at = CURRENT_TIMESTAMP"
     ];
     const ringResult = await client.execute({
@@ -278,17 +330,12 @@ export async function POST(request: Request) {
         WHERE EXISTS (SELECT 1 FROM apple_health_tokens WHERE profile_id = ? AND token_hash = ?)
         ON CONFLICT(profile_id, date) DO UPDATE SET
           ${updates.join(",\n          ")}`,
-      args: [
-        profileId,
-        todayStr,
-        ...providedRingFields.map(({ key }) => parsed.data[key] as number),
-        profileId,
-        hashToken(parsed.data.secret)
-      ]
+      args: [profileId, day.date, ...providedFields.map(({ key }) => day[key] as number), profileId, hashToken(parsed.data.secret)]
     });
     if (ringResult.rowsAffected !== 1) {
       return NextResponse.json({ error: "Der Sync-Schlüssel wurde während des Imports getrennt. Es wurden keine Aktivitätswerte übernommen." }, { status: 401 });
     }
+    activityDaysSynced++;
   }
 
   const message = importedCount > 0
@@ -304,6 +351,7 @@ export async function POST(request: Request) {
     received: rawList.length,
     imported: importedCount,
     skipped: skippedCount,
+    activityDaysSynced,
     pointsEarned: totalPointsEarned,
     message
   });
@@ -312,6 +360,7 @@ export async function POST(request: Request) {
     ok: true,
     imported: importedCount,
     skipped: skippedCount,
+    activityDaysSynced,
     pointsEarned: totalPointsEarned,
     profileId,
     profileName,

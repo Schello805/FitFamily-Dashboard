@@ -223,6 +223,80 @@ describe("Apple Health sync endpoint", () => {
     }
   });
 
+  it("backfills daily activity for up to 30 dates idempotently", async () => {
+    const client = await db();
+    const todayDate = new Date();
+    const yesterdayDate = new Date(todayDate.getFullYear(), todayDate.getMonth(), todayDate.getDate() - 1);
+    const toDateKey = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+    const dates = [toDateKey(todayDate), toDateKey(yesterdayDate)];
+    const previousRows = await Promise.all(dates.map((date) => client.execute({
+      sql: "SELECT * FROM apple_health_daily WHERE profile_id = ? AND date = ?",
+      args: [profileId, date]
+    })));
+    const payload = {
+      profileId,
+      secret,
+      dailyActivity: [
+        { date: dates[0], exerciseMinutes: 31, stepCount: 7000 },
+        { date: dates[1], exerciseMinutes: 22, stepCount: 5100 }
+      ]
+    };
+
+    try {
+      const send = () => POST(new Request("http://localhost/api/sync/apple-health", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      }));
+      const first = await send();
+      const second = await send();
+      expect(first.status).toBe(200);
+      expect(second.status).toBe(200);
+      expect((await second.json()).activityDaysSynced).toBe(2);
+
+      const saved = await client.execute({
+        sql: "SELECT date, exercise_minutes, step_count FROM apple_health_daily WHERE profile_id = ? AND date IN (?, ?) ORDER BY date",
+        args: [profileId, ...dates]
+      });
+      expect(saved.rows).toHaveLength(2);
+      expect(saved.rows.map((row) => Number(row.step_count)).sort((a, b) => a - b)).toEqual([5100, 7000]);
+
+      const duplicateDates = await POST(new Request("http://localhost/api/sync/apple-health", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          profileId,
+          secret,
+          dailyActivity: [
+            { date: dates[0], exerciseMinutes: 31 },
+            { date: dates[0], stepCount: 7000 }
+          ]
+        })
+      }));
+      expect(duplicateDates.status).toBe(200);
+      expect((await duplicateDates.json()).activityDaysSynced).toBe(1);
+      const mergedDay = await client.execute({
+        sql: "SELECT COUNT(*) AS total, exercise_minutes, step_count FROM apple_health_daily WHERE profile_id = ? AND date = ?",
+        args: [profileId, dates[0]]
+      });
+      expect(Number(mergedDay.rows[0]?.total)).toBe(1);
+      expect(Number(mergedDay.rows[0]?.exercise_minutes)).toBe(31);
+      expect(Number(mergedDay.rows[0]?.step_count)).toBe(7000);
+    } finally {
+      for (const [index, date] of dates.entries()) {
+        await client.execute({ sql: "DELETE FROM apple_health_daily WHERE profile_id = ? AND date = ?", args: [profileId, date] });
+        const prior = previousRows[index]?.rows[0];
+        if (prior) {
+          await client.execute({
+            sql: `INSERT INTO apple_health_daily (profile_id, date, move_calories, move_goal, exercise_minutes, exercise_goal, stand_hours, stand_goal, step_count, walking_running_distance_km, flights_climbed, updated_at)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            args: [profileId, date, prior.move_calories, prior.move_goal, prior.exercise_minutes, prior.exercise_goal, prior.stand_hours, prior.stand_goal, prior.step_count, prior.walking_running_distance_km, prior.flights_climbed, prior.updated_at]
+          });
+        }
+      }
+    }
+  });
+
   it("keeps a manually deleted Apple Health workout from returning on the next sync", async () => {
     const client = await db();
     const imported = await client.execute({
