@@ -1,7 +1,9 @@
-import { createCipheriv, createHash, randomBytes } from "node:crypto";
-import { mkdir, readdir, readFile, stat, unlink, writeFile } from "node:fs/promises";
+import { createCipheriv, createHash, randomBytes, randomUUID } from "node:crypto";
+import { mkdir, mkdtemp, readdir, readFile, rename, rm, stat, unlink, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { db, getSetting } from "@/lib/db";
+import { createVerifiedDatabaseSnapshot } from "@/lib/sqlite-snapshot";
 
 export type BackupInfo = {
   name: string;
@@ -177,24 +179,29 @@ export async function executeBackup(): Promise<{
     throw new Error("Verschlüsselungsschlüssel muss mindestens 16 Zeichen lang sein.");
   }
 
-  const source = process.env.DATABASE_URL?.replace(/^file:/, "") ?? "./data/fitfamily.db";
-  const absoluteSource = path.resolve(/*turbopackIgnore: true*/ source);
-
   await mkdir(/*turbopackIgnore: true*/ targetPath, { recursive: true });
-
-  const content = await readFile(/*turbopackIgnore: true*/ absoluteSource);
-  const iv = randomBytes(12);
-  const key = createHash("sha256").update(secret).digest();
-  const cipher = createCipheriv("aes-256-gcm", key, iv);
-  const encrypted = Buffer.concat([cipher.update(content), cipher.final()]);
-  const tag = cipher.getAuthTag();
-
+  const tempDir = await mkdtemp(path.join(tmpdir(), "fitfamily-backup-"));
+  const snapshotPath = path.join(tempDir, "fitfamily.db");
   const stamp = new Date().toISOString().replace(/[:.]/g, "-");
   const filename = `fitfamily-${stamp}.db.enc`;
   const fullPath = path.join(targetPath, filename);
+  const stagingPath = path.join(targetPath, `.${filename}.${randomUUID()}.tmp`);
 
-  const payload = Buffer.concat([Buffer.from("FFDB1"), iv, tag, encrypted]);
-  await writeFile(fullPath, payload, { mode: 0o600 });
+  try {
+    await createVerifiedDatabaseSnapshot(snapshotPath);
+    const content = await readFile(snapshotPath);
+    const iv = randomBytes(12);
+    const key = createHash("sha256").update(secret).digest();
+    const cipher = createCipheriv("aes-256-gcm", key, iv);
+    const encrypted = Buffer.concat([cipher.update(content), cipher.final()]);
+    const tag = cipher.getAuthTag();
+    const payload = Buffer.concat([Buffer.from("FFDB1"), iv, tag, encrypted]);
+    await writeFile(stagingPath, payload, { mode: 0o600 });
+    await rename(stagingPath, fullPath);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+    await rm(stagingPath, { force: true });
+  }
 
   // Rotate old backups
   try {

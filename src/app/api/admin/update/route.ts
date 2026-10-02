@@ -1,5 +1,5 @@
 import { exec, execSync } from "node:child_process";
-import { copyFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -7,6 +7,7 @@ import { verifyAdminPin } from "@/lib/security";
 
 import { getAppRevision } from "@/lib/version";
 import { writeAdminLog } from "@/lib/admin-log";
+import { createVerifiedDatabaseSnapshot } from "@/lib/sqlite-snapshot";
 
 export const dynamic = "force-dynamic";
 
@@ -119,12 +120,11 @@ export async function POST(request: Request) {
 
   // 1. Sicherheits-Backup der Datenbank
   try {
-    const dbFile = path.join(cwd, "data", "fitfamily.db");
     const backupDir = path.join(cwd, "backups");
-    if (existsSync(dbFile)) {
+    if (existsSync(path.join(cwd, "data", "fitfamily.db"))) {
       mkdirSync(backupDir, { recursive: true });
       const backupPath = path.join(backupDir, `fitfamily-pre-update-${Date.now()}.db`);
-      copyFileSync(dbFile, backupPath);
+      await createVerifiedDatabaseSnapshot(backupPath);
     }
   } catch (err) {
     await writeAdminLog("admin.update.error", "error", `Update-Backup fehlgeschlagen: ${(err as Error).message}`).catch(() => undefined);
@@ -181,7 +181,7 @@ export async function POST(request: Request) {
       );
 
       // 4. npm install
-      execSync("npm install --prefer-offline --no-audit --no-fund", { cwd, timeout: 120000, encoding: "utf-8" });
+      execSync("npm ci --prefer-offline --no-audit --no-fund", { cwd, timeout: 120000, encoding: "utf-8" });
 
       // 5. Build mit automatischer Selbstreparatur bei EACCES
       try {

@@ -88,10 +88,10 @@ chown -R "$APP_USER:$APP_USER" "$APP_DIR"
 rm -rf "$APP_DIR/.next/cache" 2>/dev/null || true
 
 if id -u "$APP_USER" >/dev/null 2>&1; then
-  sudo -u "$APP_USER" npm install --prefer-offline --no-audit --no-fund
+  sudo -u "$APP_USER" npm ci --prefer-offline --no-audit --no-fund
   sudo -u "$APP_USER" npm run build
 else
-  npm install --prefer-offline --no-audit --no-fund
+  npm ci --prefer-offline --no-audit --no-fund
   npm run build
 fi
 
