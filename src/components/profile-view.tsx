@@ -887,7 +887,7 @@ Sende danach per „Inhalte von URL abrufen“ einen HTTP-POST mit JSON an ${get
 
             <section className="health-workflow-step">
               <h3><span>1</span> Webhook-Adresse</h3>
-              <div className="health-url-input-wrap">
+              <div className="health-url-input-wrap health-webhook-input">
                 <input readOnly aria-label="Persönliche Webhook-Adresse" value={getWebhookUrl()} />
                 <button type="button" className="health-copy-btn" onClick={copyWebhookUrl}>
                   {copiedWebhook ? <Check size={16} /> : <Copy size={16} />}
@@ -898,7 +898,7 @@ Sende danach per „Inhalte von URL abrufen“ einen HTTP-POST mit JSON an ${get
 
             <section className="health-workflow-step">
               <h3><span>2</span> Persönlichen Schlüssel</h3>
-              <div className="health-url-input-wrap">
+              <div className="health-url-input-wrap health-key-input">
                 <input
                   aria-label="Apple-Health-Sync-Schlüssel"
                   type={showHealthSyncToken ? "text" : "password"}
