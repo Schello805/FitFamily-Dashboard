@@ -213,7 +213,7 @@ body::before {
 .clock-block time { font-size: clamp(34px, 3.3vw, 52px); line-height: .9; font-weight: 800; letter-spacing: -.055em; font-variant-numeric: tabular-nums; }
 .clock-block span { color: var(--muted); text-transform: capitalize; margin-top: 8px; font-size: 13px; }
 
-.profile-grid { min-height: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: repeat(2, minmax(265px, 1fr)); gap: 18px; }
+.profile-grid { min-height: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: repeat(2, minmax(390px, auto)); gap: 18px; }
 .profile-card { position: relative; overflow: hidden; padding: 23px 25px 19px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--card-bg); box-shadow: var(--card-shadow); transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease; display: flex; flex-direction: column; justify-content: space-between; }
 .profile-card:active { transform: scale(.987); }
 .profile-card:hover { border-color: color-mix(in srgb, var(--profile) 55%, transparent); }
@@ -1990,11 +1990,18 @@ body::before {
 .dashboard-apple-rings { margin: 0 20px 12px; padding-top: 10px; border-top: 1px solid var(--line); }
 .dashboard-apple-rings .apple-rings-widget { padding: 5px 8px; border: 0; border-radius: 12px; background: transparent; box-shadow: none; backdrop-filter: none; }
 .dashboard-apple-rings .apple-rings-widget:hover { transform: none; box-shadow: none; }
-.dashboard-apple-rings .apple-rings-widget.compact .apple-rings-graphic { width: 56px; height: 56px; }
-.dashboard-apple-rings .apple-rings-legend { min-width: 0; flex: 1; gap: 3px; }
-.dashboard-apple-rings .health-activity-stats { grid-template-columns: repeat(3, minmax(0,1fr)); gap: 6px; }
-.dashboard-apple-rings .health-activity-stats div { display: grid; gap: 1px; font-size: 9px; }
-.dashboard-apple-rings .health-activity-stats strong { font-size: 10px; }
+.dashboard-apple-rings .apple-rings-widget.compact .apple-rings-graphic { width: 168px; height: 168px; }
+.dashboard-apple-rings .apple-rings-legend { min-width: 0; flex: 1; gap: 7px; }
+.dashboard-apple-rings .rings-apple-badge { font-size: 14px; }
+.dashboard-apple-rings .rings-status { font-size: 12px; }
+.dashboard-apple-rings .ring-row { gap: 11px; }
+.dashboard-apple-rings .ring-dot { width: 12px; height: 12px; }
+.dashboard-apple-rings .ring-title { font-size: 13px; }
+.dashboard-apple-rings .ring-label-box strong { font-size: 18px; }
+.dashboard-apple-rings .ring-label-box strong small { font-size: 14px; }
+.dashboard-apple-rings .health-activity-stats { grid-template-columns: repeat(3, minmax(0,1fr)); gap: 9px; margin-top: 6px; padding-top: 8px; }
+.dashboard-apple-rings .health-activity-stats div { display: grid; gap: 2px; font-size: 12px; }
+.dashboard-apple-rings .health-activity-stats strong { font-size: 15px; }
 .equipment-instructions-link { margin: 0 0 10px; padding: 8px 11px; border: 1px solid var(--line); border-radius: 10px; color: var(--muted); background: color-mix(in srgb, var(--panel) 72%, transparent); font-size: 12px; }
 .equipment-instructions-link summary { width: fit-content; color: var(--muted); cursor: pointer; text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 3px; }
 .equipment-instructions-link p { margin: 8px 0 2px; color: var(--text); line-height: 1.5; white-space: pre-line; }
@@ -2521,7 +2528,9 @@ body::before {
   }
 }
 @media (max-width: 680px) { .admin-grid { grid-template-columns: 1fr; } .admin-grid article.wide { grid-column: auto; } .reset-list { grid-template-columns: 1fr; } }
-@media (max-width: 620px) { .admin-edit-fields { grid-template-columns: 1fr; } .admin-edit-fields .wide-field { grid-column: auto; } .admin-edit-modal { padding: 20px 16px; } .dashboard-apple-rings { margin-inline: 10px; } }
+@media (max-width: 900px) and (min-width: 621px) { .dashboard-apple-rings .apple-rings-widget.compact .apple-rings-graphic { width: 128px; height: 128px; } .dashboard-apple-rings .ring-title { font-size: 11px; } .dashboard-apple-rings .ring-label-box strong { font-size: 15px; } .dashboard-apple-rings .ring-label-box strong small { font-size: 12px; } }
+@media (max-width: 620px) { .admin-edit-fields { grid-template-columns: 1fr; } .admin-edit-fields .wide-field { grid-column: auto; } .admin-edit-modal { padding: 20px 16px; } .dashboard-apple-rings { margin-inline: 10px; } .dashboard-apple-rings .apple-rings-widget.compact .apple-rings-graphic { width: 96px; height: 96px; } .dashboard-apple-rings .apple-rings-widget { gap: 10px; } .dashboard-apple-rings .rings-apple-badge { font-size: 11px; } .dashboard-apple-rings .ring-title { font-size: 9px; } .dashboard-apple-rings .ring-label-box strong { font-size: 13px; } .dashboard-apple-rings .ring-label-box strong small { font-size: 10px; } .dashboard-apple-rings .health-activity-stats div { font-size: 10px; } .dashboard-apple-rings .health-activity-stats strong { font-size: 12px; } }
+@media (max-height: 800px) and (min-width: 900px) { .profile-grid { grid-template-rows: repeat(2, minmax(390px, auto)); } }
 
 .screensaver-card {
   display: flex;
