@@ -3069,6 +3069,15 @@ body::before {
   font-size: 10px;
   line-height: 1.35;
 }
+.health-webhook-note {
+  display: block;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.health-webhook-note b { color: var(--text); }
 .health-workflow-step .health-url-input-wrap {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto auto;
@@ -3209,8 +3218,6 @@ body::before {
   .health-apple-circle { width: 46px; height: 46px; border-radius: 14px; }
   .health-modal-header h2 { font-size: 18px; }
   .health-workflow-step { padding: 10px; }
-  .health-workflow-step .health-webhook-input { grid-template-columns: minmax(0, 1fr); }
-  .health-workflow-step .health-webhook-input .health-copy-btn { width: 100%; }
   .health-workflow-step .health-key-input { grid-template-columns: minmax(0, 1fr) auto auto; gap: 4px; }
   .health-workflow-step .health-key-input .health-copy-btn { padding: 0 8px; font-size: 11px; }
   .health-workflow-actions > button { min-height: 44px; }

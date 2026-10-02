@@ -71,7 +71,6 @@ export function ProfileView({
   const [longRunning, setLongRunning] = useState(false);
   const [editingProfile, setEditingProfile] = useState(false);
   const [healthModal, setHealthModal] = useState(false);
-  const [copiedWebhook, setCopiedWebhook] = useState(false);
   const [testingHealth, setTestingHealth] = useState(false);
   const [healthSyncToken, setHealthSyncToken] = useState("");
   const [healthTokenConfigured, setHealthTokenConfigured] = useState(false);
@@ -411,17 +410,6 @@ export function ProfileView({
     return typeof window !== "undefined" ? `${window.location.origin}/api/sync/apple-health` : "";
   }
 
-  async function copyWebhookUrl() {
-    const url = getWebhookUrl();
-    if (await copyTextToClipboard(url)) {
-      setCopiedWebhook(true);
-      showToast({ type: "info", title: "URL kopiert", message: "Webhook-URL in Zwischenablage kopiert." });
-      setTimeout(() => setCopiedWebhook(false), 2000);
-    } else {
-      showToast({ type: "info", title: "Webhook-URL", message: url });
-    }
-  }
-
   const [copiedPayload, setCopiedPayload] = useState(false);
 
   async function copySamplePayload() {
@@ -452,7 +440,7 @@ export function ProfileView({
 
 Suche echte, abgeschlossene Apple-Health-Workouts der letzten 30 Tage und sortiere nach Startdatum. Wiederhole für jedes gefundene Workout und erstelle ein Wörterbuch mit den echten Werten: id (eindeutige Workout-ID, falls verfügbar), title (Workout-/Aktivitätstyp), startedAt und endedAt (ISO-8601 inklusive Zeitzone), calories (aktive Trainingsenergie in kcal, wenn vorhanden) und distanceKm (Workout-Distanz in Kilometern, wenn vorhanden). Verwende keine erfundenen Beispielwerte und keine zusammengefassten Aktivitätsringe als Ersatz für Workouts. Sammle die Wörterbücher in einer Liste.
 
-Sende danach per „Inhalte von URL abrufen“ einen HTTP-POST mit JSON an ${getWebhookUrl()}. Der JSON-Body muss genau diese obersten Felder enthalten: profileId = „${profile.id}“, secret = der später in FitFamily erzeugte persönliche Sync-Schlüssel, workouts = die Liste der echten Workouts. Der Sync-Schlüssel darf NICHT in den öffentlich geteilten iCloud-Kurzbefehl eingebaut werden; ich trage ihn erst in meine persönliche Kopie ein. Keine Daten an die KI senden. Zeige die Serverantwort an, damit Importanzahl oder Fehler sichtbar sind.`;
+Sende danach per „Inhalte von URL abrufen“ einen HTTP-POST mit JSON an ${getWebhookUrl()}. Der JSON-Body muss genau diese obersten Felder enthalten: profileId = „${profile.id}“, secret = „HIER_DEN_SYNC_SCHLUESSEL_EINFUEGEN“, workouts = die Liste der echten Workouts. Der Secret-Platzhalter bleibt zunächst exakt so stehen. Ich ersetze ihn nach dem Hinzufügen des Kurzbefehls selbst durch meinen persönlichen FitFamily-Schlüssel. Erfinde keinen Schlüssel und baue keinen echten Schlüssel in einen öffentlich geteilten iCloud-Kurzbefehl ein. Keine Health-Daten an eine KI senden. Zeige die Serverantwort an, damit Importanzahl oder Fehler sichtbar sind.`;
     if (await copyTextToClipboard(prompt)) {
       setCopiedShortcutPrompt(true);
       showToast({ type: "success", title: "Erstellungsauftrag kopiert", message: "Füge ihn in deine KI ein. Wichtig: keine KI-Aktion im fertigen Kurzbefehl und den Sync-Schlüssel erst in der persönlichen Kopie eintragen." });
@@ -486,8 +474,8 @@ Sende danach per „Inhalte von URL abrufen“ einen HTTP-POST mit JSON an ${get
           type: "success",
           title: "Sync-Schlüssel erstellt",
           message: copied
-            ? "Der Schlüssel wurde kopiert. Bitte sicher in den Kurzbefehl übernehmen – er wird nur jetzt angezeigt."
-            : "Der Schlüssel wurde erstellt und wird im Feld angezeigt. Die Zwischenablage ist hier nicht verfügbar; markiere und kopiere ihn manuell."
+            ? "Schlüssel erstellt und angezeigt. Nach dem Erstellen des Kurzbefehls hier erneut auf Kopieren tippen und den Wert in deiner privaten Kopie bei secret einsetzen."
+            : "Schlüssel erstellt und wird im Feld angezeigt. Nach dem Erstellen des Kurzbefehls hier kopieren und in deiner privaten Kopie bei secret einsetzen."
         });
       } else {
         setHealthSyncToken("");
@@ -883,21 +871,11 @@ Sende danach per „Inhalte von URL abrufen“ einen HTTP-POST mit JSON an ${get
               </div>
             </div>
 
-            <p className="health-modal-desc">Apple-Workouts in FitFamily importieren – in dieser Reihenfolge:</p>
+            <p className="health-modal-desc">Einmal einrichten, dann den Kurzbefehl auf dem iPhone starten:</p>
 
             <section className="health-workflow-step">
-              <h3><span>1</span> Webhook-Adresse</h3>
-              <div className="health-url-input-wrap health-webhook-input">
-                <input readOnly aria-label="Persönliche Webhook-Adresse" value={getWebhookUrl()} />
-                <button type="button" className="health-copy-btn" onClick={copyWebhookUrl}>
-                  {copiedWebhook ? <Check size={16} /> : <Copy size={16} />}
-                  <span>{copiedWebhook ? "Kopiert" : "Kopieren"}</span>
-                </button>
-              </div>
-            </section>
-
-            <section className="health-workflow-step">
-              <h3><span>2</span> Persönlichen Schlüssel</h3>
+              <h3><span>1</span> Schlüssel erzeugen</h3>
+              <p>Eltern-PIN eingeben. Der Schlüssel bleibt hier sichtbar. Nach dem Erstellen des Kurzbefehls kannst du ihn über das Kopiersymbol übernehmen.</p>
               <div className="health-url-input-wrap health-key-input">
                 <input
                   aria-label="Apple-Health-Sync-Schlüssel"
@@ -915,13 +893,14 @@ Sende danach per „Inhalte von URL abrufen“ einen HTTP-POST mit JSON an ${get
                   <Zap size={16} /> {healthTokenConfigured ? "Schlüssel neu erstellen" : "Schlüssel erstellen"}
                 </button>
                 {healthTokenConfigured && <button type="button" className="health-ghost-btn" onClick={() => void manageHealthToken("revoke")}>Widerrufen</button>}
-                <small>{healthTokenConfigured ? "Gespeichert, aber aus Sicherheitsgründen nicht erneut abrufbar." : "Den angezeigten Schlüssel nur in deiner privaten Kurzbefehle-Kopie speichern."}</small>
+                <small>{healthSyncToken ? "Nach Schritt 2 hier erneut kopieren und in Schritt 3 bei secret einsetzen." : healthTokenConfigured ? "Der bisherige Schlüssel ist nicht erneut abrufbar. Erzeuge hier einen neuen; der alte wird ungültig." : "Der Schlüssel wird einmal angezeigt. Nach Schritt 2 hier kopieren und in Schritt 3 einsetzen."}</small>
               </div>
             </section>
 
             <section className="health-workflow-step">
-              <h3><span>3</span> Kurzbefehl erstellen</h3>
-              <p>Auftrag kopieren, in eine KI einfügen und den Kurzbefehl ohne Cloud-KI-Aktionen erstellen lassen. Der bisherige iCloud-Kurzbefehl ist inkompatibel – bitte nicht verwenden.</p>
+              <h3><span>2</span> Kurzbefehl erstellen lassen</h3>
+              <p>Auftrag kopieren und einer KI geben. Er enthält Zieladresse und Profil, aber keinen echten Schlüssel. Den bisherigen iCloud-Kurzbefehl bitte nicht verwenden.</p>
+              <small className="health-webhook-note"><b>Zieladresse (automatisch enthalten):</b> {getWebhookUrl()}</small>
               <div className="health-workflow-actions">
                 <button
                   type="button"
@@ -943,11 +922,18 @@ Sende danach per „Inhalte von URL abrufen“ einen HTTP-POST mit JSON an ${get
             </section>
 
             <section className="health-workflow-step">
-              <h3><span>4</span> Verbindung testen</h3>
-              <p>Test speichert keine Trainingsdaten. Beim ersten echten Lauf den Health-Zugriff erlauben.</p>
+              <h3><span>3</span> Schlüssel privat einsetzen</h3>
+              <p>Den von der KI erstellten Kurzbefehl in Apples „Kurzbefehle“ hinzufügen und öffnen. Im JSON-Feld <code>secret</code> den Platzhalter <code>HIER_DEN_SYNC_SCHLUESSEL_EINFUEGEN</code> durch deinen persönlichen Schlüssel ersetzen. Zieladresse und Profil sind schon eingetragen. Speichern; den Schlüssel nicht öffentlich teilen.</p>
+              {healthSyncToken && <button type="button" className="health-copy-btn" onClick={() => void copyHealthToken()}><Copy size={16} /> Schlüssel kopieren</button>}
               <button type="button" className="health-secondary-btn" disabled={testingHealth || resettingHealth || !healthSyncToken} onClick={testHealthSync}>
-                <Zap size={18} /> {testingHealth ? "Prüfe …" : "Verbindung testen"}
+                <Zap size={16} /> {testingHealth ? "Prüfe …" : "Optional: Schlüssel in FitFamily prüfen"}
               </button>
+              <small>Prüft nur den Schlüssel – startet keinen Kurzbefehl und importiert keine Daten.</small>
+            </section>
+
+            <section className="health-workflow-step">
+              <h3><span>4</span> Kurzbefehl auf dem iPhone ausführen</h3>
+              <p>Jetzt in Apples „Kurzbefehle“-App den Kurzbefehl öffnen und auf ▶︎ tippen. Beim ersten Lauf Health-Zugriff erlauben. Die angezeigte Antwort bestätigt Importanzahl oder Fehler.</p>
               {profile.appleHealthRings && <div className="health-ring-preview"><AppleActivityRings rings={profile.appleHealthRings} compact /></div>}
             </section>
 
