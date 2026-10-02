@@ -21,7 +21,7 @@ export async function getDashboardData(): Promise<DashboardProfile[]> {
 
   const [profilesResult, segmentsResult, activeResult, plansResult, appleHealthResult] = await Promise.all([
     client.execute("SELECT * FROM profiles ORDER BY CASE id WHEN 'mama' THEN 1 WHEN 'papa' THEN 2 WHEN 'fabian' THEN 3 WHEN 'frieda' THEN 4 ELSE 5 END, name ASC"),
-    client.execute(`SELECT ts.profile_id, sg.type, sg.started_at, sg.ended_at, p.target_reset_at
+    client.execute(`SELECT ts.profile_id, sg.type, sg.started_at, sg.ended_at, p.target_reset_at, p.score_reset_at
       FROM training_segments sg JOIN training_sessions ts ON ts.id = sg.session_id
       JOIN profiles p ON p.id = ts.profile_id`),
     client.execute(`SELECT ts.profile_id, ts.id session_id, ts.started_at session_started_at,
@@ -54,12 +54,14 @@ export async function getDashboardData(): Promise<DashboardProfile[]> {
       const end = asString(segment.ended_at);
       const seconds = durationSeconds(start, end);
       const type = String(segment.type) as TrainingType;
+      const startTime = new Date(start).getTime();
+      const endTime = new Date(end ?? Date.now()).getTime();
+      const scoreResetAt = segment.score_reset_at ? new Date(String(segment.score_reset_at)).getTime() : Number.NEGATIVE_INFINITY;
+      const scoredSeconds = Math.max(0, (endTime - Math.max(startTime, scoreResetAt)) / 1000);
       totalSeconds += seconds;
       if (type === "strength") strengthMinutes += seconds / 60;
       else enduranceMinutes += seconds / 60;
-      points += (seconds / 60) * SCORE_MULTIPLIER[type];
-      const startTime = new Date(start).getTime();
-      const endTime = new Date(end ?? Date.now()).getTime();
+      points += (scoredSeconds / 60) * SCORE_MULTIPLIER[type];
       if (endTime >= todayStart) {
         const segSec = Math.max(0, (endTime - Math.max(startTime, todayStart)) / 1000);
         todaySeconds += segSec;
@@ -81,6 +83,7 @@ export async function getDashboardData(): Promise<DashboardProfile[]> {
       startingFitness: asNumber(row.starting_fitness) || 3,
       birthDate: asString(row.birth_date),
       scoreBaseline: asNumber(row.score_baseline),
+      scoreResetAt: asString(row.score_reset_at),
       targetResetAt: asString(row.target_reset_at),
       goal: String(row.goal)
     };

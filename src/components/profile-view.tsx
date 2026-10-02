@@ -883,160 +883,87 @@ Sende danach per „Inhalte von URL abrufen“ einen HTTP-POST mit JSON an ${get
               </div>
             </div>
 
-            <p className="health-modal-desc">
-              Übertrage Workouts aus Apple Health mit einem selbst eingerichteten iOS-Kurzbefehl in dieses Profil. Importierte Einheiten zählen nach der FitFamily-Punkteregel. Apple-Aktivitätsringe werden nur übernommen, wenn der Kurzbefehl echte Ringwerte mitsendet.
-            </p>
+            <p className="health-modal-desc">Apple-Workouts in FitFamily importieren – in dieser Reihenfolge:</p>
 
-            <div style={{ margin: "0 0 16px", padding: "10px 14px", borderRadius: "12px", background: "var(--subtle-bg)", border: "1px solid var(--line)", fontSize: "12px", color: "var(--muted)", display: "flex", alignItems: "center", gap: "10px" }}>
-              <span style={{ fontSize: "16px" }}>💡</span>
-              <span><strong>Fitness-Apps:</strong> Trainings aus Apps wie Gymondo, Strava, Garmin oder Nike Training Club können übernommen werden, wenn sie in Apple Health gespeichert sind und dein Kurzbefehl diese Trainings abfragt.</span>
-            </div>
-
-            {profile.appleHealthRings ? (
-              <div style={{ marginBottom: "16px" }}>
-                <AppleActivityRings
-                  rings={profile.appleHealthRings}
-                  compact
-                />
-              </div>
-            ) : (
-              <div style={{ margin: "0 0 16px", padding: "12px 14px", borderRadius: "12px", background: "var(--subtle-bg)", border: "1px dashed var(--line)", fontSize: "12px", color: "var(--muted)", display: "flex", alignItems: "center", gap: "10px" }}>
-                <span style={{ fontSize: "16px" }}>⚪</span>
-                <span><strong>Keine Daten verknüpft:</strong> Die Aktivitätsringe werden angezeigt, sobald eine Synchronisation von deinem iPhone erfolgt ist.</span>
-              </div>
-            )}
-
-            <div className="health-action-row">
-                <button
-                  type="button"
-                  className="health-secondary-btn"
-                  disabled={testingHealth || resettingHealth || !healthSyncToken}
-                onClick={testHealthSync}
-                style={{ flex: 1 }}
-              >
-                <Zap size={18} />
-                <span>{testingHealth ? "Prüfe …" : healthSyncToken ? "Verbindung testen (ohne Daten zu speichern)" : "Schlüssel eingeben zum Testen"}</span>
-              </button>
-              {confirmResetHealth ? (
-                <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", padding: "10px", borderRadius: "10px", background: "rgba(225, 29, 72, 0.1)", border: "1px solid rgba(225, 29, 72, 0.3)", width: "100%" }}>
-                  <span style={{ fontSize: "12px", color: "var(--danger)", fontWeight: 650, flex: "1 1 100%" }}>
-                    Alle Apple Health Daten &amp; Ringe für {profile.name} unwiderruflich löschen &amp; trennen?
-                  </span>
-                  <button
-                    type="button"
-                    style={{ padding: "8px 14px", fontSize: "12px", background: "var(--danger)", color: "#fff", border: 0, borderRadius: "8px", fontWeight: 700, cursor: "pointer" }}
-                    disabled={resettingHealth}
-                    onClick={performHealthReset}
-                  >
-                    {resettingHealth ? "Löscht …" : "Ja, Daten löschen & trennen"}
-                  </button>
-                  <button
-                    type="button"
-                    style={{ padding: "8px 14px", fontSize: "12px", background: "transparent", border: "1px solid var(--line)", borderRadius: "8px", color: "var(--muted)", cursor: "pointer" }}
-                    onClick={() => setConfirmResetHealth(false)}
-                  >
-                    Abbrechen
-                  </button>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  className="health-ghost-btn"
-                  disabled={testingHealth || resettingHealth}
-                  onClick={() => setConfirmResetHealth(true)}
-                  title="Synchronisierte Apple Health Daten für dieses Profil löschen & trennen"
-                  style={{
-                    padding: "10px 14px",
-                    fontSize: "12px",
-                    fontWeight: 650,
-                    border: "1px solid rgba(225, 29, 72, 0.4)",
-                    borderRadius: "10px",
-                    background: "rgba(225, 29, 72, 0.08)",
-                    color: "var(--danger)",
-                    cursor: "pointer",
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: "6px"
-                  }}
-                >
-                  <RotateCcw size={14} />
-                  <span>Daten zurücksetzen &amp; trennen</span>
+            <section className="health-workflow-step">
+              <h3><span>1</span> Webhook-Adresse</h3>
+              <div className="health-url-input-wrap">
+                <input readOnly aria-label="Persönliche Webhook-Adresse" value={getWebhookUrl()} />
+                <button type="button" className="health-copy-btn" onClick={copyWebhookUrl}>
+                  {copiedWebhook ? <Check size={16} /> : <Copy size={16} />}
+                  <span>{copiedWebhook ? "Kopiert" : "Kopieren"}</span>
                 </button>
-              )}
-            </div>
+              </div>
+            </section>
 
-            <div className="health-url-box">
-              <label>Sync-Schlüssel · {healthTokenConfigured ? "eingerichtet" : "noch nicht eingerichtet"}</label>
-              <p style={{ margin: "6px 0 10px", fontSize: "12px", color: "var(--muted)" }}>
-                Der Schlüssel schützt den Webhook dieses Profils. Er wird nur beim Erstellen angezeigt und muss als „secret“ in den Kurzbefehl.
-              </p>
-              <div className="health-url-input-wrap" style={{ marginBottom: "8px" }}>
+            <section className="health-workflow-step">
+              <h3><span>2</span> Persönlichen Schlüssel</h3>
+              <div className="health-url-input-wrap">
                 <input
                   aria-label="Apple-Health-Sync-Schlüssel"
                   type={showHealthSyncToken ? "text" : "password"}
                   autoComplete="off"
                   value={healthSyncToken}
-                  placeholder="Schlüssel aus Kurzbefehle einfügen oder neu erstellen"
+                  placeholder={healthTokenConfigured ? "Schlüssel eingerichtet · neu erstellen zum Anzeigen" : "Noch kein Schlüssel erstellt"}
                   onChange={(event) => setHealthSyncToken(event.target.value)}
                 />
-                <button type="button" className="health-copy-btn" disabled={!healthSyncToken} onClick={() => setShowHealthSyncToken((visible) => !visible)}>
-                  {showHealthSyncToken ? "Verbergen" : "Anzeigen"}
-                </button>
-                <button type="button" className="health-copy-btn" disabled={!healthSyncToken} onClick={() => void copyHealthToken()} aria-label="Sync-Schlüssel kopieren">
-                  <Copy size={16} />
-                </button>
+                {healthSyncToken && <button type="button" className="health-copy-btn" onClick={() => setShowHealthSyncToken((visible) => !visible)}>{showHealthSyncToken ? "Verbergen" : "Anzeigen"}</button>}
+                {healthSyncToken && <button type="button" className="health-copy-btn" onClick={() => void copyHealthToken()} aria-label="Sync-Schlüssel kopieren"><Copy size={16} /></button>}
               </div>
-              <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-                <button type="button" className="health-copy-btn" onClick={() => void manageHealthToken("create")}>
-                  <Zap size={16} /> {healthTokenConfigured ? "Schlüssel erneuern" : "Sync-Schlüssel erstellen"}
+              <div className="health-workflow-actions">
+                <button type="button" className="health-primary-btn" onClick={() => void manageHealthToken("create")}>
+                  <Zap size={16} /> {healthTokenConfigured ? "Schlüssel neu erstellen" : "Schlüssel erstellen"}
                 </button>
-                {healthTokenConfigured && <button type="button" className="health-ghost-btn" onClick={() => void manageHealthToken("revoke")}>Schlüssel widerrufen</button>}
+                {healthTokenConfigured && <button type="button" className="health-ghost-btn" onClick={() => void manageHealthToken("revoke")}>Widerrufen</button>}
+                <small>{healthTokenConfigured ? "Gespeichert, aber aus Sicherheitsgründen nicht erneut abrufbar." : "Den angezeigten Schlüssel nur in deiner privaten Kurzbefehle-Kopie speichern."}</small>
               </div>
-            </div>
+            </section>
 
-            <div className="health-url-box">
-              <label>1. Deine persönliche Webhook-Adresse</label>
-              <div className="health-url-input-wrap">
-                <input
-                  readOnly
-                  value={getWebhookUrl()}
-                />
-                <button type="button" className="health-copy-btn" onClick={copyWebhookUrl}>
-                  {copiedWebhook ? <Check size={16} /> : <Copy size={16} />}
-                  <span>{copiedWebhook ? "Kopiert!" : "URL Kopieren"}</span>
-                </button>
-              </div>
-            </div>
-
-            <div className="health-steps-card">
-              <h4>Apple Health verbinden</h4>
-              <p style={{ margin: "4px 0 10px", fontSize: "12px", color: "var(--muted)", lineHeight: 1.5 }}>
-                FitFamily nimmt echte, abgeschlossene Workouts mit Start- und Endzeit entgegen. Die KI kann beim <em>Erstellen</em> helfen; der fertige Kurzbefehl darf aber keine KI- oder Cloud-Modell-Aktion enthalten. Der zuletzt geprüfte iCloud-Kurzbefehl sendet nur ein KI-erzeugtes Feld <code>data</code> statt <code>profileId</code>, <code>secret</code> und <code>workouts</code> und ist deshalb noch nicht kompatibel.
-              </p>
-              <ol style={{ paddingLeft: "20px", display: "grid", gap: "6px", fontSize: "12px" }}>
-                <li>Auftrag unten kopieren und in deine KI einfügen.</li>
-                <li>Den persönlichen Sync-Schlüssel erst in deine eigene Kurzbefehl-Kopie eintragen – niemals in den öffentlichen iCloud-Link.</li>
-                <li>Beim ersten Lauf den Health-Zugriff erlauben. „Verbindung testen“ speichert keine Trainingsdaten.</li>
-              </ol>
-              <div style={{ marginTop: "12px", display: "flex", gap: "8px", flexWrap: "wrap" }}>
+            <section className="health-workflow-step">
+              <h3><span>3</span> Kurzbefehl erstellen</h3>
+              <p>Auftrag kopieren, in eine KI einfügen und den Kurzbefehl ohne Cloud-KI-Aktionen erstellen lassen. Der bisherige iCloud-Kurzbefehl ist inkompatibel – bitte nicht verwenden.</p>
+              <div className="health-workflow-actions">
                 <button
                   type="button"
+                  className="health-copy-btn"
                   onClick={copyShortcutPrompt}
-                  style={{ padding: "9px 12px", fontSize: "12px", fontWeight: 750, borderRadius: "9px", border: 0, background: "var(--brand)", color: "#062421", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "7px" }}
                 >
                   {copiedShortcutPrompt ? <Check size={15} /> : <Copy size={15} />}
-                  <span>{copiedShortcutPrompt ? "Auftrag kopiert" : "KI-Auftrag kopieren"}</span>
+                  <span>{copiedShortcutPrompt ? "Kopiert" : "Erstellungsauftrag kopieren"}</span>
                 </button>
                 <button
                   type="button"
+                  className="health-copy-btn"
                   onClick={copySamplePayload}
-                  style={{ padding: "9px 12px", fontSize: "12px", fontWeight: 700, borderRadius: "9px", border: "1px solid var(--line)", background: "var(--subtle-bg)", color: "var(--text)", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "7px" }}
                 >
                   {copiedPayload ? <Check size={14} /> : <Copy size={14} />}
-                  <span>{copiedPayload ? "JSON kopiert!" : "Muster-JSON kopieren"}</span>
+                  <span>{copiedPayload ? "Kopiert" : "JSON-Beispiel"}</span>
                 </button>
               </div>
-            </div>
+            </section>
+
+            <section className="health-workflow-step">
+              <h3><span>4</span> Verbindung testen</h3>
+              <p>Test speichert keine Trainingsdaten. Beim ersten echten Lauf den Health-Zugriff erlauben.</p>
+              <button type="button" className="health-secondary-btn" disabled={testingHealth || resettingHealth || !healthSyncToken} onClick={testHealthSync}>
+                <Zap size={18} /> {testingHealth ? "Prüfe …" : "Verbindung testen"}
+              </button>
+              {profile.appleHealthRings && <div className="health-ring-preview"><AppleActivityRings rings={profile.appleHealthRings} compact /></div>}
+            </section>
+
+            <section className="health-danger-zone">
+              {confirmResetHealth ? (
+                <>
+                  <strong>Apple-Health-Daten dieses Profils unwiderruflich löschen und Verbindung trennen?</strong>
+                  <button type="button" disabled={resettingHealth} onClick={performHealthReset}>{resettingHealth ? "Löscht …" : "Ja, löschen & trennen"}</button>
+                  <button type="button" onClick={() => setConfirmResetHealth(false)}>Abbrechen</button>
+                </>
+              ) : (
+                <button type="button" disabled={testingHealth || resettingHealth} onClick={() => setConfirmResetHealth(true)}>
+                  <RotateCcw size={14} /> Daten löschen &amp; Verbindung trennen
+                </button>
+              )}
+            </section>
           </div>
         </div>
       )}

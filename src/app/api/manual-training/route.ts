@@ -8,7 +8,9 @@ const postSchema = z.object({
   pin: z.string().regex(/^\d{4}$/), profileId: z.string(), type: z.enum(["strength", "endurance"]),
   startedAt: z.string().datetime(), endedAt: z.string().datetime(), exerciseId: z.string().nullable().optional()
 }).refine((value) => new Date(value.endedAt) > new Date(value.startedAt), { message: "Endzeit muss nach der Startzeit liegen" })
-  .refine((value) => new Date(value.startedAt).getTime() <= Date.now() + 60000, { message: "Trainingsbeginn darf nicht in der Zukunft liegen" });
+  .refine((value) => new Date(value.startedAt).getTime() <= Date.now() + 60000, { message: "Trainingsbeginn darf nicht in der Zukunft liegen" })
+  .refine((value) => new Date(value.endedAt).getTime() <= Date.now() + 60000, { message: "Trainingsende darf nicht in der Zukunft liegen" })
+  .refine((value) => new Date(value.endedAt).getTime() - new Date(value.startedAt).getTime() <= 24 * 60 * 60 * 1000, { message: "Eine Einheit darf höchstens 24 Stunden dauern" });
 
 const editSchema = z.object({
   pin: z.string().regex(/^\d{4}$/),
@@ -19,7 +21,9 @@ const editSchema = z.object({
   endedAt: z.string().datetime(),
   exerciseId: z.string().nullable().optional()
 }).refine((value) => new Date(value.endedAt) > new Date(value.startedAt), { message: "Endzeit muss nach der Startzeit liegen" })
-  .refine((value) => new Date(value.startedAt).getTime() <= Date.now() + 60000, { message: "Trainingsbeginn darf nicht in der Zukunft liegen" });
+  .refine((value) => new Date(value.startedAt).getTime() <= Date.now() + 60000, { message: "Trainingsbeginn darf nicht in der Zukunft liegen" })
+  .refine((value) => new Date(value.endedAt).getTime() <= Date.now() + 60000, { message: "Trainingsende darf nicht in der Zukunft liegen" })
+  .refine((value) => new Date(value.endedAt).getTime() - new Date(value.startedAt).getTime() <= 24 * 60 * 60 * 1000, { message: "Eine Einheit darf höchstens 24 Stunden dauern" });
 
 const deleteSchema = z.object({
   pin: z.string().regex(/^\d{4}$/),
@@ -65,31 +69,51 @@ export async function PUT(request: Request) {
 
   const client = await db();
   const existing = await client.execute({
-    sql: "SELECT id FROM training_sessions WHERE id = ? AND profile_id = ?",
+    sql: "SELECT id, started_at, ended_at FROM training_sessions WHERE id = ? AND profile_id = ?",
     args: [body.data.sessionId, body.data.profileId]
   });
   if (existing.rows.length === 0) {
     return NextResponse.json({ error: "Trainingseinheit nicht gefunden" }, { status: 404 });
   }
 
-  await client.batch([
+  const segmentResult = await client.execute({
+    sql: "SELECT id, type, started_at, ended_at FROM training_segments WHERE session_id = ? ORDER BY started_at ASC",
+    args: [body.data.sessionId]
+  });
+  const oldStartMs = new Date(String(existing.rows[0].started_at)).getTime();
+  const oldEndMs = existing.rows[0].ended_at
+    ? new Date(String(existing.rows[0].ended_at)).getTime()
+    : Math.max(Date.now(), ...segmentResult.rows.map((segment) => new Date(String(segment.ended_at ?? segment.started_at)).getTime()));
+  const newStartMs = new Date(body.data.startedAt).getTime();
+  const newEndMs = new Date(body.data.endedAt).getTime();
+  const scale = oldEndMs > oldStartMs ? (newEndMs - newStartMs) / (oldEndMs - oldStartMs) : 1;
+
+  const statements = [
     {
       sql: `UPDATE training_sessions 
-            SET started_at = ?, ended_at = ?, edited = 1
+            SET started_at = ?, ended_at = ?, status = 'completed', edited = 1
             WHERE id = ? AND profile_id = ?`,
       args: [body.data.startedAt, body.data.endedAt, body.data.sessionId, body.data.profileId]
-    },
-    {
-      sql: `UPDATE training_segments
-            SET type = ?, started_at = ?, ended_at = ?
-            WHERE session_id = ?`,
-      args: [body.data.type, body.data.startedAt, body.data.endedAt, body.data.sessionId]
-    },
-    {
-      sql: "INSERT INTO audit_log (id, action, profile_id, details) VALUES (?, 'training.manual_edit', ?, ?)",
-      args: [randomUUID(), body.data.profileId, JSON.stringify({ sessionId: body.data.sessionId, startedAt: body.data.startedAt, endedAt: body.data.endedAt, type: body.data.type })]
     }
-  ], "write");
+  ];
+
+  for (const segment of segmentResult.rows) {
+    const mapTime = (value: unknown) => {
+      const original = new Date(String(value)).getTime();
+      return new Date(newStartMs + (original - oldStartMs) * scale).toISOString();
+    };
+    const segmentStart = mapTime(segment.started_at);
+    const segmentEnd = mapTime(segment.ended_at ?? new Date(oldEndMs).toISOString());
+    statements.push({
+      sql: `UPDATE training_segments SET type = ?, started_at = ?, ended_at = ? WHERE id = ? AND session_id = ?`,
+      args: [segmentResult.rows.length === 1 ? body.data.type : String(segment.type), segmentStart, segmentEnd, String(segment.id), body.data.sessionId]
+    });
+  }
+  statements.push({
+    sql: "INSERT INTO audit_log (id, action, profile_id, details) VALUES (?, 'training.manual_edit', ?, ?)",
+    args: [randomUUID(), body.data.profileId, JSON.stringify({ sessionId: body.data.sessionId, startedAt: body.data.startedAt, endedAt: body.data.endedAt, type: body.data.type })]
+  });
+  await client.batch(statements, "write");
 
   return NextResponse.json({ ok: true, sessionId: body.data.sessionId });
 }
@@ -109,6 +133,12 @@ export async function DELETE(request: Request) {
   }
 
   await client.batch([
+    {
+      sql: `INSERT OR IGNORE INTO apple_health_ignored_workouts (profile_id, external_id)
+        SELECT profile_id, external_id FROM training_sessions
+        WHERE id = ? AND profile_id = ? AND source = 'apple_health' AND external_id IS NOT NULL`,
+      args: [body.data.sessionId, body.data.profileId]
+    },
     {
       sql: "DELETE FROM training_segments WHERE session_id = ?",
       args: [body.data.sessionId]

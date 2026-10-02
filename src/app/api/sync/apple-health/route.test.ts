@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { DELETE, POST } from "./route";
+import { DELETE as deleteTrainingEntry } from "@/app/api/manual-training/route";
 import { db } from "@/lib/db";
 import { hashToken, setAdminPin } from "@/lib/security";
 
@@ -26,6 +27,7 @@ describe("Apple Health sync endpoint", () => {
 
   afterAll(async () => {
     const client = await db();
+    await client.execute({ sql: "DELETE FROM apple_health_ignored_workouts WHERE profile_id = ? AND external_id = ?", args: [profileId, workoutId] });
     const sessions = await client.execute({ sql: "SELECT id FROM training_sessions WHERE external_id = ?", args: [workoutId] });
     for (const row of sessions.rows) {
       await client.execute({ sql: "DELETE FROM training_segments WHERE session_id = ?", args: [String(row.id)] });
@@ -146,6 +148,36 @@ describe("Apple Health sync endpoint", () => {
       body: JSON.stringify({ profileId, secret, workouts: [{ title: "Laufen", durationMinutes: 30 }] })
     }));
     expect(response.status).toBe(400);
+  });
+
+  it("keeps a manually deleted Apple Health workout from returning on the next sync", async () => {
+    const client = await db();
+    const imported = await client.execute({
+      sql: "SELECT id FROM training_sessions WHERE profile_id = ? AND source = 'apple_health' AND external_id = ? LIMIT 1",
+      args: [profileId, workoutId]
+    });
+    expect(imported.rows).toHaveLength(1);
+
+    const deleteResponse = await deleteTrainingEntry(new Request("http://localhost/api/manual-training", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pin: "2468", profileId, sessionId: String(imported.rows[0].id) })
+    }));
+    expect(deleteResponse.status).toBe(200);
+
+    const resync = await POST(new Request("http://localhost/api/sync/apple-health", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        profileId,
+        secret,
+        workouts: [{ id: workoutId, title: "Laufen", type: "endurance", startedAt: "2026-09-30T10:00:00Z", endedAt: "2026-09-30T10:30:00Z" }]
+      })
+    }));
+    const result = await resync.json();
+    expect(resync.status).toBe(200);
+    expect(result.imported).toBe(0);
+    expect(result.skipped).toBe(1);
   });
 
   it("removes imported data and revokes the key when Health is disconnected", async () => {

@@ -171,30 +171,31 @@ function SwipeableSessionRow({
               )}
             </>
           )}
+          {session.status === "active" && <em className="session-running-tag">Läuft</em>}
           <div className="session-desktop-actions">
             <button
               type="button"
               className="session-action-icon edit-icon"
-              title="Bearbeiten (nach rechts wischen)"
-              aria-label="Bearbeiten"
+              title="Trainingseinheit bearbeiten"
+              aria-label="Trainingseinheit bearbeiten"
               onClick={(e) => {
                 e.stopPropagation();
                 onEdit(session);
               }}
             >
-              <Pencil size={15} />
+              <Pencil size={15} /><span>Ändern</span>
             </button>
             <button
               type="button"
               className="session-action-icon delete-icon"
-              title="Löschen (nach links wischen)"
-              aria-label="Löschen"
+              title="Trainingseinheit löschen"
+              aria-label="Trainingseinheit löschen"
               onClick={(e) => {
                 e.stopPropagation();
                 onDelete(session);
               }}
             >
-              <Trash2 size={15} />
+              <Trash2 size={15} /><span>Löschen</span>
             </button>
           </div>
         </div>
@@ -214,6 +215,7 @@ export function HistoryView({ profile }: { profile: DashboardProfile }) {
   // Edit Modal state
   const [editingSession, setEditingSession] = useState<Session | null>(null);
   const [editDate, setEditDate] = useState("");
+  const [editEndDate, setEditEndDate] = useState("");
   const [editStart, setEditStart] = useState("");
   const [editEnd, setEditEnd] = useState("");
   const [editType, setEditType] = useState<"strength" | "endurance">("strength");
@@ -247,7 +249,7 @@ export function HistoryView({ profile }: { profile: DashboardProfile }) {
 
   function startEdit(session: Session) {
     const startDate = new Date(session.startedAt);
-    const endDate = new Date(session.endedAt || session.startedAt);
+    const endDate = new Date(session.endedAt || Date.now());
     const dateStr = `${startDate.getFullYear()}-${String(startDate.getMonth() + 1).padStart(2, "0")}-${String(
       startDate.getDate()
     ).padStart(2, "0")}`;
@@ -256,6 +258,7 @@ export function HistoryView({ profile }: { profile: DashboardProfile }) {
 
     setEditingSession(session);
     setEditDate(dateStr);
+    setEditEndDate(`${endDate.getFullYear()}-${String(endDate.getMonth() + 1).padStart(2, "0")}-${String(endDate.getDate()).padStart(2, "0")}`);
     setEditStart(startStr);
     setEditEnd(endStr);
     setEditType(session.segments[0]?.type === "endurance" ? "endurance" : "strength");
@@ -312,7 +315,7 @@ export function HistoryView({ profile }: { profile: DashboardProfile }) {
     if (!editingSession) return;
     setEditError("");
     const startedAt = new Date(`${editDate}T${editStart}`).toISOString();
-    const endedAt = new Date(`${editDate}T${editEnd}`).toISOString();
+    const endedAt = new Date(`${editEndDate}T${editEnd}`).toISOString();
 
     const response = await fetch("/api/manual-training", {
       method: "PUT",
@@ -424,7 +427,7 @@ export function HistoryView({ profile }: { profile: DashboardProfile }) {
       {sessions.length > 0 && (
         <div className="swipe-hint">
           <ArrowLeftRight size={14} />
-          <span>Wischgeste: Nach links wischen zum Löschen · Nach rechts zum Bearbeiten</span>
+          <span>Einträge direkt über „Ändern“ oder „Löschen“ verwalten – alternativ wischen.</span>
         </div>
       )}
 
@@ -517,12 +520,21 @@ export function HistoryView({ profile }: { profile: DashboardProfile }) {
             <span className="setup-badge">Bearbeiten</span>
             <h2>Training anpassen</h2>
             <label>
-              Datum
+              Startdatum
               <input
                 type="date"
                 required
                 value={editDate}
                 onChange={(e) => setEditDate(e.target.value)}
+              />
+            </label>
+            <label>
+              Enddatum
+              <input
+                type="date"
+                required
+                value={editEndDate}
+                onChange={(e) => setEditEndDate(e.target.value)}
               />
             </label>
             <div className="two-fields">
@@ -545,16 +557,20 @@ export function HistoryView({ profile }: { profile: DashboardProfile }) {
                 />
               </label>
             </div>
-            <label>
-              Training
-              <select
-                value={editType}
-                onChange={(e) => setEditType(e.target.value as "strength" | "endurance")}
-              >
-                <option value="strength">Kraft</option>
-                <option value="endurance">Ausdauer</option>
-              </select>
-            </label>
+            {editingSession.segments.length === 1 ? (
+              <label>
+                Training
+                <select
+                  value={editType}
+                  onChange={(e) => setEditType(e.target.value as "strength" | "endurance")}
+                >
+                  <option value="strength">Kraft</option>
+                  <option value="endurance">Ausdauer</option>
+                </select>
+              </label>
+            ) : (
+              <p className="field-hint">Die Übungsarten dieser Einheit bleiben erhalten. Zeitangaben werden auf alle Teilübungen übertragen.</p>
+            )}
             <label>Eltern-PIN zur Freigabe (4 Ziffern)</label>
             <TouchPinpad value={editPin} onChange={setEditPin} />
             {editError && <p className="form-error">{editError}</p>}

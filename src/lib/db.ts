@@ -36,6 +36,7 @@ async function createSchema(client: Client) {
       starting_fitness INTEGER NOT NULL DEFAULT 3 CHECK(starting_fitness BETWEEN 1 AND 5),
       birth_date TEXT,
       score_baseline REAL NOT NULL DEFAULT 0,
+      score_reset_at TEXT,
       target_reset_at TEXT,
       goal TEXT NOT NULL DEFAULT 'Allgemeine Fitness',
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -137,6 +138,12 @@ async function createSchema(client: Client) {
       profile_id TEXT PRIMARY KEY REFERENCES profiles(id) ON DELETE CASCADE,
       token_hash TEXT NOT NULL,
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`,
+    `CREATE TABLE IF NOT EXISTS apple_health_ignored_workouts (
+      profile_id TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+      external_id TEXT NOT NULL,
+      deleted_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (profile_id, external_id)
     )`
   ];
 
@@ -148,6 +155,9 @@ async function createSchema(client: Client) {
   }
   if (!profileColumns.rows.some((row) => String(row.name) === "target_reset_at")) {
     await client.execute("ALTER TABLE profiles ADD COLUMN target_reset_at TEXT");
+  }
+  if (!profileColumns.rows.some((row) => String(row.name) === "score_reset_at")) {
+    await client.execute("ALTER TABLE profiles ADD COLUMN score_reset_at TEXT");
   }
 
   const sessionColumns = await client.execute("PRAGMA table_info(training_sessions)");

@@ -133,12 +133,22 @@ export async function POST(request: Request) {
     const startIso = new Date(item.startedAt).toISOString();
     const endIso = new Date(item.endedAt).toISOString();
     const durMinutes = (new Date(endIso).getTime() - new Date(startIso).getTime()) / 60000;
+    const externalId = item.id ?? `start:${startIso}`;
 
     if (!Number.isFinite(Date.parse(startIso)) || !Number.isFinite(Date.parse(endIso))) {
       return NextResponse.json({ error: "Ungültige Trainingszeit." }, { status: 400 });
     }
 
-    // Deduplication check: check if a session already exists for this profile within 3 minutes of start time
+    const ignored = await client.execute({
+      sql: "SELECT external_id FROM apple_health_ignored_workouts WHERE profile_id = ? AND external_id = ? LIMIT 1",
+      args: [profileId, externalId]
+    });
+    if (ignored.rows.length) {
+      skippedCount++;
+      continue;
+    }
+
+    // Duplicate guard for repeated HealthKit imports.
     const duplicate = item.id
       ? await client.execute({
           sql: "SELECT id FROM training_sessions WHERE profile_id = ? AND source = 'apple_health' AND external_id = ? LIMIT 1",
@@ -146,7 +156,7 @@ export async function POST(request: Request) {
         })
       : await client.execute({
           sql: `SELECT id FROM training_sessions
-            WHERE profile_id = ? AND ABS(strftime('%s', started_at) - strftime('%s', ?)) < 180
+            WHERE profile_id = ? AND source = 'apple_health' AND ABS(strftime('%s', started_at) - strftime('%s', ?)) < 180
             LIMIT 1`,
           args: [profileId, startIso]
         });
@@ -160,7 +170,6 @@ export async function POST(request: Request) {
     const sessionId = randomUUID();
     const segmentId = randomUUID();
     const points = durMinutes * SCORE_MULTIPLIER[trainingType];
-    const externalId = item.id ?? `start:${startIso}`;
     const secretHash = hashToken(parsed.data.secret);
 
     try {
@@ -354,6 +363,7 @@ export async function DELETE(request: Request) {
     { sql: "DELETE FROM training_segments WHERE session_id IN (SELECT id FROM training_sessions WHERE profile_id = ? AND source = 'apple_health')", args: [profileId] },
     { sql: "DELETE FROM training_sessions WHERE profile_id = ? AND source = 'apple_health'", args: [profileId] },
     { sql: "DELETE FROM apple_health_daily WHERE profile_id = ?", args: [profileId] },
+    { sql: "DELETE FROM apple_health_ignored_workouts WHERE profile_id = ?", args: [profileId] },
     { sql: `DELETE FROM audit_log WHERE profile_id = ? AND action IN (
       'health.apple_sync', 'health.apple_token.create', 'health.apple_token.revoke', 'health.apple_reset'
     )`, args: [profileId] },

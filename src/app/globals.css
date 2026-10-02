@@ -1462,15 +1462,25 @@ body::before {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 34px;
-  height: 34px;
+  gap: 6px;
+  min-width: 44px;
+  width: auto;
+  height: 44px;
+  padding: 0 10px;
+  font-size: 11px;
+  font-weight: 750;
   border-radius: 10px;
   border: 1px solid var(--line);
   background: var(--subtle-bg);
   color: var(--muted);
   cursor: pointer;
   transition: all 0.15s ease;
+  touch-action: manipulation;
+  white-space: nowrap;
 }
+.session-action-icon span { display: inline; }
+.session-running-tag { color: #16a34a !important; font-size: 10px; font-style: normal; font-weight: 800; }
+[data-theme="dark"] .session-running-tag { color: #4ade80 !important; }
 
 .session-action-icon.edit-icon:hover {
   background: rgba(2, 132, 199, 0.15);
@@ -2986,7 +2996,7 @@ body::before {
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 12px;
 }
 .health-modal-header {
   display: flex;
@@ -3015,6 +3025,75 @@ body::before {
   line-height: 1.5;
   margin: 0;
 }
+.health-workflow-step {
+  display: grid;
+  gap: 9px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--panel-soft);
+}
+.health-workflow-step h3 {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0;
+  font-size: 13px;
+}
+.health-workflow-step h3 > span {
+  display: grid;
+  place-items: center;
+  width: 23px;
+  height: 23px;
+  border-radius: 50%;
+  background: var(--brand);
+  color: #062421;
+  font-size: 11px;
+}
+.health-workflow-step p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.4;
+}
+.health-workflow-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.health-workflow-actions small {
+  flex: 1 1 100%;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.35;
+}
+.health-ring-preview { overflow-x: auto; }
+.health-danger-zone {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding-top: 2px;
+}
+.health-danger-zone strong { flex: 1 1 100%; color: var(--danger); font-size: 12px; }
+.health-danger-zone button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 42px;
+  padding: 0 12px;
+  border: 1px solid color-mix(in srgb, var(--danger) 45%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--danger) 8%, transparent);
+  color: var(--danger);
+  font-size: 11px;
+  font-weight: 750;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.health-danger-zone button:disabled { opacity: .6; cursor: wait; }
 .health-action-row {
   display: flex;
   flex-wrap: wrap;
