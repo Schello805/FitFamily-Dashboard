@@ -10,7 +10,7 @@ function makeLine(points: ActivityTrendPoint[], value: (point: ActivityTrendPoin
       return;
     }
     const x = 3 + (254 * index) / Math.max(1, points.length - 1);
-    const y = 43 - (39 * Math.max(0, amount)) / max;
+    const y = 92 - (84 * Math.max(0, amount)) / max;
     path += `${open ? "L" : "M"}${x.toFixed(1)} ${y.toFixed(1)} `;
     open = true;
   });
@@ -42,14 +42,14 @@ export function ActivityTrendChart({ points, color, targetMinutes, targetPeriod 
         <span>VERLAUF · JAHRE / MONATE / TAGE</span>
         <span>{hasData ? "IST / SOLL" : "NOCH KEINE IST-DATEN"}</span>
       </div>
-      <svg viewBox="0 0 260 48" role="img" aria-label={`Verlauf der durchschnittlichen täglichen Trainingsminuten. ${explanation}`} preserveAspectRatio="none">
-        <path className="dashboard-history-grid" d="M2 4H258 M2 23H258 M2 43H258" />
-        {yearIndex > 0 && <path className="dashboard-history-period-separator" d={`M${marker(firstMonthlyIndex)} 2V45`} />}
-        {firstDailyIndex > 0 && <path className="dashboard-history-period-separator" d={`M${marker(firstDailyIndex)} 2V45`} />}
+      <svg viewBox="0 0 260 100" role="img" aria-label={`Verlauf der durchschnittlichen täglichen Trainingsminuten. ${explanation}`} preserveAspectRatio="none">
+        <path className="dashboard-history-grid" d="M2 8H258 M2 50H258 M2 92H258" />
+        {yearIndex > 0 && <path className="dashboard-history-period-separator" d={`M${marker(firstMonthlyIndex)} 3V97`} />}
+        {firstDailyIndex > 0 && <path className="dashboard-history-period-separator" d={`M${marker(firstDailyIndex)} 3V97`} />}
         {points.length > 1 && <path className="dashboard-history-target" d={targetLine} />}
         {hasData && <path className="dashboard-history-actual" d={actualLine} style={{ stroke: color }} />}
         {points.map((point, index) => point.activityMinutes === null ? null : (
-          <circle key={`${point.resolution}-${point.date}`} className="dashboard-history-point" cx={(3 + (254 * index) / Math.max(1, points.length - 1)).toFixed(1)} cy={(43 - (39 * Math.max(0, point.activityMinutes)) / scaleMax).toFixed(1)} r="1.5" style={{ fill: color }}>
+          <circle key={`${point.resolution}-${point.date}`} className="dashboard-history-point" cx={(3 + (254 * index) / Math.max(1, points.length - 1)).toFixed(1)} cy={(92 - (84 * Math.max(0, point.activityMinutes)) / scaleMax).toFixed(1)} r="2.5" style={{ fill: color }}>
             <title>{point.label}: Ø {new Intl.NumberFormat("de-DE", { maximumFractionDigits: 1 }).format(point.activityMinutes)} Min./Tag, Daten für {point.measuredDays} von {point.periodDays} Tagen.</title>
           </circle>
         ))}
