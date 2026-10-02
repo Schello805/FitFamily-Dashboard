@@ -9,10 +9,10 @@ import { AvatarPicker } from "@/components/avatar-picker";
 type SetupProfile = { id: AvatarId; name: string; birthDate: string; avatar: ProfileAvatar; startingFitness: number };
 
 const initialProfiles: SetupProfile[] = [
-  { id: "mama", name: "Mama", birthDate: "1980-01-01", avatar: "mama", startingFitness: 5 },
-  { id: "papa", name: "Papa", birthDate: "1980-01-01", avatar: "papa", startingFitness: 5 },
-  { id: "fabian", name: "Fabian", birthDate: "2012-01-01", avatar: "fabian", startingFitness: 2 },
-  { id: "frieda", name: "Frieda", birthDate: "2012-01-01", avatar: "frieda", startingFitness: 2 }
+  { id: "mama", name: "Mama", birthDate: "1980-01-01", avatar: "mama", startingFitness: 1 },
+  { id: "papa", name: "Papa", birthDate: "1980-01-01", avatar: "papa", startingFitness: 1 },
+  { id: "fabian", name: "Fabian", birthDate: "2012-01-01", avatar: "fabian", startingFitness: 1 },
+  { id: "frieda", name: "Frieda", birthDate: "2012-01-01", avatar: "frieda", startingFitness: 1 }
 ];
 const setupDraftKey = "fitfamily-setup-profiles";
 
@@ -101,14 +101,14 @@ export function SetupForm() {
               <legend>{profile.name}</legend>
               <label>Anzeigename<input required maxLength={30} value={profile.name} onChange={(event) => setProfiles((items) => items.map((item, itemIndex) => itemIndex === index ? { ...item, name: event.target.value } : item))} /></label>
               <label>Geburtsdatum (Tag und Monat bitte prüfen)<input required type="date" value={profile.birthDate} onChange={(event) => setProfiles((items) => items.map((item, itemIndex) => itemIndex === index ? { ...item, birthDate: event.target.value } : item))} /></label>
-              <label>Start-Fitness
+              <label>Meine Fitness-Stufe (Selbsteinschätzung)
                 <select value={profile.startingFitness} onChange={(event) => setProfiles((items) => items.map((item, itemIndex) => itemIndex === index ? { ...item, startingFitness: Number(event.target.value) } : item))}>
                   {getStartingFitnessStages(profile.id, profile.birthDate).map((st) => (
                     <option key={st.stage} value={st.stage}>{st.label} ({st.description})</option>
                   ))}
                 </select>
               </label>
-              <p className="field-hint">Die Fitnessstufe steigt mit je 15 Trainingsstunden. Bei Kindern gibt es drei Stufen und zwei Figurendesigns.</p>
+              <p className="field-hint">Alle Profile beginnen auf Stufe 1. Wähle hier ehrlich die aktuelle Stufe aus; Erwachsene haben sieben Stufen, Kinder drei. Die Figurendesigns stellst du darunter ein.</p>
               <div className="avatar-choice"><span>Figur im Dashboard</span><AvatarPicker value={avatarAssetForProfile(profile.id, profile.avatar) as AvatarDesignId} onChange={(avatar) => setProfiles((items) => items.map((item, itemIndex) => itemIndex === index ? { ...item, avatar } : item))} name={`avatar-${profile.id}`} /></div>
             </fieldset>
           ))}

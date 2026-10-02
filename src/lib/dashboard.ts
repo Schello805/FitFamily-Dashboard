@@ -81,7 +81,7 @@ export async function getDashboardData(): Promise<DashboardProfile[]> {
       email: asString(row.email),
       color: String(row.color),
       avatar: String(row.avatar) as Profile["avatar"],
-      startingFitness: asNumber(row.starting_fitness_stage) || asNumber(row.starting_fitness) || 3,
+      startingFitness: asNumber(row.starting_fitness_stage) || asNumber(row.starting_fitness) || 1,
       birthDate: asString(row.birth_date),
       scoreBaseline: asNumber(row.score_baseline),
       scoreResetAt: asString(row.score_reset_at),

@@ -29,7 +29,7 @@ export function Avatar({
   avatar = profile?.avatar ?? "neutral",
   color = profile?.color ?? "#22d3ee",
   birthDate = profile?.birthDate,
-  fitnessStage = profile?.fitnessStage ?? 3,
+  fitnessStage = profile?.fitnessStage ?? 1,
   physique = profile?.physique ?? "balanced",
   name = profile?.name,
   size = "medium",

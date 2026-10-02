@@ -80,14 +80,16 @@ export function getFitnessStageCount(profileId: string, birthDate?: string | nul
 
 export function getStartingFitnessStages(profileId: string, birthDate?: string | null) {
   const count = getFitnessStageCount(profileId, birthDate);
-  return count === 3 ? CHILD_FITNESS_STAGES : FITNESS_STAGES.slice(0, 5);
+  return count === 3 ? CHILD_FITNESS_STAGES : FITNESS_STAGES;
 }
 
-export function getAvatarProgress(startingFitness: number, strengthMinutes: number, enduranceMinutes: number, stageCount = 5) {
+export function getAvatarProgress(startingFitness: number, strengthMinutes: number, enduranceMinutes: number, stageCount = 7) {
   const strength = Math.max(0, strengthMinutes);
   const endurance = Math.max(0, enduranceMinutes);
   const trainingMinutes = strength + endurance;
-  const fitnessStage = Math.max(1, Math.min(stageCount, Math.round(startingFitness) + Math.floor(trainingMinutes / 900)));
+  // The selected stage is the person's self-assessment. Lifetime training minutes
+  // must not silently promote them; automatic progression uses a separate rule.
+  const fitnessStage = Math.max(1, Math.min(stageCount, Math.round(startingFitness)));
   const strengthShare = trainingMinutes ? strength / trainingMinutes : 0.5;
   const physique: AvatarPhysique = strengthShare >= 0.62 ? "strength" : strengthShare <= 0.38 ? "endurance" : "balanced";
   return { fitnessStage, physique, strengthShare, trainingMinutes, strengthMinutes: strength, enduranceMinutes: endurance };
@@ -146,10 +148,10 @@ export const SCORE_MULTIPLIER: Record<TrainingType, number> = {
 };
 
 export const PROFILE_SEEDS: Profile[] = [
-  { id: "mama", name: "Mama", color: "#a78bfa", avatar: "female", startingFitness: 5, birthDate: null, scoreBaseline: 0, goal: "Allgemeine Fitness" },
-  { id: "papa", name: "Papa", color: "#22d3ee", avatar: "male", startingFitness: 5, birthDate: null, scoreBaseline: 0, goal: "Allgemeine Fitness" },
-  { id: "fabian", name: "Fabian", color: "#fb923c", avatar: "male", startingFitness: 2, birthDate: null, scoreBaseline: 0, goal: "Allgemeine Fitness" },
-  { id: "frieda", name: "Frieda", color: "#4ade80", avatar: "female", startingFitness: 2, birthDate: null, scoreBaseline: 0, goal: "Allgemeine Fitness" }
+  { id: "mama", name: "Mama", color: "#a78bfa", avatar: "female", startingFitness: 1, birthDate: null, scoreBaseline: 0, goal: "Allgemeine Fitness" },
+  { id: "papa", name: "Papa", color: "#22d3ee", avatar: "male", startingFitness: 1, birthDate: null, scoreBaseline: 0, goal: "Allgemeine Fitness" },
+  { id: "fabian", name: "Fabian", color: "#fb923c", avatar: "male", startingFitness: 1, birthDate: null, scoreBaseline: 0, goal: "Allgemeine Fitness" },
+  { id: "frieda", name: "Frieda", color: "#4ade80", avatar: "female", startingFitness: 1, birthDate: null, scoreBaseline: 0, goal: "Allgemeine Fitness" }
 ];
 
 export const GOALS = [

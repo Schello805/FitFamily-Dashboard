@@ -9,7 +9,7 @@ const profileSchema = z.object({
   name: z.string().min(1).max(30),
   birthDate: z.string().date().nullable(),
   avatar: z.enum([...AVATAR_DESIGN_IDS, "female", "male", "neutral"]),
-  startingFitness: z.number().int().min(1).max(5)
+  startingFitness: z.number().int().min(1).max(7)
 });
 const schema = z.object({
   pin: z.string().regex(/^\d{4}$/),
@@ -37,7 +37,7 @@ export async function POST(request: Request) {
   await client.batch([
     ...body.data.profiles.map((profile) => ({
       sql: "UPDATE profiles SET name = ?, birth_date = ?, avatar = ?, starting_fitness = ?, starting_fitness_stage = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-      args: [profile.name, profile.birthDate, profile.avatar, profile.startingFitness, profile.startingFitness, profile.id]
+      args: [profile.name, profile.birthDate, profile.avatar, Math.min(profile.startingFitness, 5), profile.startingFitness, profile.id]
     })),
     {
       sql: `INSERT INTO settings (key, value, updated_at) VALUES ('setup_complete', 'true', CURRENT_TIMESTAMP)

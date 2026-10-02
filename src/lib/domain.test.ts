@@ -31,13 +31,13 @@ describe("FitFamily-Domänenregeln", () => {
     expect(avatarAssetForProfile("fabian", "fabian-alt")).toBe("fabian-alt");
   });
 
-  it("entwickelt den Avatar anhand des gewählten Starts und getrennter Kraft-/Ausdauerminuten", () => {
+  it("verwendet die Selbsteinschätzung als Fitnessstufe und Trainingsminuten nur für den Figurentyp", () => {
     expect(getAvatarProgress(1, 0, 0)).toMatchObject({ fitnessStage: 1, physique: "balanced" });
-    expect(getAvatarProgress(2, 1_000, 0)).toMatchObject({ fitnessStage: 3, physique: "strength" });
-    expect(getAvatarProgress(2, 0, 1_000)).toMatchObject({ fitnessStage: 3, physique: "endurance" });
-    expect(getAvatarProgress(3, 500, 500)).toMatchObject({ fitnessStage: 4, physique: "balanced" });
+    expect(getAvatarProgress(2, 1_000, 0)).toMatchObject({ fitnessStage: 2, physique: "strength" });
+    expect(getAvatarProgress(2, 0, 1_000)).toMatchObject({ fitnessStage: 2, physique: "endurance" });
+    expect(getAvatarProgress(3, 500, 500)).toMatchObject({ fitnessStage: 3, physique: "balanced" });
     expect(getAvatarProgress(0, -10, -50)).toMatchObject({ fitnessStage: 1, physique: "balanced" });
-    expect(getAvatarProgress(5, 20_000, 20_000).fitnessStage).toBe(5);
+    expect(getAvatarProgress(7, 20_000, 20_000).fitnessStage).toBe(7);
   });
 
   it("wählt sichtbare Avatar-Entwicklungen nur für Erwachsene", () => {
@@ -59,9 +59,9 @@ describe("FitFamily-Domänenregeln", () => {
     expect(getFitnessStageCount("family-child", "2012-01-01")).toBe(3);
     expect(getFitnessStageCount("fabian", null)).toBe(3);
     expect(getStartingFitnessStages("fabian", "2012-01-01")).toHaveLength(3);
-    expect(getStartingFitnessStages("mama", "1980-01-01")).toHaveLength(5);
-    expect(getAvatarProgress(5, 1_800, 0, 7).fitnessStage).toBe(7);
-    expect(getAvatarProgress(2, 100_000, 0, 3).fitnessStage).toBe(3);
+    expect(getStartingFitnessStages("mama", "1980-01-01")).toHaveLength(7);
+    expect(getAvatarProgress(5, 1_800, 0, 7).fitnessStage).toBe(5);
+    expect(getAvatarProgress(2, 100_000, 0, 3).fitnessStage).toBe(2);
     expect(avatarProgressAssetForProfile("fabian", "fabian-alt", 3, "strength", 3)).toBe("fabian-alt");
   });
 

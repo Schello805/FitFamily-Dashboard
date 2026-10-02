@@ -874,7 +874,7 @@ Wichtig für den Aufbau: Erstelle zuerst alle 6 Tageswert-Abfragen einzeln und f
           <span>Figur im Dashboard</span>
           <AvatarPicker value={editAvatar} onChange={setEditAvatar} />
         </div>
-        <label>Start-Fitness
+        <label>Meine Fitness-Stufe (Selbsteinschätzung)
           <select name="startingFitness" value={editStartingFitness} onChange={(e) => setEditStartingFitness(Number(e.target.value))}>
             {getStartingFitnessStages(profile.id, editBirthDate || null).map((st) => (
               <option key={st.stage} value={st.stage}>{st.label} ({st.description})</option>
@@ -882,7 +882,7 @@ Wichtig für den Aufbau: Erstelle zuerst alle 6 Tageswert-Abfragen einzeln und f
           </select>
         </label>
         <p className="field-hint">
-          Die Stufe steigt mit je 15 Trainingsstunden automatisch an. Erwachsene haben sieben Stufen, Kinder drei; das Verhältnis aus Kraft und Ausdauer bestimmt den Trainingsfokus.
+          Wähle die Stufe, die deiner aktuellen Fitness am besten entspricht. Erwachsene haben sieben Stufen, Kinder drei. Trainingszeiten ändern diese Selbsteinschätzung nicht automatisch.
         </p>
         <label>Trainingsziel<select name="goal" defaultValue={profile.goal}>{GOALS.map((goal) => <option key={goal}>{goal}</option>)}</select></label>
         <label>Eltern-PIN<input name="pin" type="password" inputMode="numeric" autoComplete="current-password" minLength={4} maxLength={4} pattern="[0-9]{4}" onChange={(event) => { event.currentTarget.value = event.currentTarget.value.replace(/\D/g, "").slice(0, 4); }} required /></label>

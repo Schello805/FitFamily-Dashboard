@@ -1021,16 +1021,23 @@ export function AdminView({
             disabled={verifying}
           />
 
-          <input
-            type="password"
-            inputMode="numeric"
-            pattern="[0-9]*"
-            aria-label="Eltern-PIN"
-            style={{ position: "absolute", opacity: 0, pointerEvents: "none", height: 0, width: 0 }}
-            maxLength={4}
-            value={pin}
-            onChange={(event) => setPin(event.target.value.replace(/\D/g, "").slice(0, 4))}
-          />
+          <label className="admin-pin-entry">
+            Eltern-PIN · 4 Ziffern
+            <input
+              type="password"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              autoComplete="current-password"
+              aria-label="Eltern-PIN"
+              placeholder="Tippen öffnet die Bildschirmtastatur"
+              maxLength={4}
+              value={pin}
+              onChange={(event) => {
+                setPin(event.target.value.replace(/\D/g, "").slice(0, 4));
+                if (error) setError("");
+              }}
+            />
+          </label>
 
           {error && <p className="form-error">{error}</p>}
           <button className="primary-submit" disabled={verifying || pin.length !== 4}>
@@ -1635,14 +1642,14 @@ export function AdminView({
       </article>
       </>}
       {activeAdminSection === "familie" && <>
-      <article className="wide"><div className="admin-title"><Users /><div><h2>Familienprofile</h2><p>E-Mail, Geburtsdatum, Fitnessstart und Avatar bearbeiten. Das Alter wird aus dem Geburtsdatum berechnet.</p></div></div><div className="equipment-table-wrap"><table className="equipment-table"><thead><tr><th>Name</th><th>E-Mail</th><th>Geburtsdatum</th><th>Alter</th><th>Avatar</th><th></th></tr></thead><tbody>{familyItems.map((profile) => { const age = profile.birthDate ? calculateAge(profile.birthDate) : null; const stages = getStartingFitnessStages(profile.id, profile.birthDate); const stageCount = getFitnessStageCount(profile.id, profile.birthDate); return <tr key={profile.id}><td><b>{profile.name}</b></td><td>{profile.email || "Nicht hinterlegt"}</td><td>{profile.birthDate || "–"}</td><td>{age == null ? "–" : `${age} Jahre`}</td><td>Start {Math.min(profile.startingFitness, stages.length)} · max. {stageCount}</td><td><button type="button" onClick={() => { setFamilyDraft({ ...profile, startingFitness: Math.min(profile.startingFitness, stages.length) }); setFamilyModalId(profile.id); }}>Bearbeiten</button></td></tr>; })}</tbody></table></div></article>
+      <article className="wide"><div className="admin-title"><Users /><div><h2>Familienprofile</h2><p>E-Mail, Geburtsdatum, aktuelle Fitnessstufe und Avatar bearbeiten. Das Alter wird aus dem Geburtsdatum berechnet.</p></div></div><div className="equipment-table-wrap"><table className="equipment-table"><thead><tr><th>Name</th><th>E-Mail</th><th>Geburtsdatum</th><th>Alter</th><th>Fitnessstufe</th><th></th></tr></thead><tbody>{familyItems.map((profile) => { const age = profile.birthDate ? calculateAge(profile.birthDate) : null; const stages = getStartingFitnessStages(profile.id, profile.birthDate); const stageCount = getFitnessStageCount(profile.id, profile.birthDate); return <tr key={profile.id}><td><b>{profile.name}</b></td><td>{profile.email || "Nicht hinterlegt"}</td><td>{profile.birthDate || "–"}</td><td>{age == null ? "–" : `${age} Jahre`}</td><td>{Math.min(profile.startingFitness, stages.length)} von {stageCount}</td><td><button type="button" onClick={() => { setFamilyDraft({ ...profile, startingFitness: Math.min(profile.startingFitness, stages.length) }); setFamilyModalId(profile.id); }}>Bearbeiten</button></td></tr>; })}</tbody></table></div></article>
       <article className="wide"><div className="admin-title"><RotateCcw /><div><h2>Scores zurücksetzen</h2><p>Der vollständige Trainingsverlauf bleibt erhalten.</p></div></div><div className="reset-list">{familyItems.map((profile) => <div key={profile.id}><span>{profile.name}<small>{profileScores[profile.id] ?? 0} Punkte</small></span><button type="button" onClick={() => requestResetScore(profile.id)}>Auf 0 setzen</button></div>)}</div></article>
       </>}
     </section>
         </div>
       </div>
 
-      {familyModalId && familyDraft && <div className="modal-backdrop" onClick={() => { setFamilyModalId(null); setFamilyDraft(null); }}><form className="admin-edit-modal family-edit-modal" onClick={(event) => event.stopPropagation()} onSubmit={(event) => { event.preventDefault(); void saveFamilyProfile(); }}><button type="button" className="modal-close" onClick={() => { setFamilyModalId(null); setFamilyDraft(null); }} aria-label="Schließen"><X /></button><span className="setup-badge">Familie · Profil bearbeiten</span><h2>{familyDraft.name}</h2><div className="admin-edit-fields"><label>Name<input required maxLength={30} value={familyDraft.name} onChange={(event) => setFamilyDraft({ ...familyDraft, name: event.target.value })} /></label><label>E-Mail-Adresse<input type="email" maxLength={254} value={familyDraft.email ?? ""} onChange={(event) => setFamilyDraft({ ...familyDraft, email: event.target.value || null })} placeholder="name@example.com" /></label><label>Geburtsdatum<input type="date" value={familyDraft.birthDate ?? ""} onChange={(event) => { const birthDate = event.target.value || null; setFamilyDraft({ ...familyDraft, birthDate, startingFitness: Math.min(familyDraft.startingFitness, getStartingFitnessStages(familyDraft.id, birthDate).length) }); }} /></label><label>Alter (automatisch)<input readOnly value={familyDraft.birthDate ? `${calculateAge(familyDraft.birthDate) ?? "Ungültiges Datum"} Jahre` : "Geburtsdatum eintragen"} /></label><label>Fitness zum Start<select value={familyDraft.startingFitness} onChange={(event) => setFamilyDraft({ ...familyDraft, startingFitness: Number(event.target.value) })}>{getStartingFitnessStages(familyDraft.id, familyDraft.birthDate).map((stage) => <option key={stage.stage} value={stage.stage}>{stage.label} ({stage.description})</option>)}</select></label><label>Trainingsziel<select value={familyDraft.goal} onChange={(event) => setFamilyDraft({ ...familyDraft, goal: event.target.value })}>{GOALS.map((goal) => <option key={goal}>{goal}</option>)}</select></label><div className="wide-field"><span className="admin-field-label">Avatar auswählen</span><AvatarPicker value={avatarAssetForProfile(familyDraft.id, familyDraft.avatar) as AvatarDesignId} onChange={(value) => setFamilyDraft({ ...familyDraft, avatar: value })} /></div></div><div className="exercise-admin-actions"><button type="button" className="confirm-cancel-btn" onClick={() => { setFamilyModalId(null); setFamilyDraft(null); }}>Abbrechen</button><button type="submit" disabled={savingFamily}>{savingFamily ? "Speichert …" : "Profil speichern"}</button></div></form></div>}
+      {familyModalId && familyDraft && <div className="modal-backdrop" onClick={() => { setFamilyModalId(null); setFamilyDraft(null); }}><form className="admin-edit-modal family-edit-modal" onClick={(event) => event.stopPropagation()} onSubmit={(event) => { event.preventDefault(); void saveFamilyProfile(); }}><button type="button" className="modal-close" onClick={() => { setFamilyModalId(null); setFamilyDraft(null); }} aria-label="Schließen"><X /></button><span className="setup-badge">Familie · Profil bearbeiten</span><h2>{familyDraft.name}</h2><div className="admin-edit-fields"><label>Name<input required maxLength={30} value={familyDraft.name} onChange={(event) => setFamilyDraft({ ...familyDraft, name: event.target.value })} /></label><label>E-Mail-Adresse<input type="email" maxLength={254} value={familyDraft.email ?? ""} onChange={(event) => setFamilyDraft({ ...familyDraft, email: event.target.value || null })} placeholder="name@example.com" /></label><label>Geburtsdatum<input type="date" value={familyDraft.birthDate ?? ""} onChange={(event) => { const birthDate = event.target.value || null; setFamilyDraft({ ...familyDraft, birthDate, startingFitness: Math.min(familyDraft.startingFitness, getStartingFitnessStages(familyDraft.id, birthDate).length) }); }} /></label><label>Alter (automatisch)<input readOnly value={familyDraft.birthDate ? `${calculateAge(familyDraft.birthDate) ?? "Ungültiges Datum"} Jahre` : "Geburtsdatum eintragen"} /></label><label>Aktuelle Fitnessstufe<select value={familyDraft.startingFitness} onChange={(event) => setFamilyDraft({ ...familyDraft, startingFitness: Number(event.target.value) })}>{getStartingFitnessStages(familyDraft.id, familyDraft.birthDate).map((stage) => <option key={stage.stage} value={stage.stage}>{stage.label} ({stage.description})</option>)}</select></label><label>Trainingsziel<select value={familyDraft.goal} onChange={(event) => setFamilyDraft({ ...familyDraft, goal: event.target.value })}>{GOALS.map((goal) => <option key={goal}>{goal}</option>)}</select></label><div className="wide-field"><span className="admin-field-label">Avatar auswählen</span><AvatarPicker value={avatarAssetForProfile(familyDraft.id, familyDraft.avatar) as AvatarDesignId} onChange={(value) => setFamilyDraft({ ...familyDraft, avatar: value })} /></div></div><div className="exercise-admin-actions"><button type="button" className="confirm-cancel-btn" onClick={() => { setFamilyModalId(null); setFamilyDraft(null); }}>Abbrechen</button><button type="submit" disabled={savingFamily}>{savingFamily ? "Speichert …" : "Profil speichern"}</button></div></form></div>}
 
       {confirmModal && (
         <div className="modal-backdrop" onClick={() => { setConfirmModal(null); setConfirmPin(""); setConfirmPinError(""); }}>
