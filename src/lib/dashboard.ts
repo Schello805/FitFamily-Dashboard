@@ -160,7 +160,7 @@ export async function getDashboardData(): Promise<DashboardProfile[]> {
       score: Math.floor(profile.scoreBaseline + points),
       totalMinutes: Math.floor(totalSeconds / 60),
       todayMinutes: Math.floor(todaySeconds / 60),
-      targetPercent: Math.min(100, Math.round((targetActualMinutes / target.minutes) * 100)),
+      targetPercent: Math.round((targetActualMinutes / target.minutes) * 100),
       targetMinutes: target.minutes,
       targetPeriod: target.period,
       nextTraining: nextTrainingText,
