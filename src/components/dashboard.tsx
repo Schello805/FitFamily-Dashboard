@@ -4,23 +4,17 @@ import Link from "next/link";
 import Image from "next/image";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  Activity,
-  CalendarDays,
   CloudSun,
-  Dumbbell,
   MapPin,
   Settings,
   Smartphone,
-  Square,
   Trophy,
-  X
 } from "lucide-react";
 import type { DashboardProfile } from "@/lib/domain";
 import { LiveDuration } from "@/components/live-duration";
 import { Avatar } from "@/components/avatar";
 import { AppleActivityRings } from "@/components/apple-activity-rings";
 import { UserHelp } from "@/components/user-help";
-import { showToast } from "@/components/toast";
 import { DEFAULT_DISPLAY_SETTINGS, type DisplaySettings } from "@/lib/display-settings-shared";
 
 type Weather = { temperature: number; apparent: number; code: number; updatedAt: string } | null;
@@ -59,15 +53,15 @@ function isWithinNightWindow(clock: Date, startTimeStr?: string, endTimeStr?: st
   return current >= start && current < end;
 }
 
-function GoalRing({ value, color, targetMinutes, targetPeriod, onClick }: { value: number; color: string; targetMinutes: number; targetPeriod: "Tag" | "Woche"; onClick: () => void }) {
+function GoalRing({ value, color, targetMinutes, targetPeriod }: { value: number; color: string; targetMinutes: number; targetPeriod: "Tag" | "Woche" }) {
   return (
-    <button type="button" className="goal-ring-button" onClick={onClick} aria-label={`Bewegungsziel: ${value} Prozent von ${targetMinutes} Minuten pro ${targetPeriod.toLowerCase()}. Erklärung öffnen`}>
+    <div className="goal-ring-summary" role="img" aria-label={`Bewegungsziel: ${value} Prozent von ${targetMinutes} Minuten pro ${targetPeriod.toLowerCase()}`}>
       <span className="goal-ring" aria-hidden="true" style={{ "--progress": `${Math.min(100, value) * 3.6}deg`, "--profile": color } as React.CSSProperties}>
         <strong>{value}%</strong>
         <small>IST</small>
       </span>
       <span className="goal-ring-target">SOLL {targetMinutes} Min/{targetPeriod === "Tag" ? "Tag" : "Woche"}</span>
-    </button>
+    </div>
   );
 }
 
@@ -117,19 +111,7 @@ export function Dashboard({
   const [activeQr, setActiveQr] = useState(mobileQr ?? "");
   const [activeUrl, setActiveUrl] = useState(mobileUrl ?? "");
   const [showQrModal, setShowQrModal] = useState(false);
-  const [goalInfoProfileId, setGoalInfoProfileId] = useState<string | null>(null);
-  const [stoppingProfileId, setStoppingProfileId] = useState<string | null>(null);
   const [appUpdateAvailable, setAppUpdateAvailable] = useState(false);
-  const goalInfoProfile = profiles.find((profile) => profile.id === goalInfoProfileId) ?? null;
-
-  useEffect(() => {
-    if (!goalInfoProfileId) return;
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setGoalInfoProfileId(null);
-    };
-    window.addEventListener("keydown", closeOnEscape);
-    return () => window.removeEventListener("keydown", closeOnEscape);
-  }, [goalInfoProfileId]);
 
   function enterQuietMode() {
     setQuietDismissed(false);
@@ -266,46 +248,6 @@ export function Dashboard({
     setManualQuietActive(false);
   }
 
-  async function stop(event: React.MouseEvent, profileId: string) {
-    event.preventDefault();
-    event.stopPropagation();
-    if (stoppingProfileId) return;
-    const prof = profiles.find((p) => p.id === profileId);
-    setStoppingProfileId(profileId);
-    try {
-      const response = await fetch("/api/training", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "stop", profileId })
-      });
-      const result = await response.json().catch(() => ({})) as { changed?: boolean; error?: string };
-      if (response.ok && result.changed) {
-        showToast({
-          type: "info",
-          title: "Training beendet & gespeichert",
-          message: prof ? `Das Training für ${prof.name} wurde gestoppt.` : "Training wurde gestoppt."
-        });
-      } else if (response.ok) {
-        showToast({ type: "error", title: "Kein aktives Training gefunden", message: "Die Anzeige wird aktualisiert. Falls das Training noch läuft, tippe bitte erneut auf Stopp." });
-      } else {
-        showToast({
-          type: "error",
-          title: "Fehler beim Beenden",
-          message: result.error ?? "Das Training konnte nicht gestoppt werden."
-        });
-      }
-    } catch {
-      showToast({
-        type: "error",
-        title: "Verbindungsfehler",
-        message: "Server konnte nicht erreicht werden."
-      });
-    } finally {
-      await refresh().catch(() => undefined);
-      setStoppingProfileId(null);
-    }
-  }
-
   return (
     <main className="dashboard-shell">
       <header className="topbar">
@@ -370,18 +312,20 @@ export function Dashboard({
           <article className={`profile-card ${profile.activeTraining ? "is-active" : ""}`} key={profile.id} style={{ "--profile": profile.color } as React.CSSProperties}>
             <div className="card-accent" />
             <div className="profile-heading">
-              <Link className="profile-heading-link" href={`/profil/${profile.id}`} aria-label={`${profile.name}: Profil öffnen`}>
+              <div className="profile-identity">
                 <Avatar profile={profile} />
                 <div className="profile-name"><span>Profil</span><h2>{profile.name}</h2><p>{profile.goal}</p></div>
-              </Link>
+              </div>
               <div className="dashboard-history-placeholder" aria-label="Platzhalter für den späteren Entwicklungsverlauf">
-                <span>VERLAUF FOLGT</span>
-                <svg viewBox="0 0 180 42" aria-hidden="true" focusable="false">
-                  <path className="history-placeholder-target" d="M2 30 C28 28 36 17 58 20 S88 31 112 18 S147 14 178 7" />
-                  <path className="history-placeholder-actual" d="M2 35 C22 34 35 29 54 31 S83 20 103 26 S143 20 178 17" />
+                <span>BEISPIEL · VERLAUF</span>
+                <svg viewBox="0 0 260 72" aria-hidden="true" focusable="false" preserveAspectRatio="none">
+                  <path className="history-placeholder-grid" d="M2 12H258 M2 36H258 M2 60H258" />
+                  <path className="history-placeholder-fill" d="M2 58 C28 56 38 40 66 44 S102 60 132 37 S178 34 206 20 S236 18 258 9 L258 70 L2 70 Z" />
+                  <path className="history-placeholder-target" d="M2 36 C28 34 38 21 66 25 S102 42 132 22 S178 19 206 14 S236 12 258 6" />
+                  <path className="history-placeholder-actual" d="M2 58 C28 56 38 40 66 44 S102 60 132 37 S178 34 206 20 S236 18 258 9" />
                 </svg>
               </div>
-              <GoalRing value={profile.targetPercent} color={profile.color} targetMinutes={profile.targetMinutes} targetPeriod={profile.targetPeriod} onClick={() => setGoalInfoProfileId(profile.id)} />
+              <GoalRing value={profile.targetPercent} color={profile.color} targetMinutes={profile.targetMinutes} targetPeriod={profile.targetPeriod} />
             </div>
 
             <div className="score-row">
@@ -394,7 +338,7 @@ export function Dashboard({
             {profile.activeTraining ? (
               <div className="active-strip">
                 <div className="pulse-dot" />
-                {profile.activeTraining.type === "strength" ? <Dumbbell size={22} /> : <Activity size={22} />}
+                <span className="active-training-kind">{profile.activeTraining.type === "strength" ? "Krafttraining" : "Ausdauertraining"}</span>
                 <div>
                   <div className="active-strip-title">
                     <span>{profile.activeTraining.exerciseName ?? (profile.activeTraining.type === "strength" ? "Krafttraining" : "Ausdauertraining")}</span>
@@ -404,14 +348,8 @@ export function Dashboard({
                   </div>
                   <strong><LiveDuration since={profile.activeTraining.segmentStartedAt} /></strong>
                 </div>
-                <button type="button" className="stop-button" disabled={stoppingProfileId !== null} onClick={(event) => stop(event, profile.id)} aria-label={`Training von ${profile.name} stoppen`} title="Training jetzt beenden">
-                  <Square size={19} fill="currentColor" />
-                  <span>{stoppingProfileId === profile.id ? "Stoppt …" : "Stopp"}</span>
-                </button>
               </div>
-            ) : (
-              <Link href={`/profil/${profile.id}`} className="plan-strip"><CalendarDays size={19} /><span>{profile.nextTraining ? `Heute: ${profile.nextTraining}` : "Heute frei · Training planen"}</span><b>Öffnen</b></Link>
-            )}
+            ) : null}
           </article>
         ))}
       </section>
@@ -481,20 +419,6 @@ export function Dashboard({
         </div>
       )}
 
-      {goalInfoProfile && (
-        <div className="goal-info-backdrop" onClick={() => setGoalInfoProfileId(null)}>
-          <section className="goal-info-modal" role="dialog" aria-modal="true" aria-labelledby="goal-info-title" onClick={(event) => event.stopPropagation()}>
-            <button type="button" className="goal-info-close" onClick={() => setGoalInfoProfileId(null)} aria-label="Erklärung schließen"><X size={22} /></button>
-            <span className="goal-info-kicker">DOSB-Bewegungsziel</span>
-            <h2 id="goal-info-title">Was zeigt der Kreis?</h2>
-            <p className="goal-info-lead">Das Ziel für {goalInfoProfile.name} sind <strong>{goalInfoProfile.targetMinutes} Minuten pro {goalInfoProfile.targetPeriod.toLowerCase()}</strong>.</p>
-            <div className="goal-info-legend"><i className="goal-info-ist" /><span><strong>Ist:</strong> bisher erfasste FitFamily-Trainingszeit im aktuellen {goalInfoProfile.targetPeriod.toLowerCase()}.</span></div>
-            <div className="goal-info-legend"><i className="goal-info-soll" /><span><strong>Soll:</strong> der vollständige Kreis entspricht dem Ziel. Der graue Ring zeigt den noch offenen Anteil.</span></div>
-            <p className="goal-info-note">Ab 100% ist das Ziel erreicht; bei mehr Training zeigt die Prozentzahl auch Werte über 100%. Gezählt werden hier protokollierte FitFamily-Trainings, nicht Schritte oder sonstige Alltagsbewegung. Die Richtwerte orientieren sich an den DOSB-Bewegungsempfehlungen.</p>
-            <a className="goal-info-source" href="https://www.dosb.de/ueber-uns/grundlagen-unserer-arbeit/ziele-und-strategie" target="_blank" rel="noreferrer">Zur Quelle beim DOSB ↗</a>
-          </section>
-        </div>
-      )}
     </main>
   );
 }
