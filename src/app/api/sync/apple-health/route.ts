@@ -51,7 +51,10 @@ const bodySchema = z.object({
   exerciseMinutes: z.number().nonnegative().max(1440).optional().nullable(),
   exerciseGoal: z.number().positive().max(1440).optional().nullable(),
   standHours: z.number().nonnegative().max(24).optional().nullable(),
-  standGoal: z.number().positive().max(24).optional().nullable()
+  standGoal: z.number().positive().max(24).optional().nullable(),
+  stepCount: z.number().int().nonnegative().max(200_000).optional().nullable(),
+  walkingRunningDistanceKm: z.number().nonnegative().max(500).optional().nullable(),
+  flightsClimbed: z.number().nonnegative().max(1_000).optional().nullable()
 });
 
 export async function POST(request: Request) {
@@ -248,28 +251,37 @@ export async function POST(request: Request) {
 
   const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 
-  if (parsed.data.moveCalories != null || parsed.data.exerciseMinutes != null || parsed.data.standHours != null) {
+  const ringFields = [
+    { key: "moveCalories", column: "move_calories" },
+    { key: "moveGoal", column: "move_goal" },
+    { key: "exerciseMinutes", column: "exercise_minutes" },
+    { key: "exerciseGoal", column: "exercise_goal" },
+    { key: "standHours", column: "stand_hours" },
+    { key: "standGoal", column: "stand_goal" },
+    { key: "stepCount", column: "step_count" },
+    { key: "walkingRunningDistanceKm", column: "walking_running_distance_km" },
+    { key: "flightsClimbed", column: "flights_climbed" }
+  ] as const;
+  const providedRingFields = ringFields.filter(({ key }) => parsed.data[key] != null);
+  const hasActivityData = providedRingFields.some(({ key }) => !key.endsWith("Goal"));
+
+  if (providedRingFields.length) {
+    const columns = ["profile_id", "date", ...providedRingFields.map(({ column }) => column), "updated_at"];
+    const selectedValues = ["?", "?", ...providedRingFields.map(() => "?"), "CURRENT_TIMESTAMP"];
+    const updates = [
+      ...providedRingFields.map(({ column }) => `${column} = excluded.${column}`),
+      "updated_at = CURRENT_TIMESTAMP"
+    ];
     const ringResult = await client.execute({
-      sql: `INSERT INTO apple_health_daily (profile_id, date, move_calories, move_goal, exercise_minutes, exercise_goal, stand_hours, stand_goal, updated_at)
-        SELECT ?, ?, ?, COALESCE(?, 500), ?, COALESCE(?, 30), ?, COALESCE(?, 12), CURRENT_TIMESTAMP
+      sql: `INSERT INTO apple_health_daily (${columns.join(", ")})
+        SELECT ${selectedValues.join(", ")}
         WHERE EXISTS (SELECT 1 FROM apple_health_tokens WHERE profile_id = ? AND token_hash = ?)
         ON CONFLICT(profile_id, date) DO UPDATE SET
-          move_calories = excluded.move_calories,
-          move_goal = excluded.move_goal,
-          exercise_minutes = excluded.exercise_minutes,
-          exercise_goal = excluded.exercise_goal,
-          stand_hours = excluded.stand_hours,
-          stand_goal = excluded.stand_goal,
-          updated_at = CURRENT_TIMESTAMP`,
+          ${updates.join(",\n          ")}`,
       args: [
         profileId,
         todayStr,
-        parsed.data.moveCalories ?? 0,
-        parsed.data.moveGoal ?? 500,
-        parsed.data.exerciseMinutes ?? 0,
-        parsed.data.exerciseGoal ?? 30,
-        parsed.data.standHours ?? 0,
-        parsed.data.standGoal ?? 12,
+        ...providedRingFields.map(({ key }) => parsed.data[key] as number),
         profileId,
         hashToken(parsed.data.secret)
       ]
@@ -281,7 +293,7 @@ export async function POST(request: Request) {
 
   const message = importedCount > 0
     ? `${importedCount} Einheit(en) für ${profileName} synchronisiert.`
-    : (parsed.data.moveCalories != null || parsed.data.exerciseMinutes != null)
+    : hasActivityData
       ? `Aktivitätsringe für ${profileName} erfolgreich aktualisiert.`
       : skippedCount > 0
         ? "Keine neuen Einheiten (bereits vorhanden)."
@@ -350,6 +362,9 @@ export async function GET(request: Request) {
         exerciseGoal: Number(ring.exercise_goal),
         standHours: Number(ring.stand_hours),
         standGoal: Number(ring.stand_goal),
+        stepCount: Number(ring.step_count ?? 0),
+        walkingRunningDistanceKm: Number(ring.walking_running_distance_km ?? 0),
+        flightsClimbed: Number(ring.flights_climbed ?? 0),
         updatedAt: String(ring.updated_at)
       } : null,
       status: "ready"

@@ -14,7 +14,7 @@ const specs: Record<string, Spec> = {
   training_sessions: { columns: ["id", "profile_id", "started_at", "ended_at", "status", "source", "external_id", "health_title", "health_calories", "health_distance_km", "edited", "created_at"], keys: ["id"], required: ["id", "profile_id", "started_at", "status"] },
   training_segments: { columns: ["id", "session_id", "type", "exercise_id", "started_at", "ended_at"], keys: ["id"], required: ["id", "session_id", "type", "started_at"] },
   training_plans: { columns: ["id", "profile_id", "title", "goal", "target_date", "status", "plan_json", "created_at", "updated_at"], keys: ["id"], required: ["id", "profile_id", "title", "goal", "plan_json"] },
-  apple_health_daily: { columns: ["profile_id", "date", "move_calories", "move_goal", "exercise_minutes", "exercise_goal", "stand_hours", "stand_goal", "updated_at"], keys: ["profile_id", "date"], required: ["profile_id", "date"] },
+  apple_health_daily: { columns: ["profile_id", "date", "move_calories", "move_goal", "exercise_minutes", "exercise_goal", "stand_hours", "stand_goal", "step_count", "walking_running_distance_km", "flights_climbed", "updated_at"], keys: ["profile_id", "date"], required: ["profile_id", "date"] },
   apple_health_ignored_workouts: { columns: ["profile_id", "external_id", "deleted_at"], keys: ["profile_id", "external_id"], required: ["profile_id", "external_id"] },
   settings: { columns: ["key", "value", "updated_at"], keys: ["key"], required: ["key", "value"] }
 };

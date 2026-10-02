@@ -67,6 +67,9 @@ export type AppleHealthRings = {
   exerciseGoal: number;
   standHours: number;
   standGoal: number;
+  stepCount: number;
+  walkingRunningDistanceKm: number;
+  flightsClimbed: number;
   lastSyncedAt?: string | null;
 };
 

@@ -45,6 +45,19 @@ Die Bezeichnungen können je nach iOS-Version leicht abweichen.
 
 ## Verhalten und Datenschutz
 
+### Tagesaktivität statt Rohdaten
+
+Für Tageswerte sendet der Kurzbefehl nur zusammengefasste Zahlen für **heute**. Die folgenden Felder sind optional und stehen direkt neben `profileId` und `secret` im JSON-Objekt:
+
+- `moveCalories`: aktive Energie in kcal
+- `exerciseMinutes`: Trainingsminuten
+- `standHours`: Stehstunden
+- `stepCount`: Schritte als ganze Zahl
+- `walkingRunningDistanceKm`: Geh-/Laufstrecke in Kilometern
+- `flightsClimbed`: erklommene Etagen
+
+Es ist nicht nötig, alle Felder in einem Lauf zu senden. Ein späterer Teil-Sync lässt nicht mitgesendete Tageswerte unverändert. Health-Proben bitte zuerst in Kurzbefehle zusammenfassen und nicht als hunderte einzelne Health-Objekte an den Webhook weiterreichen. Aktivitätswerte erzeugen keine Trainingspunkte.
+
 - Doppelte Übertragungen werden anhand der Apple-Workout-ID erkannt; ohne ID anhand des Trainingsbeginns.
 - Start- und Enddatum müssen gültig sein; Einheiten über 24 Stunden oder mit Start in der Zukunft werden abgewiesen.
 - Punkte werden nach der FitFamily-Regel berechnet: Kraft 1 Punkt/Minute, Ausdauer 2 Punkte/Minute.
@@ -53,3 +66,7 @@ Die Bezeichnungen können je nach iOS-Version leicht abweichen.
 - Der Verbindungstest prüft nur den Schlüssel und schreibt keine Trainingseinheit.
 - **Daten zurücksetzen & trennen** löscht Apple-Health-Workouts, zugehörige Segmente, Aktivitätsringe und Sync-Schlüssel atomar. Ein bereits laufender Import wird beim Schreiben nochmals gegen den Schlüssel geprüft; ein widerrufener Schlüssel kann danach keine neuen Daten importieren.
 - Der Server kann nur die Kopie in FitFamily löschen. Er kann keine Daten aus Apple Health auf dem iPhone löschen oder Apple Health selbst die Berechtigung entziehen; das muss in iOS/Kurzbefehle separat erfolgen.
+
+## Weitere Daten für Trainingsanpassung
+
+Apple Health/HealthKit kennt darüber hinaus je nach Gerät und erteiltem Zugriff beispielsweise Ruhepuls, Herzfrequenzvariabilität (SDNN), VO₂max, Schlaf, Körpergröße/-gewicht, Geh-/Lauftempo, Schrittlänge und Schrittzahl. Diese Werte sind noch nicht alle Bestandteil des FitFamily-Syncs. Sie sollten als datierte Messreihen mit Einheit und Quelle gespeichert werden, nicht in das Tages-Ringe-Feld gequetscht. Ein daraus abgeleiteter Fitness-Trend kann Trainingspläne unterstützen, ist aber keine Diagnose und kein validiertes biologisches Alter. Bei Kindern keine Erwachsenen-Altersformel oder Rangliste verwenden.

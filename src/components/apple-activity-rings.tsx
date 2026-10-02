@@ -192,6 +192,12 @@ export function AppleActivityRings({
             </strong>
           </div>
         </div>
+
+        <div className="health-activity-stats" aria-label="Weitere Tagesaktivität">
+          <div><span>Schritte</span><strong>{Math.round(rings.stepCount).toLocaleString("de-DE")}</strong></div>
+          <div><span>Geh-/Laufstrecke</span><strong>{rings.walkingRunningDistanceKm.toLocaleString("de-DE", { maximumFractionDigits: 1 })} km</strong></div>
+          <div><span>Etagen</span><strong>{Math.round(rings.flightsClimbed).toLocaleString("de-DE")}</strong></div>
+        </div>
       </div>
     </div>
   );

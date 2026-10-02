@@ -847,6 +847,25 @@ body::before {
   margin-left: 2px;
 }
 
+.health-activity-stats {
+  display: grid;
+  gap: 3px;
+  border-top: 1px solid var(--line);
+  margin-top: 4px;
+  padding-top: 6px;
+}
+
+.health-activity-stats div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 10px;
+}
+
+.health-activity-stats span { color: var(--muted); }
+.health-activity-stats strong { color: var(--text); font-size: 11px; font-variant-numeric: tabular-nums; }
+
 .apple-rings-widget.compact {
   padding: 10px 14px;
 }

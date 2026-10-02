@@ -176,6 +176,53 @@ describe("Apple Health sync endpoint", () => {
     expect(response.status).toBe(400);
   });
 
+  it("syncs extra daily activity metrics and preserves ring values omitted from a partial sync", async () => {
+    const client = await db();
+    const today = new Date();
+    const date = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+    const previous = await client.execute({
+      sql: "SELECT * FROM apple_health_daily WHERE profile_id = ? AND date = ?",
+      args: [profileId, date]
+    });
+
+    try {
+      await client.execute({
+        sql: `INSERT INTO apple_health_daily (profile_id, date, move_calories, exercise_minutes, stand_hours, step_count, walking_running_distance_km, flights_climbed)
+          VALUES (?, ?, 432, 18, 5, 1234, 2.5, 3)
+          ON CONFLICT(profile_id, date) DO UPDATE SET move_calories = 432, exercise_minutes = 18, stand_hours = 5, step_count = 1234, walking_running_distance_km = 2.5, flights_climbed = 3`,
+        args: [profileId, date]
+      });
+
+      const response = await POST(new Request("http://localhost/api/sync/apple-health", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ profileId, secret, exerciseMinutes: 24, stepCount: 6789, walkingRunningDistanceKm: 4.75, flightsClimbed: 8 })
+      }));
+      expect(response.status).toBe(200);
+
+      const saved = await client.execute({
+        sql: "SELECT move_calories, exercise_minutes, stand_hours, step_count, walking_running_distance_km, flights_climbed FROM apple_health_daily WHERE profile_id = ? AND date = ?",
+        args: [profileId, date]
+      });
+      expect(Number(saved.rows[0]?.move_calories)).toBe(432);
+      expect(Number(saved.rows[0]?.exercise_minutes)).toBe(24);
+      expect(Number(saved.rows[0]?.stand_hours)).toBe(5);
+      expect(Number(saved.rows[0]?.step_count)).toBe(6789);
+      expect(Number(saved.rows[0]?.walking_running_distance_km)).toBe(4.75);
+      expect(Number(saved.rows[0]?.flights_climbed)).toBe(8);
+    } finally {
+      await client.execute({ sql: "DELETE FROM apple_health_daily WHERE profile_id = ? AND date = ?", args: [profileId, date] });
+      if (previous.rows[0]) {
+        const row = previous.rows[0];
+        await client.execute({
+          sql: `INSERT INTO apple_health_daily (profile_id, date, move_calories, move_goal, exercise_minutes, exercise_goal, stand_hours, stand_goal, step_count, walking_running_distance_km, flights_climbed, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          args: [profileId, date, row.move_calories, row.move_goal, row.exercise_minutes, row.exercise_goal, row.stand_hours, row.stand_goal, row.step_count, row.walking_running_distance_km, row.flights_climbed, row.updated_at]
+        });
+      }
+    }
+  });
+
   it("keeps a manually deleted Apple Health workout from returning on the next sync", async () => {
     const client = await db();
     const imported = await client.execute({
