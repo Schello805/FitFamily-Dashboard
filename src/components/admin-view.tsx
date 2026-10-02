@@ -1138,6 +1138,9 @@ export function AdminView({
               { label: "10 Min.", val: 10 },
               { label: "15 Min.", val: 15 },
               { label: "30 Min.", val: 30 },
+              { label: "60 Min.", val: 60 },
+              { label: "90 Min.", val: 90 },
+              { label: "180 Min.", val: 180 },
               { label: "Aus", val: 0 }
             ].map(({ label, val }) => (
               <button

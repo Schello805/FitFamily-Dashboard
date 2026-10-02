@@ -12,7 +12,7 @@ export async function GET() {
 
 const postSchema = z.object({
   pin: z.string().regex(/^\d{4}$/),
-  idleTimeoutMinutes: z.number().int().min(0).max(120).optional(),
+  idleTimeoutMinutes: z.number().int().min(0).max(180).optional(),
   nightModeEnabled: z.boolean().optional(),
   nightIdleTimeoutMinutes: z.number().int().min(0).max(120).optional(),
   nightStartTime: z.string().regex(/^\d{2}:\d{2}$/).optional(),

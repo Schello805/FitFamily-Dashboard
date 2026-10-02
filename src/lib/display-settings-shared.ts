@@ -1,5 +1,5 @@
 export type DisplaySettings = {
-  idleTimeoutMinutes: number; // Tagsüber: 0 = aus, 1, 2, 5, 10, 15, 30
+  idleTimeoutMinutes: number; // Tagsüber: 0 = aus, bis zu 180 Minuten
   nightModeEnabled: boolean;
   nightIdleTimeoutMinutes: number; // Nachts: 0 = aus, 1, 2, 5, 10, 15, 30
   nightStartTime: string; // z.B. "22:30"
