@@ -78,6 +78,7 @@ export async function getDashboardData(): Promise<DashboardProfile[]> {
     const profile: Profile = {
       id: profileId,
       name: String(row.name),
+      email: asString(row.email),
       color: String(row.color),
       avatar: String(row.avatar) as Profile["avatar"],
       startingFitness: asNumber(row.starting_fitness) || 3,

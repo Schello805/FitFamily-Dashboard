@@ -3,8 +3,10 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useSyncExternalStore } from "react";
-import { ArrowLeft, AlertTriangle, Bot, CheckCircle2, ClipboardList, Copy, Database, Download, HardDrive, Lock, Monitor, Moon, Plus, RefreshCw, RotateCcw, ShieldCheck, Sparkles, Sun, Upload, Users, Wrench } from "lucide-react";
+import { ArrowLeft, AlertTriangle, Bot, CheckCircle2, ClipboardList, Copy, Database, Download, HardDrive, Lock, Monitor, Moon, Plus, RefreshCw, RotateCcw, ShieldCheck, Sparkles, Sun, Upload, Users, Wrench, X } from "lucide-react";
 import { TouchPinpad } from "@/components/touch-pinpad";
+import { AvatarPicker } from "@/components/avatar-picker";
+import { avatarAssetForProfile, GOALS, type AvatarId, type ProfileAvatar } from "@/lib/domain";
 import { showToast } from "@/components/toast";
 import { applyTheme, getStoredThemeSetting, subscribeTheme, type ThemeSetting } from "@/lib/theme";
 import { DEFAULT_DISPLAY_SETTINGS, type DisplaySettings } from "@/lib/display-settings-shared";
@@ -12,7 +14,8 @@ import { DEFAULT_DISPLAY_SETTINGS, type DisplaySettings } from "@/lib/display-se
 type AiUsage = { requests: number; inputTokens: number; outputTokens: number; estimateUsd: number; updatedAt: string | null };
 type Status = { openai: boolean; gemini: boolean; nas: boolean; models: { openai: string; gemini: string }; usage: { openai: AiUsage; gemini: AiUsage } };
 type ExerciseMedia = { id: string; name: string; type: "strength" | "endurance"; equipment: string; instructions: string; safetyNotes: string; videoUrl: string | null; active: boolean };
-type EquipmentItem = { id: string; name: string; quantity: number; available: boolean; active: boolean; videoUrl?: string | null };
+type EquipmentItem = { id: string; name: string; quantity: number; available: boolean; active: boolean; videoUrl?: string | null; instructions?: string | null };
+type AdminProfile = { id: string; name: string; score: number; email: string | null; birthDate: string | null; startingFitness: number; avatar: ProfileAvatar; goal: string };
 type ExerciseDraft = { name: string; type: "strength" | "endurance"; equipment: string; instructions: string; safetyNotes: string; videoUrl: string };
 type UpdateInfo = { currentCommit: string; latestCommit: string; latestMessage: string; hasUpdate: boolean; version: string; latestVersion?: string };
 type BackupInfo = { name: string; sizeBytes: number; sizeFormatted: string; date: string };
@@ -45,6 +48,15 @@ type ConfirmModalConfig = {
   action: (freshPin?: string) => Promise<void> | void;
 };
 
+function calculateAge(birthDate: string) {
+  const birth = new Date(`${birthDate}T00:00:00`);
+  if (!Number.isFinite(birth.getTime())) return null;
+  const today = new Date();
+  let age = today.getFullYear() - birth.getFullYear();
+  if (today.getMonth() < birth.getMonth() || (today.getMonth() === birth.getMonth() && today.getDate() < birth.getDate())) age--;
+  return age >= 0 ? age : null;
+}
+
 type AdminSection = "allgemein" | "ki" | "sicherung" | "daten" | "protokolle" | "sportraum" | "familie";
 
 const ADMIN_SECTIONS: { id: AdminSection; label: string; detail: string; icon: typeof Monitor }[] = [
@@ -64,7 +76,7 @@ export function AdminView({
   initialVersion = "0.2.17",
   initialCommit
 }: {
-  profiles: { id: string; name: string; score: number }[];
+  profiles: AdminProfile[];
   exercises: ExerciseMedia[];
   equipment: EquipmentItem[];
   initialVersion?: string;
@@ -94,6 +106,12 @@ export function AdminView({
   const [newEquipmentName, setNewEquipmentName] = useState("");
   const [newEquipmentQuantity, setNewEquipmentQuantity] = useState(1);
   const [newEquipmentVideoUrl, setNewEquipmentVideoUrl] = useState("");
+  const [newEquipmentInstructions, setNewEquipmentInstructions] = useState("");
+  const [equipmentModalId, setEquipmentModalId] = useState<string | null>(null);
+  const [familyItems, setFamilyItems] = useState(profiles);
+  const [familyModalId, setFamilyModalId] = useState<string | null>(null);
+  const [familyDraft, setFamilyDraft] = useState<AdminProfile | null>(null);
+  const [savingFamily, setSavingFamily] = useState(false);
   const [apiKeys, setApiKeys] = useState({ openai: "", gemini: "" });
   const [savingApi, setSavingApi] = useState<string | null>(null);
 
@@ -212,7 +230,7 @@ export function AdminView({
       icon: "update",
       confirmLabel: "Jetzt installieren",
       confirmVariant: "brand",
-      requiresPin: true,
+      requiresPin: false,
       action: (freshPin) => executeApplyUpdate(freshPin)
     });
   }
@@ -695,9 +713,10 @@ export function AdminView({
   function formatStorage(bytes: number | null | undefined) {
     if (bytes == null || !Number.isFinite(bytes)) return "Nicht ermittelbar";
     if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 ** 2) return `${(bytes / 1024).toLocaleString("de-DE", { maximumFractionDigits: 1 })} KB`;
-    if (bytes < 1024 ** 3) return `${(bytes / 1024 ** 2).toLocaleString("de-DE", { maximumFractionDigits: 1 })} MB`;
-    return `${(bytes / 1024 ** 3).toLocaleString("de-DE", { maximumFractionDigits: 2 })} GB`;
+    if (bytes < 1024 ** 2) return `${(bytes / 1024).toLocaleString("de-DE", { maximumFractionDigits: 1 })} KiB`;
+    if (bytes < 1024 ** 3) return `${(bytes / 1024 ** 2).toLocaleString("de-DE", { maximumFractionDigits: 1 })} MiB`;
+    if (bytes < 1024 ** 4) return `${(bytes / 1024 ** 3).toLocaleString("de-DE", { maximumFractionDigits: 2 })} GiB`;
+    return `${(bytes / 1024 ** 4).toLocaleString("de-DE", { maximumFractionDigits: 2 })} TiB`;
   }
 
   async function download() {
@@ -833,7 +852,7 @@ export function AdminView({
     try {
       const response = await fetch(`/api/equipment/${encodeURIComponent(id)}`, {
         method: "PATCH", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pin, name: item.name, quantity: item.quantity, available: item.available, active: item.active, videoUrl: item.videoUrl?.trim() || null })
+        body: JSON.stringify({ pin, name: item.name, quantity: item.quantity, available: item.available, active: item.active, videoUrl: item.videoUrl?.trim() || null, instructions: item.instructions?.trim() || null })
       });
       const result = await response.json();
       if (!response.ok) {
@@ -846,11 +865,35 @@ export function AdminView({
       setEquipmentEdits((values) => ({ ...values, [id]: result.equipment }));
       setNotice("Gerätebestand gespeichert.");
       showToast({ type: "success", title: "Gerätebestand gespeichert", message: `${item.name} aktualisiert.` });
+      return true;
     } catch {
       setNotice("Keine Verbindung. Bitte Heimnetz prüfen und erneut versuchen.");
       showToast({ type: "error", title: "Verbindungsfehler", message: "Keine Verbindung zum Dashboard." });
+      return false;
     } finally {
       setSavingEquipment(null);
+    }
+  }
+
+  async function saveFamilyProfile() {
+    if (!familyDraft) return;
+    setSavingFamily(true);
+    try {
+      const response = await fetch(`/api/profiles/${encodeURIComponent(familyDraft.id)}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pin, name: familyDraft.name, email: familyDraft.email?.trim() || null, birthDate: familyDraft.birthDate || null, avatar: familyDraft.avatar, startingFitness: familyDraft.startingFitness, goal: familyDraft.goal })
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error ?? "Profil konnte nicht gespeichert werden.");
+      setFamilyItems((items) => items.map((item) => item.id === familyDraft.id ? familyDraft : item));
+      showToast({ type: "success", title: "Profil gespeichert", message: `${familyDraft.name} wurde aktualisiert.` });
+      setFamilyModalId(null);
+      setFamilyDraft(null);
+      router.refresh();
+    } catch (error) {
+      showToast({ type: "error", title: "Profil nicht gespeichert", message: error instanceof Error ? error.message : "Bitte Verbindung prüfen." });
+    } finally {
+      setSavingFamily(false);
     }
   }
 
@@ -859,7 +902,7 @@ export function AdminView({
     try {
       const response = await fetch("/api/equipment", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pin, name: newEquipmentName, quantity: newEquipmentQuantity, videoUrl: newEquipmentVideoUrl.trim() || null })
+        body: JSON.stringify({ pin, name: newEquipmentName, quantity: newEquipmentQuantity, videoUrl: newEquipmentVideoUrl.trim() || null, instructions: newEquipmentInstructions.trim() || null })
       });
       const result = await response.json();
       if (!response.ok) {
@@ -871,7 +914,7 @@ export function AdminView({
       setEquipmentItems((items) => [...items, result.equipment].sort((a, b) => a.name.localeCompare(b.name, "de")));
       setEquipmentEdits((values) => ({ ...values, [result.equipment.id]: result.equipment }));
       const addedName = newEquipmentName;
-      setNewEquipmentName(""); setNewEquipmentQuantity(1); setNewEquipmentVideoUrl(""); setNotice("Gerät wurde ergänzt.");
+      setNewEquipmentName(""); setNewEquipmentQuantity(1); setNewEquipmentVideoUrl(""); setNewEquipmentInstructions(""); setNotice("Gerät wurde ergänzt.");
       showToast({ type: "success", title: "Gerät hinzugefügt", message: `${addedName} ist nun verfügbar.` });
     } catch {
       setNotice("Keine Verbindung. Bitte Heimnetz prüfen und erneut versuchen.");
@@ -1486,25 +1529,18 @@ export function AdminView({
       </>}
       {activeAdminSection === "sportraum" && <>
       <article className="wide"><div className="admin-title"><Database /><div><h2>Geräte im Sportraum</h2><p>Geräte, Verfügbarkeit und gerätebezogene Videos verwalten. Archivierte Einträge bleiben für die Historie erhalten.</p></div></div>
-        <div className="inventory-list">
-          {equipmentItems.map((item) => {
-            const edit = equipmentEdits[item.id] ?? item;
-            return <div className={`inventory-row ${edit.active ? "" : "archived"}`} key={item.id}>
-              <label>Gerätename<input value={edit.name} maxLength={60} onChange={(event) => setEquipmentEdits((values) => ({ ...values, [item.id]: { ...edit, name: event.target.value } }))} /></label>
-              <label className="quantity-field">Anzahl<input type="number" min={1} max={8} value={edit.quantity} onChange={(event) => setEquipmentEdits((values) => ({ ...values, [item.id]: { ...edit, quantity: Number(event.target.value) } }))} /></label>
-              <label>Video-Link<input type="url" inputMode="url" placeholder="Optionaler YouTube-Link" value={edit.videoUrl ?? ""} onChange={(event) => setEquipmentEdits((values) => ({ ...values, [item.id]: { ...edit, videoUrl: event.target.value || null } }))} /></label>
-              <label className="inventory-toggle"><input type="checkbox" checked={edit.available} onChange={(event) => setEquipmentEdits((values) => ({ ...values, [item.id]: { ...edit, available: event.target.checked } }))} /> Verfügbar</label>
-              <div className="inventory-actions"><button disabled={savingEquipment === item.id} onClick={() => void saveEquipment(item.id)}>{savingEquipment === item.id ? "Speichert …" : "Speichern"}</button>{edit.active ? <button className="archive-action" onClick={() => requestArchiveEquipment(item)}>Archivieren</button> : <button onClick={() => void saveEquipment(item.id, { active: true })}>Wiederherstellen</button>}</div>
-            </div>;
-          })}
-        </div>
+        <div className="equipment-table-wrap"><table className="equipment-table"><thead><tr><th>Gerät</th><th>Anzahl</th><th>Status</th><th>Anleitung</th><th>Video</th><th></th></tr></thead><tbody>
+          {equipmentItems.map((item) => <tr key={item.id} className={item.active ? "" : "archived"}><td><b>{item.name}</b></td><td>{item.quantity}</td><td>{item.active ? item.available ? "Verfügbar" : "Nicht verfügbar" : "Archiviert"}</td><td>{item.instructions?.trim() ? "Hinterlegt" : "–"}</td><td>{item.videoUrl ? "Hinterlegt" : "–"}</td><td><button type="button" onClick={() => { setEquipmentEdits((values) => ({ ...values, [item.id]: { ...item } })); setEquipmentModalId(item.id); }}>Öffnen</button></td></tr>)}
+        </tbody></table></div>
         <form className="inventory-add" onSubmit={addEquipment}>
           <label>Weiteres Gerät<input required minLength={2} maxLength={60} placeholder="z. B. Hantelbank" value={newEquipmentName} onChange={(event) => setNewEquipmentName(event.target.value)} /></label>
           <label className="quantity-field">Anzahl<input type="number" min={1} max={8} value={newEquipmentQuantity} onChange={(event) => setNewEquipmentQuantity(Number(event.target.value))} /></label>
           <label>Video-Link<input type="url" inputMode="url" placeholder="Optionaler YouTube-Link" value={newEquipmentVideoUrl} onChange={(event) => setNewEquipmentVideoUrl(event.target.value)} /></label>
+          <label className="wide-field">Anleitung<textarea rows={2} maxLength={3000} value={newEquipmentInstructions} onChange={(event) => setNewEquipmentInstructions(event.target.value)} /></label>
           <button><Plus /> Gerät ergänzen</button>
         </form>
       </article>
+      {equipmentModalId && equipmentEdits[equipmentModalId] && (() => { const edit = equipmentEdits[equipmentModalId]; return <div className="modal-backdrop" onClick={() => setEquipmentModalId(null)}><form className="admin-edit-modal" onClick={(event) => event.stopPropagation()} onSubmit={(event) => { event.preventDefault(); void saveEquipment(edit.id).then((saved) => { if (saved) setEquipmentModalId(null); }); }}><button type="button" className="modal-close" onClick={() => setEquipmentModalId(null)} aria-label="Schließen"><X /></button><span className="setup-badge">Sportraum · Gerät</span><h2>{edit.name}</h2><div className="admin-edit-fields"><label>Gerätename<input required minLength={2} maxLength={60} value={edit.name} onChange={(event) => setEquipmentEdits((values) => ({ ...values, [edit.id]: { ...edit, name: event.target.value } }))} /></label><label>Anzahl<input type="number" min={1} max={8} value={edit.quantity} onChange={(event) => setEquipmentEdits((values) => ({ ...values, [edit.id]: { ...edit, quantity: Number(event.target.value) } }))} /></label><label className="wide-field">Anleitung<textarea rows={5} maxLength={3000} value={edit.instructions ?? ""} onChange={(event) => setEquipmentEdits((values) => ({ ...values, [edit.id]: { ...edit, instructions: event.target.value } }))} placeholder="Hinweise zur sicheren Nutzung …" /></label><label className="wide-field">YouTube-Video<input type="url" inputMode="url" maxLength={500} placeholder="https://www.youtube.com/watch?v=…" value={edit.videoUrl ?? ""} onChange={(event) => setEquipmentEdits((values) => ({ ...values, [edit.id]: { ...edit, videoUrl: event.target.value || null } }))} /></label><label className="inventory-toggle"><input type="checkbox" checked={edit.available} onChange={(event) => setEquipmentEdits((values) => ({ ...values, [edit.id]: { ...edit, available: event.target.checked } }))} /> Verfügbar</label></div><div className="exercise-admin-actions"><button type="submit" disabled={savingEquipment === edit.id}>{savingEquipment === edit.id ? "Speichert …" : "Änderungen speichern"}</button>{edit.active ? <button type="button" className="archive-action" onClick={() => requestArchiveEquipment(edit)}>Archivieren</button> : <button type="button" onClick={() => void saveEquipment(edit.id, { active: true })}>Wiederherstellen</button>}</div></form></div>; })()}
       <article className="wide"><div className="admin-title"><CheckCircle2 /><div><h2>Übungen, Anleitungen &amp; Videos</h2><p>Eigene Übungen anlegen, Gerätezuordnung und Sicherheitshinweise bearbeiten. Video-Links lassen sich ergänzen oder durch Leeren des Feldes entfernen.</p></div></div>
         <div className="exercise-admin-list">
           {exerciseItems.map((exercise) => {
@@ -1538,11 +1574,14 @@ export function AdminView({
       </article>
       </>}
       {activeAdminSection === "familie" && <>
-      <article className="wide"><div className="admin-title"><RotateCcw /><div><h2>Scores zurücksetzen</h2><p>Der vollständige Trainingsverlauf bleibt erhalten.</p></div></div><div className="reset-list">{profiles.map((profile) => <div key={profile.id}><span>{profile.name}<small>{profileScores[profile.id] ?? 0} Punkte</small></span><button type="button" onClick={() => requestResetScore(profile.id)}>Auf 0 setzen</button></div>)}</div></article>
+      <article className="wide"><div className="admin-title"><Users /><div><h2>Familienprofile</h2><p>E-Mail, Geburtsdatum, Fitnessstart und Avatar bearbeiten. Das Alter wird aus dem Geburtsdatum berechnet.</p></div></div><div className="equipment-table-wrap"><table className="equipment-table"><thead><tr><th>Name</th><th>E-Mail</th><th>Geburtsdatum</th><th>Alter</th><th>Avatar</th><th></th></tr></thead><tbody>{familyItems.map((profile) => { const age = profile.birthDate ? calculateAge(profile.birthDate) : null; return <tr key={profile.id}><td><b>{profile.name}</b></td><td>{profile.email || "Nicht hinterlegt"}</td><td>{profile.birthDate || "–"}</td><td>{age == null ? "–" : `${age} Jahre`}</td><td>Fitness-Stufe {profile.startingFitness}/5</td><td><button type="button" onClick={() => { setFamilyDraft({ ...profile }); setFamilyModalId(profile.id); }}>Bearbeiten</button></td></tr>; })}</tbody></table></div></article>
+      <article className="wide"><div className="admin-title"><RotateCcw /><div><h2>Scores zurücksetzen</h2><p>Der vollständige Trainingsverlauf bleibt erhalten.</p></div></div><div className="reset-list">{familyItems.map((profile) => <div key={profile.id}><span>{profile.name}<small>{profileScores[profile.id] ?? 0} Punkte</small></span><button type="button" onClick={() => requestResetScore(profile.id)}>Auf 0 setzen</button></div>)}</div></article>
       </>}
     </section>
         </div>
       </div>
+
+      {familyModalId && familyDraft && <div className="modal-backdrop" onClick={() => { setFamilyModalId(null); setFamilyDraft(null); }}><form className="admin-edit-modal family-edit-modal" onClick={(event) => event.stopPropagation()} onSubmit={(event) => { event.preventDefault(); void saveFamilyProfile(); }}><button type="button" className="modal-close" onClick={() => { setFamilyModalId(null); setFamilyDraft(null); }} aria-label="Schließen"><X /></button><span className="setup-badge">Familie · Profil bearbeiten</span><h2>{familyDraft.name}</h2><div className="admin-edit-fields"><label>Name<input required maxLength={30} value={familyDraft.name} onChange={(event) => setFamilyDraft({ ...familyDraft, name: event.target.value })} /></label><label>E-Mail-Adresse<input type="email" maxLength={254} value={familyDraft.email ?? ""} onChange={(event) => setFamilyDraft({ ...familyDraft, email: event.target.value || null })} placeholder="name@example.com" /></label><label>Geburtsdatum<input type="date" value={familyDraft.birthDate ?? ""} onChange={(event) => setFamilyDraft({ ...familyDraft, birthDate: event.target.value || null })} /></label><label>Alter (automatisch)<input readOnly value={familyDraft.birthDate ? `${calculateAge(familyDraft.birthDate) ?? "Ungültiges Datum"} Jahre` : "Geburtsdatum eintragen"} /></label><label>Fitness zum Start<select value={familyDraft.startingFitness} onChange={(event) => setFamilyDraft({ ...familyDraft, startingFitness: Number(event.target.value) })}>{[1,2,3,4,5].map((value) => <option key={value} value={value}>{value} · {value === 1 ? "Neustart" : value === 5 ? "Sehr fit" : "Fitnessstufe"}</option>)}</select></label><label>Trainingsziel<select value={familyDraft.goal} onChange={(event) => setFamilyDraft({ ...familyDraft, goal: event.target.value })}>{GOALS.map((goal) => <option key={goal}>{goal}</option>)}</select></label><div className="wide-field"><span className="admin-field-label">Avatar auswählen</span><AvatarPicker value={avatarAssetForProfile(familyDraft.id, familyDraft.avatar) as AvatarId} onChange={(value) => setFamilyDraft({ ...familyDraft, avatar: value })} /></div></div><div className="exercise-admin-actions"><button type="button" className="confirm-cancel-btn" onClick={() => { setFamilyModalId(null); setFamilyDraft(null); }}>Abbrechen</button><button type="submit" disabled={savingFamily}>{savingFamily ? "Speichert …" : "Profil speichern"}</button></div></form></div>}
 
       {confirmModal && (
         <div className="modal-backdrop" onClick={() => { setConfirmModal(null); setConfirmPin(""); setConfirmPinError(""); }}>

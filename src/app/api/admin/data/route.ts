@@ -8,9 +8,9 @@ type Row = Record<string, Cell>;
 type Spec = { columns: string[]; keys: string[]; required: string[] };
 
 const specs: Record<string, Spec> = {
-  profiles: { columns: ["id", "name", "color", "avatar", "starting_fitness", "birth_date", "score_baseline", "score_reset_at", "target_reset_at", "goal", "created_at", "updated_at"], keys: ["id"], required: ["id", "name", "color", "avatar"] },
+  profiles: { columns: ["id", "name", "email", "color", "avatar", "starting_fitness", "birth_date", "score_baseline", "score_reset_at", "target_reset_at", "goal", "created_at", "updated_at"], keys: ["id"], required: ["id", "name", "color", "avatar"] },
   exercises: { columns: ["id", "name", "type", "equipment", "instructions", "safety_notes", "video_url", "active"], keys: ["id"], required: ["id", "name", "type", "equipment"] },
-  equipment_inventory: { columns: ["id", "name", "quantity", "available", "active", "created_at", "updated_at", "video_url"], keys: ["id"], required: ["id", "name"] },
+  equipment_inventory: { columns: ["id", "name", "quantity", "available", "active", "created_at", "updated_at", "video_url", "instructions"], keys: ["id"], required: ["id", "name"] },
   training_sessions: { columns: ["id", "profile_id", "started_at", "ended_at", "status", "source", "external_id", "health_title", "health_calories", "health_distance_km", "edited", "created_at"], keys: ["id"], required: ["id", "profile_id", "started_at", "status"] },
   training_segments: { columns: ["id", "session_id", "type", "exercise_id", "started_at", "ended_at"], keys: ["id"], required: ["id", "session_id", "type", "started_at"] },
   training_plans: { columns: ["id", "profile_id", "title", "goal", "target_date", "status", "plan_json", "created_at", "updated_at"], keys: ["id"], required: ["id", "profile_id", "title", "goal", "plan_json"] },

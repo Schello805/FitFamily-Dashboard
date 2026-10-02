@@ -33,6 +33,7 @@ async function createSchema(client: Client) {
       name TEXT NOT NULL,
       color TEXT NOT NULL,
       avatar TEXT NOT NULL,
+      email TEXT,
       starting_fitness INTEGER NOT NULL DEFAULT 3 CHECK(starting_fitness BETWEEN 1 AND 5),
       birth_date TEXT,
       score_baseline REAL NOT NULL DEFAULT 0,
@@ -58,6 +59,7 @@ async function createSchema(client: Client) {
       quantity INTEGER NOT NULL DEFAULT 1 CHECK(quantity BETWEEN 1 AND 8),
       available INTEGER NOT NULL DEFAULT 1 CHECK(available IN (0,1)),
       active INTEGER NOT NULL DEFAULT 1 CHECK(active IN (0,1)),
+      instructions TEXT,
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
       updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     )`,
@@ -165,6 +167,9 @@ async function createSchema(client: Client) {
   }
 
   const profileColumns = await client.execute("PRAGMA table_info(profiles)");
+  if (!profileColumns.rows.some((row) => String(row.name) === "email")) {
+    await client.execute("ALTER TABLE profiles ADD COLUMN email TEXT");
+  }
   if (!profileColumns.rows.some((row) => String(row.name) === "starting_fitness")) {
     await client.execute("ALTER TABLE profiles ADD COLUMN starting_fitness INTEGER NOT NULL DEFAULT 3");
   }
@@ -197,6 +202,9 @@ async function createSchema(client: Client) {
   }
   if (!equipmentColumns.rows.some((row) => String(row.name) === "active")) {
     await client.execute("ALTER TABLE equipment_inventory ADD COLUMN active INTEGER NOT NULL DEFAULT 1");
+  }
+  if (!equipmentColumns.rows.some((row) => String(row.name) === "instructions")) {
+    await client.execute("ALTER TABLE equipment_inventory ADD COLUMN instructions TEXT");
   }
 
   const exerciseColumns = await client.execute("PRAGMA table_info(exercises)");

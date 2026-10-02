@@ -17,6 +17,7 @@ import {
 import type { DashboardProfile } from "@/lib/domain";
 import { LiveDuration } from "@/components/live-duration";
 import { Avatar } from "@/components/avatar";
+import { AppleActivityRings } from "@/components/apple-activity-rings";
 import { showToast } from "@/components/toast";
 import { DEFAULT_DISPLAY_SETTINGS, type DisplaySettings } from "@/lib/display-settings-shared";
 
@@ -331,6 +332,8 @@ export function Dashboard({
               <div className="score"><Trophy size={22} /><div><strong>{profile.score.toLocaleString("de-DE")}</strong><span>Gesamtpunkte</span></div></div>
               <div className="today"><strong>{profile.todayMinutes}</strong><span>Min. heute</span></div>
             </div>
+
+            {profile.appleHealthRings && <div className="dashboard-apple-rings"><AppleActivityRings rings={profile.appleHealthRings} compact /></div>}
 
             {profile.activeTraining ? (
               <div className="active-strip">

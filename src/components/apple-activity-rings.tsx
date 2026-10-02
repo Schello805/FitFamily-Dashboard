@@ -40,14 +40,14 @@ export function AppleActivityRings({
     <div
       className={`apple-rings-widget ${compact ? "compact" : ""}`}
       onClick={onOpenSync}
-      role="button"
-      tabIndex={0}
-      onKeyDown={(e) => {
-        if ((e.key === "Enter" || e.key === " ") && onOpenSync) {
+      role={onOpenSync ? "button" : "img"}
+      tabIndex={onOpenSync ? 0 : undefined}
+      onKeyDown={onOpenSync ? (e) => {
+        if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
           onOpenSync();
         }
-      }}
+      } : undefined}
       title="Apple Health Aktivitätsringe · Tippen für Details & Synchronisation"
     >
       <div className="apple-rings-graphic">

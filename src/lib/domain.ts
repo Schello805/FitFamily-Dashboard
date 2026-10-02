@@ -7,6 +7,7 @@ export type AvatarPhysique = "balanced" | "endurance" | "strength";
 export type Profile = {
   id: string;
   name: string;
+  email?: string | null;
   color: string;
   avatar: ProfileAvatar;
   startingFitness: number;

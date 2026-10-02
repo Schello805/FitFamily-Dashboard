@@ -1970,6 +1970,34 @@ body::before {
 [data-theme="dark"] .reset-list button { color: #fda4af; }
 .data-text { color: var(--muted); line-height: 1.6; font-size: 13px; }
 .inventory-list { display: grid; gap: 9px; margin-top: 16px; }
+.equipment-table-wrap { width: 100%; overflow-x: auto; margin-top: 12px; border: 1px solid var(--line); border-radius: 13px; }
+.equipment-table { width: 100%; min-width: 650px; border-collapse: collapse; text-align: left; font-size: 12px; }
+.equipment-table th, .equipment-table td { padding: 9px 11px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.equipment-table th { color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: .06em; background: var(--subtle-bg); }
+.equipment-table tr:last-child td { border-bottom: 0; }
+.equipment-table tr.archived { opacity: .62; }
+.equipment-table td:last-child { text-align: right; }
+.equipment-table button { min-height: 36px; padding: 0 12px; border: 1px solid var(--line); border-radius: 9px; color: var(--text); background: var(--subtle-bg); font-weight: 750; cursor: pointer; }
+.admin-edit-modal { position: relative; width: min(620px, calc(100vw - 28px)); max-height: 90dvh; overflow-y: auto; padding: 24px; border: 1px solid var(--line); border-radius: 22px; color: var(--text); background: var(--panel); box-shadow: 0 24px 80px rgba(0,0,0,.28); }
+.admin-edit-modal h2 { margin: 10px 48px 16px 0; font-size: 24px; }
+.admin-edit-fields { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 12px; }
+.admin-edit-fields > label { display: grid; gap: 6px; color: var(--muted); font-size: 11px; font-weight: 750; }
+.admin-edit-fields input, .admin-edit-fields select, .admin-edit-fields textarea { width: 100%; min-height: 42px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; color: var(--text); background: var(--input-bg); font: inherit; }
+.admin-edit-fields textarea { resize: vertical; }
+.admin-edit-fields .wide-field { grid-column: 1 / -1; }
+.admin-field-label { display: block; margin-bottom: 8px; color: var(--muted); font-size: 11px; font-weight: 750; }
+.admin-edit-modal .exercise-admin-actions { margin-top: 16px; }
+.dashboard-apple-rings { margin: 0 20px 12px; padding-top: 10px; border-top: 1px solid var(--line); }
+.dashboard-apple-rings .apple-rings-widget { padding: 5px 8px; border: 0; border-radius: 12px; background: transparent; box-shadow: none; backdrop-filter: none; }
+.dashboard-apple-rings .apple-rings-widget:hover { transform: none; box-shadow: none; }
+.dashboard-apple-rings .apple-rings-widget.compact .apple-rings-graphic { width: 56px; height: 56px; }
+.dashboard-apple-rings .apple-rings-legend { min-width: 0; flex: 1; gap: 3px; }
+.dashboard-apple-rings .health-activity-stats { grid-template-columns: repeat(3, minmax(0,1fr)); gap: 6px; }
+.dashboard-apple-rings .health-activity-stats div { display: grid; gap: 1px; font-size: 9px; }
+.dashboard-apple-rings .health-activity-stats strong { font-size: 10px; }
+.equipment-instructions-link { margin: 0 0 10px; padding: 8px 11px; border: 1px solid var(--line); border-radius: 10px; color: var(--muted); background: color-mix(in srgb, var(--panel) 72%, transparent); font-size: 12px; }
+.equipment-instructions-link summary { width: fit-content; color: var(--muted); cursor: pointer; text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 3px; }
+.equipment-instructions-link p { margin: 8px 0 2px; color: var(--text); line-height: 1.5; white-space: pre-line; }
 .inventory-row { display: grid; grid-template-columns: minmax(140px, 1.2fr) 82px minmax(160px, 1fr) auto minmax(190px, auto); align-items: end; gap: 10px; padding: 11px 12px; border: 1px solid var(--line); border-radius: 13px; }
 .inventory-row.archived, .exercise-admin-item.archived { opacity: .72; }
 .inventory-row label, .inventory-add label { display: grid; gap: 6px; color: var(--muted); font-size: 11px; font-weight: 700; }
@@ -2493,6 +2521,7 @@ body::before {
   }
 }
 @media (max-width: 680px) { .admin-grid { grid-template-columns: 1fr; } .admin-grid article.wide { grid-column: auto; } .reset-list { grid-template-columns: 1fr; } }
+@media (max-width: 620px) { .admin-edit-fields { grid-template-columns: 1fr; } .admin-edit-fields .wide-field { grid-column: auto; } .admin-edit-modal { padding: 20px 16px; } .dashboard-apple-rings { margin-inline: 10px; } }
 
 .screensaver-card {
   display: flex;

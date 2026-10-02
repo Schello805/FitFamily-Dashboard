@@ -380,6 +380,7 @@ export function ProfileView({
         method: "PATCH", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: form.get("name"),
+          email: profile.email ?? null,
           birthDate: form.get("birthDate") || null,
           avatar: editAvatar,
           startingFitness: Number(editStartingFitness),

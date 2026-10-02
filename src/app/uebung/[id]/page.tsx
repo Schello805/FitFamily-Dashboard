@@ -62,6 +62,11 @@ export default async function ExercisePage({
     instructions: exerciseRow.instructions ? String(exerciseRow.instructions) : null,
     safetyNotes: exerciseRow.safety_notes ? String(exerciseRow.safety_notes) : null
   }) : getExerciseGuide(id);
+  const equipmentGuideResult = await client.execute({
+    sql: "SELECT instructions FROM equipment_inventory WHERE LOWER(name) = LOWER(?) OR id = ? LIMIT 1",
+    args: [guide.equipment, guide.equipment.toLowerCase()]
+  }).catch(() => ({ rows: [] }));
+  const equipmentInstructions = equipmentGuideResult.rows[0]?.instructions ? String(equipmentGuideResult.rows[0].instructions).trim() : "";
 
   // 1. Suche nach Video direkt auf dieser Übung
   let media = await client.execute({
@@ -211,6 +216,7 @@ export default async function ExercisePage({
 
         {/* Rechte Spalte: 4-Karten-Raster mit Vorbereitung, Bewegung, Fehler, Sicherheit */}
         <div className="guide-col-instructions">
+          {equipmentInstructions && <details className="equipment-instructions-link"><summary>Hinweise zum Gerät</summary><p>{equipmentInstructions}</p></details>}
           <section className="guide-grid">
             <article>
               <h3><CheckCircle2 size={15} /> 1. Vorbereitung</h3>
