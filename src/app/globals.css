@@ -1884,6 +1884,42 @@ body::before {
 .admin-grid li { display: flex; align-items: center; gap: 7px; padding: 5px 0; color: var(--muted); font-size: 12px; }
 .admin-grid li svg { width: 16px; color: var(--brand); }
 .admin-grid article > button { min-height: 44px; padding: 0 15px; border: 0; border-radius: 12px; display: flex; align-items: center; gap: 7px; background: var(--brand); color: #ffffff; font-weight: 850; cursor: pointer; touch-action: manipulation; }
+.data-status-grid { margin-top: 16px; }
+.data-tools-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-top: 14px; color: var(--muted); font-size: 11px; }
+.data-import-file { display: grid; gap: 8px; margin: 18px 0 12px; color: var(--muted); font-size: 12px; font-weight: 750; }
+.data-import-file input { width: 100%; min-height: 46px; padding: 8px; border: 1px dashed var(--line-strong); border-radius: 11px; color: var(--text); background: var(--subtle-bg); }
+.data-import-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.data-import-actions button { min-height: 44px; }
+.import-validation { display: grid; gap: 5px; margin-top: 14px; padding: 12px; border: 1px solid var(--line); border-left: 3px solid var(--brand); border-radius: 11px; background: var(--subtle-bg); }
+.import-validation.invalid { border-left-color: var(--danger); }
+.import-validation b { font-size: 12px; }
+.import-validation p, .import-validation small { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.45; overflow-wrap: anywhere; }
+.admin-log-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-top: 18px; }
+.admin-log-toolbar > div { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; }
+.admin-log-filters button { min-height: 40px; padding: 0 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--subtle-bg); color: var(--muted); font-size: 11px; font-weight: 750; cursor: pointer; touch-action: manipulation; }
+.admin-log-filters button.active { border-color: var(--brand); color: var(--brand-bright); background: color-mix(in srgb, var(--brand) 12%, var(--panel)); }
+.admin-log-toolbar .update-secondary-btn { min-height: 40px; padding: 0 11px; font-size: 11px; }
+.admin-log-toolbar .update-secondary-btn svg { width: 15px; height: 15px; }
+.admin-log-privacy { margin: 10px 0; font-size: 11px; }
+.admin-log-list { display: grid; gap: 7px; max-height: min(58vh, 620px); overflow: auto; margin: 0; padding: 0; list-style: none; }
+.admin-log-list li { display: grid; gap: 4px; padding: 10px 12px; border: 1px solid var(--line); border-left: 3px solid var(--brand); border-radius: 10px; background: var(--subtle-bg); }
+.admin-log-list li.error { border-left-color: var(--danger); }
+.admin-log-list li > div { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 7px; }
+.admin-log-level { color: var(--brand-bright); font-size: 9px; font-weight: 900; letter-spacing: .08em; }
+.admin-log-list li.error .admin-log-level { color: var(--danger); }
+.admin-log-list time, .admin-log-list small { color: var(--muted); font-size: 10px; }
+.admin-log-list li > b { font-size: 12px; font-weight: 650; overflow-wrap: anywhere; }
+.admin-log-empty { display: flex; align-items: center; gap: 9px; padding: 18px 4px; color: var(--muted); font-size: 12px; }
+.admin-log-empty svg { color: var(--brand); }
+.app-error-page { display: grid; place-items: center; min-height: 100dvh; padding: 20px; background: var(--bg); color: var(--text); }
+.app-error-card { width: min(520px, 100%); padding: 28px; border: 1px solid var(--line); border-radius: 22px; background: var(--panel); text-align: center; box-shadow: var(--card-shadow); }
+.app-error-icon { display: inline-grid; place-items: center; width: 58px; height: 58px; border-radius: 17px; color: var(--danger); background: color-mix(in srgb, var(--danger) 12%, transparent); }
+.app-error-card h1 { margin: 12px 0; font-size: 25px; }
+.app-error-card > p:not(.setup-badge) { color: var(--muted); font-size: 13px; line-height: 1.5; }
+.app-error-card > small { color: var(--muted); font-size: 10px; }
+.app-error-card > div { display: flex; justify-content: center; flex-wrap: wrap; gap: 10px; margin-top: 20px; }
+.app-error-card button, .app-error-card a { min-height: 44px; padding: 0 14px; border: 1px solid var(--line); border-radius: 11px; background: var(--brand); color: #fff; display: inline-flex; align-items: center; justify-content: center; gap: 7px; font-weight: 750; text-decoration: none; cursor: pointer; }
+.app-error-card a { background: var(--subtle-bg); color: var(--text); }
 .status-row { display: flex; justify-content: space-between; padding: 11px 0; border-top: 1px solid var(--line); font-size: 13px; }
 .status-row:first-of-type { margin-top: 15px; }
 .status-row b { font-size: 11px; }

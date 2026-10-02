@@ -6,6 +6,7 @@ import { z } from "zod";
 import { verifyAdminPin } from "@/lib/security";
 
 import { getAppRevision } from "@/lib/version";
+import { writeAdminLog } from "@/lib/admin-log";
 
 export const dynamic = "force-dynamic";
 
@@ -58,6 +59,7 @@ export async function GET(request: Request) {
   }
 
   if (!remoteFetchSucceeded) {
+    await writeAdminLog("admin.update.check.error", "error", "GitHub konnte beim Update-Check nicht erreicht werden.").catch(() => undefined);
     return NextResponse.json(
       {
         ok: false,
@@ -84,6 +86,14 @@ export async function GET(request: Request) {
     (latestVersion && latestVersion !== version)
   );
 
+  await writeAdminLog("admin.update.check", "info", hasUpdate ? "Neues Update auf GitHub gefunden." : "Dashboard ist auf dem aktuellen Stand.", {
+    currentVersion: version,
+    latestVersion,
+    currentCommit,
+    latestCommit,
+    hasUpdate
+  }).catch(() => undefined);
+
   return NextResponse.json({
     ok: true,
     currentCommit,
@@ -103,6 +113,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Eltern-PIN ist nicht richtig" }, { status: 401 });
   }
 
+  await writeAdminLog("admin.update.started", "info", "Updateinstallation gestartet.").catch(() => undefined);
+
   const cwd = process.cwd();
 
   // 1. Sicherheits-Backup der Datenbank
@@ -115,6 +127,7 @@ export async function POST(request: Request) {
       copyFileSync(dbFile, backupPath);
     }
   } catch (err) {
+    await writeAdminLog("admin.update.error", "error", `Update-Backup fehlgeschlagen: ${(err as Error).message}`).catch(() => undefined);
     return NextResponse.json(
       { error: `Backup vor dem Update fehlgeschlagen: ${(err as Error).message}` },
       { status: 500 }
@@ -189,6 +202,7 @@ export async function POST(request: Request) {
   } catch (err) {
     const errorMsg = (err as Error)?.message || String(err);
     const userMessage = `Update fehlgeschlagen: ${errorMsg}. Der bisherige Dienst bleibt unverändert aktiv.`;
+    await writeAdminLog("admin.update.error", "error", userMessage).catch(() => undefined);
 
     return NextResponse.json(
       {
@@ -200,6 +214,7 @@ export async function POST(request: Request) {
 
   const newCommit = getGitCommit("rev-parse --short HEAD") ?? getAppRevision().commit ?? "aktuell";
   const newVersion = getPackageVersion();
+  await writeAdminLog("admin.update.success", "info", "Update installiert; Dienst wird neu gestartet.", { version: newVersion, commit: newCommit }).catch(() => undefined);
 
   // 3. Dienst nach kurzer Verzögerung neu starten, damit die HTTP-Antwort noch sauber ankommt
   setTimeout(() => {

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { executeBackup, getBackupSettings, setBackupSettings } from "@/lib/backup";
 import { verifyAdminPin } from "@/lib/security";
+import { writeAdminLog } from "@/lib/admin-log";
 
 const postSchema = z.object({
   pin: z.string().regex(/^\d{4}$/),
@@ -56,8 +57,10 @@ export async function POST(request: Request) {
         return NextResponse.json({ ok: false, error: status.statusMessage, status }, { status: 400 });
       }
       if (!status.writable) {
+        await writeAdminLog("admin.backup.check", "warning", status.statusMessage);
         return NextResponse.json({ ok: false, error: status.statusMessage, status }, { status: 400 });
       }
+      await writeAdminLog("admin.backup.check", "info", "NAS-Ziel ist erreichbar und beschreibbar.");
       return NextResponse.json({ ok: true, message: "Verbindung erfolgreich! Der Ordner existiert und ist beschreibbar.", status });
     }
 
@@ -67,6 +70,7 @@ export async function POST(request: Request) {
       }
       const backupResult = await executeBackup();
       const status = await getBackupSettings();
+      await writeAdminLog("admin.backup.success", "info", "Verschlüsseltes NAS-Backup erstellt.", { filename: backupResult.filename, sizeBytes: backupResult.sizeBytes });
       return NextResponse.json({
         ok: true,
         message: `Backup erfolgreich erstellt (${backupResult.filename}, ${backupResult.sizeFormatted}).`,
@@ -78,6 +82,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unbekannte Aktion." }, { status: 400 });
   } catch (err) {
     const errorText = err instanceof Error ? err.message : "Backup-Vorgang fehlgeschlagen.";
+    await writeAdminLog("admin.backup.error", "error", errorText).catch(() => undefined);
     return NextResponse.json({ error: errorText, status: await getBackupSettings() }, { status: 500 });
   }
 }

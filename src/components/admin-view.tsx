@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useSyncExternalStore } from "react";
-import { ArrowLeft, AlertTriangle, Bot, CheckCircle2, Database, Download, HardDrive, Lock, Monitor, Moon, Plus, RefreshCw, RotateCcw, ShieldCheck, Sparkles, Sun, Users, Wrench } from "lucide-react";
+import { ArrowLeft, AlertTriangle, Bot, CheckCircle2, ClipboardList, Copy, Database, Download, HardDrive, Lock, Monitor, Moon, Plus, RefreshCw, RotateCcw, ShieldCheck, Sparkles, Sun, Upload, Users, Wrench } from "lucide-react";
 import { TouchPinpad } from "@/components/touch-pinpad";
 import { showToast } from "@/components/toast";
 import { applyTheme, getStoredThemeSetting, subscribeTheme, type ThemeSetting } from "@/lib/theme";
@@ -26,6 +26,13 @@ type BackupStatus = {
   backupCount: number;
   lastBackup: BackupInfo | null;
 };
+type AdminLogFilter = "all" | "errors" | "updates" | "backups";
+type AdminLogEntry = { id: string; action: string; createdAt: string; details: Record<string, unknown> };
+type SystemStatus = {
+  database: { kind: "local" | "remote"; location: string; sizeBytes: number | null; error: string | null };
+  applicationVolume: { availableBytes: number | null; totalBytes: number | null; error: string | null };
+  backupVolume: { availableBytes: number | null; totalBytes: number | null; error: string | null } | null;
+};
 
 type ConfirmModalConfig = {
   title: string;
@@ -38,12 +45,14 @@ type ConfirmModalConfig = {
   action: (freshPin?: string) => Promise<void> | void;
 };
 
-type AdminSection = "allgemein" | "ki" | "sicherung" | "sportraum" | "familie";
+type AdminSection = "allgemein" | "ki" | "sicherung" | "daten" | "protokolle" | "sportraum" | "familie";
 
 const ADMIN_SECTIONS: { id: AdminSection; label: string; detail: string; icon: typeof Monitor }[] = [
   { id: "allgemein", label: "Allgemein", detail: "Design & Updates", icon: Monitor },
   { id: "ki", label: "KI-Integrationen", detail: "Schlüssel & Kosten", icon: Bot },
   { id: "sicherung", label: "Datensicherung", detail: "NAS & Speicherorte", icon: HardDrive },
+  { id: "daten", label: "Daten & Speicher", detail: "Export, Import, Platz", icon: Database },
+  { id: "protokolle", label: "Protokolle", detail: "Fehler, Updates, Backup", icon: ClipboardList },
   { id: "sportraum", label: "Sportraum", detail: "Geräte & Videos", icon: Wrench },
   { id: "familie", label: "Familie", detail: "Score-Verwaltung", icon: Users }
 ];
@@ -119,6 +128,17 @@ export function AdminView({
   const [nasUserInput, setNasUserInput] = useState("");
   const [nasPassInput, setNasPassInput] = useState("");
   const [mountingNas, setMountingNas] = useState(false);
+  const [adminLogs, setAdminLogs] = useState<AdminLogEntry[]>([]);
+  const [logFilter, setLogFilter] = useState<AdminLogFilter>("all");
+  const [loadingLogs, setLoadingLogs] = useState(false);
+  const [copyingLogs, setCopyingLogs] = useState(false);
+  const [systemStatus, setSystemStatus] = useState<SystemStatus | null>(null);
+  const [loadingSystemStatus, setLoadingSystemStatus] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importPayload, setImportPayload] = useState<unknown>(null);
+  const [importValidation, setImportValidation] = useState<{ valid: boolean; total: number; counts: Record<string, number>; errors: string[] } | null>(null);
+  const [validatingImport, setValidatingImport] = useState(false);
+  const [importingData, setImportingData] = useState(false);
 
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
   const [checkingUpdate, setCheckingUpdate] = useState(false);
@@ -534,17 +554,164 @@ export function AdminView({
     });
   }
 
-  async function download() {
-    const response = await fetch("/api/export", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pin }) });
-    if (!response.ok) {
-      setNotice("Export fehlgeschlagen.");
-      showToast({ type: "error", title: "Export fehlgeschlagen", message: "Daten konnten nicht exportiert werden." });
+  async function loadAdminLogs(filter: AdminLogFilter = logFilter) {
+    setLoadingLogs(true);
+    try {
+      const response = await fetch("/api/admin/logs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pin, filter })
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error ?? "Protokolle konnten nicht geladen werden.");
+      setAdminLogs(Array.isArray(result.logs) ? result.logs : []);
+    } catch (loadError) {
+      showToast({ type: "error", title: "Protokolle nicht verfügbar", message: loadError instanceof Error ? loadError.message : "Keine Verbindung zum Dashboard." });
+    } finally {
+      setLoadingLogs(false);
+    }
+  }
+
+  async function copyAdminLogs() {
+    const text = adminLogs.map((entry) => {
+      const timestamp = new Date(entry.createdAt.replace(" ", "T") + (entry.createdAt.endsWith("Z") ? "" : "Z")).toLocaleString("de-DE");
+      const level = entry.details.level === "error" ? "FEHLER" : entry.details.level === "warning" ? "WARNUNG" : "INFO";
+      const message = typeof entry.details.message === "string" ? entry.details.message : entry.action;
+      return `[${timestamp}] ${level} · ${message}`;
+    }).join("\n");
+    if (!text) {
+      showToast({ type: "info", title: "Keine Einträge", message: "Für diesen Filter gibt es keine Protokolleinträge." });
       return;
     }
-    const blob = await response.blob(); const url = URL.createObjectURL(blob); const anchor = document.createElement("a");
-    anchor.href = url; anchor.download = `fitfamily-${new Date().toISOString().slice(0,10)}.json`; anchor.click(); URL.revokeObjectURL(url);
-    setNotice("Export wurde heruntergeladen.");
-    showToast({ type: "success", title: "Export erfolgreich", message: "fitfamily.json wurde heruntergeladen." });
+    setCopyingLogs(true);
+    try {
+      if (navigator.clipboard?.writeText) await navigator.clipboard.writeText(text);
+      else {
+        const field = document.createElement("textarea");
+        field.value = text;
+        field.style.position = "fixed";
+        field.style.opacity = "0";
+        document.body.appendChild(field);
+        field.select();
+        const copied = document.execCommand("copy");
+        field.remove();
+        if (!copied) throw new Error("Zwischenablage nicht verfügbar.");
+      }
+      showToast({ type: "success", title: "Protokoll kopiert", message: `${adminLogs.length} Einträge in die Zwischenablage kopiert.` });
+    } catch {
+      showToast({ type: "error", title: "Kopieren nicht möglich", message: "Bitte Browser-Zugriff auf die Zwischenablage erlauben." });
+    } finally {
+      setCopyingLogs(false);
+    }
+  }
+
+  async function refreshSystemStatus() {
+    setLoadingSystemStatus(true);
+    try {
+      const response = await fetch("/api/admin/system-status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pin })
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error ?? "Speicherstatus konnte nicht geladen werden.");
+      setSystemStatus(result);
+    } catch (statusError) {
+      showToast({ type: "error", title: "Speicherstatus nicht verfügbar", message: statusError instanceof Error ? statusError.message : "Keine Verbindung zum Dashboard." });
+    } finally {
+      setLoadingSystemStatus(false);
+    }
+  }
+
+  async function validateImportFile() {
+    if (!importFile) return;
+    if (importFile.size > 15 * 1024 * 1024) {
+      setImportValidation({ valid: false, total: 0, counts: {}, errors: ["Die Datei ist größer als 15 MB."] });
+      setImportPayload(null);
+      return;
+    }
+    setValidatingImport(true);
+    setImportValidation(null);
+    try {
+      const parsedFile: unknown = JSON.parse(await importFile.text());
+      const response = await fetch("/api/admin/data", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pin, action: "validate", backup: parsedFile })
+      });
+      const result = await response.json();
+      if (!response.ok && !Array.isArray(result.errors)) throw new Error(result.error ?? "Datei konnte nicht geprüft werden.");
+      const valid = response.ok && Boolean(result.valid);
+      setImportPayload(valid ? parsedFile : null);
+      setImportValidation({ valid, total: Number(result.total ?? 0), counts: result.counts ?? {}, errors: result.errors ?? [] });
+    } catch (validationError) {
+      setImportPayload(null);
+      setImportValidation({ valid: false, total: 0, counts: {}, errors: [validationError instanceof Error ? validationError.message : "Die Datei ist kein lesbares JSON."] });
+    } finally {
+      setValidatingImport(false);
+    }
+  }
+
+  function requestDataImport() {
+    if (!importPayload || !importValidation?.valid) return;
+    setConfirmPin("");
+    setConfirmPinError("");
+    setConfirmModal({
+      title: "Geprüfte Daten übernehmen?",
+      badge: "Zusammenführen · kein Löschen",
+      description: `Es werden bis zu ${importValidation.total} geprüfte Datensätze aus „${importFile?.name ?? "FitFamily-Export"}“ ergänzt oder anhand ihrer IDs aktualisiert. Nicht enthaltene lokale Einträge bleiben bestehen. PIN erneut eingeben, um fortzufahren.`,
+      icon: "backup",
+      confirmLabel: "Daten übernehmen",
+      confirmVariant: "primary",
+      requiresPin: true,
+      action: (freshPin) => executeDataImport(freshPin)
+    });
+  }
+
+  async function executeDataImport(freshPin?: string) {
+    if (!importPayload) return;
+    setImportingData(true);
+    try {
+      const response = await fetch("/api/admin/data", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pin: freshPin || pin, action: "import", backup: importPayload })
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error ?? "Import fehlgeschlagen.");
+      setNotice(result.message ?? "Daten wurden übernommen.");
+      showToast({ type: "success", title: "Import abgeschlossen", message: `${result.total ?? 0} Datensätze geprüft und übernommen.` });
+      setImportFile(null);
+      setImportPayload(null);
+      setImportValidation(null);
+      router.refresh();
+    } catch (importError) {
+      showToast({ type: "error", title: "Import fehlgeschlagen", message: importError instanceof Error ? importError.message : "Keine Verbindung zum Dashboard." });
+    } finally {
+      setImportingData(false);
+    }
+  }
+
+  function formatStorage(bytes: number | null | undefined) {
+    if (bytes == null || !Number.isFinite(bytes)) return "Nicht ermittelbar";
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 ** 2) return `${(bytes / 1024).toLocaleString("de-DE", { maximumFractionDigits: 1 })} KB`;
+    if (bytes < 1024 ** 3) return `${(bytes / 1024 ** 2).toLocaleString("de-DE", { maximumFractionDigits: 1 })} MB`;
+    return `${(bytes / 1024 ** 3).toLocaleString("de-DE", { maximumFractionDigits: 2 })} GB`;
+  }
+
+  async function download() {
+    try {
+      const response = await fetch("/api/export", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pin }) });
+      if (!response.ok) throw new Error((await response.json().catch(() => null))?.error ?? "Daten konnten nicht exportiert werden.");
+      const blob = await response.blob(); const url = URL.createObjectURL(blob); const anchor = document.createElement("a");
+      anchor.href = url; anchor.download = `fitfamily-${new Date().toISOString().slice(0,10)}.json`; anchor.click(); URL.revokeObjectURL(url);
+      setNotice("Export wurde heruntergeladen.");
+      showToast({ type: "success", title: "Export erfolgreich", message: "FitFamily-Daten wurden heruntergeladen; Zugangsschlüssel sind nicht enthalten." });
+    } catch (exportError) {
+      setNotice("Export fehlgeschlagen.");
+      showToast({ type: "error", title: "Export fehlgeschlagen", message: exportError instanceof Error ? exportError.message : "Daten konnten nicht exportiert werden." });
+    }
   }
 
   function requestResetScore(profileId: string) {
@@ -803,7 +970,11 @@ export function AdminView({
               type="button"
               className={`admin-nav-item ${activeAdminSection === id ? "active" : ""}`}
               aria-current={activeAdminSection === id ? "page" : undefined}
-              onClick={() => setActiveAdminSection(id)}
+              onClick={() => {
+                setActiveAdminSection(id);
+                if (id === "protokolle") void loadAdminLogs();
+                if (id === "daten") void refreshSystemStatus();
+              }}
             >
               <Icon aria-hidden="true" />
               <span><b>{label}</b><small>{detail}</small></span>
@@ -817,7 +988,6 @@ export function AdminView({
           </div>
     <section className="admin-grid">
       {activeAdminSection === "allgemein" && <>
-      <article><div className="admin-title"><Database /><div><h2>Meine Daten</h2><p>Vollständiger lokaler Datenbestand</p></div></div><ul><li><CheckCircle2 /> Profildaten und Geburtsdaten</li><li><CheckCircle2 /> Trainings- und Punkteverlauf</li><li><CheckCircle2 /> Pläne und Änderungsprotokoll</li></ul><button onClick={download}><Download /> JSON herunterladen</button></article>
       <article className="screensaver-card">
         <div className="admin-title">
           <Moon />
@@ -1259,7 +1429,60 @@ export function AdminView({
           Sichert den vollständigen Datenbestand verschlüsselt ab. Alte Stände werden automatisch nach 7 Tagen, 4 Wochen und 12 Monaten rotiert.
         </p>
       </article>
-      <article className="wide"><div className="admin-title"><HardDrive /><div><h2>Speicherorte</h2><p>Transparenz über vorhandene Daten</p></div></div><p className="data-text">Stammdaten, Training und Pläne: lokale SQLite-Datenbank · Backups: {status.nas ? "verschlüsselt auf NAS" : "noch nicht eingerichtet"} · Wetter: Open-Meteo · KI: nur bei bewusster Planerstellung.</p></article>
+      </>}
+      {activeAdminSection === "daten" && <>
+        <article className="wide">
+          <div className="admin-title"><HardDrive /><div><h2>Speicherstatus</h2><p>Datenbankdatei und freier Speicher auf dem Server</p></div></div>
+          <div className="update-status-grid data-status-grid">
+            <div className="update-meta-box"><span>Datenbank</span><b>{systemStatus ? (systemStatus.database.sizeBytes == null ? "Größe nicht ermittelbar" : formatStorage(systemStatus.database.sizeBytes)) : "Noch nicht geladen"}</b><small>{systemStatus?.database.kind === "remote" ? "Externe Datenbank" : systemStatus?.database.location ?? ""}{systemStatus?.database.error ? ` · ${systemStatus.database.error}` : ""}</small></div>
+            <div className="update-meta-box"><span>Freier Speicher · App-Server</span><b>{systemStatus ? formatStorage(systemStatus.applicationVolume.availableBytes) : "Noch nicht geladen"}</b><small>{systemStatus?.applicationVolume.totalBytes != null ? `von ${formatStorage(systemStatus.applicationVolume.totalBytes)} gesamt` : systemStatus?.applicationVolume.error ?? ""}</small></div>
+            {systemStatus?.backupVolume && <div className="update-meta-box"><span>Freier Speicher · NAS</span><b>{formatStorage(systemStatus.backupVolume.availableBytes)}</b><small>{systemStatus.backupVolume.totalBytes != null ? `von ${formatStorage(systemStatus.backupVolume.totalBytes)} gesamt` : systemStatus.backupVolume.error ?? ""}</small></div>}
+          </div>
+          <div className="data-tools-row">
+            <span>{systemStatus ? "Standort und Größe werden lokal ermittelt; bei externer Datenbank kann die DB-Größe nicht ausgelesen werden." : "Speicherwerte werden nach dem Laden angezeigt."}</span>
+            <button type="button" className="update-secondary-btn" disabled={loadingSystemStatus} onClick={() => void refreshSystemStatus()}><RefreshCw className={loadingSystemStatus ? "spin" : ""} /> {loadingSystemStatus ? "Wird aktualisiert …" : "Speicherstatus aktualisieren"}</button>
+          </div>
+        </article>
+
+        <article>
+          <div className="admin-title"><Download /><div><h2>Daten exportieren</h2><p>JSON-Datei als zusätzliche Sicherung herunterladen</p></div></div>
+          <ul><li><CheckCircle2 /> Profile, Geräte, Übungen und Pläne</li><li><CheckCircle2 /> Trainings- und Apple-Health-Daten</li><li><CheckCircle2 /> Keine PIN-, KI- oder Backup-Schlüssel</li></ul>
+          <button type="button" onClick={() => void download()}><Download /> JSON herunterladen</button>
+        </article>
+
+        <article>
+          <div className="admin-title"><Upload /><div><h2>Daten importieren</h2><p>FitFamily-JSON vor dem Übernehmen prüfen</p></div></div>
+          <label className="data-import-file">JSON-Datei auswählen<input type="file" accept=".json,application/json" onChange={(event) => { setImportFile(event.target.files?.[0] ?? null); setImportPayload(null); setImportValidation(null); }} /></label>
+          <div className="data-import-actions">
+            <button type="button" className="update-secondary-btn" disabled={!importFile || validatingImport} onClick={() => void validateImportFile()}>{validatingImport ? "Prüfe Datei …" : "Datei prüfen"}</button>
+            <button type="button" className="primary-update-btn" disabled={!importValidation?.valid || !importPayload || importingData} onClick={requestDataImport}>{importingData ? "Import läuft …" : "Geprüfte Daten übernehmen"}</button>
+          </div>
+          {importValidation && <div className={`import-validation ${importValidation.valid ? "valid" : "invalid"}`} role="status">
+            <b>{importValidation.valid ? `Datei gültig · ${importValidation.total} Datensätze` : "Datei konnte nicht freigegeben werden"}</b>
+            {importValidation.valid && <p>{Object.entries(importValidation.counts).filter(([, count]) => count > 0).map(([name, count]) => `${name.replaceAll("_", " ")}: ${count}`).join(" · ")}</p>}
+            {importValidation.errors.map((message, index) => <p key={`${index}-${message}`}>{message}</p>)}
+            {importValidation.valid && <small>Der Import ergänzt oder aktualisiert gleiche IDs. Nicht enthaltene lokale Datensätze bleiben erhalten. Zugangsschlüssel werden nicht importiert.</small>}
+          </div>}
+        </article>
+      </>}
+      {activeAdminSection === "protokolle" && <>
+        <article className="wide admin-logs-card">
+          <div className="admin-title"><ClipboardList /><div><h2>Betriebsprotokoll</h2><p>App-Fehler sowie Update-, Export-/Import- und Backup-Ereignisse. Apple-Health-Syncs bleiben separat im Profil und PIN-geschützt.</p></div></div>
+          <div className="admin-log-toolbar">
+            <div className="admin-log-filters" role="group" aria-label="Protokoll filtern">
+              {([{ id: "all", label: "Alle" }, { id: "errors", label: "Fehler" }, { id: "updates", label: "Updates" }, { id: "backups", label: "Backups & Daten" }] as const).map(({ id, label }) => <button key={id} type="button" className={logFilter === id ? "active" : ""} onClick={() => { setLogFilter(id); void loadAdminLogs(id); }}>{label}</button>)}
+            </div>
+            <div><button type="button" className="update-secondary-btn" disabled={loadingLogs} onClick={() => void loadAdminLogs()}><RefreshCw className={loadingLogs ? "spin" : ""} /> Aktualisieren</button><button type="button" className="update-secondary-btn" disabled={!adminLogs.length || copyingLogs} onClick={() => void copyAdminLogs()}><Copy /> {copyingLogs ? "Kopiere …" : "Einträge kopieren"}</button></div>
+          </div>
+          <p className="data-text admin-log-privacy">Bis zu 500 Einträge. Protokolle enthalten keine Health-Sync-Ereignisse und werden nur nach PIN-Freigabe geladen.</p>
+          {loadingLogs ? <p className="data-text">Protokolle werden geladen …</p> : adminLogs.length ? <ol className="admin-log-list">
+            {adminLogs.map((entry) => {
+              const isError = entry.details.level === "error" || entry.action.endsWith(".error") || entry.action.endsWith(".failed");
+              const timestamp = new Date(entry.createdAt.replace(" ", "T") + (entry.createdAt.endsWith("Z") ? "" : "Z"));
+              return <li key={entry.id} className={isError ? "error" : ""}><div><span className="admin-log-level">{isError ? "FEHLER" : entry.details.level === "warning" ? "WARNUNG" : "INFO"}</span><time>{timestamp.toLocaleString("de-DE")}</time></div><b>{typeof entry.details.message === "string" ? entry.details.message : entry.action}</b><small>{entry.action}</small></li>;
+            })}
+          </ol> : <div className="admin-log-empty"><CheckCircle2 /><span>{logFilter === "errors" ? "Keine protokollierten Fehler gefunden." : "Für diesen Filter gibt es noch keine Einträge."}</span></div>}
+        </article>
       </>}
       {activeAdminSection === "sportraum" && <>
       <article className="wide"><div className="admin-title"><Database /><div><h2>Geräte im Sportraum</h2><p>Geräte, Verfügbarkeit und gerätebezogene Videos verwalten. Archivierte Einträge bleiben für die Historie erhalten.</p></div></div>
