@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Camera, Sparkles, Trash2 } from "lucide-react";
 import { Avatar } from "@/components/avatar";
+import { TouchPinpad } from "@/components/touch-pinpad";
 import { getFitnessStageCount, type AvatarDesignId, type AvatarPhysique } from "@/lib/domain";
 
 export function PersonalAvatarEditor({
@@ -38,6 +39,7 @@ export function PersonalAvatarEditor({
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [cameraOpen, setCameraOpen] = useState(false);
+  const [pinModalOpen, setPinModalOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const cameraStreamRef = useRef<MediaStream | null>(null);
@@ -98,6 +100,7 @@ export function PersonalAvatarEditor({
       return;
     }
     setPhoto(new File([image], "fitfamily-kamerafoto.jpg", { type: "image/jpeg" }));
+    if (pin.length !== 4) setPinModalOpen(true);
     setPreview(""); setError("");
     setNotice("Kamerafoto aufgenommen. Du kannst jetzt die Vorschau erstellen.");
     stopCamera();
@@ -106,6 +109,7 @@ export function PersonalAvatarEditor({
   function selectPhoto(file: File | null) {
     stopCamera();
     setPhoto(file); setPreview(""); setError(""); setNotice("");
+    if (file && pin.length !== 4) setPinModalOpen(true);
   }
 
   async function generate() {
@@ -197,9 +201,7 @@ export function PersonalAvatarEditor({
         {isChild && <label className="personal-avatar-consent"><input type="checkbox" checked={guardianConsent} onChange={(event) => setGuardianConsent(event.target.checked)} />
           Ich bin sorgeberechtigt und stimme der KI-Verarbeitung dieses Kinderfotos zu.
         </label>}
-        <label>Eltern-PIN · 4 Ziffern
-          <input type="password" inputMode="numeric" autoComplete="current-password" maxLength={4} pattern="[0-9]{4}" value={pin} onChange={(event) => setPin(event.target.value.replace(/\D/g, "").slice(0, 4))} placeholder="Für Foto-Umwandlung und Speichern" />
-        </label>
+        <div className="personal-avatar-pin-entry"><span>Eltern-PIN · 4 Ziffern</span><button type="button" onClick={() => setPinModalOpen(true)}>{pin.length === 4 ? "PIN eingegeben · ändern" : "PIN mit Ziffernblock eingeben"}</button>{pin.length === 4 && <small>PIN ist für Vorschau und Speichern bereit.</small>}</div>
         <div className="personal-avatar-actions">
           <button type="button" onClick={() => void generate()} disabled={busy || !photo || !consent || (isChild && !guardianConsent) || pin.length !== 4}>
             <Sparkles size={16} /> {busy ? "Avatar wird erstellt …" : "Vorschau erstellen"}
@@ -216,6 +218,17 @@ export function PersonalAvatarEditor({
         {notice && <p className="personal-avatar-notice" role="status">{notice}</p>}
         {error && <p className="form-error" role="alert">{error}</p>}
         {hasSavedAvatar && <p className="personal-avatar-footnote">Dein gespeicherter KI-Kopf wird auch auf den verschiedenen Fitnessstufen angezeigt.</p>}
+      </div>}
+      {expanded && pinModalOpen && <div className="modal-backdrop personal-avatar-pin-backdrop" onClick={() => setPinModalOpen(false)}>
+        <div className="confirm-modal-card personal-avatar-pin-card" role="dialog" aria-modal="true" aria-labelledby="personal-avatar-pin-title" onClick={(event) => event.stopPropagation()}>
+          <h3 id="personal-avatar-pin-title">Eltern-PIN eingeben</h3>
+          <p>Tippe deine vierstellige PIN auf dem Ziffernblock ein.</p>
+          <TouchPinpad value={pin} onChange={setPin} />
+          <div className="confirm-modal-actions">
+            <button type="button" className="confirm-cancel-btn" onClick={() => setPinModalOpen(false)}>Abbrechen</button>
+            <button type="button" className="confirm-submit-btn primary" disabled={pin.length !== 4} onClick={() => setPinModalOpen(false)}>Weiter</button>
+          </div>
+        </div>
       </div>}
     </section>
   );
