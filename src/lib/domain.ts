@@ -34,7 +34,13 @@ export function avatarProgressAssetForProfile(profileId: string, avatar: Profile
   if (fitnessStage <= 1) return `${base}-stage1`;
   if (fitnessStage === 2) return `${base}-stage2`;
   if (fitnessStage === 3) return `${base}-stage3`;
-  if (fitnessStage >= 6 && physique !== "balanced") return `${base}-${physique}`;
+  if (fitnessStage === 5 && ["mama", "papa"].includes(base)) return `${base}-stage5`;
+  if (fitnessStage === 6 && ["mama", "papa"].includes(base)) {
+    return physique === "balanced" ? `${base}-stage6` : `${base}-${physique}`;
+  }
+  if (fitnessStage >= 7 && ["mama", "papa"].includes(base)) {
+    return physique === "balanced" ? `${base}-stage7` : `${base}-${physique}-stage7`;
+  }
   return base;
 }
 

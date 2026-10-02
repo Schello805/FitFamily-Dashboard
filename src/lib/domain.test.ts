@@ -45,9 +45,12 @@ describe("FitFamily-Domänenregeln", () => {
     expect(avatarProgressAssetForProfile("mama", "female", 1, "balanced", 7)).toBe("mama-stage1");
     expect(avatarProgressAssetForProfile("papa", "male", 2, "balanced", 7)).toBe("papa-stage2");
     expect(avatarProgressAssetForProfile("papa", "male", 3, "balanced", 7)).toBe("papa-stage3");
-    expect(avatarProgressAssetForProfile("mama", "female", 7, "strength", 7)).toBe("mama-strength");
-    expect(avatarProgressAssetForProfile("papa", "male", 7, "endurance", 7)).toBe("papa-endurance");
-    expect(avatarProgressAssetForProfile("mama", "female", 5, "balanced")).toBe("mama");
+    expect(avatarProgressAssetForProfile("mama", "female", 4, "balanced", 7)).toBe("mama");
+    expect(avatarProgressAssetForProfile("mama", "female", 5, "balanced", 7)).toBe("mama-stage5");
+    expect(avatarProgressAssetForProfile("papa", "male", 6, "balanced", 7)).toBe("papa-stage6");
+    expect(avatarProgressAssetForProfile("mama", "female", 6, "strength", 7)).toBe("mama-strength");
+    expect(avatarProgressAssetForProfile("papa", "male", 7, "strength", 7)).toBe("papa-strength-stage7");
+    expect(avatarProgressAssetForProfile("mama", "female", 7, "endurance", 7)).toBe("mama-endurance-stage7");
     expect(avatarProgressAssetForProfile("fabian", "male", 1, "balanced", 3)).toBe("fabian");
     expect(avatarProgressAssetForProfile("frieda", "female", 3, "strength", 3)).toBe("frieda");
     expect(avatarProgressAssetForProfile("fabian", "papa", 3, "strength", 3)).toBe("papa");

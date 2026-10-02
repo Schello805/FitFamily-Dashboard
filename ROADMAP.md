@@ -16,7 +16,7 @@
 - [x] Avatar-Erstellung in den Einrichtungsablauf integrieren: Person/Stil und selbst eingeschätzte Start-Fitness auswählen; Geburtsdatum und Profilzuordnung berücksichtigen.
 - [x] Für jedes Avatar-Design passende Einzelbilder bereitstellen (transparente 222×444 WebP-Assets für alle Profile in `public/assets/avatars/`).
 - [x] Trainingsart auswerten: Kraft- und Ausdauerminuten getrennt erfassen und daraus Fitnessstufe sowie Entwicklungsfokus ableiten.
-- [ ] Avatarentwicklung auch sichtbar im Körperdesign darstellen: mehrere Fitnessstufen und kraft-/ausdauerbetonte Varianten mit passenden Assets statt nur Levelanzeige und Farbakzent.
+- [x] Avatarentwicklung auch sichtbar im Körperdesign darstellen: Erwachsene erhalten passende Körper-Assets für Fitnessstufen 1–7 und kraft-/ausdauerbetonte Varianten; Kinder behalten ihre drei Stufen und zwei Designs ohne Körperformwechsel.
 - [x] Start-Fitness und Entwicklung in verständliche Stufen übersetzen; die Regeln transparent und ohne medizinische Aussagen oder abwertende Körperlabels darstellen.
 - [x] Avatar-Vorschau und Einstellungen im Profil anbieten, einschließlich späterer Anpassung der Start-Fitness.
 - [x] Entwicklungsstufe auf Dashboard und Profil konsistent anzeigen und nach gespeicherten Trainings aktualisieren.
