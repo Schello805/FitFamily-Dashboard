@@ -4034,3 +4034,53 @@ body::before {
 .confirm-submit-btn:active {
   transform: translateY(1px);
 }
+
+/* 24-Zoll-Desktop: Kiosk-Ansicht trotz Windows-Anzeigeskalierung gut lesbar halten. */
+@media (min-width: 901px) and (max-width: 1920px) and (min-height: 650px) {
+  .dashboard-shell { padding: 10px 22px 8px; gap: 11px; }
+  .topbar { min-height: 82px; }
+  .brand-logo { width: 82px; height: 82px; }
+  .brand-tools .admin-shortcut, .brand-tools .theme-toggle, .brand-tools .quiet-shortcut, .brand-tools .user-help-launch,
+  .header-qr-button { height: 82px; min-height: 82px; }
+  .brand-tools .admin-shortcut, .brand-tools .theme-toggle, .brand-tools .quiet-shortcut, .brand-tools .user-help-launch { width: 74px; min-width: 74px; }
+  .header-qr-thumbnail { width: 60px; height: 60px; }
+  .weather-block { height: 82px; min-height: 82px; }
+  .clock-block time { font-size: clamp(36px, 2.8vw, 48px); }
+  .profile-grid { gap: 12px; }
+  .profile-card { padding: 16px 20px 14px; }
+  .avatar-generated.avatar-small { width: 88px; height: 122px; }
+  .profile-identity { gap: 14px; }
+  .profile-heading > .profile-identity { width: 40%; grid-template-columns: 88px minmax(0, 1fr); }
+  .profile-heading .profile-name { min-width: 0; }
+  .profile-heading .profile-name p { max-width: 130px; line-height: 1.2; }
+  .profile-name span { font-size: 12px; }
+  .profile-name h2 { font-size: clamp(30px, 2.2vw, 39px); }
+  .profile-name p { font-size: 14px; }
+  .goal-ring-summary { width: 116px; gap: 6px; }
+  .goal-ring { width: 98px; height: 98px; }
+  .goal-ring::after { inset: 10px; }
+  .goal-ring strong { font-size: 28px; }
+  .goal-ring small { font-size: 11px; }
+  .goal-ring-target { font-size: 10px; }
+  .dashboard-history-chart { left: 42%; right: 20%; height: 116px; }
+  .dashboard-history-chart svg { height: 72px; }
+  .dashboard-history-chart-heading { font-size: 12px; }
+  .dashboard-history-chart-footer { font-size: 10px; }
+  .dashboard-history-chart-footer > span:nth-child(1),
+  .dashboard-history-chart-footer > span:nth-child(2),
+  .dashboard-history-chart-footer > span:nth-child(3) { font-size: 9px; }
+  .score-row { margin: 8px 0; }
+  .score strong { font-size: clamp(32px, 2.2vw, 40px); }
+  .score span, .today span { font-size: 11px; }
+  .today strong { font-size: 24px; }
+  .dashboard-apple-rings .apple-rings-widget.compact .apple-rings-graphic { width: 120px; height: 120px; }
+  .dashboard-apple-rings .rings-apple-badge { font-size: 13px; }
+  .dashboard-apple-rings .rings-status { font-size: 10px; }
+  .dashboard-apple-rings .ring-dot { width: 11px; height: 11px; }
+  .dashboard-apple-rings .ring-title { font-size: 13px; }
+  .dashboard-apple-rings .ring-label-box strong { font-size: 17px; }
+  .dashboard-apple-rings .ring-label-box strong small { font-size: 13px; }
+  .dashboard-apple-rings .health-activity-stats div { font-size: 12px; }
+  .dashboard-apple-rings .health-activity-stats strong { font-size: 14px; }
+  .app-footer { font-size: 11px; }
+}
