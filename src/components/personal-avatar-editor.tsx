@@ -41,6 +41,7 @@ export function PersonalAvatarEditor({
   const [cameraOpen, setCameraOpen] = useState(false);
   const [pinModalOpen, setPinModalOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const cameraFileRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const cameraStreamRef = useRef<MediaStream | null>(null);
   const isChild = getFitnessStageCount(profileId, birthDate) <= 3;
@@ -180,14 +181,18 @@ export function PersonalAvatarEditor({
       {expanded && <div className="personal-avatar-content">
         <p>Wähle ein klares Frontalfoto. Die KI macht daraus einen Cartoon-Kopf im Stil der FitFamily-Figuren und setzt ihn auf den Körper. Das Originalfoto wird nur für die Umwandlung verwendet und nicht in FitFamily gespeichert. Der fertige Kopf bleibt in deinem Profil gespeichert.</p>
         <label>Bild hochladen
-          <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => selectPhoto(event.target.files?.[0] ?? null)} />
+          <input ref={fileRef} type="file" accept="image/*" onChange={(event) => selectPhoto(event.target.files?.[0] ?? null)} />
         </label>
-        {!cameraOpen && <button type="button" className="personal-avatar-camera-open" onClick={() => void openCamera()}><Camera size={16} /> Foto mit Kamera aufnehmen</button>}
+        <input ref={cameraFileRef} hidden type="file" accept="image/*" capture="user" onChange={(event) => { selectPhoto(event.target.files?.[0] ?? null); event.currentTarget.value = ""; }} aria-label="Foto mit der Frontkamera aufnehmen" />
+        {!cameraOpen && <button type="button" className="personal-avatar-camera-open" onClick={() => {
+          if (!navigator.mediaDevices?.getUserMedia || !window.isSecureContext) cameraFileRef.current?.click();
+          else void openCamera();
+        }}><Camera size={16} /> Foto mit Kamera aufnehmen</button>}
         {cameraOpen && <div className="personal-avatar-camera">
           <video ref={videoRef} autoPlay muted playsInline aria-label="Livebild der Kamera" />
           <div><button type="button" onClick={() => void capturePhoto()}><Camera size={16} /> Foto aufnehmen</button><button type="button" className="personal-avatar-camera-cancel" onClick={stopCamera}>Kamera schließen</button></div>
         </div>}
-        <small className="personal-avatar-camera-hint">Die Kamera benötigt HTTPS (oder localhost). Über eine normale HTTP-IP-Adresse klappt der Zugriff möglicherweise nicht; Bild-Upload bleibt verfügbar.</small>
+        <small className="personal-avatar-camera-hint">Auf dem Handy öffnet der Kameraknopf direkt die Kamera. Am Computer gibt es ein Livebild, wenn FitFamily über HTTPS geöffnet ist.</small>
         {photo && <small className="personal-avatar-selected-photo">Ausgewählt: {photo.name}</small>}
         <label>KI-Anbieter
           <select value={provider} onChange={(event) => setProvider(event.target.value as "openai" | "gemini")}>

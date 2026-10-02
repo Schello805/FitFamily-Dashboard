@@ -1,4 +1,6 @@
 import type { ActivityTrendPoint } from "@/lib/domain";
+import { useCallback, useEffect, useState } from "react";
+import { X } from "lucide-react";
 
 function makeLine(points: ActivityTrendPoint[], value: (point: ActivityTrendPoint) => number | null, max: number) {
   let path = "";
@@ -23,6 +25,27 @@ export function ActivityTrendChart({ points, color, targetMinutes, targetPeriod 
   targetMinutes: number;
   targetPeriod: "Tag" | "Woche";
 }) {
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const closeDetails = useCallback(() => setDetailsOpen(false), []);
+  useEffect(() => {
+    if (!detailsOpen) return;
+    let timer = window.setTimeout(closeDetails, 60_000);
+    const resetTimer = () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(closeDetails, 60_000);
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") closeDetails();
+      else resetTimer();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("pointerdown", resetTimer);
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("pointerdown", resetTimer);
+    };
+  }, [detailsOpen, closeDetails]);
   const hasData = points.some((point) => point.activityMinutes !== null);
   const scaleMax = Math.max(10, ...points.map((point) => Math.max(point.targetMinutes, point.activityMinutes ?? 0))) * 1.12;
   const targetLine = makeLine(points, (point) => point.targetMinutes, scaleMax);
@@ -36,8 +59,8 @@ export function ActivityTrendChart({ points, color, targetMinutes, targetPeriod 
   const marker = (index: number) => index < 0 ? 0 : (254 * index) / Math.max(1, points.length - 1) + 3;
   const explanation = `Zeitauflösung: ältere Daten je Jahr, danach je Monat, die letzten 30 Tage täglich. Ist = der jeweils höhere Tageswert aus Apple-Health-Trainingsminuten und abgeschlossenen FitFamily-Trainingsminuten; diese Werte werden nicht addiert, damit dasselbe Training nicht doppelt zählt. Monats- und Jahreswerte sind Durchschnittswerte pro Tag aus den Tagen, für die Daten vorliegen. Soll: ${targetLabel}. Fehlende Übertragungen bleiben Lücken.`;
 
-  return (
-    <div className="dashboard-history-chart" title={explanation} aria-label={explanation}>
+  const chart = (large = false) => <div className={`dashboard-history-chart${large ? " dashboard-history-chart-large" : ""}`} title={explanation} aria-label={explanation}
+    {...(!large ? { role: "button", tabIndex: 0, onClick: () => setDetailsOpen(true), onKeyDown: (event: React.KeyboardEvent<HTMLDivElement>) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setDetailsOpen(true); } } } : {})}>
       <div className="dashboard-history-chart-heading">
         <span>VERLAUF · JAHRE / MONATE / TAGE</span>
         <span>{hasData ? "IST / SOLL" : "NOCH KEINE IST-DATEN"}</span>
@@ -60,6 +83,23 @@ export function ActivityTrendChart({ points, color, targetMinutes, targetPeriod 
         <span>{points.at(-1)?.label ?? ""}</span>
         <span className="dashboard-history-legend"><i className="history-legend-actual" style={{ background: color }} /> IST <i className="history-legend-target" /> SOLL {new Intl.NumberFormat("de-DE", { maximumFractionDigits: 1 }).format(points.at(-1)?.targetMinutes ?? 0)} Minuten/Tag</span>
       </div>
-    </div>
-  );
+    </div>;
+
+  return <>
+    {chart()}
+    {detailsOpen && <div className="modal-backdrop dashboard-history-backdrop" onClick={closeDetails}>
+      <section className="dashboard-history-modal" role="dialog" aria-modal="true" aria-labelledby="dashboard-history-title" onClick={(event) => event.stopPropagation()}>
+        <button className="dashboard-history-close" type="button" aria-label="Verlauf schließen" onClick={closeDetails}><X size={22} /></button>
+        <h2 id="dashboard-history-title">Dein Trainingsverlauf</h2>
+        <p>Die Kurve zeigt deinen tatsächlichen Verlauf im Vergleich zu deinem persönlichen Soll.</p>
+        {chart(true)}
+        <div className="dashboard-history-explanation">
+          <p><strong>Ist:</strong> Pro Tag zählt der höhere Wert aus Apple-Health-Trainingsminuten und abgeschlossenen FitFamily-Trainingsminuten. So wird ein Training, das in beiden Quellen auftaucht, nicht doppelt gezählt.</p>
+          <p><strong>Zeitraum:</strong> Die letzten 30 Tage einzeln, davor monatsweise und ältere Werte jahresweise. Monats- und Jahreswerte sind durchschnittliche Minuten pro Tag; Tage ohne übertragene Daten bleiben als Lücke sichtbar.</p>
+          <p><strong>Soll:</strong> {targetLabel}. Die Kurve wird mit den Dashboarddaten aktualisiert. Das Dashboard fragt den Server derzeit alle 5 Sekunden ab; Apple-Health-Daten kommen aber erst an, wenn der iPhone-Kurzbefehl sie überträgt.</p>
+        </div>
+        <small>Schließt sich bei Inaktivität nach 60 Sekunden. Zum Schließen außen tippen oder Escape drücken.</small>
+      </section>
+    </div>}
+  </>;
 }
