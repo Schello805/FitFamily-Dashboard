@@ -33,15 +33,30 @@ test("JSON carries typed numeric totals rather than raw Health objects", () => {
   const body = request.WFWorkflowActionParameters.WFJSONValues.Value.WFDictionaryFieldValueItems;
   assert.deepEqual(body.map((item) => item.WFKey.Value.string), ["profileId", "secret", "dailyActivity"]);
   const day = body[2];
-  assert.equal(day.WFItemType, 3);
-  const fields = day.WFValue.Value.WFDictionaryFieldValueItems;
+  assert.equal(day.WFItemType, 1);
+  assert.equal(day.WFValue.WFSerializationType, "WFDictionaryFieldValue");
+  assert.equal(day.WFValue.Value.WFSerializationType, "WFDictionaryFieldValue");
+  const fields = day.WFValue.Value.Value.WFDictionaryFieldValueItems;
   assert.deepEqual(fields.map((item) => item.WFKey.Value.string), ["date", ...METRICS.map((metric) => metric.key)]);
   for (const field of fields.slice(1)) {
-    assert.equal(field.WFItemType, 1);
+    assert.equal(field.WFItemType, 3);
     assert.equal(field.WFValue.Value.attachmentsByRange["{0, 1}"].Type, "Variable");
   }
   assert.ok(!JSON.stringify(body).includes("Health Samples"));
   assert.ok(!JSON.stringify(body).includes("standMinutes"));
+});
+
+test("conversion factors are number items (3), never dictionaries (1)", () => {
+  const dictionaries = buildHealthShortcut().WFWorkflowActions.filter((action) => action.WFWorkflowActionIdentifier === "is.workflow.actions.dictionary");
+  assert.equal(dictionaries.length, 5);
+  for (const [index, action] of dictionaries.entries()) {
+    const fields = action.WFWorkflowActionParameters.WFItems.Value.WFDictionaryFieldValueItems;
+    for (const field of fields) {
+      assert.equal(field.WFItemType, 3);
+      assert.equal(field.WFValue.WFSerializationType, "WFTextTokenString");
+      assert.equal(Number(field.WFValue.Value.string), METRICS[index].factors[field.WFKey.Value.string]);
+    }
+  }
 });
 
 test("normalizes units with metric-specific factors and valid operators", () => {

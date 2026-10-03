@@ -7,6 +7,8 @@ import { pathToFileURL } from "node:url";
 import { spawnSync } from "node:child_process";
 
 export const SECRET_PLACEHOLDER = "HIER_DEN_SYNC_SCHLUESSEL_EINFUEGEN";
+// Verified against Cherri's compiler/file-format: 1=dict, 3=number (not reversed).
+export const ITEM_TYPES = { text: 0, dictionary: 1, array: 2, number: 3, boolean: 4 };
 export const METRICS = [
   { key: "moveCalories", label: "Active Calories", factors: { kcal: 1, Cal: 1, kJ: 1 / 4.184, J: 1 / 4184 } },
   { key: "exerciseMinutes", label: "Exercise Minutes", factors: { min: 1, "min.": 1, minutes: 1, Minuten: 1, sec: 1 / 60, s: 1 / 60, hr: 60, h: 60 } },
@@ -43,7 +45,7 @@ export function buildHealthShortcut({ profileId = "papa", server = "http://192.1
     action("comment", { WFCommentActionText: `${metric.key}: heutige Messungen einzeln lesen, Einheit prüfen und nur Zahlen summieren. Ohne Treffer bleibt der Tageswert 0; Leserechte im iPhone prüfen.` });
     const zero = action("number", { WFNumberActionNumber: "0" });
     action("setvariable", { WFVariableName: metric.key, WFInput: input(ref(zero, "Number")) });
-    const factors = action("dictionary", { WFItems: dictionary(Object.entries(metric.factors).map(([unit, factor]) => item(unit, 1, text(factor)))) });
+    const factors = action("dictionary", { WFItems: dictionary(Object.entries(metric.factors).map(([unit, factor]) => item(unit, ITEM_TYPES.number, text(factor)))) });
     const samples = action("filter.health.quantity", {
       WFContentItemLimitEnabled: false,
       WFContentItemFilter: state("WFContentPredicateTableTemplate", {
@@ -75,16 +77,17 @@ export function buildHealthShortcut({ profileId = "papa", server = "http://192.1
   const rounded = action("round", { WFInput: input(variable("stepCount")), WFRoundType: "Right of Decimal", WFRoundDecimalPlaces: 0, WFRoundMode: "Normal" });
   action("setvariable", { WFVariableName: "stepCount", WFInput: input(ref(rounded, "Rounded Number")) });
   const day = dictionary([
-    item("date", 0, tokenText(ref(date, "Formatted Date"))),
-    ...METRICS.map(({ key }) => item(key, 1, tokenText(variable(key))))
+    item("date", ITEM_TYPES.text, tokenText(ref(date, "Formatted Date"))),
+    ...METRICS.map(({ key }) => item(key, ITEM_TYPES.number, tokenText(variable(key))))
   ]);
   const sent = action("downloadurl", {
     WFURL: text(`${url.origin}/api/sync/apple-health`), WFHTTPMethod: "POST", WFHTTPBodyType: "JSON",
     WFJSONValues: dictionary([
-      item("profileId", 0, text(profileId)),
-      item("secret", 0, tokenText(ref(secret, "Text"))),
+      item("profileId", ITEM_TYPES.text, text(profileId)),
+      item("secret", ITEM_TYPES.text, tokenText(ref(secret, "Text"))),
       // The server explicitly accepts a single day dictionary as well as an array.
-      item("dailyActivity", 3, day)
+      // Nested dictionary values require an extra dictionary state wrapper.
+      item("dailyActivity", ITEM_TYPES.dictionary, state("WFDictionaryFieldValue", day))
     ])
   });
   action("showresult", { Text: tokenText(ref(sent, "Contents of URL")) });
@@ -121,7 +124,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
       options[key.slice(2)] = value;
     }
   }
-  const output = resolve(options.output ?? "artifacts/FitFamily-Health-Sync-v2.unsigned.shortcut");
+  const output = resolve(options.output ?? "artifacts/FitFamily-Health-Sync-v3.unsigned.shortcut");
   mkdirSync(dirname(output), { recursive: true });
   writeFileSync(output, `<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n<plist version="1.0">${plist(buildHealthShortcut({ profileId: options.profile, server: options.server }))}</plist>\n`);
   console.log(`Vorlage erzeugt: ${output}`);

@@ -6,8 +6,10 @@ Erzeugen und auf einem Mac signieren:
 node scripts/generate-health-shortcut.mjs --sign
 ```
 
-Die korrigierte signierte Datei liegt unter `artifacts/FitFamily-Health-Sync-v2.signed.shortcut`.
-Version 2 korrigiert den auf dem iPhone bestätigten Importfehler der Wenn-Bedingung.
+Die korrigierte signierte Datei liegt unter `artifacts/FitFamily-Health-Sync-v3.signed.shortcut`.
+Version 3 korrigiert zusätzlich die vertauschten Zahlen-/Wörterbuchkennungen sowie
+die Hülle für das verschachtelte Tageswörterbuch. Version 1 und 2 nicht weiterverwenden.
+Version 2 korrigierte den auf dem iPhone bestätigten Importfehler der Wenn-Bedingung.
 Alte Dateien werden nicht überschrieben. Die fünf Wenn-Aktionen benötigen eine
 Variable-Parameterhülle, nicht die einfache Eingabehülle anderer Aktionen.
 Sie wird nur bei erfolgreicher Signierung erzeugt. Beim ersten Erstellen am
@@ -58,6 +60,8 @@ sie keine erfüllten Stehstunden ergeben. Ringziele werden nicht ausgelesen.
 - [Dokumentierte iPhone-Health-Exporte](https://github.com/viticci/shortcuts-playground-plugin/blob/main/codex/skills/shortcuts-playground/HEALTHKIT.md)
 - [Parameter und numerische Variablen](https://github.com/viticci/shortcuts-playground-plugin/blob/main/codex/skills/shortcuts-playground/PARAMETER_TYPES.md)
 - [Wenn-Bedingungen: spezielle Variablenhülle](https://github.com/viticci/shortcuts-playground-plugin/blob/main/codex/skills/shortcuts-playground/CONTROL_FLOW.md#input-rule-uniform-across-all-codes)
+- [Cherri: Wörterbuchtypen (1 = Wörterbuch, 3 = Zahl)](https://cherrilang.org/compiler/file-format.html#dictionary-data-types)
+- [Cherri: Verschachtelte Wörterbuchhüllen](https://github.com/electrikmilk/cherri/blob/main/shortcutgen.go)
 
 Die Referenzen dienen als Syntaxevidenz; der Generator benötigt keine externen
 Pakete oder Downloads. Im fertigen Kurzbefehl bleiben alle Health-Daten auf dem
