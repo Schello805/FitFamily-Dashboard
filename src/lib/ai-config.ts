@@ -3,6 +3,15 @@ import { db, getSetting } from "@/lib/db";
 export type AiProvider = "openai" | "gemini";
 export type AiUsage = { requests: number; inputTokens: number; outputTokens: number; estimateUsd: number; updatedAt: string | null };
 
+const DEFAULT_GEMINI_MODEL = "gemini-2.5-flash";
+
+/** Return a generateContent-compatible Gemini model, even when an old .env value remains. */
+export function getGeminiModel() {
+  const configured = process.env.GEMINI_MODEL?.trim().replace(/^models\//, "");
+  if (!configured || configured.startsWith("gemini-1.5-")) return DEFAULT_GEMINI_MODEL;
+  return configured;
+}
+
 const emptyUsage = (): AiUsage => ({ requests: 0, inputTokens: 0, outputTokens: 0, estimateUsd: 0, updatedAt: null });
 const rates: Record<AiProvider, { input: number; output: number }> = {
   openai: { input: 0.2, output: 1.2 },
@@ -55,7 +64,7 @@ export async function getAiProviderStatus() {
   ]);
   return {
     openai: Boolean(openaiKey), gemini: Boolean(geminiKey),
-    models: { openai: process.env.OPENAI_MODEL ?? "gpt-5.6-luna", gemini: process.env.GEMINI_MODEL ?? "gemini-2.5-flash" },
+    models: { openai: process.env.OPENAI_MODEL ?? "gpt-5.6-luna", gemini: getGeminiModel() },
     usage: { openai: openaiUsage, gemini: geminiUsage }
   };
 }

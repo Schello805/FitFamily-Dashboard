@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { getAiApiKey, recordAiUsage } from "@/lib/ai-config";
+import { getAiApiKey, getGeminiModel, recordAiUsage } from "@/lib/ai-config";
 import { usesUnavailableEquipment } from "@/lib/plan-equipment-policy";
 
 const schema = z.object({
@@ -163,7 +163,7 @@ Struktur:
 }
 Ziel: ${input.goal}; Niveau: ${input.level}; ${input.sessionsPerWeek} Einheiten/Woche; ${input.minutesPerSession} Minuten/Einheit; Zieltermin: ${input.targetDate ?? "offen"}.${allowedEquipmentInstruction(equipment)}`;
 
-  const model = process.env.GEMINI_MODEL ?? "gemini-2.5-flash";
+  const model = getGeminiModel();
   const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`, {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json" } })
