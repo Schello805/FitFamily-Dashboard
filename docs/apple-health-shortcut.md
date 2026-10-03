@@ -6,7 +6,10 @@ Erzeugen und auf einem Mac signieren:
 node scripts/generate-health-shortcut.mjs --sign
 ```
 
-Die signierte Datei liegt unter `artifacts/FitFamily-Health-Sync.signed.shortcut`.
+Die korrigierte signierte Datei liegt unter `artifacts/FitFamily-Health-Sync-v2.signed.shortcut`.
+Version 2 korrigiert den auf dem iPhone bestätigten Importfehler der Wenn-Bedingung.
+Alte Dateien werden nicht überschrieben. Die fünf Wenn-Aktionen benötigen eine
+Variable-Parameterhülle, nicht die einfache Eingabehülle anderer Aktionen.
 Sie wird nur bei erfolgreicher Signierung erzeugt. Beim ersten Erstellen am
 3. Oktober 2026 schlug Apples Signierungsaufruf mit Zeitüberschreitung und zuletzt
 `NSURLErrorDomain error 502` fehl. Die eingecheckte `.unsigned.shortcut` ist deshalb
@@ -54,6 +57,7 @@ sie keine erfüllten Stehstunden ergeben. Ringziele werden nicht ausgelesen.
 - [Apple: Kurzbefehle signieren](https://support.apple.com/guide/shortcuts-mac/apd455c82f02/mac)
 - [Dokumentierte iPhone-Health-Exporte](https://github.com/viticci/shortcuts-playground-plugin/blob/main/codex/skills/shortcuts-playground/HEALTHKIT.md)
 - [Parameter und numerische Variablen](https://github.com/viticci/shortcuts-playground-plugin/blob/main/codex/skills/shortcuts-playground/PARAMETER_TYPES.md)
+- [Wenn-Bedingungen: spezielle Variablenhülle](https://github.com/viticci/shortcuts-playground-plugin/blob/main/codex/skills/shortcuts-playground/CONTROL_FLOW.md#input-rule-uniform-across-all-codes)
 
 Die Referenzen dienen als Syntaxevidenz; der Generator benötigt keine externen
 Pakete oder Downloads. Im fertigen Kurzbefehl bleiben alle Health-Daten auf dem

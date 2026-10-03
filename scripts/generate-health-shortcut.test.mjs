@@ -56,6 +56,21 @@ test("normalizes units with metric-specific factors and valid operators", () => 
   assert.equal(actions.filter((action) => action.WFWorkflowActionIdentifier === "is.workflow.actions.exit").length, 5);
 });
 
+test("If conditions use the iPhone variable wrapper instead of an empty imported condition", () => {
+  const actions = buildHealthShortcut().WFWorkflowActions;
+  const guards = actions.filter((action) => action.WFWorkflowActionIdentifier === "is.workflow.actions.conditional" && action.WFWorkflowActionParameters.WFControlFlowMode === 0);
+  assert.equal(guards.length, 5);
+  for (const guard of guards) {
+    const params = guard.WFWorkflowActionParameters;
+    assert.equal(params.WFCondition, 101);
+    assert.equal(params.WFInput.Type, "Variable");
+    assert.equal(params.WFInput.Variable.WFSerializationType, "WFTextTokenAttachment");
+    const source = actions.find((action) => action.WFWorkflowActionParameters.UUID === params.WFInput.Variable.Value.OutputUUID);
+    assert.equal(source.WFWorkflowActionIdentifier, "is.workflow.actions.getvalueforkey");
+    assert.equal(params.WFInput.Variable.Value.OutputName, "Dictionary Value");
+  }
+});
+
 test("escapes plist text and rejects endpoints containing credentials or paths", () => {
   assert.equal(plist("<&"), "<string>&lt;&amp;</string>");
   assert.throws(() => buildHealthShortcut({ server: "http://secret@example.com" }));

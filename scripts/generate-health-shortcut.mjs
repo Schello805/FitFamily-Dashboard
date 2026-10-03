@@ -61,7 +61,9 @@ export function buildHealthShortcut({ profileId = "papa", server = "http://192.1
     const unit = action("properties.health.quantity", { WFContentItemPropertyName: "Unit", WFInput: input(variable("Repeat Item")) });
     const factor = action("getvalueforkey", { WFGetDictionaryValueType: "Value", WFDictionaryKey: tokenText(ref(unit, "Unit")), WFInput: input(ref(factors, "Dictionary")) });
     const guard = randomUUID().toUpperCase();
-    action("conditional", { GroupingIdentifier: guard, WFControlFlowMode: 0, WFCondition: 101, WFInput: input(ref(factor, "Dictionary Value")) });
+    // If uses a variable-parameter wrapper, unlike ordinary action inputs.
+    // A bare token attachment imports as an empty "Condition" on iPhone.
+    action("conditional", { GroupingIdentifier: guard, WFControlFlowMode: 0, WFCondition: 101, WFInput: { Type: "Variable", Variable: input(ref(factor, "Dictionary Value")) } });
     action("showresult", { Text: text(`Unbekannte Einheit für ${metric.key}. Übertragung abgebrochen. Bitte die Einheit im Kurzbefehl prüfen.`) });
     action("exit");
     action("conditional", { GroupingIdentifier: guard, WFControlFlowMode: 2 });
@@ -119,7 +121,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
       options[key.slice(2)] = value;
     }
   }
-  const output = resolve(options.output ?? "artifacts/FitFamily-Health-Sync.unsigned.shortcut");
+  const output = resolve(options.output ?? "artifacts/FitFamily-Health-Sync-v2.unsigned.shortcut");
   mkdirSync(dirname(output), { recursive: true });
   writeFileSync(output, `<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n<plist version="1.0">${plist(buildHealthShortcut({ profileId: options.profile, server: options.server }))}</plist>\n`);
   console.log(`Vorlage erzeugt: ${output}`);
