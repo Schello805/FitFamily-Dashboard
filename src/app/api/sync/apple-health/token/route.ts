@@ -5,11 +5,10 @@ import { db } from "@/lib/db";
 import { createToken, hashToken, verifyAdminPinOrReject } from "@/lib/security";
 import { localIsoDate } from "@/lib/apple-health-activity";
 
-const schema = z.object({
-  profileId: z.string().min(1),
-  pin: z.string().regex(/^\d{4}$/),
-  action: z.enum(["create", "revoke", "check"])
-});
+const schema = z.union([
+  z.object({ profileId: z.string().min(1), action: z.literal("check") }),
+  z.object({ profileId: z.string().min(1), pin: z.string().regex(/^\d{4}$/), action: z.enum(["create", "revoke"]) })
+]);
 
 export async function GET(request: Request) {
   const profileId = new URL(request.url).searchParams.get("profileId");
@@ -22,8 +21,10 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const parsed = schema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Bitte Profil, Eltern-PIN und Aktion prüfen." }, { status: 400 });
-  const pinError = await verifyAdminPinOrReject(parsed.data.pin, request);
-  if (pinError) return pinError;
+  if (parsed.data.action !== "check") {
+    const pinError = await verifyAdminPinOrReject(parsed.data.pin, request);
+    if (pinError) return pinError;
+  }
 
   const client = await db();
   const profile = await client.execute({ sql: "SELECT id FROM profiles WHERE id = ?", args: [parsed.data.profileId] });

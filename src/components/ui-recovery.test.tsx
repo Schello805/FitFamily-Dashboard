@@ -200,7 +200,7 @@ describe("profile request recovery", () => {
     expect(fetchMock.mock.calls.every(([input]) => input !== "/api/training")).toBe(true);
   });
 
-  it("orders Health setup and shows the real check failure inline after PIN confirmation", async () => {
+  it("orders Health setup and shows the real check failure inline without asking for a PIN", async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       if (String(input) === "/api/dashboard") return Response.json({ profiles: [profile] });
       if (init?.method === "POST") return Response.json({ verified: false, message: "Im letzten Aufruf fehlen: Trainingsminuten." });
@@ -215,11 +215,10 @@ describe("profile request recovery", () => {
     expect(headings.indexOf("1 Kurzbefehl einrichten")).toBeLessThan(headings.indexOf("2 Schlüssel erstellen und kopieren"));
     expect(headings.indexOf("2 Schlüssel erstellen und kopieren")).toBeLessThan(headings.indexOf("3 Verbindung prüfen"));
     fireEvent.click(screen.getByRole("button", { name: "Verbindung prüfen" }));
-    for (const digit of ["2", "4", "6", "8"]) fireEvent.click(screen.getByRole("button", { name: digit }));
-    fireEvent.click(screen.getByRole("button", { name: "Bestätigen" }));
+    expect(screen.queryByRole("group", { name: "PIN-Tastenfeld" })).not.toBeInTheDocument();
     await screen.findByText("Im letzten Aufruf fehlen: Trainingsminuten.");
     expect(screen.getByText("Übertragung nicht bestätigt")).toBeInTheDocument();
-    expect(fetchMock).toHaveBeenCalledWith("/api/sync/apple-health/token", expect.objectContaining({ method: "POST", body: JSON.stringify({ profileId: "papa", pin: "2468", action: "check" }) }));
+    expect(fetchMock).toHaveBeenCalledWith("/api/sync/apple-health/token", expect.objectContaining({ method: "POST", body: JSON.stringify({ profileId: "papa", action: "check" }) }));
   });
 
   it("reports handoff failures and an unknown Health key status", async () => {

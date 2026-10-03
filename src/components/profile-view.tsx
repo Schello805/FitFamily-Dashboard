@@ -84,7 +84,7 @@ export function ProfileView({
   const [editingProfile, setEditingProfile] = useState(false);
   const [healthModal, setHealthModal] = useState(false);
   const [testingHealth, setTestingHealth] = useState(false);
-  const [healthPinAction, setHealthPinAction] = useState<"create" | "revoke" | "delete" | "check">();
+  const [healthPinAction, setHealthPinAction] = useState<"create" | "revoke" | "delete">();
   const [healthCheckResult, setHealthCheckResult] = useState<{ verified: boolean; message: string; importId?: string; checkedAt?: string; values?: Record<string, unknown> } | null>(null);
   const [healthPin, setHealthPin] = useState("");
   const [healthPinError, setHealthPinError] = useState("");
@@ -515,7 +515,7 @@ Keine rückwirkenden 30-Tage-Summen, Etagen oder Trainingsobjekte einbauen. Gib 
     }
   }
 
-  function requestHealthPin(action: "create" | "revoke" | "delete" | "check") {
+  function requestHealthPin(action: "create" | "revoke" | "delete") {
     setHealthCheckResult(null);
     setHealthPin("");
     setHealthPinError("");
@@ -564,7 +564,7 @@ Keine rückwirkenden 30-Tage-Summen, Etagen oder Trainingsobjekte einbauen. Gib 
     }
   }
 
-  async function testHealthSync(pin: string): Promise<boolean> {
+  async function testHealthSync(): Promise<boolean> {
     setTestingHealth(true);
     setHealthCheckResult(null);
     try {
@@ -573,7 +573,6 @@ Keine rückwirkenden 30-Tage-Summen, Etagen oder Trainingsobjekte einbauen. Gib 
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           profileId: profile.id,
-          pin,
           action: "check"
         })
       });
@@ -582,7 +581,6 @@ Keine rückwirkenden 30-Tage-Summen, Etagen oder Trainingsobjekte einbauen. Gib 
     } catch (error) {
       const message = error instanceof Error ? error.message : "Übertragung konnte nicht geprüft werden.";
       setHealthCheckResult({ verified: false, message });
-      setHealthPinError(message);
       return false;
     } finally {
       setTestingHealth(false);
@@ -628,8 +626,6 @@ Keine rückwirkenden 30-Tage-Summen, Etagen oder Trainingsobjekte einbauen. Gib 
       let succeeded: boolean;
       if (healthPinAction === "delete") {
         succeeded = await performHealthReset(healthPin);
-      } else if (healthPinAction === "check") {
-        succeeded = await testHealthSync(healthPin);
       } else {
         succeeded = await manageHealthToken(healthPinAction, healthPin);
       }
@@ -941,7 +937,7 @@ Keine rückwirkenden 30-Tage-Summen, Etagen oder Trainingsobjekte einbauen. Gib 
             <section className="health-workflow-step">
               <h3><span>3</span> Verbindung prüfen</h3>
               <p>Füge den Schlüssel im Kurzbefehl ein. Öffne ihn danach auf dem iPhone und tippe auf ▶︎.</p>
-              <button type="button" className="health-secondary-btn" disabled={testingHealth || resettingHealth} onClick={() => requestHealthPin("check")}>
+              <button type="button" className="health-secondary-btn" disabled={testingHealth || resettingHealth} onClick={() => void testHealthSync()}>
                 <Zap size={16} /> {testingHealth ? "Wird geprüft …" : "Verbindung prüfen"}
               </button>
               <small>Prüft den letzten tatsächlich empfangenen Kurzbefehl-Aufruf.</small>
@@ -986,7 +982,7 @@ Keine rückwirkenden 30-Tage-Summen, Etagen oder Trainingsobjekte einbauen. Gib 
               </div>
             </div>
             <h3 id="health-pin-title">
-              {healthPinAction === "delete" ? "Health-Daten löschen" : healthPinAction === "check" ? "Übertragung prüfen" : healthPinAction === "create" ? "Sync-Schlüssel erstellen" : "Sync-Schlüssel widerrufen"}
+              {healthPinAction === "delete" ? "Health-Daten löschen" : healthPinAction === "create" ? "Sync-Schlüssel erstellen" : "Sync-Schlüssel widerrufen"}
             </h3>
             <p>{healthPinAction === "delete" ? "Apple-Health-Daten dieses Profils und die Verbindung werden unwiderruflich gelöscht. Zur Bestätigung Eltern-PIN eingeben." : "Zur Bestätigung bitte die vierstellige Eltern-PIN eingeben."}</p>
             <div className="confirm-pin-section">
