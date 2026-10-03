@@ -3,11 +3,12 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useSyncExternalStore } from "react";
-import { ArrowLeft, AlertTriangle, Bot, CheckCircle2, ClipboardList, Database, Download, HardDrive, Lock, Monitor, Moon, Plus, RefreshCw, RotateCcw, ShieldCheck, Sparkles, Sun, Upload, Users, Wrench, X } from "lucide-react";
+import { ArrowLeft, AlertTriangle, Bot, CheckCircle2, ClipboardList, Database, HardDrive, Lock, Monitor, Moon, Plus, RefreshCw, RotateCcw, ShieldCheck, Sparkles, Sun, Users, Wrench, X } from "lucide-react";
 import { TouchPinpad } from "@/components/touch-pinpad";
 import { AdminLogsPanel, summarizeAdminLog, type AdminLogEntry, type AdminLogFilter } from "@/components/admin-logs-panel";
 import { AdminBackupPanel, type BackupStatus } from "@/components/admin-backup-panel";
 import { AdminUpdatePanel, type UpdateInfo, type UpdateSuccess } from "@/components/admin-update-panel";
+import { AdminDataTransferPanel, type ImportValidation } from "@/components/admin-data-transfer-panel";
 import { AvatarPicker } from "@/components/avatar-picker";
 import { Avatar } from "@/components/avatar";
 import { avatarAssetForProfile, getFitnessStageCount, getStartingFitnessStages, GOALS, type AvatarDesignId, type ProfileAvatar } from "@/lib/domain";
@@ -153,7 +154,7 @@ export function AdminView({
   const [loadingSystemStatus, setLoadingSystemStatus] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importPayload, setImportPayload] = useState<unknown>(null);
-  const [importValidation, setImportValidation] = useState<{ valid: boolean; total: number; counts: Record<string, number>; errors: string[] } | null>(null);
+  const [importValidation, setImportValidation] = useState<ImportValidation | null>(null);
   const [validatingImport, setValidatingImport] = useState(false);
   const [importingData, setImportingData] = useState(false);
 
@@ -1316,26 +1317,17 @@ export function AdminView({
           </div>
         </article>
 
-        <article>
-          <div className="admin-title"><Download /><div><h2>Daten exportieren</h2><p>Portable Daten zum Übertragen oder Zusammenführen herunterladen</p></div></div>
-          <ul><li><CheckCircle2 /> Profile, Geräte, Übungen und Pläne</li><li><CheckCircle2 /> Trainings- und Apple-Health-Daten</li><li><CheckCircle2 /> Keine PIN-, KI- oder Backup-Schlüssel</li></ul>
-          <button type="button" onClick={() => void download()}><Download /> JSON herunterladen</button>
-        </article>
-
-        <article>
-          <div className="admin-title"><Upload /><div><h2>JSON-Daten zusammenführen</h2><p>Datei prüfen und portable Daten ergänzen oder aktualisieren</p></div></div>
-          <label className="data-import-file">JSON-Datei auswählen<input type="file" accept=".json,application/json" onChange={(event) => { setImportFile(event.target.files?.[0] ?? null); setImportPayload(null); setImportValidation(null); }} /></label>
-          <div className="data-import-actions">
-            <button type="button" className="update-secondary-btn" disabled={!importFile || validatingImport} onClick={() => void validateImportFile()}>{validatingImport ? "Prüfe Datei …" : "Datei prüfen"}</button>
-            <button type="button" className="primary-update-btn" disabled={!importValidation?.valid || !importPayload || importingData} onClick={requestDataImport}>{importingData ? "Import läuft …" : "Geprüfte Daten übernehmen"}</button>
-          </div>
-          {importValidation && <div className={`import-validation ${importValidation.valid ? "valid" : "invalid"}`} role="status">
-            <b>{importValidation.valid ? `Datei gültig · ${importValidation.total} Datensätze` : "Datei konnte nicht freigegeben werden"}</b>
-            {importValidation.valid && <p>{Object.entries(importValidation.counts).filter(([, count]) => count > 0).map(([name, count]) => `${name.replaceAll("_", " ")}: ${count}`).join(" · ")}</p>}
-            {importValidation.errors.map((message, index) => <p key={`${index}-${message}`}>{message}</p>)}
-            {importValidation.valid && <small>Der JSON-Import ist eine Zusammenführung, keine vollständige Wiederherstellung: gleiche IDs werden aktualisiert, nicht enthaltene lokale Datensätze bleiben erhalten. Zugangsschlüssel werden nicht importiert.</small>}
-          </div>}
-        </article>
+        <AdminDataTransferPanel
+          file={importFile}
+          validation={importValidation}
+          canImport={Boolean(importPayload)}
+          validating={validatingImport}
+          importing={importingData}
+          onFileChange={(file) => { setImportFile(file); setImportPayload(null); setImportValidation(null); }}
+          onDownload={() => void download()}
+          onValidate={() => void validateImportFile()}
+          onImport={requestDataImport}
+        />
       </>}
       {activeAdminSection === "protokolle" && <AdminLogsPanel
         entries={adminLogs}
