@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { DELETE, POST } from "./route";
+import { DELETE, GET, POST } from "./route";
 import { POST as readSyncLogs } from "./log/route";
 import { DELETE as deleteTrainingEntry } from "@/app/api/manual-training/route";
 import { db } from "@/lib/db";
@@ -210,37 +210,52 @@ describe("Apple Health sync endpoint", () => {
 
     try {
       await client.execute({
-        sql: `INSERT INTO apple_health_daily (profile_id, date, move_calories, exercise_minutes, stand_hours, step_count, walking_running_distance_km, flights_climbed)
-          VALUES (?, ?, 432, 18, 5, 1234, 2.5, 3)
-          ON CONFLICT(profile_id, date) DO UPDATE SET move_calories = 432, exercise_minutes = 18, stand_hours = 5, step_count = 1234, walking_running_distance_km = 2.5, flights_climbed = 3`,
+        sql: `INSERT INTO apple_health_daily (profile_id, date, move_calories, exercise_minutes, stand_hours, step_count, walking_running_distance_km, cycling_distance_km, flights_climbed)
+          VALUES (?, ?, 432, 18, 5, 1234, 2.5, 6.25, 3)
+          ON CONFLICT(profile_id, date) DO UPDATE SET move_calories = 432, exercise_minutes = 18, stand_hours = 5, step_count = 1234, walking_running_distance_km = 2.5, cycling_distance_km = 6.25, flights_climbed = 3`,
         args: [profileId, date]
       });
 
       const response = await POST(new Request("http://localhost/api/sync/apple-health", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ profileId, secret, exerciseMinutes: 24, stepCount: 6789, walkingRunningDistanceKm: 4.75, flightsClimbed: 8 })
+        body: JSON.stringify({ profileId, secret, date, moveCalories: 510, exerciseMinutes: 24, stepCount: 6789, walkingRunningDistanceKm: 4.75, cyclingDistanceKm: 12.5, flightsClimbed: 8 })
       }));
       expect(response.status).toBe(200);
 
       const saved = await client.execute({
-        sql: "SELECT move_calories, exercise_minutes, stand_hours, step_count, walking_running_distance_km, flights_climbed FROM apple_health_daily WHERE profile_id = ? AND date = ?",
+        sql: "SELECT move_calories, exercise_minutes, stand_hours, step_count, walking_running_distance_km, cycling_distance_km, flights_climbed FROM apple_health_daily WHERE profile_id = ? AND date = ?",
         args: [profileId, date]
       });
-      expect(Number(saved.rows[0]?.move_calories)).toBe(432);
+      expect(Number(saved.rows[0]?.move_calories)).toBe(510);
       expect(Number(saved.rows[0]?.exercise_minutes)).toBe(24);
       expect(Number(saved.rows[0]?.stand_hours)).toBe(5);
       expect(Number(saved.rows[0]?.step_count)).toBe(6789);
       expect(Number(saved.rows[0]?.walking_running_distance_km)).toBe(4.75);
+      expect(Number(saved.rows[0]?.cycling_distance_km)).toBe(12.5);
       expect(Number(saved.rows[0]?.flights_climbed)).toBe(8);
+
+      const readback = await GET(new Request(`http://localhost/api/sync/apple-health?profileId=${profileId}`, {
+        headers: { Authorization: `Bearer ${secret}` }
+      }));
+      const readbackBody = await readback.json();
+      expect(readback.status).toBe(200);
+      expect(readbackBody.rings).toMatchObject({
+        moveCalories: 510,
+        exerciseMinutes: 24,
+        stepCount: 6789,
+        walkingRunningDistanceKm: 4.75,
+        cyclingDistanceKm: 12.5,
+        flightsClimbed: 8
+      });
     } finally {
       await client.execute({ sql: "DELETE FROM apple_health_daily WHERE profile_id = ? AND date = ?", args: [profileId, date] });
       if (previous.rows[0]) {
         const row = previous.rows[0];
         await client.execute({
-          sql: `INSERT INTO apple_health_daily (profile_id, date, move_calories, move_goal, exercise_minutes, exercise_goal, stand_hours, stand_goal, step_count, walking_running_distance_km, flights_climbed, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          args: [profileId, date, row.move_calories, row.move_goal, row.exercise_minutes, row.exercise_goal, row.stand_hours, row.stand_goal, row.step_count, row.walking_running_distance_km, row.flights_climbed, row.updated_at]
+          sql: `INSERT INTO apple_health_daily (profile_id, date, move_calories, move_goal, exercise_minutes, exercise_goal, stand_hours, stand_goal, step_count, walking_running_distance_km, cycling_distance_km, flights_climbed, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          args: [profileId, date, row.move_calories, row.move_goal, row.exercise_minutes, row.exercise_goal, row.stand_hours, row.stand_goal, row.step_count, row.walking_running_distance_km, row.cycling_distance_km, row.flights_climbed, row.updated_at]
         });
       }
     }
@@ -260,8 +275,8 @@ describe("Apple Health sync endpoint", () => {
       profileId,
       secret,
       dailyActivity: [
-        { date: dates[0], exerciseMinutes: 31, stepCount: 7000 },
-        { date: dates[1], exerciseMinutes: 22, stepCount: 5100 }
+        { date: dates[0], exerciseMinutes: 31, stepCount: 7000, cyclingDistanceKm: 3.2 },
+        { date: dates[1], exerciseMinutes: 22, stepCount: 5100, cyclingDistanceKm: 7.65 }
       ]
     };
 
@@ -278,11 +293,12 @@ describe("Apple Health sync endpoint", () => {
       expect((await second.json()).activityDaysSynced).toBe(2);
 
       const saved = await client.execute({
-        sql: "SELECT date, exercise_minutes, step_count FROM apple_health_daily WHERE profile_id = ? AND date IN (?, ?) ORDER BY date",
+        sql: "SELECT date, exercise_minutes, step_count, cycling_distance_km FROM apple_health_daily WHERE profile_id = ? AND date IN (?, ?) ORDER BY date",
         args: [profileId, ...dates]
       });
       expect(saved.rows).toHaveLength(2);
       expect(saved.rows.map((row) => Number(row.step_count)).sort((a, b) => a - b)).toEqual([5100, 7000]);
+      expect(saved.rows.map((row) => Number(row.cycling_distance_km)).sort((a, b) => a - b)).toEqual([3.2, 7.65]);
 
       const duplicateDates = await POST(new Request("http://localhost/api/sync/apple-health", {
         method: "POST",
@@ -292,28 +308,29 @@ describe("Apple Health sync endpoint", () => {
           secret,
           dailyActivity: [
             { date: dates[0], exerciseMinutes: 31 },
-            { date: dates[0], stepCount: 7000 }
+            { date: dates[0], stepCount: 7000, cyclingDistanceKm: null }
           ]
         })
       }));
       expect(duplicateDates.status).toBe(200);
       expect((await duplicateDates.json()).activityDaysSynced).toBe(1);
       const mergedDay = await client.execute({
-        sql: "SELECT COUNT(*) AS total, exercise_minutes, step_count FROM apple_health_daily WHERE profile_id = ? AND date = ?",
+          sql: "SELECT COUNT(*) AS total, exercise_minutes, step_count, cycling_distance_km FROM apple_health_daily WHERE profile_id = ? AND date = ?",
         args: [profileId, dates[0]]
       });
       expect(Number(mergedDay.rows[0]?.total)).toBe(1);
       expect(Number(mergedDay.rows[0]?.exercise_minutes)).toBe(31);
       expect(Number(mergedDay.rows[0]?.step_count)).toBe(7000);
+      expect(Number(mergedDay.rows[0]?.cycling_distance_km)).toBe(3.2);
     } finally {
       for (const [index, date] of dates.entries()) {
         await client.execute({ sql: "DELETE FROM apple_health_daily WHERE profile_id = ? AND date = ?", args: [profileId, date] });
         const prior = previousRows[index]?.rows[0];
         if (prior) {
           await client.execute({
-            sql: `INSERT INTO apple_health_daily (profile_id, date, move_calories, move_goal, exercise_minutes, exercise_goal, stand_hours, stand_goal, step_count, walking_running_distance_km, flights_climbed, updated_at)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            args: [profileId, date, prior.move_calories, prior.move_goal, prior.exercise_minutes, prior.exercise_goal, prior.stand_hours, prior.stand_goal, prior.step_count, prior.walking_running_distance_km, prior.flights_climbed, prior.updated_at]
+            sql: `INSERT INTO apple_health_daily (profile_id, date, move_calories, move_goal, exercise_minutes, exercise_goal, stand_hours, stand_goal, step_count, walking_running_distance_km, cycling_distance_km, flights_climbed, updated_at)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            args: [profileId, date, prior.move_calories, prior.move_goal, prior.exercise_minutes, prior.exercise_goal, prior.stand_hours, prior.stand_goal, prior.step_count, prior.walking_running_distance_km, prior.cycling_distance_km, prior.flights_climbed, prior.updated_at]
           });
         }
       }

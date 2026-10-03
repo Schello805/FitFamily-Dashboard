@@ -121,6 +121,7 @@ export type AppleHealthRings = {
   standGoal: number;
   stepCount: number;
   walkingRunningDistanceKm: number;
+  cyclingDistanceKm: number;
   flightsClimbed: number;
   lastSyncedAt?: string | null;
 };

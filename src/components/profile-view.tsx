@@ -416,10 +416,12 @@ export function ProfileView({
   const [copiedPayload, setCopiedPayload] = useState(false);
 
   async function copySamplePayload() {
+    const now = new Date();
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
     const payload = JSON.stringify({
       profileId: profile.id,
       secret: healthSyncToken || "HIER_DEN_SYNC_SCHLUESSEL_EINFUEGEN",
-      dailyActivity: [{ date: new Date().toISOString().slice(0, 10), moveCalories: 420, exerciseMinutes: 32, standHours: 10, stepCount: 7350, walkingRunningDistanceKm: 5.2, flightsClimbed: 7 }],
+      dailyActivity: [{ date: today, moveCalories: 420, exerciseMinutes: 32, stepCount: 7350, walkingRunningDistanceKm: 5.2, cyclingDistanceKm: 8.4 }],
       workouts: []
     }, null, 2);
     if (await copyTextToClipboard(payload)) {
@@ -434,22 +436,17 @@ export function ProfileView({
   async function copyShortcutPrompt() {
     const prompt = `Erstelle einen iPhone-Kurzbefehl „FitFamily Health Sync“ ausschließlich mit den eingebauten Apple-Kurzbefehle- und Health-Aktionen. Keine KI-, Cloud-Modell- oder Drittanbieter-Aktion im fertigen Kurzbefehl. Gesundheitsdaten dürfen nur an diesen FitFamily-Server gesendet werden: ${getWebhookUrl()}.
 
-Der Kurzbefehl soll zwei Arten echter Daten für die letzten 30 Kalendertage übertragen: (A) Tageswerte der Aktivitätsringe und (B) echte abgeschlossene Workouts. Es dürfen niemals eine 30-Tage-Gesamtsumme anstelle von Tageswerten oder erfundene Beispieldaten übertragen werden.
+Der Kurzbefehl überträgt zunächst ausschließlich die echten Tageswerte von HEUTE. Keine 30-Tage-Gesamtsummen, keine rückwirkenden Daten und keine erfundenen Beispieldaten. Suche jede Health-Art separat mit Startdatum „heute“, summiere nur deren heutige Treffer und verwende diese JSON-Feldnamen:
+- Aktive Energie / Active Energy: kcal -> moveCalories (Zahl)
+- Trainingsminuten / Exercise Time: Minuten -> exerciseMinutes (Zahl)
+- Schritte / Steps: Summe als ganze Zahl -> stepCount (ganze Zahl)
+- Geh- und Laufdistanz / Walking + Running Distance: Kilometer -> walkingRunningDistanceKm (Zahl)
+- Strecke (Fahrrad) / Cycling Distance: Kilometer -> cyclingDistanceKm (Zahl)
+Keine Stehminuten und keine Etagen übertragen. Stehminuten sind nicht der Stehen-Ring; Etagen lassen wir bis zur Klärung der Einheit weg. Zahlen müssen numerische JSON-Zahlen ohne Einheitstext bleiben.
 
-A) Baue eine Liste dailyActivity mit höchstens einem Wörterbuch je Datum. Verwende „Health-Proben suchen“ jeweils für die letzten 30 Tage, gruppiere bzw. summiere die Treffer pro Kalendertag und füge den Wert in das Wörterbuch dieses Datums ein. Verwende diese Health-Typen, Einheiten und JSON-Feldnamen:
-- Aktive Energie / Active Energy: Summe pro Tag in kcal -> moveCalories (Zahl)
-- Trainingsminuten / Exercise Time: Summe pro Tag in Minuten -> exerciseMinutes (Zahl)
-- Stehstunden / Stand Hours: Tageswert -> standHours (Zahl 0 bis 24)
-- Schritte / Steps: Summe pro Tag als ganze Zahl -> stepCount (ganze Zahl)
-- Geh- und Laufdistanz / Walking + Running Distance: Summe pro Tag in Kilometern -> walkingRunningDistanceKm (Zahl)
-- Gestiegene Etagen / Flights Climbed: Summe pro Tag als ganze Zahl -> flightsClimbed (ganze Zahl)
-Jedes Tageswörterbuch braucht date im Format YYYY-MM-DD. Wenn ein Typ an einem Tag keinen Wert hat, lass dieses Feld weg; trage keine Null als Ersatz für fehlende Daten ein. Alle sechs Typen getrennt abfragen und anschließend anhand date in dieselbe Tagesliste zusammenführen. Achte darauf, dass Zahlen numerische JSON-Zahlen bleiben, keine Texte mit Einheit. Die Kurzbefehle-Aktion „Summe“ darf nur auf Treffer des jeweiligen einzelnen Tages angewendet werden, niemals auf den ganzen 30-Tage-Zeitraum.
+Der POST-Body enthält profileId = „${profile.id}“, secret = „HIER_DEN_SYNC_SCHLUESSEL_EINFUEGEN“ und dailyActivity mit genau einem Tageswörterbuch. Dieses hat date im Format YYYY-MM-DD (heutiges lokales Datum) und die oben genannten Felder. Führe genau eine Aktion „Inhalte von URL abrufen“ aus: POST an ${getWebhookUrl()}, Haupttext JSON. Den Secret-Platzhalter unverändert lassen; ich ersetze ihn selbst durch meinen privaten FitFamily-Schlüssel. Kein echter Schlüssel in einen geteilten Kurzbefehl. Zeige die Antwort des Servers an.
 
-B) Suche zusätzlich echte abgeschlossene Apple-Health-Workouts der letzten 30 Tage. Erstelle je Workout ein Wörterbuch mit echter id, falls verfügbar, title, startedAt und endedAt als ISO-8601 mit Zeitzone sowie calories und distanceKm, wenn Health sie liefert. Nicht durch Aktivitätsringe ersetzen. Sammle sie in workouts.
-
-Führe am Ende genau eine Aktion „Inhalte von URL abrufen“ aus: POST an ${getWebhookUrl()}, Haupttext JSON. Der Body hat genau diese drei obersten Felder: profileId = „${profile.id}“, secret = „HIER_DEN_SYNC_SCHLUESSEL_EINFUEGEN“, dailyActivity = Tagesliste, workouts = Workoutliste. Den Secret-Platzhalter unverändert lassen; ich ersetze ihn nach dem Erstellen selbst durch meinen privaten FitFamily-Schlüssel. Kein echter Schlüssel in einen geteilten Kurzbefehl. Zeige die Antwort des Servers an.
-
-Wichtig für den Aufbau: Erstelle zuerst alle 6 Tageswert-Abfragen einzeln und füge deren Ergebnisse nach Datum zu dailyActivity zusammen; danach die Workout-Abfrage und dann den einen POST. Falls Kurzbefehle einen Schritt nicht unterstützt, erfinde keine andere Datenstruktur, sondern erkläre mir genau, welche Aktion ich stattdessen antippen muss. iPhone und FitFamily-Server müssen im selben WLAN sein oder über VPN erreichbar sein.`;
+Falls Kurzbefehle eine Health-Art oder einen Schritt nicht unterstützt, erfinde keine andere Datenstruktur, sondern erkläre genau, welche Aktion ich stattdessen antippen muss. iPhone und FitFamily-Server müssen im selben WLAN sein oder über VPN erreichbar sein.`;
     if (await copyTextToClipboard(prompt)) {
       setCopiedShortcutPrompt(true);
       showToast({ type: "success", title: "Erstellungsauftrag kopiert", message: "Füge ihn in deine KI ein. Wichtig: keine KI-Aktion im fertigen Kurzbefehl und den Sync-Schlüssel erst in der persönlichen Kopie eintragen." });

@@ -45,7 +45,7 @@ export async function getDashboardData(): Promise<DashboardProfile[]> {
     client.execute(`SELECT profile_id, title, target_date, plan_json FROM training_plans
       WHERE status = 'active' ORDER BY COALESCE(target_date, '9999-12-31') ASC`),
     client.execute({
-      sql: "SELECT profile_id, move_calories, move_goal, exercise_minutes, exercise_goal, stand_hours, stand_goal, step_count, walking_running_distance_km, flights_climbed, updated_at FROM apple_health_daily WHERE date = ?",
+      sql: "SELECT profile_id, move_calories, move_goal, exercise_minutes, exercise_goal, stand_hours, stand_goal, step_count, walking_running_distance_km, cycling_distance_km, flights_climbed, updated_at FROM apple_health_daily WHERE date = ?",
       args: [todayStr]
     }).catch(() => ({ rows: [] })),
     client.execute({
@@ -254,6 +254,7 @@ export async function getDashboardData(): Promise<DashboardProfile[]> {
         standGoal: Math.round(Number(storedRing.stand_goal) || 12),
         stepCount: Math.max(0, Math.round(Number(storedRing.step_count) || 0)),
         walkingRunningDistanceKm: Math.max(0, Number(storedRing.walking_running_distance_km) || 0),
+        cyclingDistanceKm: Math.max(0, Number(storedRing.cycling_distance_km) || 0),
         flightsClimbed: Math.max(0, Math.round(Number(storedRing.flights_climbed) || 0)),
         lastSyncedAt: String(storedRing.updated_at)
       };

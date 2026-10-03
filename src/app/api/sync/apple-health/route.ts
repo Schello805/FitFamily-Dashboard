@@ -41,6 +41,7 @@ const dailyActivitySchema = z.object({
   standGoal: z.number().positive().max(24).optional().nullable(),
   stepCount: z.number().int().nonnegative().max(200_000).optional().nullable(),
   walkingRunningDistanceKm: z.number().nonnegative().max(500).optional().nullable(),
+  cyclingDistanceKm: z.number().nonnegative().max(2_000).optional().nullable(),
   flightsClimbed: z.number().nonnegative().max(1_000).optional().nullable()
 }).refine((entry) => Object.entries(entry).some(([key, value]) => key !== "date" && value != null), {
   message: "Jeder Tag braucht mindestens einen Aktivitätswert."
@@ -49,6 +50,7 @@ const dailyActivitySchema = z.object({
 const bodySchema = z.object({
   profileId: z.string().min(1),
   secret: z.string().min(32).max(256),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   dryRun: z.boolean().optional(),
   workouts: z.array(workoutItemSchema).max(500).optional(),
   dailyActivity: z.array(dailyActivitySchema).max(90).optional(),
@@ -70,6 +72,7 @@ const bodySchema = z.object({
   standGoal: z.number().positive().max(24).optional().nullable(),
   stepCount: z.number().int().nonnegative().max(200_000).optional().nullable(),
   walkingRunningDistanceKm: z.number().nonnegative().max(500).optional().nullable(),
+  cyclingDistanceKm: z.number().nonnegative().max(2_000).optional().nullable(),
   flightsClimbed: z.number().nonnegative().max(1_000).optional().nullable()
 });
 
@@ -309,21 +312,24 @@ export async function POST(request: Request) {
     { key: "standGoal", column: "stand_goal" },
     { key: "stepCount", column: "step_count" },
     { key: "walkingRunningDistanceKm", column: "walking_running_distance_km" },
+    { key: "cyclingDistanceKm", column: "cycling_distance_km" },
     { key: "flightsClimbed", column: "flights_climbed" }
   ] as const;
   const dailyByDate = new Map<string, z.infer<typeof dailyActivitySchema>>();
   for (const day of parsed.data.dailyActivity ?? []) {
     const existing = dailyByDate.get(day.date);
-    dailyByDate.set(day.date, existing ? { ...existing, ...day } : day);
+    const suppliedValues = Object.fromEntries(Object.entries(day).filter(([key, value]) => key === "date" || value != null));
+    dailyByDate.set(day.date, existing ? { ...existing, ...suppliedValues } as z.infer<typeof dailyActivitySchema> : day);
   }
   const hasLegacyActivity = ringFields.some(({ key }) => parsed.data[key] != null);
   if (hasLegacyActivity) {
+    const legacyDate = parsed.data.date ?? todayStr;
     const legacyDay = Object.fromEntries([
-      ["date", todayStr],
+      ["date", legacyDate],
       ...ringFields.flatMap(({ key }) => parsed.data[key] == null ? [] : [[key, parsed.data[key]]])
     ]) as z.infer<typeof dailyActivitySchema>;
-    const existing = dailyByDate.get(todayStr);
-    dailyByDate.set(todayStr, existing ? { ...existing, ...legacyDay } : legacyDay);
+    const existing = dailyByDate.get(legacyDate);
+    dailyByDate.set(legacyDate, existing ? { ...existing, ...legacyDay } : legacyDay);
   }
 
   const dailyActivity = [...dailyByDate.values()];
@@ -426,7 +432,7 @@ export async function GET(request: Request) {
         args: [profileId]
       }),
       client.execute({
-        sql: `SELECT move_calories, move_goal, exercise_minutes, exercise_goal, stand_hours, stand_goal, updated_at
+        sql: `SELECT move_calories, move_goal, exercise_minutes, exercise_goal, stand_hours, stand_goal, step_count, walking_running_distance_km, cycling_distance_km, flights_climbed, updated_at
           FROM apple_health_daily WHERE profile_id = ? AND date = ? LIMIT 1`,
         args: [profileId, todayStr]
       }).catch(() => ({ rows: [] }))
@@ -447,6 +453,7 @@ export async function GET(request: Request) {
         standGoal: Number(ring.stand_goal),
         stepCount: Number(ring.step_count ?? 0),
         walkingRunningDistanceKm: Number(ring.walking_running_distance_km ?? 0),
+        cyclingDistanceKm: Number(ring.cycling_distance_km ?? 0),
         flightsClimbed: Number(ring.flights_climbed ?? 0),
         updatedAt: String(ring.updated_at)
       } : null,

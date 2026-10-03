@@ -137,6 +137,7 @@ async function createSchema(client: Client) {
       stand_goal REAL NOT NULL DEFAULT 12,
       step_count INTEGER NOT NULL DEFAULT 0,
       walking_running_distance_km REAL NOT NULL DEFAULT 0,
+      cycling_distance_km REAL NOT NULL DEFAULT 0,
       flights_climbed REAL NOT NULL DEFAULT 0,
       updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
       PRIMARY KEY (profile_id, date)
@@ -164,10 +165,12 @@ async function createSchema(client: Client) {
   if (!existingHealthDailyColumns.has("walking_running_distance_km")) {
     await client.execute("ALTER TABLE apple_health_daily ADD COLUMN walking_running_distance_km REAL NOT NULL DEFAULT 0");
   }
+  if (!existingHealthDailyColumns.has("cycling_distance_km")) {
+    await client.execute("ALTER TABLE apple_health_daily ADD COLUMN cycling_distance_km REAL NOT NULL DEFAULT 0");
+  }
   if (!existingHealthDailyColumns.has("flights_climbed")) {
     await client.execute("ALTER TABLE apple_health_daily ADD COLUMN flights_climbed REAL NOT NULL DEFAULT 0");
   }
-
   const profileColumns = await client.execute("PRAGMA table_info(profiles)");
   if (!profileColumns.rows.some((row) => String(row.name) === "email")) {
     await client.execute("ALTER TABLE profiles ADD COLUMN email TEXT");
