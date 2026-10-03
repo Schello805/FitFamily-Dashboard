@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useSyncExternalStore } from "react";
-import { ArrowLeft, AlertTriangle, Bot, CheckCircle2, ClipboardList, Database, HardDrive, Lock, Monitor, Moon, Plus, RefreshCw, RotateCcw, ShieldCheck, Sparkles, Sun, Users, Wrench, X } from "lucide-react";
+import { ArrowLeft, AlertTriangle, Bot, CheckCircle2, ClipboardList, Database, HardDrive, Lock, Monitor, Moon, Plus, RotateCcw, ShieldCheck, Sparkles, Sun, Users, Wrench, X } from "lucide-react";
 import { TouchPinpad } from "@/components/touch-pinpad";
 import { AdminLogsPanel, summarizeAdminLog, type AdminLogEntry, type AdminLogFilter } from "@/components/admin-logs-panel";
 import { AdminBackupPanel, type BackupStatus } from "@/components/admin-backup-panel";
 import { AdminUpdatePanel, type UpdateInfo, type UpdateSuccess } from "@/components/admin-update-panel";
 import { AdminDataTransferPanel, type ImportValidation } from "@/components/admin-data-transfer-panel";
+import { AdminSystemStatusPanel, type SystemStatus } from "@/components/admin-system-status-panel";
 import { AvatarPicker } from "@/components/avatar-picker";
 import { Avatar } from "@/components/avatar";
 import { avatarAssetForProfile, getFitnessStageCount, getStartingFitnessStages, GOALS, type AvatarDesignId, type ProfileAvatar } from "@/lib/domain";
@@ -24,11 +25,6 @@ type ExerciseMedia = { id: string; name: string; type: "strength" | "endurance";
 type EquipmentItem = { id: string; name: string; quantity: number; available: boolean; active: boolean; videoUrl?: string | null; manualPdfUrl?: string | null; instructions?: string | null };
 type AdminProfile = { id: string; name: string; score: number; email: string | null; birthDate: string | null; startingFitness: number; avatar: ProfileAvatar; goal: string };
 type ExerciseDraft = { name: string; type: "strength" | "endurance"; equipment: string; instructions: string; safetyNotes: string; videoUrl: string };
-type SystemStatus = {
-  database: { kind: "local" | "remote"; location: string; sizeBytes: number | null; error: string | null };
-  applicationVolume: { availableBytes: number | null; totalBytes: number | null; error: string | null };
-};
-
 type ConfirmModalConfig = {
   title: string;
   badge?: string;
@@ -749,15 +745,6 @@ export function AdminView({
     }
   }
 
-  function formatStorage(bytes: number | null | undefined) {
-    if (bytes == null || !Number.isFinite(bytes)) return "Nicht ermittelbar";
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 ** 2) return `${(bytes / 1024).toLocaleString("de-DE", { maximumFractionDigits: 1 })} KiB`;
-    if (bytes < 1024 ** 3) return `${(bytes / 1024 ** 2).toLocaleString("de-DE", { maximumFractionDigits: 1 })} MiB`;
-    if (bytes < 1024 ** 4) return `${(bytes / 1024 ** 3).toLocaleString("de-DE", { maximumFractionDigits: 2 })} GiB`;
-    return `${(bytes / 1024 ** 4).toLocaleString("de-DE", { maximumFractionDigits: 2 })} TiB`;
-  }
-
   async function download() {
     try {
       const response = await fetch("/api/export", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pin }) });
@@ -1305,17 +1292,7 @@ export function AdminView({
           onCheck={() => void checkUpdate()}
           onInstall={requestApplyUpdate}
         />
-        <article className="wide">
-          <div className="admin-title"><HardDrive /><div><h2>Speicherstatus</h2><p>Datenbankdatei und freier Speicher auf dem App-Server</p></div></div>
-          <div className="update-status-grid data-status-grid">
-            <div className="update-meta-box"><span>Datenbank</span><b>{systemStatus ? (systemStatus.database.sizeBytes == null ? "Größe nicht ermittelbar" : formatStorage(systemStatus.database.sizeBytes)) : "Noch nicht geladen"}</b><small>{systemStatus?.database.kind === "remote" ? "Externe Datenbank" : systemStatus?.database.location ?? ""}{systemStatus?.database.error ? ` · ${systemStatus.database.error}` : ""}</small></div>
-            <div className="update-meta-box"><span>Freier Speicher · App-Server</span><b>{systemStatus ? formatStorage(systemStatus.applicationVolume.availableBytes) : "Noch nicht geladen"}</b><small>{systemStatus?.applicationVolume.totalBytes != null ? `von ${formatStorage(systemStatus.applicationVolume.totalBytes)} gesamt` : systemStatus?.applicationVolume.error ?? ""}</small></div>
-          </div>
-          <div className="data-tools-row">
-            <span>{systemStatus ? "NAS-Kapazität wird nicht angezeigt, da ein nicht eingebundener Backup-Pfad sonst die Serverwerte liefern kann. Erreichbarkeit und Schreibrechte prüfst du unter Datensicherung." : "Speicherwerte werden nach dem Laden angezeigt."}</span>
-            <button type="button" className="update-secondary-btn" disabled={loadingSystemStatus} onClick={() => void refreshSystemStatus()}><RefreshCw className={loadingSystemStatus ? "spin" : ""} /> {loadingSystemStatus ? "Wird aktualisiert …" : "Speicherstatus aktualisieren"}</button>
-          </div>
-        </article>
+        <AdminSystemStatusPanel status={systemStatus} loading={loadingSystemStatus} onRefresh={() => void refreshSystemStatus()} />
 
         <AdminDataTransferPanel
           file={importFile}
