@@ -1,0 +1,650 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict><key>WFWorkflowName</key><string>FitFamily Health Vergleich</string>
+<key>WFWorkflowActions</key><array><dict><key>WFWorkflowActionIdentifier</key><string>is.workflow.actions.comment</string>
+<key>WFWorkflowActionParameters</key><dict><key>UUID</key><string>02E0D7A6-353F-43F5-84D6-42FD7E7CA067</string>
+<key>WFCommentActionText</key><string>FitFamily Vergleichstest: heutige Schritte, Trainingsminuten und aktive Energie (kcal). Schlüssel im folgenden Text ersetzen. Bei fehlenden Messungen wird NICHT gesendet. Rohsummen können wegen überlappender Quellen von Health abweichen: alle drei Werte zur selben Uhrzeit vergleichen. Schritt-Doppelzählung noch NICHT gelöst. Kein App-Wechsel nötig.</string></dict></dict>
+<dict><key>WFWorkflowActionIdentifier</key><string>is.workflow.actions.gettext</string>
+<key>WFWorkflowActionParameters</key><dict><key>UUID</key><string>8DED20C7-AD47-453D-9044-5770364EBEA1</string>
+<key>WFTextActionText</key><string>HIER_DEN_SYNC_SCHLUESSEL_EINFUEGEN</string></dict></dict>
+<dict><key>WFWorkflowActionIdentifier</key><string>is.workflow.actions.date</string>
+<key>WFWorkflowActionParameters</key><dict><key>UUID</key><string>645D5053-7C51-4B4C-9FAF-10DB613BBA26</string>
+<key>WFDateActionMode</key><string>Current Date</string></dict></dict>
+<dict><key>WFWorkflowActionIdentifier</key><string>is.workflow.actions.format.date</string>
+<key>WFWorkflowActionParameters</key><dict><key>UUID</key><string>DC62FCF0-1DE9-4AB2-9BBF-99CB52CD114E</string>
+<key>WFDate</key><dict><key>Value</key><dict><key>string</key><string>￼</string>
+<key>attachmentsByRange</key><dict><key>{0, 1}</key><dict><key>Type</key><string>ActionOutput</string>
+<key>OutputUUID</key><string>645D5053-7C51-4B4C-9FAF-10DB613BBA26</string>
+<key>OutputName</key><string>Date</string></dict></dict></dict>
+<key>WFSerializationType</key><string>WFTextTokenString</string></dict>
+<key>WFInput</key><dict><key>Value</key><dict><key>Type</key><string>ActionOutput</string>
+<key>OutputUUID</key><string>645D5053-7C51-4B4C-9FAF-10DB613BBA26</string>
+<key>OutputName</key><string>Date</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenAttachment</string></dict>
+<key>WFDateFormatStyle</key><string>Custom</string>
+<key>WFDateFormat</key><string>yyyy-MM-dd</string>
+<key>WFTimeFormatStyle</key><string>None</string></dict></dict>
+<dict><key>WFWorkflowActionIdentifier</key><string>is.workflow.actions.conditional</string>
+<key>WFWorkflowActionParameters</key><dict><key>UUID</key><string>ACF96554-62F4-4F9A-A405-F956A2AFD196</string>
+<key>GroupingIdentifier</key><string>32CBE4D1-8375-4593-A49E-D92FC5940E90</string>
+<key>WFControlFlowMode</key><integer>0</integer>
+<key>WFCondition</key><integer>101</integer>
+<key>WFInput</key><dict><key>Type</key><string>Variable</string>
+<key>Variable</key><dict><key>Value</key><dict><key>Type</key><string>ActionOutput</string>
+<key>OutputUUID</key><string>DC62FCF0-1DE9-4AB2-9BBF-99CB52CD114E</string>
+<key>OutputName</key><string>Formatted Date</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenAttachment</string></dict></dict></dict></dict>
+<dict><key>WFWorkflowActionIdentifier</key><string>is.workflow.actions.showresult</string>
+<key>WFWorkflowActionParameters</key><dict><key>UUID</key><string>9B2BA369-5501-479A-8F74-F32CE8608751</string>
+<key>Text</key><dict><key>Value</key><dict><key>string</key><string>Datum fehlt. Nichts übertragen. Bitte die Aktion Datum formatieren prüfen.</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenString</string></dict></dict></dict>
+<dict><key>WFWorkflowActionIdentifier</key><string>is.workflow.actions.exit</string>
+<key>WFWorkflowActionParameters</key><dict><key>UUID</key><string>80E5CD65-27BE-4AFC-8ED4-671F6CBE8B9F</string></dict></dict>
+<dict><key>WFWorkflowActionIdentifier</key><string>is.workflow.actions.conditional</string>
+<key>WFWorkflowActionParameters</key><dict><key>UUID</key><string>AC14C987-5CC5-473A-A40A-6E99BD25674F</string>
+<key>GroupingIdentifier</key><string>32CBE4D1-8375-4593-A49E-D92FC5940E90</string>
+<key>WFControlFlowMode</key><integer>2</integer></dict></dict>
+<dict><key>WFWorkflowActionIdentifier</key><string>is.workflow.actions.comment</string>
+<key>WFWorkflowActionParameters</key><dict><key>UUID</key><string>05009248-5011-432C-871D-0D28BD4398A3</string>
+<key>WFCommentActionText</key><string>exerciseMinutes: nur heute. Die Summe wird einmal nach dem Auslesen gebildet. Keine Einzelmessungen im POST.</string></dict></dict>
+<dict><key>WFWorkflowActionIdentifier</key><string>is.workflow.actions.filter.health.quantity</string>
+<key>WFWorkflowActionParameters</key><dict><key>UUID</key><string>3B733C1E-3B8F-459B-8FB7-BD05CA80A21C</string>
+<key>WFContentItemLimitEnabled</key><false/>
+<key>WFContentItemFilter</key><dict><key>Value</key><dict><key>WFActionParameterFilterPrefix</key><integer>1</integer>
+<key>WFContentPredicateBoundedDate</key><false/>
+<key>WFActionParameterFilterTemplates</key><array><dict><key>Bounded</key><true/>
+<key>Removable</key><false/>
+<key>Property</key><string>Type</string>
+<key>Operator</key><integer>4</integer>
+<key>Values</key><dict><key>Enumeration</key><dict><key>Value</key><string>Exercise Time</string>
+<key>WFSerializationType</key><string>WFStringSubstitutableState</string></dict></dict></dict>
+<dict><key>Bounded</key><true/>
+<key>Removable</key><false/>
+<key>Property</key><string>Start Date</string>
+<key>Operator</key><integer>1002</integer>
+<key>Values</key><dict><key>Number</key><string>7</string>
+<key>Unit</key><integer>16</integer></dict></dict></array></dict>
+<key>WFSerializationType</key><string>WFContentPredicateTableTemplate</string></dict></dict></dict>
+<dict><key>WFWorkflowActionIdentifier</key><string>is.workflow.actions.conditional</string>
+<key>WFWorkflowActionParameters</key><dict><key>UUID</key><string>FFB63171-FD38-4763-8B86-3AD23F737449</string>
+<key>GroupingIdentifier</key><string>5DA2FA67-9A95-47BC-A2C6-8B15FCA9A2F5</string>
+<key>WFControlFlowMode</key><integer>0</integer>
+<key>WFCondition</key><integer>101</integer>
+<key>WFInput</key><dict><key>Type</key><string>Variable</string>
+<key>Variable</key><dict><key>Value</key><dict><key>Type</key><string>ActionOutput</string>
+<key>OutputUUID</key><string>3B733C1E-3B8F-459B-8FB7-BD05CA80A21C</string>
+<key>OutputName</key><string>Health Samples</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenAttachment</string></dict></dict></dict></dict>
+<dict><key>WFWorkflowActionIdentifier</key><string>is.workflow.actions.showresult</string>
+<key>WFWorkflowActionParameters</key><dict><key>UUID</key><string>506E635D-0EBA-4C31-9CC4-6F4FCE2B6820</string>
+<key>Text</key><dict><key>Value</key><dict><key>string</key><string>Keine heutigen Messungen für exerciseMinutes. Nichts übertragen. Prüfe Health-Leserechte und heutige Daten. Kein Treffer bedeutet nicht sicher 0.</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenString</string></dict></dict></dict>
+<dict><key>WFWorkflowActionIdentifier</key><string>is.workflow.actions.exit</string>
+<key>WFWorkflowActionParameters</key><dict><key>UUID</key><string>3D46B570-761D-4A64-8A3B-EA5BA4F3A4BB</string></dict></dict>
+<dict><key>WFWorkflowActionIdentifier</key><string>is.workflow.actions.conditional</string>
+<key>WFWorkflowActionParameters</key><dict><key>UUID</key><string>67CA8783-F240-45DC-9620-C1769FF0E448</string>
+<key>GroupingIdentifier</key><string>5DA2FA67-9A95-47BC-A2C6-8B15FCA9A2F5</string>
+<key>WFControlFlowMode</key><integer>2</integer></dict></dict>
+<dict><key>WFWorkflowActionIdentifier</key><string>is.workflow.actions.dictionary</string>
+<key>WFWorkflowActionParameters</key><dict><key>UUID</key><string>2629ECB5-80A8-4E2D-8016-8C62371EA30F</string>
+<key>WFItems</key><dict><key>Value</key><dict><key>WFDictionaryFieldValueItems</key><array><dict><key>WFKey</key><dict><key>Value</key><dict><key>string</key><string>min</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenString</string></dict>
+<key>WFItemType</key><integer>3</integer>
+<key>WFValue</key><dict><key>Value</key><dict><key>string</key><string>1</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenString</string></dict></dict>
+<dict><key>WFKey</key><dict><key>Value</key><dict><key>string</key><string>min.</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenString</string></dict>
+<key>WFItemType</key><integer>3</integer>
+<key>WFValue</key><dict><key>Value</key><dict><key>string</key><string>1</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenString</string></dict></dict>
+<dict><key>WFKey</key><dict><key>Value</key><dict><key>string</key><string>minutes</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenString</string></dict>
+<key>WFItemType</key><integer>3</integer>
+<key>WFValue</key><dict><key>Value</key><dict><key>string</key><string>1</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenString</string></dict></dict>
+<dict><key>WFKey</key><dict><key>Value</key><dict><key>string</key><string>Minuten</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenString</string></dict>
+<key>WFItemType</key><integer>3</integer>
+<key>WFValue</key><dict><key>Value</key><dict><key>string</key><string>1</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenString</string></dict></dict>
+<dict><key>WFKey</key><dict><key>Value</key><dict><key>string</key><string>sec</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenString</string></dict>
+<key>WFItemType</key><integer>3</integer>
+<key>WFValue</key><dict><key>Value</key><dict><key>string</key><string>1</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenString</string></dict></dict>
+<dict><key>WFKey</key><dict><key>Value</key><dict><key>string</key><string>s</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenString</string></dict>
+<key>WFItemType</key><integer>3</integer>
+<key>WFValue</key><dict><key>Value</key><dict><key>string</key><string>1</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenString</string></dict></dict>
+<dict><key>WFKey</key><dict><key>Value</key><dict><key>string</key><string>hr</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenString</string></dict>
+<key>WFItemType</key><integer>3</integer>
+<key>WFValue</key><dict><key>Value</key><dict><key>string</key><string>60</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenString</string></dict></dict>
+<dict><key>WFKey</key><dict><key>Value</key><dict><key>string</key><string>h</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenString</string></dict>
+<key>WFItemType</key><integer>3</integer>
+<key>WFValue</key><dict><key>Value</key><dict><key>string</key><string>60</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenString</string></dict></dict></array></dict>
+<key>WFSerializationType</key><string>WFDictionaryFieldValue</string></dict></dict></dict>
+<dict><key>WFWorkflowActionIdentifier</key><string>is.workflow.actions.dictionary</string>
+<key>WFWorkflowActionParameters</key><dict><key>UUID</key><string>CEDF506D-A8D4-4B32-B481-B13818E359AF</string>
+<key>WFItems</key><dict><key>Value</key><dict><key>WFDictionaryFieldValueItems</key><array><dict><key>WFKey</key><dict><key>Value</key><dict><key>string</key><string>min</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenString</string></dict>
+<key>WFItemType</key><integer>3</integer>
+<key>WFValue</key><dict><key>Value</key><dict><key>string</key><string>1</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenString</string></dict></dict>
+<dict><key>WFKey</key><dict><key>Value</key><dict><key>string</key><string>min.</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenString</string></dict>
+<key>WFItemType</key><integer>3</integer>
+<key>WFValue</key><dict><key>Value</key><dict><key>string</key><string>1</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenString</string></dict></dict>
+<dict><key>WFKey</key><dict><key>Value</key><dict><key>string</key><string>minutes</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenString</string></dict>
+<key>WFItemType</key><integer>3</integer>
+<key>WFValue</key><dict><key>Value</key><dict><key>string</key><string>1</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenString</string></dict></dict>
+<dict><key>WFKey</key><dict><key>Value</key><dict><key>string</key><string>Minuten</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenString</string></dict>
+<key>WFItemType</key><integer>3</integer>
+<key>WFValue</key><dict><key>Value</key><dict><key>string</key><string>1</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenString</string></dict></dict>
+<dict><key>WFKey</key><dict><key>Value</key><dict><key>string</key><string>sec</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenString</string></dict>
+<key>WFItemType</key><integer>3</integer>
+<key>WFValue</key><dict><key>Value</key><dict><key>string</key><string>60</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenString</string></dict></dict>
+<dict><key>WFKey</key><dict><key>Value</key><dict><key>string</key><string>s</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenString</string></dict>
+<key>WFItemType</key><integer>3</integer>
+<key>WFValue</key><dict><key>Value</key><dict><key>string</key><string>60</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenString</string></dict></dict>
+<dict><key>WFKey</key><dict><key>Value</key><dict><key>string</key><string>hr</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenString</string></dict>
+<key>WFItemType</key><integer>3</integer>
+<key>WFValue</key><dict><key>Value</key><dict><key>string</key><string>1</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenString</string></dict></dict>
+<dict><key>WFKey</key><dict><key>Value</key><dict><key>string</key><string>h</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenString</string></dict>
+<key>WFItemType</key><integer>3</integer>
+<key>WFValue</key><dict><key>Value</key><dict><key>string</key><string>1</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenString</string></dict></dict></array></dict>
+<key>WFSerializationType</key><string>WFDictionaryFieldValue</string></dict></dict></dict>
+<dict><key>WFWorkflowActionIdentifier</key><string>is.workflow.actions.repeat.each</string>
+<key>WFWorkflowActionParameters</key><dict><key>UUID</key><string>CC3DF50D-8F5D-4683-9045-FAF3EBF03D73</string>
+<key>GroupingIdentifier</key><string>BBC0A4BD-025E-49DE-B214-3348959B6316</string>
+<key>WFControlFlowMode</key><integer>0</integer>
+<key>WFInput</key><dict><key>Value</key><dict><key>Type</key><string>ActionOutput</string>
+<key>OutputUUID</key><string>3B733C1E-3B8F-459B-8FB7-BD05CA80A21C</string>
+<key>OutputName</key><string>Health Samples</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenAttachment</string></dict></dict></dict>
+<dict><key>WFWorkflowActionIdentifier</key><string>is.workflow.actions.properties.health.quantity</string>
+<key>WFWorkflowActionParameters</key><dict><key>UUID</key><string>0A7EF2AC-F8B7-4613-9734-453472622654</string>
+<key>WFContentItemPropertyName</key><string>Value</string>
+<key>WFInput</key><dict><key>Value</key><dict><key>Type</key><string>Variable</string>
+<key>VariableName</key><string>Repeat Item</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenAttachment</string></dict></dict></dict>
+<dict><key>WFWorkflowActionIdentifier</key><string>is.workflow.actions.properties.health.quantity</string>
+<key>WFWorkflowActionParameters</key><dict><key>UUID</key><string>45A7B702-886B-4F76-92A2-A6E8BD34D5BB</string>
+<key>WFContentItemPropertyName</key><string>Unit</string>
+<key>WFInput</key><dict><key>Value</key><dict><key>Type</key><string>Variable</string>
+<key>VariableName</key><string>Repeat Item</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenAttachment</string></dict></dict></dict>
+<dict><key>WFWorkflowActionIdentifier</key><string>is.workflow.actions.getvalueforkey</string>
+<key>WFWorkflowActionParameters</key><dict><key>UUID</key><string>7FF74825-A78A-48D5-AA93-25EE135BC5D8</string>
+<key>WFGetDictionaryValueType</key><string>Value</string>
+<key>WFDictionaryKey</key><dict><key>Value</key><dict><key>string</key><string>￼</string>
+<key>attachmentsByRange</key><dict><key>{0, 1}</key><dict><key>Type</key><string>ActionOutput</string>
+<key>OutputUUID</key><string>45A7B702-886B-4F76-92A2-A6E8BD34D5BB</string>
+<key>OutputName</key><string>Unit</string></dict></dict></dict>
+<key>WFSerializationType</key><string>WFTextTokenString</string></dict>
+<key>WFInput</key><dict><key>Value</key><dict><key>Type</key><string>ActionOutput</string>
+<key>OutputUUID</key><string>2629ECB5-80A8-4E2D-8016-8C62371EA30F</string>
+<key>OutputName</key><string>Dictionary</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenAttachment</string></dict></dict></dict>
+<dict><key>WFWorkflowActionIdentifier</key><string>is.workflow.actions.conditional</string>
+<key>WFWorkflowActionParameters</key><dict><key>UUID</key><string>78BE582A-BD09-4BF5-82FA-D4A9B9091C83</string>
+<key>GroupingIdentifier</key><string>5D16CD39-5060-4FD5-96D7-A6608C04844B</string>
+<key>WFControlFlowMode</key><integer>0</integer>
+<key>WFCondition</key><integer>101</integer>
+<key>WFInput</key><dict><key>Type</key><string>Variable</string>
+<key>Variable</key><dict><key>Value</key><dict><key>Type</key><string>ActionOutput</string>
+<key>OutputUUID</key><string>7FF74825-A78A-48D5-AA93-25EE135BC5D8</string>
+<key>OutputName</key><string>Dictionary Value</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenAttachment</string></dict></dict></dict></dict>
+<dict><key>WFWorkflowActionIdentifier</key><string>is.workflow.actions.showresult</string>
+<key>WFWorkflowActionParameters</key><dict><key>UUID</key><string>F6E7FD36-0C51-41B5-948E-F7668273A56A</string>
+<key>Text</key><dict><key>Value</key><dict><key>string</key><string>Unbekannte Einheit für exerciseMinutes. Nichts übertragen. Bitte die Einheit im Kurzbefehl prüfen.</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenString</string></dict></dict></dict>
+<dict><key>WFWorkflowActionIdentifier</key><string>is.workflow.actions.exit</string>
+<key>WFWorkflowActionParameters</key><dict><key>UUID</key><string>47BA4ACD-1F6D-4E81-90CE-A7D78ABE68CC</string></dict></dict>
+<dict><key>WFWorkflowActionIdentifier</key><string>is.workflow.actions.conditional</string>
+<key>WFWorkflowActionParameters</key><dict><key>UUID</key><string>711DDC24-8A04-4267-A644-ADD92B2D89F9</string>
+<key>GroupingIdentifier</key><string>5D16CD39-5060-4FD5-96D7-A6608C04844B</string>
+<key>WFControlFlowMode</key><integer>2</integer></dict></dict>
+<dict><key>WFWorkflowActionIdentifier</key><string>is.workflow.actions.getvalueforkey</string>
+<key>WFWorkflowActionParameters</key><dict><key>UUID</key><string>73F21CA4-0181-4633-A200-1383140A92B5</string>
+<key>WFGetDictionaryValueType</key><string>Value</string>
+<key>WFDictionaryKey</key><dict><key>Value</key><dict><key>string</key><string>￼</string>
+<key>attachmentsByRange</key><dict><key>{0, 1}</key><dict><key>Type</key><string>ActionOutput</string>
+<key>OutputUUID</key><string>45A7B702-886B-4F76-92A2-A6E8BD34D5BB</string>
+<key>OutputName</key><string>Unit</string></dict></dict></dict>
+<key>WFSerializationType</key><string>WFTextTokenString</string></dict>
+<key>WFInput</key><dict><key>Value</key><dict><key>Type</key><string>ActionOutput</string>
+<key>OutputUUID</key><string>CEDF506D-A8D4-4B32-B481-B13818E359AF</string>
+<key>OutputName</key><string>Dictionary</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenAttachment</string></dict></dict></dict>
+<dict><key>WFWorkflowActionIdentifier</key><string>is.workflow.actions.math</string>
+<key>WFWorkflowActionParameters</key><dict><key>UUID</key><string>46B10636-8C02-4305-BCCE-1143695F1907</string>
+<key>WFInput</key><dict><key>Value</key><dict><key>Type</key><string>ActionOutput</string>
+<key>OutputUUID</key><string>0A7EF2AC-F8B7-4613-9734-453472622654</string>
+<key>OutputName</key><string>Value</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenAttachment</string></dict>
+<key>WFMathOperation</key><string>×</string>
+<key>WFMathOperand</key><dict><key>Value</key><dict><key>string</key><string>￼</string>
+<key>attachmentsByRange</key><dict><key>{0, 1}</key><dict><key>Type</key><string>ActionOutput</string>
+<key>OutputUUID</key><string>7FF74825-A78A-48D5-AA93-25EE135BC5D8</string>
+<key>OutputName</key><string>Dictionary Value</string></dict></dict></dict>
+<key>WFSerializationType</key><string>WFTextTokenString</string></dict></dict></dict>
+<dict><key>WFWorkflowActionIdentifier</key><string>is.workflow.actions.math</string>
+<key>WFWorkflowActionParameters</key><dict><key>UUID</key><string>10DA4817-D1EF-4644-A4CE-C9C7FF7DD31B</string>
+<key>WFInput</key><dict><key>Value</key><dict><key>Type</key><string>ActionOutput</string>
+<key>OutputUUID</key><string>46B10636-8C02-4305-BCCE-1143695F1907</string>
+<key>OutputName</key><string>Calculation Result</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenAttachment</string></dict>
+<key>WFMathOperation</key><string>÷</string>
+<key>WFMathOperand</key><dict><key>Value</key><dict><key>string</key><string>￼</string>
+<key>attachmentsByRange</key><dict><key>{0, 1}</key><dict><key>Type</key><string>ActionOutput</string>
+<key>OutputUUID</key><string>73F21CA4-0181-4633-A200-1383140A92B5</string>
+<key>OutputName</key><string>Dictionary Value</string></dict></dict></dict>
+<key>WFSerializationType</key><string>WFTextTokenString</string></dict></dict></dict>
+<dict><key>WFWorkflowActionIdentifier</key><string>is.workflow.actions.repeat.each</string>
+<key>WFWorkflowActionParameters</key><dict><key>UUID</key><string>04F68835-7AB6-41D3-9DA8-E0524E025C95</string>
+<key>GroupingIdentifier</key><string>BBC0A4BD-025E-49DE-B214-3348959B6316</string>
+<key>WFControlFlowMode</key><integer>2</integer></dict></dict>
+<dict><key>WFWorkflowActionIdentifier</key><string>is.workflow.actions.statistics</string>
+<key>WFWorkflowActionParameters</key><dict><key>UUID</key><string>147C2ED4-F38A-44F7-89A6-0CACAA42E534</string>
+<key>WFStatisticsOperation</key><string>Sum</string>
+<key>Input</key><dict><key>Value</key><dict><key>Type</key><string>ActionOutput</string>
+<key>OutputUUID</key><string>04F68835-7AB6-41D3-9DA8-E0524E025C95</string>
+<key>OutputName</key><string>Repeat Results</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenAttachment</string></dict></dict></dict>
+<dict><key>WFWorkflowActionIdentifier</key><string>is.workflow.actions.setvariable</string>
+<key>WFWorkflowActionParameters</key><dict><key>UUID</key><string>7B61829A-F2B4-4C6E-82B7-0E8FEDC49FA3</string>
+<key>WFVariableName</key><string>exerciseMinutes</string>
+<key>WFInput</key><dict><key>Value</key><dict><key>Type</key><string>ActionOutput</string>
+<key>OutputUUID</key><string>147C2ED4-F38A-44F7-89A6-0CACAA42E534</string>
+<key>OutputName</key><string>Statistics</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenAttachment</string></dict></dict></dict>
+<dict><key>WFWorkflowActionIdentifier</key><string>is.workflow.actions.comment</string>
+<key>WFWorkflowActionParameters</key><dict><key>UUID</key><string>71D6823C-8E46-44C9-BBC7-936878875114</string>
+<key>WFCommentActionText</key><string>stepCount: nur heute. Die Summe wird einmal nach dem Auslesen gebildet. Keine Einzelmessungen im POST.</string></dict></dict>
+<dict><key>WFWorkflowActionIdentifier</key><string>is.workflow.actions.filter.health.quantity</string>
+<key>WFWorkflowActionParameters</key><dict><key>UUID</key><string>D227C140-FB2E-4133-95B1-D22717656AC9</string>
+<key>WFContentItemLimitEnabled</key><false/>
+<key>WFContentItemFilter</key><dict><key>Value</key><dict><key>WFActionParameterFilterPrefix</key><integer>1</integer>
+<key>WFContentPredicateBoundedDate</key><false/>
+<key>WFActionParameterFilterTemplates</key><array><dict><key>Bounded</key><true/>
+<key>Removable</key><false/>
+<key>Property</key><string>Type</string>
+<key>Operator</key><integer>4</integer>
+<key>Values</key><dict><key>Enumeration</key><dict><key>Value</key><string>Steps</string>
+<key>WFSerializationType</key><string>WFStringSubstitutableState</string></dict></dict></dict>
+<dict><key>Bounded</key><true/>
+<key>Removable</key><false/>
+<key>Property</key><string>Start Date</string>
+<key>Operator</key><integer>1002</integer>
+<key>Values</key><dict><key>Number</key><string>7</string>
+<key>Unit</key><integer>16</integer></dict></dict></array></dict>
+<key>WFSerializationType</key><string>WFContentPredicateTableTemplate</string></dict></dict></dict>
+<dict><key>WFWorkflowActionIdentifier</key><string>is.workflow.actions.conditional</string>
+<key>WFWorkflowActionParameters</key><dict><key>UUID</key><string>71938256-346E-463C-B3BC-F54A05A01D5E</string>
+<key>GroupingIdentifier</key><string>3E62B8FA-409E-468B-BF15-C17F60F58C1B</string>
+<key>WFControlFlowMode</key><integer>0</integer>
+<key>WFCondition</key><integer>101</integer>
+<key>WFInput</key><dict><key>Type</key><string>Variable</string>
+<key>Variable</key><dict><key>Value</key><dict><key>Type</key><string>ActionOutput</string>
+<key>OutputUUID</key><string>D227C140-FB2E-4133-95B1-D22717656AC9</string>
+<key>OutputName</key><string>Health Samples</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenAttachment</string></dict></dict></dict></dict>
+<dict><key>WFWorkflowActionIdentifier</key><string>is.workflow.actions.showresult</string>
+<key>WFWorkflowActionParameters</key><dict><key>UUID</key><string>ED7500F0-56F3-4CCC-803F-C3A6FFEF2969</string>
+<key>Text</key><dict><key>Value</key><dict><key>string</key><string>Keine heutigen Messungen für stepCount. Nichts übertragen. Prüfe Health-Leserechte und heutige Daten. Kein Treffer bedeutet nicht sicher 0.</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenString</string></dict></dict></dict>
+<dict><key>WFWorkflowActionIdentifier</key><string>is.workflow.actions.exit</string>
+<key>WFWorkflowActionParameters</key><dict><key>UUID</key><string>334E8DC3-27DC-444E-AA01-1A158A422818</string></dict></dict>
+<dict><key>WFWorkflowActionIdentifier</key><string>is.workflow.actions.conditional</string>
+<key>WFWorkflowActionParameters</key><dict><key>UUID</key><string>8D758AE6-D96C-47EC-A0EE-D32FC85A2862</string>
+<key>GroupingIdentifier</key><string>3E62B8FA-409E-468B-BF15-C17F60F58C1B</string>
+<key>WFControlFlowMode</key><integer>2</integer></dict></dict>
+<dict><key>WFWorkflowActionIdentifier</key><string>is.workflow.actions.properties.health.quantity</string>
+<key>WFWorkflowActionParameters</key><dict><key>UUID</key><string>D6491596-98E0-46F0-97E8-474545CCA025</string>
+<key>WFContentItemPropertyName</key><string>Value</string>
+<key>WFInput</key><dict><key>Value</key><dict><key>Type</key><string>ActionOutput</string>
+<key>OutputUUID</key><string>D227C140-FB2E-4133-95B1-D22717656AC9</string>
+<key>OutputName</key><string>Health Samples</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenAttachment</string></dict></dict></dict>
+<dict><key>WFWorkflowActionIdentifier</key><string>is.workflow.actions.statistics</string>
+<key>WFWorkflowActionParameters</key><dict><key>UUID</key><string>8F48DC2C-0184-4B73-8DAD-E88B13AA7E08</string>
+<key>WFStatisticsOperation</key><string>Sum</string>
+<key>Input</key><dict><key>Value</key><dict><key>Type</key><string>ActionOutput</string>
+<key>OutputUUID</key><string>D6491596-98E0-46F0-97E8-474545CCA025</string>
+<key>OutputName</key><string>Value</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenAttachment</string></dict></dict></dict>
+<dict><key>WFWorkflowActionIdentifier</key><string>is.workflow.actions.setvariable</string>
+<key>WFWorkflowActionParameters</key><dict><key>UUID</key><string>F19F1BCA-CD8C-4D7E-9EF3-139DA9A1C70B</string>
+<key>WFVariableName</key><string>stepCount</string>
+<key>WFInput</key><dict><key>Value</key><dict><key>Type</key><string>ActionOutput</string>
+<key>OutputUUID</key><string>8F48DC2C-0184-4B73-8DAD-E88B13AA7E08</string>
+<key>OutputName</key><string>Statistics</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenAttachment</string></dict></dict></dict>
+<dict><key>WFWorkflowActionIdentifier</key><string>is.workflow.actions.comment</string>
+<key>WFWorkflowActionParameters</key><dict><key>UUID</key><string>BBC6C562-C3CA-485B-A664-20D137796535</string>
+<key>WFCommentActionText</key><string>moveCalories: nur heute. Die Summe wird einmal nach dem Auslesen gebildet. Keine Einzelmessungen im POST.</string></dict></dict>
+<dict><key>WFWorkflowActionIdentifier</key><string>is.workflow.actions.filter.health.quantity</string>
+<key>WFWorkflowActionParameters</key><dict><key>UUID</key><string>EED54274-F3A5-4DF4-8C16-058965444410</string>
+<key>WFContentItemLimitEnabled</key><false/>
+<key>WFContentItemFilter</key><dict><key>Value</key><dict><key>WFActionParameterFilterPrefix</key><integer>1</integer>
+<key>WFContentPredicateBoundedDate</key><false/>
+<key>WFActionParameterFilterTemplates</key><array><dict><key>Bounded</key><true/>
+<key>Removable</key><false/>
+<key>Property</key><string>Type</string>
+<key>Operator</key><integer>4</integer>
+<key>Values</key><dict><key>Enumeration</key><dict><key>Value</key><string>Active Calories</string>
+<key>WFSerializationType</key><string>WFStringSubstitutableState</string></dict></dict></dict>
+<dict><key>Bounded</key><true/>
+<key>Removable</key><false/>
+<key>Property</key><string>Start Date</string>
+<key>Operator</key><integer>1002</integer>
+<key>Values</key><dict><key>Number</key><string>7</string>
+<key>Unit</key><integer>16</integer></dict></dict></array></dict>
+<key>WFSerializationType</key><string>WFContentPredicateTableTemplate</string></dict></dict></dict>
+<dict><key>WFWorkflowActionIdentifier</key><string>is.workflow.actions.conditional</string>
+<key>WFWorkflowActionParameters</key><dict><key>UUID</key><string>BF3BEEF4-EABB-42ED-9CB5-AEF211371F31</string>
+<key>GroupingIdentifier</key><string>584CB2EF-E99F-48E4-A557-88A8BD4E7BA2</string>
+<key>WFControlFlowMode</key><integer>0</integer>
+<key>WFCondition</key><integer>101</integer>
+<key>WFInput</key><dict><key>Type</key><string>Variable</string>
+<key>Variable</key><dict><key>Value</key><dict><key>Type</key><string>ActionOutput</string>
+<key>OutputUUID</key><string>EED54274-F3A5-4DF4-8C16-058965444410</string>
+<key>OutputName</key><string>Health Samples</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenAttachment</string></dict></dict></dict></dict>
+<dict><key>WFWorkflowActionIdentifier</key><string>is.workflow.actions.showresult</string>
+<key>WFWorkflowActionParameters</key><dict><key>UUID</key><string>25784ECF-02D8-4090-8CA3-455D792E136E</string>
+<key>Text</key><dict><key>Value</key><dict><key>string</key><string>Keine heutigen Messungen für moveCalories. Nichts übertragen. Prüfe Health-Leserechte und heutige Daten. Kein Treffer bedeutet nicht sicher 0.</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenString</string></dict></dict></dict>
+<dict><key>WFWorkflowActionIdentifier</key><string>is.workflow.actions.exit</string>
+<key>WFWorkflowActionParameters</key><dict><key>UUID</key><string>D303A3D4-27CF-490E-8231-0ADC402BB87B</string></dict></dict>
+<dict><key>WFWorkflowActionIdentifier</key><string>is.workflow.actions.conditional</string>
+<key>WFWorkflowActionParameters</key><dict><key>UUID</key><string>14F01862-52D8-47CA-8D3C-B93A74609B64</string>
+<key>GroupingIdentifier</key><string>584CB2EF-E99F-48E4-A557-88A8BD4E7BA2</string>
+<key>WFControlFlowMode</key><integer>2</integer></dict></dict>
+<dict><key>WFWorkflowActionIdentifier</key><string>is.workflow.actions.dictionary</string>
+<key>WFWorkflowActionParameters</key><dict><key>UUID</key><string>F114215B-D739-49AE-B11B-571C964C92F4</string>
+<key>WFItems</key><dict><key>Value</key><dict><key>WFDictionaryFieldValueItems</key><array><dict><key>WFKey</key><dict><key>Value</key><dict><key>string</key><string>kcal</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenString</string></dict>
+<key>WFItemType</key><integer>3</integer>
+<key>WFValue</key><dict><key>Value</key><dict><key>string</key><string>1</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenString</string></dict></dict>
+<dict><key>WFKey</key><dict><key>Value</key><dict><key>string</key><string>Cal</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenString</string></dict>
+<key>WFItemType</key><integer>3</integer>
+<key>WFValue</key><dict><key>Value</key><dict><key>string</key><string>1</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenString</string></dict></dict>
+<dict><key>WFKey</key><dict><key>Value</key><dict><key>string</key><string>kJ</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenString</string></dict>
+<key>WFItemType</key><integer>3</integer>
+<key>WFValue</key><dict><key>Value</key><dict><key>string</key><string>1000</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenString</string></dict></dict>
+<dict><key>WFKey</key><dict><key>Value</key><dict><key>string</key><string>J</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenString</string></dict>
+<key>WFItemType</key><integer>3</integer>
+<key>WFValue</key><dict><key>Value</key><dict><key>string</key><string>1</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenString</string></dict></dict></array></dict>
+<key>WFSerializationType</key><string>WFDictionaryFieldValue</string></dict></dict></dict>
+<dict><key>WFWorkflowActionIdentifier</key><string>is.workflow.actions.dictionary</string>
+<key>WFWorkflowActionParameters</key><dict><key>UUID</key><string>FD3460A2-4D75-4491-864D-CA942ABC26C8</string>
+<key>WFItems</key><dict><key>Value</key><dict><key>WFDictionaryFieldValueItems</key><array><dict><key>WFKey</key><dict><key>Value</key><dict><key>string</key><string>kcal</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenString</string></dict>
+<key>WFItemType</key><integer>3</integer>
+<key>WFValue</key><dict><key>Value</key><dict><key>string</key><string>1</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenString</string></dict></dict>
+<dict><key>WFKey</key><dict><key>Value</key><dict><key>string</key><string>Cal</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenString</string></dict>
+<key>WFItemType</key><integer>3</integer>
+<key>WFValue</key><dict><key>Value</key><dict><key>string</key><string>1</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenString</string></dict></dict>
+<dict><key>WFKey</key><dict><key>Value</key><dict><key>string</key><string>kJ</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenString</string></dict>
+<key>WFItemType</key><integer>3</integer>
+<key>WFValue</key><dict><key>Value</key><dict><key>string</key><string>4184</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenString</string></dict></dict>
+<dict><key>WFKey</key><dict><key>Value</key><dict><key>string</key><string>J</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenString</string></dict>
+<key>WFItemType</key><integer>3</integer>
+<key>WFValue</key><dict><key>Value</key><dict><key>string</key><string>4184</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenString</string></dict></dict></array></dict>
+<key>WFSerializationType</key><string>WFDictionaryFieldValue</string></dict></dict></dict>
+<dict><key>WFWorkflowActionIdentifier</key><string>is.workflow.actions.repeat.each</string>
+<key>WFWorkflowActionParameters</key><dict><key>UUID</key><string>6621640A-BFF4-49F1-AE99-1DE8ADD8827E</string>
+<key>GroupingIdentifier</key><string>E17EDB0C-E86C-45DD-989F-131F9AC2FA8B</string>
+<key>WFControlFlowMode</key><integer>0</integer>
+<key>WFInput</key><dict><key>Value</key><dict><key>Type</key><string>ActionOutput</string>
+<key>OutputUUID</key><string>EED54274-F3A5-4DF4-8C16-058965444410</string>
+<key>OutputName</key><string>Health Samples</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenAttachment</string></dict></dict></dict>
+<dict><key>WFWorkflowActionIdentifier</key><string>is.workflow.actions.properties.health.quantity</string>
+<key>WFWorkflowActionParameters</key><dict><key>UUID</key><string>D3016CF6-2002-4EE9-8C4F-41830884CA2E</string>
+<key>WFContentItemPropertyName</key><string>Value</string>
+<key>WFInput</key><dict><key>Value</key><dict><key>Type</key><string>Variable</string>
+<key>VariableName</key><string>Repeat Item</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenAttachment</string></dict></dict></dict>
+<dict><key>WFWorkflowActionIdentifier</key><string>is.workflow.actions.properties.health.quantity</string>
+<key>WFWorkflowActionParameters</key><dict><key>UUID</key><string>FA7BCF6A-86FC-4F1E-9EDE-64B9EF3D8F7A</string>
+<key>WFContentItemPropertyName</key><string>Unit</string>
+<key>WFInput</key><dict><key>Value</key><dict><key>Type</key><string>Variable</string>
+<key>VariableName</key><string>Repeat Item</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenAttachment</string></dict></dict></dict>
+<dict><key>WFWorkflowActionIdentifier</key><string>is.workflow.actions.getvalueforkey</string>
+<key>WFWorkflowActionParameters</key><dict><key>UUID</key><string>34921600-271C-453E-985C-2B48361E427E</string>
+<key>WFGetDictionaryValueType</key><string>Value</string>
+<key>WFDictionaryKey</key><dict><key>Value</key><dict><key>string</key><string>￼</string>
+<key>attachmentsByRange</key><dict><key>{0, 1}</key><dict><key>Type</key><string>ActionOutput</string>
+<key>OutputUUID</key><string>FA7BCF6A-86FC-4F1E-9EDE-64B9EF3D8F7A</string>
+<key>OutputName</key><string>Unit</string></dict></dict></dict>
+<key>WFSerializationType</key><string>WFTextTokenString</string></dict>
+<key>WFInput</key><dict><key>Value</key><dict><key>Type</key><string>ActionOutput</string>
+<key>OutputUUID</key><string>F114215B-D739-49AE-B11B-571C964C92F4</string>
+<key>OutputName</key><string>Dictionary</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenAttachment</string></dict></dict></dict>
+<dict><key>WFWorkflowActionIdentifier</key><string>is.workflow.actions.conditional</string>
+<key>WFWorkflowActionParameters</key><dict><key>UUID</key><string>0E417C25-42EE-4997-9D0F-7DFD0752C982</string>
+<key>GroupingIdentifier</key><string>4D5A5C68-9154-4049-9D0D-76E68D4A271B</string>
+<key>WFControlFlowMode</key><integer>0</integer>
+<key>WFCondition</key><integer>101</integer>
+<key>WFInput</key><dict><key>Type</key><string>Variable</string>
+<key>Variable</key><dict><key>Value</key><dict><key>Type</key><string>ActionOutput</string>
+<key>OutputUUID</key><string>34921600-271C-453E-985C-2B48361E427E</string>
+<key>OutputName</key><string>Dictionary Value</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenAttachment</string></dict></dict></dict></dict>
+<dict><key>WFWorkflowActionIdentifier</key><string>is.workflow.actions.showresult</string>
+<key>WFWorkflowActionParameters</key><dict><key>UUID</key><string>D6C1CDB5-9520-473D-99EB-E1DE2A64B1D4</string>
+<key>Text</key><dict><key>Value</key><dict><key>string</key><string>Unbekannte Einheit für moveCalories. Nichts übertragen. Bitte die Einheit im Kurzbefehl prüfen.</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenString</string></dict></dict></dict>
+<dict><key>WFWorkflowActionIdentifier</key><string>is.workflow.actions.exit</string>
+<key>WFWorkflowActionParameters</key><dict><key>UUID</key><string>91F2F285-BF10-4AFD-8782-645435C2B13B</string></dict></dict>
+<dict><key>WFWorkflowActionIdentifier</key><string>is.workflow.actions.conditional</string>
+<key>WFWorkflowActionParameters</key><dict><key>UUID</key><string>5ECA8C03-790E-4052-BF8C-118CBD33B072</string>
+<key>GroupingIdentifier</key><string>4D5A5C68-9154-4049-9D0D-76E68D4A271B</string>
+<key>WFControlFlowMode</key><integer>2</integer></dict></dict>
+<dict><key>WFWorkflowActionIdentifier</key><string>is.workflow.actions.getvalueforkey</string>
+<key>WFWorkflowActionParameters</key><dict><key>UUID</key><string>6B03E3CC-2898-4453-A844-4FFAE0793DDA</string>
+<key>WFGetDictionaryValueType</key><string>Value</string>
+<key>WFDictionaryKey</key><dict><key>Value</key><dict><key>string</key><string>￼</string>
+<key>attachmentsByRange</key><dict><key>{0, 1}</key><dict><key>Type</key><string>ActionOutput</string>
+<key>OutputUUID</key><string>FA7BCF6A-86FC-4F1E-9EDE-64B9EF3D8F7A</string>
+<key>OutputName</key><string>Unit</string></dict></dict></dict>
+<key>WFSerializationType</key><string>WFTextTokenString</string></dict>
+<key>WFInput</key><dict><key>Value</key><dict><key>Type</key><string>ActionOutput</string>
+<key>OutputUUID</key><string>FD3460A2-4D75-4491-864D-CA942ABC26C8</string>
+<key>OutputName</key><string>Dictionary</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenAttachment</string></dict></dict></dict>
+<dict><key>WFWorkflowActionIdentifier</key><string>is.workflow.actions.math</string>
+<key>WFWorkflowActionParameters</key><dict><key>UUID</key><string>CF280908-5EF6-466F-9ED4-12E3CB4890E6</string>
+<key>WFInput</key><dict><key>Value</key><dict><key>Type</key><string>ActionOutput</string>
+<key>OutputUUID</key><string>D3016CF6-2002-4EE9-8C4F-41830884CA2E</string>
+<key>OutputName</key><string>Value</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenAttachment</string></dict>
+<key>WFMathOperation</key><string>×</string>
+<key>WFMathOperand</key><dict><key>Value</key><dict><key>string</key><string>￼</string>
+<key>attachmentsByRange</key><dict><key>{0, 1}</key><dict><key>Type</key><string>ActionOutput</string>
+<key>OutputUUID</key><string>34921600-271C-453E-985C-2B48361E427E</string>
+<key>OutputName</key><string>Dictionary Value</string></dict></dict></dict>
+<key>WFSerializationType</key><string>WFTextTokenString</string></dict></dict></dict>
+<dict><key>WFWorkflowActionIdentifier</key><string>is.workflow.actions.math</string>
+<key>WFWorkflowActionParameters</key><dict><key>UUID</key><string>1721E9C7-5372-4267-A261-1C74AD7E1720</string>
+<key>WFInput</key><dict><key>Value</key><dict><key>Type</key><string>ActionOutput</string>
+<key>OutputUUID</key><string>CF280908-5EF6-466F-9ED4-12E3CB4890E6</string>
+<key>OutputName</key><string>Calculation Result</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenAttachment</string></dict>
+<key>WFMathOperation</key><string>÷</string>
+<key>WFMathOperand</key><dict><key>Value</key><dict><key>string</key><string>￼</string>
+<key>attachmentsByRange</key><dict><key>{0, 1}</key><dict><key>Type</key><string>ActionOutput</string>
+<key>OutputUUID</key><string>6B03E3CC-2898-4453-A844-4FFAE0793DDA</string>
+<key>OutputName</key><string>Dictionary Value</string></dict></dict></dict>
+<key>WFSerializationType</key><string>WFTextTokenString</string></dict></dict></dict>
+<dict><key>WFWorkflowActionIdentifier</key><string>is.workflow.actions.repeat.each</string>
+<key>WFWorkflowActionParameters</key><dict><key>UUID</key><string>C34EAC4A-6233-4584-8214-7FE4E2F8BE34</string>
+<key>GroupingIdentifier</key><string>E17EDB0C-E86C-45DD-989F-131F9AC2FA8B</string>
+<key>WFControlFlowMode</key><integer>2</integer></dict></dict>
+<dict><key>WFWorkflowActionIdentifier</key><string>is.workflow.actions.statistics</string>
+<key>WFWorkflowActionParameters</key><dict><key>UUID</key><string>F5D2CAC5-B285-4D5A-B616-31C518EC581A</string>
+<key>WFStatisticsOperation</key><string>Sum</string>
+<key>Input</key><dict><key>Value</key><dict><key>Type</key><string>ActionOutput</string>
+<key>OutputUUID</key><string>C34EAC4A-6233-4584-8214-7FE4E2F8BE34</string>
+<key>OutputName</key><string>Repeat Results</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenAttachment</string></dict></dict></dict>
+<dict><key>WFWorkflowActionIdentifier</key><string>is.workflow.actions.setvariable</string>
+<key>WFWorkflowActionParameters</key><dict><key>UUID</key><string>7A6EE78F-2FAA-44E8-860E-5CB6330025E4</string>
+<key>WFVariableName</key><string>moveCalories</string>
+<key>WFInput</key><dict><key>Value</key><dict><key>Type</key><string>ActionOutput</string>
+<key>OutputUUID</key><string>F5D2CAC5-B285-4D5A-B616-31C518EC581A</string>
+<key>OutputName</key><string>Statistics</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenAttachment</string></dict></dict></dict>
+<dict><key>WFWorkflowActionIdentifier</key><string>is.workflow.actions.gettext</string>
+<key>WFWorkflowActionParameters</key><dict><key>UUID</key><string>5929D3ED-D03F-41C0-B75E-8AAAE13A36C6</string>
+<key>WFTextActionText</key><dict><key>Value</key><dict><key>string</key><string>￼</string>
+<key>attachmentsByRange</key><dict><key>{0, 1}</key><dict><key>Type</key><string>Variable</string>
+<key>VariableName</key><string>moveCalories</string></dict></dict></dict>
+<key>WFSerializationType</key><string>WFTextTokenString</string></dict></dict></dict>
+<dict><key>WFWorkflowActionIdentifier</key><string>is.workflow.actions.round</string>
+<key>WFWorkflowActionParameters</key><dict><key>UUID</key><string>0122D9A5-E84B-42C7-AD1A-B03A19E7AC32</string>
+<key>WFInput</key><dict><key>Value</key><dict><key>Type</key><string>Variable</string>
+<key>VariableName</key><string>stepCount</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenAttachment</string></dict>
+<key>WFRoundTo</key><string>Ones Place</string>
+<key>WFRoundMode</key><string>Normal</string></dict></dict>
+<dict><key>WFWorkflowActionIdentifier</key><string>is.workflow.actions.setvariable</string>
+<key>WFWorkflowActionParameters</key><dict><key>UUID</key><string>D85139C8-62A0-4DF3-8E9B-EFCB0676324B</string>
+<key>WFVariableName</key><string>stepCount</string>
+<key>WFInput</key><dict><key>Value</key><dict><key>Type</key><string>ActionOutput</string>
+<key>OutputUUID</key><string>0122D9A5-E84B-42C7-AD1A-B03A19E7AC32</string>
+<key>OutputName</key><string>Rounded Number</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenAttachment</string></dict></dict></dict>
+<dict><key>WFWorkflowActionIdentifier</key><string>is.workflow.actions.round</string>
+<key>WFWorkflowActionParameters</key><dict><key>UUID</key><string>52443CBD-DFC8-4528-84B2-5CFE245445EE</string>
+<key>WFInput</key><dict><key>Value</key><dict><key>Type</key><string>Variable</string>
+<key>VariableName</key><string>moveCalories</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenAttachment</string></dict>
+<key>WFRoundTo</key><string>Ones Place</string>
+<key>WFRoundMode</key><string>Normal</string></dict></dict>
+<dict><key>WFWorkflowActionIdentifier</key><string>is.workflow.actions.setvariable</string>
+<key>WFWorkflowActionParameters</key><dict><key>UUID</key><string>3A1E3225-74A0-40DA-BF1A-3ECAD0284AB6</string>
+<key>WFVariableName</key><string>moveCalories</string>
+<key>WFInput</key><dict><key>Value</key><dict><key>Type</key><string>ActionOutput</string>
+<key>OutputUUID</key><string>52443CBD-DFC8-4528-84B2-5CFE245445EE</string>
+<key>OutputName</key><string>Rounded Number</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenAttachment</string></dict></dict></dict>
+<dict><key>WFWorkflowActionIdentifier</key><string>is.workflow.actions.showresult</string>
+<key>WFWorkflowActionParameters</key><dict><key>UUID</key><string>7E87F96A-CAC3-4E94-A6BC-6BE1447218E8</string>
+<key>Text</key><dict><key>Value</key><dict><key>string</key><string>Aktive Energie vor Rundung: ￼ kcal
+Für JSON (ganze kcal): ￼
+Bitte beide Zahlen mit Fitness und dem Importprotokoll vergleichen. Schritt-Abweichung noch ungelöst.</string>
+<key>attachmentsByRange</key><dict><key>{28, 1}</key><dict><key>Type</key><string>ActionOutput</string>
+<key>OutputUUID</key><string>5929D3ED-D03F-41C0-B75E-8AAAE13A36C6</string>
+<key>OutputName</key><string>Text</string></dict>
+<key>{58, 1}</key><dict><key>Type</key><string>Variable</string>
+<key>VariableName</key><string>moveCalories</string></dict></dict></dict>
+<key>WFSerializationType</key><string>WFTextTokenString</string></dict></dict></dict>
+<dict><key>WFWorkflowActionIdentifier</key><string>is.workflow.actions.downloadurl</string>
+<key>WFWorkflowActionParameters</key><dict><key>UUID</key><string>9E5EDE36-DB46-49EE-AA38-19F706AC4CEC</string>
+<key>WFURL</key><dict><key>Value</key><dict><key>string</key><string>http://192.168.1.253:3000/api/sync/apple-health</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenString</string></dict>
+<key>WFHTTPMethod</key><string>POST</string>
+<key>WFHTTPBodyType</key><string>JSON</string>
+<key>WFJSONValues</key><dict><key>Value</key><dict><key>WFDictionaryFieldValueItems</key><array><dict><key>WFKey</key><dict><key>Value</key><dict><key>string</key><string>profileId</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenString</string></dict>
+<key>WFItemType</key><integer>0</integer>
+<key>WFValue</key><dict><key>Value</key><dict><key>string</key><string>papa</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenString</string></dict></dict>
+<dict><key>WFKey</key><dict><key>Value</key><dict><key>string</key><string>secret</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenString</string></dict>
+<key>WFItemType</key><integer>0</integer>
+<key>WFValue</key><dict><key>Value</key><dict><key>string</key><string>￼</string>
+<key>attachmentsByRange</key><dict><key>{0, 1}</key><dict><key>Type</key><string>ActionOutput</string>
+<key>OutputUUID</key><string>8DED20C7-AD47-453D-9044-5770364EBEA1</string>
+<key>OutputName</key><string>Text</string></dict></dict></dict>
+<key>WFSerializationType</key><string>WFTextTokenString</string></dict></dict>
+<dict><key>WFKey</key><dict><key>Value</key><dict><key>string</key><string>dailyActivity</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenString</string></dict>
+<key>WFItemType</key><integer>1</integer>
+<key>WFValue</key><dict><key>Value</key><dict><key>Value</key><dict><key>WFDictionaryFieldValueItems</key><array><dict><key>WFKey</key><dict><key>Value</key><dict><key>string</key><string>date</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenString</string></dict>
+<key>WFItemType</key><integer>0</integer>
+<key>WFValue</key><dict><key>Value</key><dict><key>string</key><string>￼</string>
+<key>attachmentsByRange</key><dict><key>{0, 1}</key><dict><key>Type</key><string>ActionOutput</string>
+<key>OutputUUID</key><string>DC62FCF0-1DE9-4AB2-9BBF-99CB52CD114E</string>
+<key>OutputName</key><string>Formatted Date</string></dict></dict></dict>
+<key>WFSerializationType</key><string>WFTextTokenString</string></dict></dict>
+<dict><key>WFKey</key><dict><key>Value</key><dict><key>string</key><string>exerciseMinutes</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenString</string></dict>
+<key>WFItemType</key><integer>3</integer>
+<key>WFValue</key><dict><key>Value</key><dict><key>string</key><string>￼</string>
+<key>attachmentsByRange</key><dict><key>{0, 1}</key><dict><key>Type</key><string>Variable</string>
+<key>VariableName</key><string>exerciseMinutes</string></dict></dict></dict>
+<key>WFSerializationType</key><string>WFTextTokenString</string></dict></dict>
+<dict><key>WFKey</key><dict><key>Value</key><dict><key>string</key><string>stepCount</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenString</string></dict>
+<key>WFItemType</key><integer>3</integer>
+<key>WFValue</key><dict><key>Value</key><dict><key>string</key><string>￼</string>
+<key>attachmentsByRange</key><dict><key>{0, 1}</key><dict><key>Type</key><string>Variable</string>
+<key>VariableName</key><string>stepCount</string></dict></dict></dict>
+<key>WFSerializationType</key><string>WFTextTokenString</string></dict></dict>
+<dict><key>WFKey</key><dict><key>Value</key><dict><key>string</key><string>moveCalories</string></dict>
+<key>WFSerializationType</key><string>WFTextTokenString</string></dict>
+<key>WFItemType</key><integer>3</integer>
+<key>WFValue</key><dict><key>Value</key><dict><key>string</key><string>￼</string>
+<key>attachmentsByRange</key><dict><key>{0, 1}</key><dict><key>Type</key><string>Variable</string>
+<key>VariableName</key><string>moveCalories</string></dict></dict></dict>
+<key>WFSerializationType</key><string>WFTextTokenString</string></dict></dict></array></dict>
+<key>WFSerializationType</key><string>WFDictionaryFieldValue</string></dict>
+<key>WFSerializationType</key><string>WFDictionaryFieldValue</string></dict></dict></array></dict>
+<key>WFSerializationType</key><string>WFDictionaryFieldValue</string></dict></dict></dict>
+<dict><key>WFWorkflowActionIdentifier</key><string>is.workflow.actions.showresult</string>
+<key>WFWorkflowActionParameters</key><dict><key>UUID</key><string>4836577D-ADEA-493D-871E-27ED4053D381</string>
+<key>Text</key><dict><key>Value</key><dict><key>string</key><string>￼</string>
+<key>attachmentsByRange</key><dict><key>{0, 1}</key><dict><key>Type</key><string>ActionOutput</string>
+<key>OutputUUID</key><string>9E5EDE36-DB46-49EE-AA38-19F706AC4CEC</string>
+<key>OutputName</key><string>Contents of URL</string></dict></dict></dict>
+<key>WFSerializationType</key><string>WFTextTokenString</string></dict></dict></dict></array>
+<key>WFWorkflowClientVersion</key><string>2600.0.0</string>
+<key>WFWorkflowMinimumClientVersion</key><integer>900</integer>
+<key>WFWorkflowMinimumClientVersionString</key><string>900</string>
+<key>WFWorkflowHasOutputFallback</key><false/>
+<key>WFWorkflowIcon</key><dict><key>WFWorkflowIconStartColor</key><integer>4282601983</integer>
+<key>WFWorkflowIconGlyphNumber</key><integer>59511</integer></dict>
+<key>WFWorkflowInputContentItemClasses</key><array></array>
+<key>WFWorkflowOutputContentItemClasses</key><array></array>
+<key>WFWorkflowTypes</key><array></array>
+<key>WFWorkflowImportQuestions</key><array></array></dict></plist>

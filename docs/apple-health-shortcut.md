@@ -13,7 +13,18 @@ Erzeugen und auf einem Mac signieren:
 node scripts/generate-health-shortcut.mjs --sign
 ```
 
-Nach erfolgreicher Signierung liegt die Testdatei unter `artifacts/FitFamily-Health-Vergleich-v1.signed.shortcut`.
+Nach erfolgreicher Signierung liegt die Testdatei unter `artifacts/FitFamily-Health-Vergleich-v3.signed.shortcut`.
+v3 zeigt die berechnete aktive Energie vor der JSON-Übergabe und ihren gerundeten
+Wert an. Gesendet werden ganze kcal (maximal 0,5 kcal Rundungsabweichung), damit
+Dezimaltrennzeichen beim Einsetzen in numerische Wörterbuchfelder keine riesigen
+Zahlen erzeugen. Mit der Vorschau kann der nächste iPhone-Test feststellen, ob
+der Fehler schon in der Berechnung oder erst bei der JSON-Konvertierung entsteht.
+v2 verbesserte die Signierung: Bei
+Apple-Fehler 500/502 genau ein erneuter Versuch mit identischer Datei und identischem
+Modus. Ungültige Dateien und Zeitüberschreitungen werden nicht automatisch wiederholt.
+Erst bei Erfolg wird die signierte Ausgabe übernommen. Bei Fehlern erscheint eine
+kurze Diagnose statt eines Node-Stacktraces; eine vorhandene alte signed-Datei darf
+nicht als neues Ergebnis dieses Laufs betrachtet werden.
 Bei wiederholtem Fehler 502 im Modus `anyone` ist für die persönliche Übertragung alternativ `npm run health:shortcut -- --sign --sign-mode people-who-know-me` möglich. Dieser Apple-Modus fügt Kontaktinformationen des Erstellers hinzu und beschränkt die Nutzung auf Personen, die ihn in ihren Kontakten haben. Nur bewusst wählen; kein automatischer Fallback. Der Generator signiert in einem temporären Verzeichnis und übernimmt die Ausgabedatei ausschließlich nach erfolgreichem Abschluss.
 Die Strukturtests ersetzen keinen Lauf auf dem iPhone. Datum und alle drei Tageswerte
 nach dem Import mit Health und dem Serverprotokoll vergleichen. Die alte Vorlage

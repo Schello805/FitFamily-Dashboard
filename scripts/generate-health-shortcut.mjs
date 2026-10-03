@@ -86,8 +86,19 @@ export function buildHealthShortcut({ profileId = "papa", server = "http://192.1
     const total = action("statistics", { WFStatisticsOperation: "Sum", Input: input(ref(results, "Repeat Results")) });
     action("setvariable", { WFVariableName: metric.key, WFInput: input(ref(total, "Statistics")) });
   }
-  const rounded = action("round", { WFInput: input(variable("stepCount")), WFRoundTo: "Ones Place", WFRoundMode: "Normal" });
-  action("setvariable", { WFVariableName: "stepCount", WFInput: input(ref(rounded, "Rounded Number")) });
+  // Compare the native computed energy with its JSON value. A decimal inserted
+  // into a numeric dictionary field can be reparsed using the iPhone locale.
+  // Whole kcal avoid that decimal text path; Fitness also displays whole kcal.
+  const energyBeforeRounding = action("gettext", { WFTextActionText: tokenText(variable("moveCalories")) });
+  for (const key of ["stepCount", "moveCalories"]) {
+    const rounded = action("round", { WFInput: input(variable(key)), WFRoundTo: "Ones Place", WFRoundMode: "Normal" });
+    action("setvariable", { WFVariableName: key, WFInput: input(ref(rounded, "Rounded Number")) });
+  }
+  const previewText = "Aktive Energie vor Rundung: \uFFFC kcal\nFür JSON (ganze kcal): \uFFFC\nBitte beide Zahlen mit Fitness und dem Importprotokoll vergleichen. Schritt-Abweichung noch ungelöst.";
+  action("showresult", { Text: state("WFTextTokenString", { string: previewText, attachmentsByRange: {
+    [`{${previewText.indexOf("\uFFFC")}, 1}`]: ref(energyBeforeRounding, "Text"),
+    [`{${previewText.lastIndexOf("\uFFFC")}, 1}`]: variable("moveCalories")
+  } }) });
   const day = dictionary([
     item("date", ITEM_TYPES.text, tokenText(ref(date, "Formatted Date"))),
     ...METRICS.map(({ key }) => item(key, ITEM_TYPES.number, tokenText(variable(key))))
@@ -122,7 +133,24 @@ export function plist(value) {
   return `<dict>${Object.entries(value).map(([key, item]) => `<key>${escapeXml(key)}</key>${plist(item)}`).join("\n")}</dict>`;
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
+// Retry only Apple's transient server errors, once, with identical input/mode.
+export function signWithApple({ source, target, mode, run = spawnSync, hasOutput = existsSync, prepare = () => {}, report = (message) => console.log(message) }) {
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    prepare();
+    const result = run("/usr/bin/shortcuts", ["sign", "--mode", mode, "--input", source, "--output", target], { encoding: "utf8", timeout: 60000 });
+    if (result.status === 0 && hasOutput(target)) return;
+    const diagnostic = `${result.stderr ?? ""}\n${result.stdout ?? ""}`.trim();
+    const transient = /NSURLErrorDomain error (500|502)\b/.test(diagnostic);
+    if (attempt === 1 && transient) {
+      report("Apple meldet Fehler 500/502. Ein erneuter Versuch mit derselben Vorlage und demselben Modus …");
+      continue;
+    }
+    const reason = result.error?.code === "ETIMEDOUT" ? "Zeitüberschreitung bei Apple" : diagnostic || result.error?.message || "Keine gültige Ausgabedatei";
+    throw new Error(`Apple-Signierung fehlgeschlagen: ${reason}. Keine neue signierte Datei erstellt; Vorlage erhalten. Eine früher vorhandene signed-Datei ist nicht das Ergebnis dieses Laufs.`);
+  }
+}
+
+function main() {
   const args = process.argv.slice(2);
   const allowed = new Set(["--profile", "--server", "--output", "--sign", "--sign-mode"]);
   const options = {};
@@ -138,7 +166,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
   }
   const signMode = options["sign-mode"] ?? "anyone";
   if (!["anyone", "people-who-know-me"].includes(signMode)) throw new Error("Signierungsmodus muss anyone oder people-who-know-me sein.");
-  const output = resolve(options.output ?? "artifacts/FitFamily-Health-Vergleich-v1.unsigned.shortcut");
+  const output = resolve(options.output ?? "artifacts/FitFamily-Health-Vergleich-v3.unsigned.shortcut");
   mkdirSync(dirname(output), { recursive: true });
   writeFileSync(output, `<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n<plist version="1.0">${plist(buildHealthShortcut({ profileId: options.profile, server: options.server }))}</plist>\n`);
   console.log(`Vorlage erzeugt: ${output}`);
@@ -155,12 +183,19 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
       writeFileSync(source, readFileSync(output));
       const converted = spawnSync("/usr/bin/plutil", ["-convert", "binary1", source], { stdio: "inherit" });
       if (converted.status !== 0) throw new Error("Plist-Konvertierung fehlgeschlagen.");
-      const result = spawnSync("/usr/bin/shortcuts", ["sign", "--mode", signMode, "--input", source, "--output", target], { stdio: "inherit", timeout: 60000 });
-      if (result.status !== 0 || !existsSync(target)) throw new Error("Apple-Signierung fehlgeschlagen. Vorlage erhalten; keine neue signierte Datei erstellt. Bei Fehler 502 kann --sign-mode people-who-know-me für die persönliche Übertragung verwendet werden (enthält Kontaktinformationen).");
+      const binarySource = readFileSync(source);
+      signWithApple({ source, target, mode: signMode, prepare: () => writeFileSync(source, binarySource) });
       renameSync(target, signed);
     } finally {
       rmSync(staging, { recursive: true, force: true });
     }
     console.log(`Signierte iPhone-Testdatei: ${signed}`);
+  }
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
+  try { main(); } catch (error) {
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exitCode = 1;
   }
 }
