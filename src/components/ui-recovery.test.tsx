@@ -97,6 +97,18 @@ describe("dashboard interactions and freshness", () => {
     expect(chart).toHaveFocus();
   });
 
+  it("labels the vertical minute scale in both compact and expanded charts", () => {
+    render(<ActivityTrendChart points={[{ date: "2026-10-03", label: "03.10.", resolution: "Tag", activityMinutes: 42, targetMinutes: 21.4, measuredDays: 1, periodDays: 1 }]} color="#22d3ee" targetMinutes={150} targetPeriod="Woche" />);
+    const axis = screen.getByLabelText("Vertikale Achse: Minuten pro Tag");
+    expect(axis).toHaveTextContent("50 Min.");
+    expect(axis).toHaveTextContent("25 Min.");
+    expect(axis).toHaveTextContent("0 Min.");
+    expect([...axis.children].map((tick) => (tick as HTMLElement).style.top)).toEqual(["8%", "50%", "92%"]);
+    fireEvent.click(screen.getByRole("button"));
+    expect(screen.getAllByLabelText("Vertikale Achse: Minuten pro Tag")).toHaveLength(2);
+    expect(screen.getAllByText("50 Min.")).toHaveLength(2);
+  });
+
   it("retains last data but shows loss of connection and recovers on reconnect", async () => {
     let disconnected = false;
     vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {

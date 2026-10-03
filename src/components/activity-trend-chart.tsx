@@ -49,7 +49,10 @@ export function ActivityTrendChart({ points, color, targetMinutes, targetPeriod,
     };
   }, [detailsOpen, closeDetails]);
   const hasData = points.some((point) => point.activityMinutes !== null);
-  const scaleMax = Math.max(10, ...points.map((point) => Math.max(point.targetMinutes, point.activityMinutes ?? 0))) * 1.12;
+  const rawMax = Math.max(10, ...points.map((point) => Math.max(point.targetMinutes, point.activityMinutes ?? 0))) * 1.12;
+  const scaleStep = 10 ** Math.floor(Math.log10(rawMax));
+  const scaleMax = Math.ceil(rawMax / scaleStep) * scaleStep;
+  const axisFormat = new Intl.NumberFormat("de-DE", { maximumFractionDigits: 1 });
   const targetLine = makeLine(points, (point) => point.targetMinutes, scaleMax);
   const actualLine = makeLine(points, (point) => point.activityMinutes, scaleMax);
   const targetLabel = targetPeriod === "Woche"
@@ -67,7 +70,11 @@ export function ActivityTrendChart({ points, color, targetMinutes, targetPeriod,
         <span>VERLAUF · JAHRE / MONATE / TAGE</span>
         <span>{hasData ? "IST / SOLL" : "NOCH KEINE IST-DATEN"}</span>
       </div>
-      <svg viewBox="0 0 260 100" role="img" aria-label={`Verlauf der durchschnittlichen täglichen Trainingsminuten. ${explanation}`} preserveAspectRatio="none">
+      <div className="dashboard-history-plot">
+        <div className="dashboard-history-y-axis" aria-label="Vertikale Achse: Minuten pro Tag" style={{ width: `${axisFormat.format(scaleMax).length + 5}ch` }}>
+          {[scaleMax, scaleMax / 2, 0].map((value, index) => <span key={value} style={{ top: `${8 + 42 * index}%` }}>{axisFormat.format(value)} Min.</span>)}
+        </div>
+        <svg viewBox="0 0 260 100" role="img" aria-label={`Verlauf der durchschnittlichen täglichen Trainingsminuten. ${explanation}`} preserveAspectRatio="none">
         <path className="dashboard-history-grid" d="M2 8H258 M2 50H258 M2 92H258" />
         {yearIndex > 0 && <path className="dashboard-history-period-separator" d={`M${marker(firstMonthlyIndex)} 3V97`} />}
         {firstDailyIndex > 0 && <path className="dashboard-history-period-separator" d={`M${marker(firstDailyIndex)} 3V97`} />}
@@ -78,7 +85,8 @@ export function ActivityTrendChart({ points, color, targetMinutes, targetPeriod,
             <title>{`${point.label}: Ø ${new Intl.NumberFormat("de-DE", { maximumFractionDigits: 1 }).format(point.activityMinutes)} Minuten/Tag, Daten für ${point.measuredDays} von ${point.periodDays} Tagen.`}</title>
           </circle>
         ))}
-      </svg>
+        </svg>
+      </div>
       <div className="dashboard-history-chart-footer">
         <span>{points[0]?.label ?? ""}</span>
         <span>{points[firstDailyIndex]?.label ?? ""}</span>

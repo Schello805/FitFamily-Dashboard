@@ -254,6 +254,11 @@ body::before {
 .dashboard-history-chart-heading { color: var(--muted); }
 .dashboard-history-chart-footer { font-size: 8px; letter-spacing: .02em; font-weight: 700; }
 .dashboard-history-chart svg { display: block; width: 100%; height: 144px; overflow: visible; }
+.dashboard-history-plot { display: flex; gap: 6px; min-height: 0; min-width: 0; }
+.dashboard-history-plot svg { min-width: 0; flex: 1; }
+.dashboard-history-y-axis { position: relative; flex-shrink: 0; font-size: 9px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.dashboard-history-y-axis span { position: absolute; right: 0; transform: translateY(-50%); white-space: nowrap; }
+.dashboard-history-chart-large .dashboard-history-y-axis { font-size: 12px; }
 .dashboard-history-chart path { fill: none; stroke-linecap: round; stroke-linejoin: round; stroke-width: 2.4; }
 .dashboard-history-grid { stroke: var(--line-strong); stroke-width: 1.4; opacity: .62; }
 .dashboard-history-target { stroke: var(--muted); stroke-width: 2; stroke-dasharray: 5 5; opacity: .8; }
