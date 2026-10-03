@@ -441,19 +441,69 @@ export function ProfileView({
   }
 
   async function copyShortcutPrompt() {
-    const prompt = `Erstelle einen iPhone-Kurzbefehl „FitFamily Health Sync“ ausschließlich mit den eingebauten Apple-Kurzbefehle- und Health-Aktionen. Keine KI-, Cloud-Modell- oder Drittanbieter-Aktion im fertigen Kurzbefehl. Gesundheitsdaten dürfen nur an diesen FitFamily-Server gesendet werden: ${getWebhookUrl()}.
+    const prompt = `Hilf mir, den iPhone-Kurzbefehl „FitFamily Health Sync“ in Apple Kurzbefehle einzurichten. Gib eine nummerierte Anleitung für jede Aktion, jeden Filter, die Einheiten, Variablen und JSON-Feldtypen. Nutze ausschließlich eingebaute Kurzbefehle- und Health-Aktionen. Wenn eine Aktion oder Option in meiner iOS-Version fehlt, benenne die Einschränkung und frage nach dem sichtbaren Auswahlmenü, statt Funktionen zu erfinden. Der fertige Kurzbefehl enthält keine KI- oder Drittanbieter-Aktionen.
 
-Der Kurzbefehl überträgt zunächst ausschließlich die echten Tageswerte von HEUTE. Keine 30-Tage-Gesamtsummen, keine rückwirkenden Daten und keine erfundenen Beispieldaten. Suche jede Health-Art separat mit Startdatum „heute“, summiere nur deren heutige Treffer und verwende diese JSON-Feldnamen:
-- Aktive Energie / Active Energy: kcal -> moveCalories (Zahl)
-- Trainingsminuten / Exercise Time: Minuten -> exerciseMinutes (Zahl)
-- Schritte / Steps: Summe als ganze Zahl -> stepCount (ganze Zahl)
-- Geh- und Laufdistanz / Walking + Running Distance: Kilometer -> walkingRunningDistanceKm (Zahl)
-- Strecke (Fahrrad) / Cycling Distance: Kilometer -> cyclingDistanceKm (Zahl)
-Keine Etagen oder Stehminuten übertragen. Für den Stehen-Ring wird standHours benötigt: Anzahl erfüllter Stehstunden von heute. Wenn Kurzbefehle diesen Datentyp nicht anbietet, das Feld weglassen; Stand Time darf nicht durch 60 geteilt werden. Optional die tatsächlichen Ringziele als moveGoal (kcal), exerciseGoal (Minuten), standGoal (Stunden) übertragen. Zahlen müssen numerische JSON-Zahlen ohne Einheitstext bleiben.
+1. Verbindung und Datum
+Ziel-URL: ${getWebhookUrl()}
+Profil-ID: ${profile.id}
+Sync-Schlüssel: HIER_DEN_SYNC_SCHLUESSEL_EINFUEGEN (ich ersetze diesen Platzhalter nur auf meinem iPhone).
+iPhone und Server müssen im selben WLAN oder per VPN erreichbar sein. Health-Leseberechtigungen für die verwendeten Arten erteilen. Fehlende Berechtigung ist kein Tageswert von 0.
+Am Anfang „Aktuelles Datum“ erfassen und als LaufDatum speichern. „Datum formatieren“: ISO 8601 wählen, „Einschließlich ISO 8601-Zeit“ AUS. Ergebnis als Tagesdatum speichern. Das ergibt YYYY-MM-DD, z.B. 2026-10-03. Alle Abfragen beziehen sich auf denselben heutigen lokalen Kalendertag. Wenn während des Laufs das Datum wechselt, abbrechen und neu starten.
 
-Der POST-Body enthält profileId = „${profile.id}“, secret = „HIER_DEN_SYNC_SCHLUESSEL_EINFUEGEN“ und dailyActivity als einzelnes Wörterbuch. Dieses hat date im Format YYYY-MM-DD (heutiges lokales Datum) und die oben genannten Felder. Nach jeder Health-Suche ausdrücklich nur die numerischen Werte summieren, diese Summe als eigene benannte Variable speichern und im JSON diese Variable einsetzen. Niemals Health-Messobjekte oder die Suchergebnisliste an die URL-Aktion übergeben. Bei keinen Treffern, etwa keiner Radfahrt heute, den Tageswert auf 0 setzen und fortfahren; alternativ das optionale Feld weglassen. Führe genau eine Aktion „Inhalte von URL abrufen“ aus: POST an ${getWebhookUrl()}, Haupttext JSON. Den Secret-Platzhalter unverändert lassen; ich ersetze ihn selbst durch meinen privaten FitFamily-Schlüssel. Kein echter Schlüssel in einen geteilten Kurzbefehl. Zeige die Antwort des Servers an.
+2. Tageszahlen getrennt ermitteln
+Für jede der folgenden fünf Arten einen eigenen Block anlegen:
+• Aktive Energie / Active Energy bzw. Active Calories: Einheit kcal; Ergebnisvariable TagesKalorien; JSON-Feld moveCalories.
+• Trainingsminuten / Exercise Time: Einheit Minuten; TagesTraining; exerciseMinutes.
+• Schritte / Steps: Anzahl, ganze Zahl; TagesSchritte; stepCount.
+• Strecke (Gehen und Laufen): Einheit km; TagesGehstrecke; walkingRunningDistanceKm.
+• Strecke (Fahrrad): Einheit km; TagesRadstrecke; cyclingDistanceKm.
 
-Falls Kurzbefehle eine Health-Art oder einen Schritt nicht unterstützt, erfinde keine andere Datenstruktur, sondern erkläre genau, welche Aktion ich stattdessen antippen muss. iPhone und FitFamily-Server müssen im selben WLAN sein oder über VPN erreichbar sein.`;
+Jeder Block arbeitet so:
+a) „Health-Messungen suchen“: Alle Bedingungen, Typ = die jeweilige Art, Startdatum = heute. Gruppieren nach Tag, Beschränken AUS, keine zusätzliche Wert-Bedingung. Explizite Einheit einstellen; bei Schritten die angebotene Anzahl/Standardeinheit verwenden.
+b) Prüfen, ob die Abfrage ein Ergebnis hat. Bei erfolgreicher Abfrage ohne Messungen die Aktion „Zahl“ mit 0 verwenden, als Ergebnisvariable dieses Blocks speichern. Bei fehlender Radfahrt darf der Kurzbefehl deshalb nicht abbrechen. Bei fehlenden Leserechten abbrechen oder das Feld auslassen und eine verständliche Meldung zeigen.
+c) Bei vorhandenen Ergebnissen „Statistik berechnen“ mit Summe ausführen. Als Eingabe ausdrücklich den numerischen Wert der Ergebnisse dieser Health-Abfrage auswählen, bei Bedarf mit „Details von Health-Messungen abrufen“ → Wert. Bereits nach Tag zusammengefasste Werte nur einmal übernehmen; niemals sowohl Einzelmessungen als auch deren Tagessumme addieren.
+d) Das Ergebnis sofort mit „Variable festlegen“ unter dem oben genannten eindeutigen Namen speichern. Schritte als ganze Zahl runden. Die anderen Werte dürfen Dezimalzahlen sein. Keine formatierte Textzahl, keine Einheiten, kein Tausenderpunkt im JSON.
+e) In späteren Feldern genau diese benannte Variable auswählen. Nicht irgendeine der mehrfach vorkommenden Magic-Variablen „Summe“ und nicht „Health-Messungen“ verwenden.
+
+3. Stehen und Ringziele
+Stand Time / Stehminuten NICHT als Stehen-Ring verwenden. Auch Stehminuten geteilt durch 60 ist falsch: Der Ring zählt Stunden mit mindestens einer Minute Stehen und Bewegung. standMinutes deshalb ganz auslassen. standHours nur ergänzen, wenn Kurzbefehle tatsächlich erfüllte Stehstunden auslesen kann; sonst fehlt dieser Ringwert bewusst. Keine Stehstunden schätzen.
+Die Ziele werden nicht aus den Messsummen berechnet. Optional einmal separat die echten Ziele aus der Fitness-App als Zahl eingeben und in Variablen speichern: moveGoal = kcal-Ziel, exerciseGoal = Minuten-Ziel, standGoal = Stunden-Ziel. Nur echte Ziele übertragen. Wenn keine automatische Abfrage verfügbar ist, diese manuelle Eingabe klar erklären. Ohne diese Felder behält FitFamily vorhandene Ziele bzw. Standardwerte; dadurch kann z.B. 500 statt 800 kcal erscheinen.
+
+4. JSON in „Inhalte von URL abrufen“ aufbauen
+Methode POST, Haupttext JSON. Keine Health-Objekte an diese Aktion übergeben.
+Oberste Ebene:
+• profileId: Text, genau „${profile.id}“.
+• secret: Text, mein privater Sync-Schlüssel.
+• dailyActivity: Wörterbuch (ein einzelner Tag, keine Textdarstellung von JSON).
+Im Wörterbuch dailyActivity:
+• date: Text → Variable Tagesdatum.
+• moveCalories: Zahl → TagesKalorien.
+• exerciseMinutes: Zahl → TagesTraining.
+• stepCount: Zahl → TagesSchritte.
+• walkingRunningDistanceKm: Zahl → TagesGehstrecke.
+• cyclingDistanceKm: Zahl → TagesRadstrecke.
+Optionale echte Ziele und standHours ebenfalls als Zahl im selben Tageswörterbuch eintragen. Felder exakt schreiben. Fehlende Werte auslassen, nicht als leeren Text schicken.
+
+Nur Strukturbeispiel — Datum und alle Zahlen müssen beim Ausführen aus den Variablen kommen; diese Nullen sind KEINE Testdaten zum Senden:
+{
+  "profileId": "${profile.id}",
+  "secret": "HIER_DEN_SYNC_SCHLUESSEL_EINFUEGEN",
+  "dailyActivity": {
+    "date": "2026-10-03",
+    "moveCalories": 0,
+    "exerciseMinutes": 0,
+    "stepCount": 0,
+    "walkingRunningDistanceKm": 0,
+    "cyclingDistanceKm": 0
+  }
+}
+
+5. Test und Kontrolle
+Vor dem ersten Senden eine Vorschau nur des Tageswörterbuchs anzeigen, ohne secret. Jede Position muss eine einzelne Zahl oder das Datum enthalten, keine Messobjekte. Falls „363 Health-Objekte teilen“ o.ä. erscheint, die Variablenzuordnung korrigieren: Hier sollen nur fünf Tageszahlen übertragen werden. Diese Meldung nicht durch pauschale Freigabe großer Datenmengen umgehen.
+Mit den heutigen Zahlen der Fitness-/Health-App vergleichen. Daten von iPhone und Apple Watch können überlappen; bei Abweichungen Datenquellen und Tagesaggregation prüfen, nicht ungeprüft alle Quellen aufsummieren oder Gleichheit versprechen. Auch Synchronisationsverzögerungen zwischen Watch und iPhone berücksichtigen.
+Genau einen POST mit den echten Tageszahlen senden. Die Serverantwort mit der vorhandenen Aktion „Übersicht“/Quick Look oder einer passenden Ausgabeaktion anzeigen. Erfolg: ok = true und activityDaysSynced = 1. Fehlerantwort unverändert anzeigen, keine Erfolgsmeldung erfinden.
+Danach FitFamily → Verwaltung → Protokolle → Apple Health → „Empfangene und gespeicherte Werte“ öffnen. Profil, Datum, empfangene Zahlen und gespeicherte Zahlen vergleichen. Der Kurzbefehl überträgt Tageswerte, keine Trainingseinheiten; imported = 0 ist dabei normal.
+Keine rückwirkenden 30-Tage-Summen, Etagen oder Trainingsobjekte einbauen. Gib zum Schluss eine kurze Prüfliste für Feldtypen, Einheiten, leere Ergebnisse und den geheimen Schlüssel.`;
     if (await copyTextToClipboard(prompt)) {
       setCopiedShortcutPrompt(true);
       showToast({ type: "success", title: "Einrichtung kopiert", message: "Füge den Text in deine KI ein. Deinen Schlüssel setzt du anschließend nur in deinem persönlichen Kurzbefehl ein." });
