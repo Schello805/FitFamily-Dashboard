@@ -11,11 +11,8 @@ export const SECRET_PLACEHOLDER = "HIER_DEN_SYNC_SCHLUESSEL_EINFUEGEN";
 // Verified against Cherri's compiler/file-format: 1=dict, 3=number (not reversed).
 export const ITEM_TYPES = { text: 0, dictionary: 1, array: 2, number: 3, boolean: 4 };
 export const METRICS = [
-  { key: "moveCalories", label: "Active Calories", factors: { kcal: [1, 1], Cal: [1, 1], kJ: [1000, 4184], J: [1, 4184] } },
   { key: "exerciseMinutes", label: "Exercise Minutes", factors: { min: [1, 1], "min.": [1, 1], minutes: [1, 1], Minuten: [1, 1], sec: [1, 60], s: [1, 60], hr: [60, 1], h: [60, 1] } },
-  { key: "stepCount", label: "Steps", factors: { count: [1, 1], steps: [1, 1], Schritte: [1, 1], "": [1, 1] } },
-  { key: "walkingRunningDistanceKm", label: "Walking + Running Distance", factors: { km: [1, 1], m: [1, 1000], mi: [1609344, 1000000], ft: [3048, 10000000] } },
-  { key: "cyclingDistanceKm", label: "Cycling Distance", factors: { km: [1, 1], m: [1, 1000], mi: [1609344, 1000000], ft: [3048, 10000000] } }
+  { key: "stepCount", label: "Steps" }
 ];
 
 const state = (type, value) => ({ Value: value, WFSerializationType: type });
@@ -37,18 +34,21 @@ export function buildHealthShortcut({ profileId = "papa", server = "http://192.1
     actions.push({ WFWorkflowActionIdentifier: `is.workflow.actions.${id}`, WFWorkflowActionParameters: { UUID, ...params } });
     return UUID;
   }
-  action("comment", { WFCommentActionText: "FitFamily Health Sync – iPhone-Testvorlage. Ersetze den Schlüssel im folgenden Text. Nur HEUTE, keine Health-Schreibaktionen. Leere Abfragen können auch fehlende Leserechte bedeuten. Rohdaten verschiedener Quellen können von Apple Fitness abweichen: vor Automatisierung im Importprotokoll vergleichen. Stehminuten werden NICHT in erfüllte Stehstunden umgerechnet." });
+  function stopIfMissing(source, message) {
+    const guard = randomUUID().toUpperCase();
+    action("conditional", { GroupingIdentifier: guard, WFControlFlowMode: 0, WFCondition: 101, WFInput: { Type: "Variable", Variable: input(source) } });
+    action("showresult", { Text: text(message) });
+    action("exit");
+    action("conditional", { GroupingIdentifier: guard, WFControlFlowMode: 2 });
+  }
+  action("comment", { WFCommentActionText: "FitFamily Basistest: NUR heutige Schritte und Trainingsminuten. Schlüssel im folgenden Text ersetzen. Bei fehlenden Messungen wird NICHT gesendet (keine erfundenen Nullen). Rohsummen können wegen überlappender Quellen von Health abweichen: beide Werte vor Automatisierung vergleichen. Kein App-Wechsel nötig." });
   const secret = action("gettext", { WFTextActionText: SECRET_PLACEHOLDER });
   const now = action("date", { WFDateActionMode: "Current Date" });
   const date = action("format.date", { WFDate: tokenText(ref(now, "Date")), WFInput: input(ref(now, "Date")), WFDateFormatStyle: "Custom", WFDateFormat: "Custom", WFDateFormatString: "yyyy-MM-dd", WFTimeFormatStyle: "None" });
+  stopIfMissing(ref(date, "Formatted Date"), "Datum fehlt. Nichts übertragen. Bitte die Aktion Datum formatieren prüfen.");
 
   for (const metric of METRICS) {
-    action("comment", { WFCommentActionText: `${metric.key}: heutige Messungen einzeln lesen, Einheit prüfen und nur Zahlen summieren. Ohne Treffer bleibt der Tageswert 0; Leserechte im iPhone prüfen.` });
-    const zero = action("number", { WFNumberActionNumber: "0" });
-    action("setvariable", { WFVariableName: metric.key, WFInput: input(ref(zero, "Number")) });
-    // Integer ratios avoid locale-dependent parsing of decimal-point literals.
-    const factors = action("dictionary", { WFItems: dictionary(Object.entries(metric.factors).map(([unit, ratio]) => item(unit, ITEM_TYPES.number, text(ratio[0])))) });
-    const divisors = action("dictionary", { WFItems: dictionary(Object.entries(metric.factors).map(([unit, ratio]) => item(unit, ITEM_TYPES.number, text(ratio[1])))) });
+    action("comment", { WFCommentActionText: `${metric.key}: nur heute. Die Summe wird einmal nach dem Auslesen gebildet. Keine Einzelmessungen im POST.` });
     const samples = action("filter.health.quantity", {
       WFContentItemLimitEnabled: false,
       WFContentItemFilter: state("WFContentPredicateTableTemplate", {
@@ -60,26 +60,30 @@ export function buildHealthShortcut({ profileId = "papa", server = "http://192.1
         ]
       })
     });
+    stopIfMissing(ref(samples, "Health Samples"), `Keine heutigen Messungen für ${metric.key}. Nichts übertragen. Prüfe Health-Leserechte und heutige Daten. Kein Treffer bedeutet nicht sicher 0.`);
+    if (metric.key === "stepCount") {
+      const values = action("properties.health.quantity", { WFContentItemPropertyName: "Value", WFInput: input(ref(samples, "Health Samples")) });
+      const total = action("statistics", { WFStatisticsOperation: "Sum", Input: input(ref(values, "Value")) });
+      action("setvariable", { WFVariableName: metric.key, WFInput: input(ref(total, "Statistics")) });
+      continue;
+    }
+    // Exercise units are explicitly checked; integer ratios avoid decimal parsing.
+    const factors = action("dictionary", { WFItems: dictionary(Object.entries(metric.factors).map(([unit, ratio]) => item(unit, ITEM_TYPES.number, text(ratio[0])))) });
+    const divisors = action("dictionary", { WFItems: dictionary(Object.entries(metric.factors).map(([unit, ratio]) => item(unit, ITEM_TYPES.number, text(ratio[1])))) });
     const loop = randomUUID().toUpperCase();
     action("repeat.each", { GroupingIdentifier: loop, WFControlFlowMode: 0, WFInput: input(ref(samples, "Health Samples")) });
     const value = action("properties.health.quantity", { WFContentItemPropertyName: "Value", WFInput: input(variable("Repeat Item")) });
     const unit = action("properties.health.quantity", { WFContentItemPropertyName: "Unit", WFInput: input(variable("Repeat Item")) });
     const factor = action("getvalueforkey", { WFGetDictionaryValueType: "Value", WFDictionaryKey: tokenText(ref(unit, "Unit")), WFInput: input(ref(factors, "Dictionary")) });
-    const guard = randomUUID().toUpperCase();
-    // If uses a variable-parameter wrapper, unlike ordinary action inputs.
-    // A bare token attachment imports as an empty "Condition" on iPhone.
-    action("conditional", { GroupingIdentifier: guard, WFControlFlowMode: 0, WFCondition: 101, WFInput: { Type: "Variable", Variable: input(ref(factor, "Dictionary Value")) } });
-    action("showresult", { Text: text(`Unbekannte Einheit für ${metric.key}. Übertragung abgebrochen. Bitte die Einheit im Kurzbefehl prüfen.`) });
-    action("exit");
-    action("conditional", { GroupingIdentifier: guard, WFControlFlowMode: 2 });
+    stopIfMissing(ref(factor, "Dictionary Value"), `Unbekannte Einheit für ${metric.key}. Nichts übertragen. Bitte die Einheit im Kurzbefehl prüfen.`);
     const divisor = action("getvalueforkey", { WFGetDictionaryValueType: "Value", WFDictionaryKey: tokenText(ref(unit, "Unit")), WFInput: input(ref(divisors, "Dictionary")) });
     const multiplied = action("math", { WFInput: input(ref(value, "Value")), WFMathOperation: "×", WFMathOperand: tokenText(ref(factor, "Dictionary Value")) });
-    const normalized = action("math", { WFInput: input(ref(multiplied, "Calculation Result")), WFMathOperation: "÷", WFMathOperand: tokenText(ref(divisor, "Dictionary Value")) });
-    const sum = action("math", { WFInput: input(variable(metric.key)), WFMathOperand: tokenText(ref(normalized, "Calculation Result")) });
-    action("setvariable", { WFVariableName: metric.key, WFInput: input(ref(sum, "Calculation Result")) });
-    action("repeat.each", { GroupingIdentifier: loop, WFControlFlowMode: 2 });
+    action("math", { WFInput: input(ref(multiplied, "Calculation Result")), WFMathOperation: "÷", WFMathOperand: tokenText(ref(divisor, "Dictionary Value")) });
+    const results = action("repeat.each", { GroupingIdentifier: loop, WFControlFlowMode: 2 });
+    const total = action("statistics", { WFStatisticsOperation: "Sum", Input: input(ref(results, "Repeat Results")) });
+    action("setvariable", { WFVariableName: metric.key, WFInput: input(ref(total, "Statistics")) });
   }
-  const rounded = action("round", { WFInput: input(variable("stepCount")), WFRoundType: "Right of Decimal", WFRoundDecimalPlaces: 0, WFRoundMode: "Normal" });
+  const rounded = action("round", { WFInput: input(variable("stepCount")), WFRoundTo: "Ones Place", WFRoundMode: "Normal" });
   action("setvariable", { WFVariableName: "stepCount", WFInput: input(ref(rounded, "Rounded Number")) });
   const day = dictionary([
     item("date", ITEM_TYPES.text, tokenText(ref(date, "Formatted Date"))),
@@ -97,7 +101,7 @@ export function buildHealthShortcut({ profileId = "papa", server = "http://192.1
   });
   action("showresult", { Text: tokenText(ref(sent, "Contents of URL")) });
   return {
-    WFWorkflowName: "FitFamily Health Sync", WFWorkflowActions: actions,
+    WFWorkflowName: "FitFamily Schritte und Training", WFWorkflowActions: actions,
     WFWorkflowClientVersion: "2600.0.0", WFWorkflowMinimumClientVersion: 900,
     WFWorkflowMinimumClientVersionString: "900", WFWorkflowHasOutputFallback: false,
     WFWorkflowIcon: { WFWorkflowIconStartColor: 4282601983, WFWorkflowIconGlyphNumber: 59511 },
@@ -131,7 +135,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
   }
   const signMode = options["sign-mode"] ?? "anyone";
   if (!["anyone", "people-who-know-me"].includes(signMode)) throw new Error("Signierungsmodus muss anyone oder people-who-know-me sein.");
-  const output = resolve(options.output ?? "artifacts/FitFamily-Health-Sync-v4.unsigned.shortcut");
+  const output = resolve(options.output ?? "artifacts/FitFamily-Schritte-Training-v1.unsigned.shortcut");
   mkdirSync(dirname(output), { recursive: true });
   writeFileSync(output, `<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n<plist version="1.0">${plist(buildHealthShortcut({ profileId: options.profile, server: options.server }))}</plist>\n`);
   console.log(`Vorlage erzeugt: ${output}`);

@@ -21,9 +21,10 @@ test("uses only built-in read actions and exactly one private-server POST", () =
   assert.ok(JSON.stringify(workflow).includes(SECRET_PLACEHOLDER));
 });
 
-test("all five Health types are locked to today without a sample limit", () => {
+test("only steps and exercise are locked to today without a sample limit", () => {
   const finds = buildHealthShortcut().WFWorkflowActions.filter((action) => action.WFWorkflowActionIdentifier === "is.workflow.actions.filter.health.quantity");
-  assert.equal(finds.length, 5);
+  assert.equal(finds.length, 2);
+  assert.deepEqual(METRICS.map(({ key }) => key), ["exerciseMinutes", "stepCount"]);
   for (const [index, action] of finds.entries()) {
     const params = action.WFWorkflowActionParameters;
     assert.equal(params.WFContentItemLimitEnabled, false);
@@ -55,7 +56,7 @@ test("JSON carries typed numeric totals rather than raw Health objects", () => {
 
 test("conversion factors are number items (3), never dictionaries (1)", () => {
   const dictionaries = buildHealthShortcut().WFWorkflowActions.filter((action) => action.WFWorkflowActionIdentifier === "is.workflow.actions.dictionary");
-  assert.equal(dictionaries.length, 10);
+  assert.equal(dictionaries.length, 2);
   for (const [index, action] of dictionaries.entries()) {
     const fields = action.WFWorkflowActionParameters.WFItems.Value.WFDictionaryFieldValueItems;
     for (const field of fields) {
@@ -63,24 +64,26 @@ test("conversion factors are number items (3), never dictionaries (1)", () => {
       assert.equal(field.WFValue.WFSerializationType, "WFTextTokenString");
       const literal = field.WFValue.Value.string;
       assert.match(literal, /^\d+$/);
-      assert.equal(Number(literal), METRICS[Math.floor(index / 2)].factors[field.WFKey.Value.string][index % 2]);
+      assert.equal(Number(literal), METRICS[0].factors[field.WFKey.Value.string][index]);
     }
   }
 });
 
 test("normalizes units with metric-specific factors and valid operators", () => {
-  assert.deepEqual(METRICS[3].factors.m, [1, 1000]);
-  assert.deepEqual(METRICS[4].factors.mi, [1609344, 1000000]);
-  assert.deepEqual(METRICS[1].factors.sec, [1, 60]);
-  assert.equal(4184 * METRICS[0].factors.kJ[0] / METRICS[0].factors.kJ[1], 1000);
-  assert.equal(4660 * METRICS[3].factors.m[0] / METRICS[3].factors.m[1], 4.66);
+  assert.deepEqual(METRICS[0].factors.sec, [1, 60]);
+  assert.equal(480 * METRICS[0].factors.sec[0] / METRICS[0].factors.sec[1], 8);
+  assert.equal(2 * METRICS[0].factors.hr[0] / METRICS[0].factors.hr[1], 120);
   const actions = buildHealthShortcut().WFWorkflowActions;
   const math = actions.filter((action) => action.WFWorkflowActionIdentifier === "is.workflow.actions.math");
-  assert.equal(math.length, 15);
-  assert.equal(math.filter((action) => action.WFWorkflowActionParameters.WFMathOperation === "×").length, 5);
-  assert.equal(math.filter((action) => action.WFWorkflowActionParameters.WFMathOperation === "÷").length, 5);
-  assert.equal(math.filter((action) => !("WFMathOperation" in action.WFWorkflowActionParameters)).length, 5);
-  assert.equal(actions.filter((action) => action.WFWorkflowActionIdentifier === "is.workflow.actions.exit").length, 5);
+  assert.equal(math.length, 2);
+  assert.equal(math[0].WFWorkflowActionParameters.WFMathOperation, "×");
+  assert.equal(math[1].WFWorkflowActionParameters.WFMathOperation, "÷");
+  const sums = actions.filter((action) => action.WFWorkflowActionIdentifier === "is.workflow.actions.statistics");
+  assert.equal(sums.length, 2);
+  assert.ok(sums.every((action) => action.WFWorkflowActionParameters.WFStatisticsOperation === "Sum"));
+  assert.equal(sums[0].WFWorkflowActionParameters.Input.Value.OutputName, "Repeat Results");
+  assert.equal(sums[1].WFWorkflowActionParameters.Input.Value.OutputName, "Value");
+  assert.ok(actions.length < 55);
 });
 
 test("date formatting uses the actual source date and dedicated custom pattern parameter", () => {
@@ -95,16 +98,28 @@ test("date formatting uses the actual source date and dedicated custom pattern p
 test("If conditions use the iPhone variable wrapper instead of an empty imported condition", () => {
   const actions = buildHealthShortcut().WFWorkflowActions;
   const guards = actions.filter((action) => action.WFWorkflowActionIdentifier === "is.workflow.actions.conditional" && action.WFWorkflowActionParameters.WFControlFlowMode === 0);
-  assert.equal(guards.length, 5);
+  assert.equal(guards.length, 4);
   for (const guard of guards) {
     const params = guard.WFWorkflowActionParameters;
     assert.equal(params.WFCondition, 101);
     assert.equal(params.WFInput.Type, "Variable");
     assert.equal(params.WFInput.Variable.WFSerializationType, "WFTextTokenAttachment");
     const source = actions.find((action) => action.WFWorkflowActionParameters.UUID === params.WFInput.Variable.Value.OutputUUID);
-    assert.equal(source.WFWorkflowActionIdentifier, "is.workflow.actions.getvalueforkey");
-    assert.equal(params.WFInput.Variable.Value.OutputName, "Dictionary Value");
+    assert.ok(["is.workflow.actions.getvalueforkey", "is.workflow.actions.format.date", "is.workflow.actions.filter.health.quantity"].includes(source.WFWorkflowActionIdentifier));
   }
+});
+
+test("missing samples stop before POST rather than fabricating zeros", () => {
+  const actions = buildHealthShortcut().WFWorkflowActions;
+  const finds = actions.filter((action) => action.WFWorkflowActionIdentifier === "is.workflow.actions.filter.health.quantity");
+  for (const find of finds) {
+    const index = actions.indexOf(find);
+    assert.equal(actions[index + 1].WFWorkflowActionIdentifier, "is.workflow.actions.conditional");
+    assert.equal(actions[index + 1].WFWorkflowActionParameters.WFInput.Variable.Value.OutputUUID, find.WFWorkflowActionParameters.UUID);
+    assert.equal(actions[index + 3].WFWorkflowActionIdentifier, "is.workflow.actions.exit");
+  }
+  assert.ok(!actions.some((action) => action.WFWorkflowActionIdentifier === "is.workflow.actions.number"));
+  assert.ok(!actions.some((action) => /openapp|waittoreturn/.test(action.WFWorkflowActionIdentifier)));
 });
 
 test("escapes plist text and rejects endpoints containing credentials or paths", () => {
