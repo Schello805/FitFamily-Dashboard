@@ -41,10 +41,15 @@ describe("real Apple Health transfer check", () => {
     expect(await (await POST(request())).json()).toMatchObject({ verified: false, message: "dailyActivity: ungültiges Datum" });
   });
 
+  it("does not confirm an unfinished latest import and includes its reference", async () => {
+    prepare({ id: "unfinished-import", action: "health.apple_sync.started", created_at: "2026-10-03 12:00:00" });
+    expect(await (await POST(request())).json()).toMatchObject({ verified: false, importId: "unfinished-import", message: expect.stringContaining("noch nicht vollständig bestätigt") });
+  });
+
   it("verifies received and saved today's core fields without inventing optional values", async () => {
     const day = { date: localIsoDate(new Date()), moveCalories: 386, exerciseMinutes: 8, stepCount: 5735, walkingRunningDistanceKm: 4.66 };
-    prepare({ action: "health.apple_sync.completed", details: JSON.stringify({ receivedActivity: { dailyActivity: [day] }, savedActivity: [{ ...day, standHours: 0, cyclingDistanceKm: 0 }] }) });
-    expect(await (await POST(request())).json()).toMatchObject({ verified: true, values: day });
+    prepare({ id: "completed-import", action: "health.apple_sync.completed", details: JSON.stringify({ receivedActivity: { dailyActivity: [day] }, savedActivity: [{ ...day, standHours: 0, cyclingDistanceKm: 0 }] }) });
+    expect(await (await POST(request())).json()).toMatchObject({ verified: true, importId: "completed-import", values: day });
   });
 
   it("flags incomplete imports instead of verifying default zeros", async () => {

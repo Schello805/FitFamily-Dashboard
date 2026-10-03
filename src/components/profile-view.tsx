@@ -85,7 +85,7 @@ export function ProfileView({
   const [healthModal, setHealthModal] = useState(false);
   const [testingHealth, setTestingHealth] = useState(false);
   const [healthPinAction, setHealthPinAction] = useState<"create" | "revoke" | "delete" | "check">();
-  const [healthCheckResult, setHealthCheckResult] = useState<{ verified: boolean; message: string; checkedAt?: string; values?: Record<string, unknown> } | null>(null);
+  const [healthCheckResult, setHealthCheckResult] = useState<{ verified: boolean; message: string; importId?: string; checkedAt?: string; values?: Record<string, unknown> } | null>(null);
   const [healthPin, setHealthPin] = useState("");
   const [healthPinError, setHealthPinError] = useState("");
   const [healthPinBusy, setHealthPinBusy] = useState(false);
@@ -948,6 +948,7 @@ Keine rückwirkenden 30-Tage-Summen, Etagen oder Trainingsobjekte einbauen. Gib 
               {healthCheckResult && <div className={healthCheckResult.verified ? "profile-notice" : "form-error"} role="status">
                 <strong>{healthCheckResult.verified ? "Tagesdaten erfolgreich übertragen" : "Übertragung nicht bestätigt"}</strong>
                 <p>{healthCheckResult.message}</p>
+                {healthCheckResult.importId && <p>Import-ID: <code>{healthCheckResult.importId}</code></p>}
                 {healthCheckResult.checkedAt && <small>Geprüfter Aufruf: {healthCheckResult.checkedAt}</small>}
                 {healthCheckResult.values && <dl className="health-check-values">{Object.entries({ date: "Tag", moveCalories: "Aktive Energie (kcal)", exerciseMinutes: "Training (Min.)", stepCount: "Schritte", standHours: "Stehen (Std.)", walkingRunningDistanceKm: "Geh-/Laufstrecke (km)", cyclingDistanceKm: "Radstrecke (km)" }).map(([key, label]) => <div key={key}><dt>{label}</dt><dd>{String(healthCheckResult.values?.[key] ?? "Nicht übertragen")}</dd></div>)}</dl>}
               </div>}

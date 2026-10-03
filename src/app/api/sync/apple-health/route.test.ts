@@ -5,6 +5,7 @@ import { POST as readAdminLogs } from "@/app/api/admin/logs/route";
 import { DELETE as deleteTrainingEntry } from "@/app/api/manual-training/route";
 import { db } from "@/lib/db";
 import { hashToken, setAdminPin } from "@/lib/security";
+import { localIsoDate } from "@/lib/apple-health-activity";
 
 const profileId = "papa";
 const secret = "fitfamily-test-sync-token-which-is-long-enough";
@@ -135,6 +136,41 @@ describe("Apple Health sync endpoint", () => {
     );
     expect(validationLog).toBeTruthy();
     validationLogId = validationLog?.id ?? null;
+  });
+
+  it("finds Health logs even behind more than 500 unrelated events", async () => {
+    const client = await db();
+    const prefix = randomUUID();
+    const healthId = `${prefix}-health`;
+    try {
+      await client.execute({ sql: "INSERT INTO audit_log (id, action, profile_id, details, created_at) VALUES (?, 'health.apple_sync.completed', ?, '{}', '2000-01-01 00:00:00')", args: [healthId, profileId] });
+      await client.batch(Array.from({ length: 501 }, (_, index) => ({ sql: "INSERT INTO audit_log (id, action, details) VALUES (?, 'admin.update.check', '{}')", args: [`${prefix}-${index}`] })), "write");
+      const response = await readAdminLogs(new Request("http://localhost/api/admin/logs", { method: "POST", body: JSON.stringify({ pin: "2468", filter: "health" }) }));
+      const body = await response.json();
+      expect(body.logs.some((entry: { id: string }) => entry.id === healthId)).toBe(true);
+    } finally {
+      await client.execute({ sql: "DELETE FROM audit_log WHERE id LIKE ?", args: [`${prefix}%`] });
+    }
+  });
+
+  it("returns a traceable unconfirmed result when completion logging fails after saving", async () => {
+    const client = await db();
+    const original = client.execute.bind(client);
+    const spy = vi.spyOn(client, "execute").mockImplementation(async (statement) => {
+      const candidate = statement as unknown as { sql?: string; args?: unknown[] };
+      if (candidate.sql?.startsWith("UPDATE audit_log") && candidate.args?.[0] === "health.apple_sync.completed") throw new Error("Simulated log failure");
+      return original(statement);
+    });
+    try {
+      const response = await POST(new Request("http://localhost/api/sync/apple-health", { method: "POST", body: JSON.stringify({ profileId, secret, dailyActivity: { date: localIsoDate(new Date()), stepCount: 42 } }) }));
+      const body = await response.json();
+      expect(response.status).toBe(500);
+      expect(body).toMatchObject({ ok: false, dataSaved: true, activityDaysSynced: 1, importId: expect.any(String) });
+      const log = await original({ sql: "SELECT action FROM audit_log WHERE id = ?", args: [body.importId] });
+      expect(log.rows[0]?.action).toBe("health.apple_sync.started");
+    } finally {
+      spy.mockRestore();
+    }
   });
 
   it("rejects reversed or malformed workout times before importing", async () => {
@@ -291,6 +327,7 @@ describe("Apple Health sync endpoint", () => {
       const firstBody = await first.json();
       const second = await send();
       expect(first.status).toBe(200);
+      expect(firstBody.importId).toEqual(expect.any(String));
       expect(firstBody.activityDays).toEqual([
         { date: dates[0], fields: ["exerciseMinutes", "stepCount", "cyclingDistanceKm"] },
         { date: dates[1], fields: ["exerciseMinutes", "stepCount", "cyclingDistanceKm"] }
@@ -311,7 +348,7 @@ describe("Apple Health sync endpoint", () => {
       }));
       const syncLogBody = await syncLogResponse.json();
       expect(syncLogResponse.status).toBe(200);
-      const diagnostic = syncLogBody.logs.find((entry: { details: { receivedActivity?: { dailyActivity?: unknown[] } } }) => entry.details.receivedActivity?.dailyActivity?.length === 2);
+      const diagnostic = syncLogBody.logs.find((entry: { id: string }) => entry.id === firstBody.importId);
       expect(diagnostic.details.receivedActivity.dailyActivity).toEqual(payload.dailyActivity);
       expect(diagnostic.details.savedActivity).toEqual(expect.arrayContaining([expect.objectContaining({ date: dates[0], exerciseMinutes: 31, stepCount: 7000, cyclingDistanceKm: 3.2 })]));
       expect(JSON.stringify(diagnostic.details)).not.toContain(secret);

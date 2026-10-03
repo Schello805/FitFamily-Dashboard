@@ -70,6 +70,7 @@ function diagnosticActivityPayload(value: unknown) {
 }
 
 export async function POST(request: Request) {
+  const syncLogId = randomUUID();
   let json: unknown;
   try {
     json = await request.json();
@@ -79,6 +80,7 @@ export async function POST(request: Request) {
 
   const parsed = bodySchema.safeParse(json);
   if (!parsed.success) {
+    let validationLogged = false;
     // Record authenticated payload errors (for example an aggregated 30-day step
     // total sent as a single-day field) without ever storing the health payload
     // or the sync secret itself.
@@ -100,19 +102,20 @@ export async function POST(request: Request) {
             .map((issue) => `${issue.path.map(String).join(".") || "Anfrage"}: ${issue.message}`);
           await client.execute({
             sql: "INSERT INTO audit_log (id, action, profile_id, details) VALUES (?, 'health.apple_sync.failed', ?, ?)",
-            args: [randomUUID(), profileId, JSON.stringify({
+            args: [syncLogId, profileId, JSON.stringify({
               status: "failed",
               received: 0,
               reason: "validation",
               message: `Ungültige Anfrage: ${validationErrors.join("; ")}`.slice(0, 500)
             })]
           });
+          validationLogged = true;
         }
       }
     } catch {
       // Logging must never replace the validation response to the Shortcut.
     }
-    return NextResponse.json({ error: "Ungültige Anfrage.", details: parsed.error.flatten() }, { status: 400 });
+    return NextResponse.json({ ...(validationLogged ? { importId: syncLogId } : {}), error: "Ungültige Anfrage.", details: parsed.error.flatten() }, { status: 400 });
   }
 
   const { profileId, workouts: arrayWorkouts, ...singleWorkout } = parsed.data;
@@ -134,22 +137,22 @@ export async function POST(request: Request) {
   if (typeof storedHash !== "string" || hashToken(parsed.data.secret) !== storedHash) {
     await client.execute({
       sql: "INSERT INTO audit_log (id, action, profile_id, details) VALUES (?, 'health.apple_sync.failed', ?, ?)",
-      args: [randomUUID(), profileId, JSON.stringify({ status: "failed", message: "Sync-Schlüssel ungültig", received: 0 })]
+      args: [syncLogId, profileId, JSON.stringify({ status: "failed", message: "Sync-Schlüssel ungültig", received: 0 })]
     });
-    return NextResponse.json({ error: "Sync-Schlüssel fehlt oder ist ungültig. Bitte in FitFamily neu erstellen." }, { status: 401 });
+    return NextResponse.json({ importId: syncLogId, error: "Sync-Schlüssel fehlt oder ist ungültig. Bitte in FitFamily neu erstellen." }, { status: 401 });
   }
 
-  const syncLogId = randomUUID();
   await client.execute({
     sql: "INSERT INTO audit_log (id, action, profile_id, details) VALUES (?, 'health.apple_sync.started', ?, ?)",
     args: [syncLogId, profileId, JSON.stringify({ status: "received", received: 0 })]
   });
 
   async function finishSyncLog(action: "health.apple_sync.checked" | "health.apple_sync.completed" | "health.apple_sync.failed", details: Record<string, unknown>) {
-    await client.execute({
+    const result = await client.execute({
       sql: "UPDATE audit_log SET action = ?, details = ? WHERE id = ?",
       args: [action, JSON.stringify(details), syncLogId]
     });
+    if (result.rowsAffected !== 1) throw new Error("Importprotokoll fehlt.");
   }
 
   const profileName = String(profileExists.rows[0].name);
@@ -165,21 +168,21 @@ export async function POST(request: Request) {
   for (const item of rawList) {
     if (!item.startedAt || !item.endedAt) {
       await finishSyncLog("health.apple_sync.failed", { status: "failed", received: rawList.length, message: "Start- oder Endzeit fehlt" });
-      return NextResponse.json({ error: "Jedes Health-Workout muss echte Start- und Endzeitpunkte enthalten." }, { status: 400 });
+      return NextResponse.json({ importId: syncLogId, error: "Jedes Health-Workout muss echte Start- und Endzeitpunkte enthalten." }, { status: 400 });
     }
     const start = Date.parse(item.startedAt);
     const end = Date.parse(item.endedAt);
     if (start > latestAllowedStart) {
       await finishSyncLog("health.apple_sync.failed", { status: "failed", received: rawList.length, message: "Training beginnt in der Zukunft" });
-      return NextResponse.json({ error: "Ein Training darf nicht in der Zukunft beginnen." }, { status: 400 });
+      return NextResponse.json({ importId: syncLogId, error: "Ein Training darf nicht in der Zukunft beginnen." }, { status: 400 });
     }
     if (end > latestAllowedStart) {
       await finishSyncLog("health.apple_sync.failed", { status: "failed", received: rawList.length, message: "Training endet in der Zukunft" });
-      return NextResponse.json({ error: "Ein Training darf nicht in der Zukunft enden." }, { status: 400 });
+      return NextResponse.json({ importId: syncLogId, error: "Ein Training darf nicht in der Zukunft enden." }, { status: 400 });
     }
     if (end - start < 60_000 || end - start > 24 * 60 * 60 * 1000) {
       await finishSyncLog("health.apple_sync.failed", { status: "failed", received: rawList.length, message: "Trainingsdauer außerhalb des erlaubten Bereichs" });
-      return NextResponse.json({ error: "Ein Training muss zwischen 1 Minute und 24 Stunden dauern." }, { status: 400 });
+      return NextResponse.json({ importId: syncLogId, error: "Ein Training muss zwischen 1 Minute und 24 Stunden dauern." }, { status: 400 });
     }
   }
 
@@ -197,13 +200,14 @@ export async function POST(request: Request) {
       ? "Pro Sync sind höchstens 30 verschiedene Aktivitätstage erlaubt."
       : "Tagesaktivität darf nur gültige Datumswerte der letzten 30 Tage enthalten.";
     await finishSyncLog("health.apple_sync.failed", { status: "failed", received: rawList.length, imported: 0, activityDaysSynced: 0, message });
-    return NextResponse.json({ error: message, imported: 0, activityDaysSynced: 0 }, { status: 400 });
+    return NextResponse.json({ importId: syncLogId, error: message, imported: 0, activityDaysSynced: 0 }, { status: 400 });
   }
 
   if (parsed.data.dryRun) {
     await finishSyncLog("health.apple_sync.checked", { status: "checked", received: rawList.length, imported: 0, skipped: 0, message: "Schlüssel geprüft; keine Trainingsdaten gespeichert" });
     return NextResponse.json({
       ok: true,
+      importId: syncLogId,
       validToken: true,
       received: rawList.length,
       message: rawList.length ? "Sync-Schlüssel gültig. Trainingsdaten wurden nicht gespeichert." : "Sync-Schlüssel gültig. Noch keine Trainingsdaten empfangen."
@@ -285,7 +289,7 @@ export async function POST(request: Request) {
     const results = await client.batch(statements, "write");
     if (!results[0]?.rows.length) {
       await finishSyncLog("health.apple_sync.failed", { status: "failed", received: rawList.length, imported: 0, skipped: 0, activityDaysSynced: 0, message: "Sync-Schlüssel vor dem Import getrennt" });
-      return NextResponse.json({ error: "Der Sync-Schlüssel wurde getrennt. Es wurden keine Daten übernommen.", imported: 0, activityDaysSynced: 0 }, { status: 401 });
+      return NextResponse.json({ importId: syncLogId, error: "Der Sync-Schlüssel wurde getrennt. Es wurden keine Daten übernommen.", imported: 0, activityDaysSynced: 0 }, { status: 401 });
     }
     for (const workout of pendingWorkouts) {
       if (results[workout.resultIndex]?.rowsAffected === 1) {
@@ -298,7 +302,7 @@ export async function POST(request: Request) {
     activityDaysSynced = activityResultIndices.filter((index) => results[index]?.rowsAffected === 1).length;
   } catch {
     await finishSyncLog("health.apple_sync.failed", { status: "failed", received: rawList.length, imported: 0, skipped: 0, activityDaysSynced: 0, message: "Import fehlgeschlagen; alle Datenänderungen zurückgerollt" }).catch(() => undefined);
-    return NextResponse.json({ error: "Der Import ist fehlgeschlagen. Es wurden keine Daten übernommen.", imported: 0, activityDaysSynced: 0 }, { status: 500 });
+    return NextResponse.json({ importId: syncLogId, error: "Der Import ist fehlgeschlagen. Es wurden keine Daten übernommen.", imported: 0, activityDaysSynced: 0 }, { status: 500 });
   }
 
   const message = importedCount > 0
@@ -309,33 +313,45 @@ export async function POST(request: Request) {
         ? "Keine neuen Einheiten (bereits vorhanden)."
         : "Keine Daten übertragen.";
 
-  await finishSyncLog("health.apple_sync.completed", {
-    status: "completed",
-    received: rawList.length,
-    imported: importedCount,
-    skipped: skippedCount,
-    activityDaysSynced,
-    activityDays: syncedActivityDays,
-    profileName,
-    receivedActivity: {
-      ...diagnosticActivityPayload(json),
-      dailyActivity: Array.isArray((json as Record<string, unknown>).dailyActivity)
-        ? ((json as Record<string, unknown>).dailyActivity as unknown[]).map(diagnosticActivityPayload)
-        : (json as Record<string, unknown>).dailyActivity ? [diagnosticActivityPayload((json as Record<string, unknown>).dailyActivity)] : []
-    },
-    savedActivity: await Promise.all(dailyActivity.map(async (day) => {
-      const stored = await client.execute({ sql: "SELECT * FROM apple_health_daily WHERE profile_id = ? AND date = ?", args: [profileId, day.date] });
-      const row = stored.rows[0];
-      return { date: day.date, ...Object.fromEntries(APPLE_HEALTH_ACTIVITY_FIELDS.map(({ key, column }) => [key, Number(row?.[column] ?? 0)])) };
-    })),
-    warnings: dailyActivity.some((day) => day.standMinutes != null) || (json as Record<string, unknown>).standMinutes != null
-      ? ["standMinutes ist Stehzeit, nicht erfüllte Stehstunden. Für den Stehen-Ring wird standHours benötigt; Stehminuten werden dafür nicht übernommen."] : [],
-    pointsEarned: totalPointsEarned,
-    message
-  }).catch(() => undefined);
+  try {
+    await finishSyncLog("health.apple_sync.completed", {
+      status: "completed",
+      received: rawList.length,
+      imported: importedCount,
+      skipped: skippedCount,
+      activityDaysSynced,
+      activityDays: syncedActivityDays,
+      profileName,
+      receivedActivity: {
+        ...diagnosticActivityPayload(json),
+        dailyActivity: Array.isArray((json as Record<string, unknown>).dailyActivity)
+          ? ((json as Record<string, unknown>).dailyActivity as unknown[]).map(diagnosticActivityPayload)
+          : (json as Record<string, unknown>).dailyActivity ? [diagnosticActivityPayload((json as Record<string, unknown>).dailyActivity)] : []
+      },
+      savedActivity: await Promise.all(dailyActivity.map(async (day) => {
+        const stored = await client.execute({ sql: "SELECT * FROM apple_health_daily WHERE profile_id = ? AND date = ?", args: [profileId, day.date] });
+        const row = stored.rows[0];
+        return { date: day.date, ...Object.fromEntries(APPLE_HEALTH_ACTIVITY_FIELDS.map(({ key, column }) => [key, Number(row?.[column] ?? 0)])) };
+      })),
+      warnings: dailyActivity.some((day) => day.standMinutes != null) || (json as Record<string, unknown>).standMinutes != null
+        ? ["standMinutes ist Stehzeit, nicht erfüllte Stehstunden. Für den Stehen-Ring wird standHours benötigt; Stehminuten werden dafür nicht übernommen."] : [],
+      pointsEarned: totalPointsEarned,
+      message
+    });
+  } catch {
+    return NextResponse.json({
+      ok: false,
+      importId: syncLogId,
+      dataSaved: true,
+      imported: importedCount,
+      activityDaysSynced,
+      error: "Daten gespeichert, aber das Importprotokoll konnte nicht abgeschlossen werden. Der Import ist nicht vollständig bestätigt. Bitte die Import-ID angeben."
+    }, { status: 500 });
+  }
 
   return NextResponse.json({
     ok: true,
+    importId: syncLogId,
     imported: importedCount,
     skipped: skippedCount,
     activityDaysSynced,

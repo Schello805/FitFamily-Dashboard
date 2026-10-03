@@ -33,20 +33,22 @@ export async function POST(request: Request) {
     const configured = await client.execute({ sql: "SELECT created_at FROM apple_health_tokens WHERE profile_id = ?", args: [parsed.data.profileId] });
     if (!configured.rows[0]) return NextResponse.json({ verified: false, message: "Kein Sync-Schlüssel eingerichtet. Erstelle einen Schlüssel und füge ihn im Kurzbefehl ein." });
     const result = await client.execute({
-      sql: "SELECT action, details, created_at FROM audit_log WHERE profile_id = ? AND action IN ('health.apple_sync.completed', 'health.apple_sync.failed') AND created_at >= ? ORDER BY created_at DESC, rowid DESC LIMIT 1",
+      sql: "SELECT id, action, details, created_at FROM audit_log WHERE profile_id = ? AND action IN ('health.apple_sync.started', 'health.apple_sync.completed', 'health.apple_sync.failed') AND created_at >= ? ORDER BY created_at DESC, rowid DESC LIMIT 1",
       args: [parsed.data.profileId, String(configured.rows[0].created_at)]
     });
     const log = result.rows[0];
     if (!log) return NextResponse.json({ verified: false, message: "Noch keine Übertragung mit dieser Verbindung empfangen. Führe den Kurzbefehl auf dem iPhone aus und prüfe danach erneut." });
+    const reference = { importId: log.id, checkedAt: log.created_at };
+    if (log.action === "health.apple_sync.started") return NextResponse.json({ verified: false, ...reference, message: "Der letzte Aufruf wurde empfangen, aber noch nicht vollständig bestätigt. Er läuft noch oder sein Abschlussprotokoll ist fehlgeschlagen. Bitte erneut prüfen; bei dauerhaftem Fehler die Import-ID angeben." });
     let details: Record<string, unknown> = {};
     try {
       const parsedDetails = JSON.parse(String(log.details ?? "{}"));
       if (parsedDetails && typeof parsedDetails === "object" && !Array.isArray(parsedDetails)) details = parsedDetails;
     } catch { /* Treat missing details as unverified. */ }
-    if (log.action === "health.apple_sync.failed") return NextResponse.json({ verified: false, checkedAt: log.created_at, message: typeof details.message === "string" ? details.message : "Der letzte Import ist fehlgeschlagen. Prüfe JSON-Felder, Zahlen und Sync-Schlüssel." });
+    if (log.action === "health.apple_sync.failed") return NextResponse.json({ verified: false, ...reference, message: typeof details.message === "string" ? details.message : "Der letzte Import ist fehlgeschlagen. Prüfe JSON-Felder, Zahlen und Sync-Schlüssel." });
     const days = Array.isArray(details.savedActivity) ? details.savedActivity as Record<string, unknown>[] : [];
     const today = days.find((day) => day.date === localIsoDate(new Date()));
-    if (!today) return NextResponse.json({ verified: false, checkedAt: log.created_at, message: "Der letzte Aufruf enthält keine prüfbaren Tageswerte für heute. Führe den eingerichteten Kurzbefehl erneut aus." });
+    if (!today) return NextResponse.json({ verified: false, ...reference, message: "Der letzte Aufruf enthält keine prüfbaren Tageswerte für heute. Führe den eingerichteten Kurzbefehl erneut aus." });
     const warnings = Array.isArray(details.warnings) ? details.warnings.filter((item): item is string => typeof item === "string") : [];
     const received = details.receivedActivity as Record<string, unknown> | undefined;
     const receivedDays = Array.isArray(received?.dailyActivity) ? received.dailyActivity as Record<string, unknown>[] : [];
@@ -55,7 +57,7 @@ export async function POST(request: Request) {
     const missing = Object.entries(requiredFields).filter(([key]) => typeof receivedToday[key] !== "number").map(([, label]) => label);
     if (missing.length) warnings.push(`Im letzten Aufruf fehlen: ${missing.join(", ")}. Prüfe diese Felder im Kurzbefehl.`);
     const values = Object.fromEntries(Object.entries(today).filter(([key]) => key === "date" || typeof receivedToday[key] === "number"));
-    return NextResponse.json({ verified: warnings.length === 0, checkedAt: log.created_at, values, message: warnings.length ? warnings.join(" ") : "Der letzte Kurzbefehl-Aufruf wurde angenommen und Tageswerte für heute gespeichert. Vergleiche die Zahlen unten mit Apple Fitness; deren Herkunft kann der Server nicht überprüfen." });
+    return NextResponse.json({ verified: warnings.length === 0, ...reference, values, message: warnings.length ? warnings.join(" ") : "Der letzte Kurzbefehl-Aufruf wurde angenommen und Tageswerte für heute gespeichert. Vergleiche die Zahlen unten mit Apple Fitness; deren Herkunft kann der Server nicht überprüfen." });
   }
 
   if (parsed.data.action === "revoke") {

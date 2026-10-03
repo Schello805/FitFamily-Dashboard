@@ -15,10 +15,14 @@ export async function POST(request: Request) {
   if (pinError) return pinError;
 
   const client = await db();
+  // Apply the selected category before the limit, so other events cannot hide it.
+  const condition = body.data.filter === "health"
+    ? "action LIKE 'health.apple_sync.%'"
+    : "action LIKE 'admin.%' OR action LIKE 'app.%' OR action LIKE 'health.apple_sync.%'";
   const result = await client.execute({
     sql: `SELECT id, action, details, created_at FROM audit_log
-      WHERE action LIKE 'admin.%' OR action LIKE 'app.%' OR action LIKE 'health.apple_sync.%'
-      ORDER BY created_at DESC LIMIT 500`
+      WHERE ${condition}
+      ORDER BY created_at DESC, rowid DESC LIMIT 500`
   });
   const parsed = result.rows.map((row) => {
     let details: Record<string, unknown> = {};
