@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useSyncExternalStore } from "react";
-import { ArrowLeft, AlertTriangle, Bot, CheckCircle2, ClipboardList, Copy, Database, Download, HardDrive, Lock, Monitor, Moon, Plus, RefreshCw, RotateCcw, ShieldCheck, Sparkles, Sun, Upload, Users, Wrench, X } from "lucide-react";
+import { ArrowLeft, AlertTriangle, Bot, CheckCircle2, ClipboardList, Database, Download, HardDrive, Lock, Monitor, Moon, Plus, RefreshCw, RotateCcw, ShieldCheck, Sparkles, Sun, Upload, Users, Wrench, X } from "lucide-react";
 import { TouchPinpad } from "@/components/touch-pinpad";
+import { AdminLogsPanel, summarizeAdminLog, type AdminLogEntry, type AdminLogFilter } from "@/components/admin-logs-panel";
 import { AvatarPicker } from "@/components/avatar-picker";
 import { Avatar } from "@/components/avatar";
 import { avatarAssetForProfile, getFitnessStageCount, getStartingFitnessStages, GOALS, type AvatarDesignId, type ProfileAvatar } from "@/lib/domain";
@@ -32,55 +33,10 @@ type BackupStatus = {
   backupCount: number;
   lastBackup: BackupInfo | null;
 };
-type AdminLogFilter = "all" | "errors" | "updates" | "backups" | "health";
-type AdminLogEntry = { id: string; action: string; createdAt: string; details: Record<string, unknown> };
 type SystemStatus = {
   database: { kind: "local" | "remote"; location: string; sizeBytes: number | null; error: string | null };
   applicationVolume: { availableBytes: number | null; totalBytes: number | null; error: string | null };
 };
-
-const HEALTH_ACTIVITY_FIELD_LABELS: Record<string, string> = {
-  moveCalories: "Aktivitätsenergie",
-  moveGoal: "Bewegen-Ziel",
-  exerciseMinutes: "Trainingsminuten",
-  exerciseGoal: "Trainingsziel",
-  standHours: "Stehstunden",
-  standGoal: "Stehziel",
-  stepCount: "Schritte",
-  walkingRunningDistanceKm: "Geh-/Laufstrecke",
-  cyclingDistanceKm: "Radstrecke",
-  flightsClimbed: "Etagen"
-};
-
-function summarizeAdminLog(entry: AdminLogEntry) {
-  if (!entry.action.startsWith("health.apple_sync.")) {
-    return typeof entry.details.message === "string" ? entry.details.message : entry.action;
-  }
-
-  const parts: string[] = [];
-  if (entry.details.received !== undefined) parts.push(`${entry.details.received} Trainingseinheiten empfangen`);
-  if (entry.details.imported !== undefined) parts.push(`${entry.details.imported} Trainingseinheiten importiert`);
-  if (entry.details.skipped !== undefined) parts.push(`${entry.details.skipped} Trainingseinheiten übersprungen`);
-  if (entry.details.activityDaysSynced !== undefined) {
-    const count = Number(entry.details.activityDaysSynced);
-    parts.push(`${count} ${count === 1 ? "Tagesdatensatz gespeichert" : "Tagesdatensätze gespeichert"}`);
-  }
-
-  const activityDays = Array.isArray(entry.details.activityDays)
-    ? entry.details.activityDays.flatMap((value) => {
-        if (!value || typeof value !== "object") return [];
-        const day = value as { date?: unknown; fields?: unknown };
-        if (typeof day.date !== "string" || !Array.isArray(day.fields)) return [];
-        const fields = day.fields.filter((field): field is string => typeof field === "string")
-          .map((field) => HEALTH_ACTIVITY_FIELD_LABELS[field] ?? field);
-        return fields.length ? [`${day.date}: ${fields.join(", ")}`] : [];
-      })
-    : [];
-  if (activityDays.length) parts.push(`Tageswerte – ${activityDays.join("; ")}`);
-  if (typeof entry.details.message === "string") parts.push(entry.details.message);
-  if (!parts.length) parts.push(entry.action.endsWith(".failed") ? "Apple-Health-Sync fehlgeschlagen." : "Apple-Health-Sync eingegangen.");
-  return `Apple Health · ${parts.join(" · ")}`;
-}
 
 type ConfirmModalConfig = {
   title: string;
@@ -1566,26 +1522,15 @@ export function AdminView({
           </div>}
         </article>
       </>}
-      {activeAdminSection === "protokolle" && <>
-        <article className="wide admin-logs-card">
-          <div className="admin-title"><ClipboardList /><div><h2>Betriebsprotokoll</h2><p>App-Fehler, Updates, Daten- und Backup-Ereignisse sowie Apple-Health-Synchronisierungen.</p></div></div>
-          <div className="admin-log-toolbar">
-            <div className="admin-log-filters" role="group" aria-label="Protokoll filtern">
-              {([{ id: "all", label: "Alle" }, { id: "errors", label: "Fehler" }, { id: "updates", label: "Updates" }, { id: "backups", label: "Backups & Daten" }, { id: "health", label: "Apple Health" }] as const).map(({ id, label }) => <button key={id} type="button" className={logFilter === id ? "active" : ""} onClick={() => { setLogFilter(id); void loadAdminLogs(id); }}>{label}</button>)}
-            </div>
-            <div><button type="button" className="update-secondary-btn" disabled={loadingLogs} onClick={() => void loadAdminLogs()}><RefreshCw className={loadingLogs ? "spin" : ""} /> Aktualisieren</button><button type="button" className="update-secondary-btn" disabled={!adminLogs.length || copyingLogs} onClick={() => void copyAdminLogs()}><Copy /> {copyingLogs ? "Kopiere …" : "Einträge kopieren"}</button></div>
-          </div>
-          <p className="data-text admin-log-privacy">Bis zu 500 Einträge. Apple-Health-Ereignisse zeigen empfangene Trainingseinheiten und gespeicherte Tagesfelder, aber keine einzelnen Gesundheitswerte. Laden nur nach PIN-Freigabe.</p>
-          {loadingLogs ? <p className="data-text">Protokolle werden geladen …</p> : adminLogs.length ? <ol className="admin-log-list">
-            {adminLogs.map((entry) => {
-              const isHealth = entry.action.startsWith("health.apple_sync.");
-              const isError = entry.details.level === "error" || entry.action.endsWith(".error") || entry.action.endsWith(".failed");
-              const timestamp = new Date(entry.createdAt.replace(" ", "T") + (entry.createdAt.endsWith("Z") ? "" : "Z"));
-              return <li key={entry.id} className={isError ? "error" : ""}><div><span className="admin-log-level">{isError ? "FEHLER" : isHealth ? "APPLE HEALTH" : entry.details.level === "warning" ? "WARNUNG" : "INFO"}</span><time>{timestamp.toLocaleString("de-DE")}</time></div><b>{summarizeAdminLog(entry)}</b><small>{entry.action}</small></li>;
-            })}
-          </ol> : <div className="admin-log-empty"><CheckCircle2 /><span>{logFilter === "errors" ? "Keine protokollierten Fehler gefunden." : "Für diesen Filter gibt es noch keine Einträge."}</span></div>}
-        </article>
-      </>}
+      {activeAdminSection === "protokolle" && <AdminLogsPanel
+        entries={adminLogs}
+        filter={logFilter}
+        loading={loadingLogs}
+        copying={copyingLogs}
+        onFilterChange={(filter) => { setLogFilter(filter); void loadAdminLogs(filter); }}
+        onRefresh={() => void loadAdminLogs()}
+        onCopy={() => void copyAdminLogs()}
+      />}
       {activeAdminSection === "sportraum" && <>
       <article className="wide"><div className="sportraum-header"><div className="admin-title"><Database /><div><h2>Geräte im Sportraum</h2><p>Geräte, Verfügbarkeit und gerätebezogene Videos verwalten. Archivierte Einträge bleiben für die Historie erhalten.</p></div></div><button type="button" className="equipment-add-open" onClick={() => setShowEquipmentCreateModal(true)}><Plus size={17} /> Gerät hinzufügen</button></div>
         <div className="equipment-card-grid" aria-label="Geräte im Sportraum">
