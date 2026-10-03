@@ -4091,6 +4091,7 @@ body::before {
   .avatar-generated.avatar-small { width: 88px; height: 122px; }
   .profile-identity { gap: 14px; }
   .profile-card .profile-heading { grid-template-columns: minmax(0, .72fr) minmax(0, 1.35fr) auto; }
+  .profile-card .profile-heading > .dashboard-history-chart { transform: translateX(-5px); }
   .profile-heading > .profile-identity { grid-template-columns: 88px minmax(0, 1fr); }
   .profile-heading .profile-name { min-width: 0; }
   .profile-heading .profile-name p { max-width: 130px; line-height: 1.2; }
