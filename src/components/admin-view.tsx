@@ -6,13 +6,14 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import { ArrowLeft, AlertTriangle, Bot, CheckCircle2, ClipboardList, Database, Download, HardDrive, Lock, Monitor, Moon, Plus, RefreshCw, RotateCcw, ShieldCheck, Sparkles, Sun, Upload, Users, Wrench, X } from "lucide-react";
 import { TouchPinpad } from "@/components/touch-pinpad";
 import { AdminLogsPanel, summarizeAdminLog, type AdminLogEntry, type AdminLogFilter } from "@/components/admin-logs-panel";
+import { AdminBackupPanel, type BackupStatus } from "@/components/admin-backup-panel";
 import { AvatarPicker } from "@/components/avatar-picker";
 import { Avatar } from "@/components/avatar";
 import { avatarAssetForProfile, getFitnessStageCount, getStartingFitnessStages, GOALS, type AvatarDesignId, type ProfileAvatar } from "@/lib/domain";
 import { showToast } from "@/components/toast";
 import { applyTheme, getStoredThemeSetting, subscribeTheme, type ThemeSetting } from "@/lib/theme";
 import { DEFAULT_DISPLAY_SETTINGS, type DisplaySettings } from "@/lib/display-settings-shared";
-import { formatGermanDate, formatGermanDateTime, formatGermanLogTimestamp } from "@/lib/date-format";
+import { formatGermanDate, formatGermanLogTimestamp } from "@/lib/date-format";
 import { ApiRequestError, requestJson } from "@/lib/api-client";
 
 type AiUsage = { requests: number; inputTokens: number; outputTokens: number; estimateUsd: number; updatedAt: string | null };
@@ -22,17 +23,6 @@ type EquipmentItem = { id: string; name: string; quantity: number; available: bo
 type AdminProfile = { id: string; name: string; score: number; email: string | null; birthDate: string | null; startingFitness: number; avatar: ProfileAvatar; goal: string };
 type ExerciseDraft = { name: string; type: "strength" | "endurance"; equipment: string; instructions: string; safetyNotes: string; videoUrl: string };
 type UpdateInfo = { currentCommit: string; latestCommit: string; latestMessage: string; hasUpdate: boolean; version: string; latestVersion?: string };
-type BackupInfo = { name: string; sizeBytes: number; sizeFormatted: string; date: string };
-type BackupStatus = {
-  configured: boolean;
-  path: string;
-  hasEncryptionKey: boolean;
-  accessible: boolean;
-  writable: boolean;
-  statusMessage: string;
-  backupCount: number;
-  lastBackup: BackupInfo | null;
-};
 type SystemStatus = {
   database: { kind: "local" | "remote"; location: string; sizeBytes: number | null; error: string | null };
   applicationVolume: { availableBytes: number | null; totalBytes: number | null; error: string | null };
@@ -1274,190 +1264,33 @@ export function AdminView({
         <p className="data-text">Die Verbrauchserfassung beginnt ab jetzt und umfasst nur KI-Pläne, die über diese App erstellt werden. Die Kostenschätzung nutzt die erfassten Token und aktuelle Standardpreise; sie kann von der Anbieterabrechnung abweichen und zeigt keine frühere Nutzung. <a href="https://developers.openai.com/api/docs/pricing" target="_blank" rel="noreferrer">OpenAI-Preise</a> · <a href="https://ai.google.dev/gemini-api/docs/pricing" target="_blank" rel="noreferrer">Gemini-Preise</a>.</p>
       </article>
       </>}
-      {activeAdminSection === "sicherung" && <>
-      <article className="wide backup-card">
-        <div className="admin-title">
-          <HardDrive className={runningBackup || testingNas ? "spin" : ""} />
-          <div>
-            <h2>NAS-Datensicherung</h2>
-            <p>Verschlüsselter vollständiger Datenbank-Snapshot auf deiner Netzwerkfreigabe</p>
-          </div>
-        </div>
-
-        <div className="update-status-grid">
-          <div className="update-meta-box">
-            <span>Status</span>
-            <b className={
-              backupStatus?.writable
-                ? "backup-status-tag-ok"
-                : (backupStatus?.configured ? "backup-status-tag-error" : "backup-status-tag-off")
-            }>
-              {backupStatus?.writable
-                ? "Bereit & Beschreibbar"
-                : (backupStatus?.configured ? "Pfad nicht beschreibbar" : "Nicht eingerichtet")}
-            </b>
-            <small style={{ display: "block", marginTop: "4px", fontSize: "11px", color: "var(--muted)" }}>
-              {backupStatus?.statusMessage ?? "Kein Pfad hinterlegt."}
-            </small>
-          </div>
-
-          <div className="update-meta-box">
-            <span>Letztes Backup</span>
-            <b>
-              {backupStatus?.lastBackup
-                ? `${backupStatus.lastBackup.sizeFormatted}`
-                : "Noch keins vorhanden"}
-            </b>
-            <small style={{ display: "block", marginTop: "4px", fontSize: "11px", color: "var(--muted)" }}>
-              {backupStatus?.lastBackup
-                ? `${backupStatus.lastBackup.name} (${formatGermanDateTime(backupStatus.lastBackup.date)})`
-                : `${backupStatus?.backupCount ?? 0} Sicherungen`}
-            </small>
-          </div>
-        </div>
-
-        <label className="api-key-field" style={{ marginTop: "16px" }}>
-          NAS-Sicherungspfad (lokaler Einhängepfad)
-          <input
-            type="text"
-            placeholder="/mnt/nas/fitfamily oder /volume1/backup/fitfamily"
-            value={nasPathInput}
-            onChange={(e) => setNasPathInput(e.target.value)}
-          />
-        </label>
-
-        <div style={{ marginTop: "6px" }}>
-          <button
-            type="button"
-            className="backup-advanced-toggle"
-            style={{ fontSize: "12px", color: "var(--brand)", background: "transparent", border: 0, padding: 0, cursor: "pointer", fontWeight: 700 }}
-            onClick={() => setShowNasMountForm((prev) => !prev)}
-          >
-            {showNasMountForm ? "▾ Netzlaufwerk-Assistent schließen" : "▸ Netzlaufwerk (SMB/CIFS) automatisch einhängen"}
-          </button>
-
-          {showNasMountForm && (
-            <div style={{ marginTop: "10px", padding: "14px", border: "1px solid var(--line)", borderRadius: "12px", background: "var(--subtle-bg)", display: "grid", gap: "10px" }}>
-              <div style={{ fontSize: "12px", fontWeight: 700, color: "var(--text)" }}>
-                NAS-Freigabe direkt über das Frontend mounten:
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
-                <label className="api-key-field" style={{ margin: 0 }}>
-                  Server / IP
-                  <input
-                    type="text"
-                    placeholder="192.168.1.100 oder diskstation"
-                    value={nasServerInput}
-                    onChange={(e) => setNasServerInput(e.target.value)}
-                  />
-                </label>
-                <label className="api-key-field" style={{ margin: 0 }}>
-                  Freigabe / optionaler Unterordner
-                  <input
-                    type="text"
-                    placeholder="Public/fitfamily"
-                    value={nasShareInput}
-                    onChange={(e) => setNasShareInput(e.target.value)}
-                  />
-                  <small>Bei „Public/fitfamily“ wird die Freigabe „Public“ und darin der Ordner „fitfamily“ verwendet.</small>
-                </label>
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
-                <label className="api-key-field" style={{ margin: 0 }}>
-                  Benutzername (optional)
-                  <input
-                    type="text"
-                    placeholder="z. B. admin"
-                    value={nasUserInput}
-                    onChange={(e) => setNasUserInput(e.target.value)}
-                  />
-                </label>
-                <label className="api-key-field" style={{ margin: 0 }}>
-                  Passwort (optional)
-                  <input
-                    type="password"
-                    placeholder="Passwort"
-                    value={nasPassInput}
-                    onChange={(e) => setNasPassInput(e.target.value)}
-                  />
-                </label>
-              </div>
-              <button
-                type="button"
-                className="update-secondary-btn"
-                style={{ justifySelf: "start", marginTop: "4px" }}
-                disabled={mountingNas || !nasServerInput.trim() || !nasShareInput.trim()}
-                onClick={() => void mountNasShare()}
-              >
-                <HardDrive className={mountingNas ? "spin" : ""} size={16} />
-                <span>{mountingNas ? "Verbinde Netzlaufwerk …" : "Netzlaufwerk jetzt verbinden & mounten"}</span>
-              </button>
-            </div>
-          )}
-        </div>
-
-        <div className="update-action-row">
-          <button
-            type="button"
-            className="update-secondary-btn"
-            disabled={savingNas || testingNas || runningBackup}
-            onClick={() => void saveNasBackupPath()}
-          >
-            {savingNas ? "Speichert …" : "Pfad speichern"}
-          </button>
-
-          <button
-            type="button"
-            className="update-secondary-btn"
-            disabled={savingNas || testingNas || runningBackup || !nasPathInput.trim()}
-            onClick={() => void testNasBackupConnection()}
-          >
-            <RefreshCw className={testingNas ? "spin" : ""} />
-            {testingNas ? "Prüfe Freigabe …" : "Freigabe-Zugriff prüfen"}
-          </button>
-
-          <button
-            type="button"
-            className="primary-update-btn"
-            disabled={savingNas || testingNas || runningBackup || !backupStatus?.writable}
-            onClick={requestNasBackup}
-          >
-            <HardDrive className={runningBackup ? "spin" : ""} />
-            {runningBackup ? "Backup wird erstellt …" : "Jetzt sichern"}
-          </button>
-        </div>
-
-        <button
-          type="button"
-          className="backup-advanced-toggle"
-          onClick={() => setShowAdvancedNas((prev) => !prev)}
-        >
-          {showAdvancedNas ? "▾" : "▸"} Verschlüsselung (AES-256-GCM) anpassen
-        </button>
-
-        {showAdvancedNas && (
-          <div style={{ marginTop: "10px", padding: "12px", border: "1px solid var(--line)", borderRadius: "12px", background: "var(--subtle-bg)" }}>
-            <label className="api-key-field" style={{ marginTop: 0 }}>
-              Backup-Passphrase (mindestens 16 Zeichen)
-              <input
-                type="password"
-                autoComplete="new-password"
-                placeholder={backupStatus?.hasEncryptionKey ? "Schlüssel aktiv (leer lassen zum Beibehalten)" : "Optionaler eigener Schlüssel"}
-                value={nasKeyInput}
-                onChange={(e) => setNasKeyInput(e.target.value)}
-              />
-            </label>
-            <p className="data-text" style={{ fontSize: "11px", marginTop: "6px" }}>
-              Backups werden standardmäßig mit einem sicheren AES-256-GCM-Schlüssel verschlüsselt. Wenn du hier einen eigenen Schlüssel einträgst, wird dieser für künftige Sicherungen genutzt.
-            </p>
-          </div>
-        )}
-
-        <p className="data-text" style={{ marginTop: "14px" }}>
-          Der NAS-Snapshot enthält den vollständigen Datenbestand. Eine Wiederherstellung aus diesem Snapshot ist derzeit nicht in der App verfügbar. Alte Stände werden automatisch nach 7 Tagen, 4 Wochen und 12 Monaten rotiert.
-        </p>
-      </article>
-      </>}
+      {activeAdminSection === "sicherung" && <AdminBackupPanel
+        status={backupStatus}
+        path={nasPathInput}
+        encryptionKey={nasKeyInput}
+        server={nasServerInput}
+        share={nasShareInput}
+        username={nasUserInput}
+        password={nasPassInput}
+        showMountForm={showNasMountForm}
+        showAdvanced={showAdvancedNas}
+        saving={savingNas}
+        testing={testingNas}
+        backingUp={runningBackup}
+        mounting={mountingNas}
+        onPathChange={setNasPathInput}
+        onKeyChange={setNasKeyInput}
+        onServerChange={setNasServerInput}
+        onShareChange={setNasShareInput}
+        onUsernameChange={setNasUserInput}
+        onPasswordChange={setNasPassInput}
+        onToggleMountForm={() => setShowNasMountForm((previous) => !previous)}
+        onToggleAdvanced={() => setShowAdvancedNas((previous) => !previous)}
+        onSavePath={() => void saveNasBackupPath()}
+        onTestConnection={() => void testNasBackupConnection()}
+        onStartBackup={requestNasBackup}
+        onMountShare={() => void mountNasShare()}
+      />}
       {activeAdminSection === "daten" && <>
         <article className="wide update-card">
           <div className="admin-title"><RefreshCw className={checkingUpdate || runningUpdate ? "spin" : ""} /><div><h2>Software-Update</h2><p>Dashboard auf den neuesten Stand von GitHub bringen</p></div></div>
