@@ -1,5 +1,25 @@
 # Vergleichstest: Schritte, Trainingsminuten und aktive Energie
 
+## Aktueller nächster Test: einzelne Energie-Messung, ohne Übertragung
+
+Die iPhone-Vorschau bestätigte: Die riesige Kalorienzahl entsteht bereits vor
+Rundung und JSON. Die Vermutung einer ausschließlich fehlerhaften JSON-Konvertierung
+ist damit widerlegt. Den Vergleichs-Sync vorerst nicht weiter ausführen.
+
+```sh
+npm run health:shortcut -- --diagnose-energy --sign
+```
+
+Bei Erfolg `artifacts/FitFamily-Energie-Diagnose-v1.signed.shortcut` importieren.
+Kein Schlüssel erforderlich. Genau eine heutige Messung, keine URL-Aktion, kein POST.
+Es erscheinen drei Anzeigen: Originalwert, Einheit, derselbe Originalwert mal 1.
+Alle drei Screenshots vergleichen. Die Messung ist keine Tagesgesamtsumme.
+Falls schon die Multiplikation scheitert, die ersten beiden Anzeigen und den
+Fehler zeigen. Dieser Test prüft die Zahlübernahme, nicht Quellenpriorität oder
+die Korrektheit des gesamten Tageswerts.
+
+## Bisheriger Vergleichstest
+
 Die aktuelle Vorlage ergänzt aktive Energie (`moveCalories`, kcal) zum Basistest.
 Sie heißt „FitFamily Health Vergleich“. Schritte werden weiterhin als Rohsumme
 gelesen; die bekannte Abweichung ist noch nicht gelöst. Zweck: die drei Datenarten

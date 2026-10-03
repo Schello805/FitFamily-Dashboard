@@ -1,7 +1,36 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { buildHealthShortcut, METRICS, plist, SECRET_PLACEHOLDER, signWithApple } from "./generate-health-shortcut.mjs";
+import { buildHealthShortcut, buildEnergyDiagnostic, METRICS, plist, SECRET_PLACEHOLDER, signWithApple } from "./generate-health-shortcut.mjs";
+
+test("energy diagnostic is strictly local and reads exactly one today's sample", () => {
+  const diagnostic = buildEnergyDiagnostic();
+  const actions = diagnostic.WFWorkflowActions;
+  assert.equal(diagnostic.WFWorkflowName, "FitFamily Energie Diagnose");
+  const finds = actions.filter((action) => action.WFWorkflowActionIdentifier.endsWith("filter.health.quantity"));
+  assert.equal(finds.length, 1);
+  const params = finds[0].WFWorkflowActionParameters;
+  assert.equal(params.WFContentItemLimitEnabled, true);
+  assert.equal(params.WFContentItemLimitNumber, 1);
+  const rows = params.WFContentItemFilter.Value.WFActionParameterFilterTemplates;
+  assert.equal(rows[0].Values.Enumeration.Value, "Active Calories");
+  assert.equal(rows[1].Operator, 1002);
+  const allowed = ["comment", "filter.health.quantity", "conditional", "showresult", "exit", "properties.health.quantity", "math"].map((id) => `is.workflow.actions.${id}`);
+  assert.ok(actions.every((action) => allowed.includes(action.WFWorkflowActionIdentifier)));
+  assert.ok(!JSON.stringify(diagnostic).includes(SECRET_PLACEHOLDER));
+  assert.ok(!JSON.stringify(diagnostic).includes("http"));
+});
+
+test("diagnostic displays original value and unit before testing identity math", () => {
+  const actions = buildEnergyDiagnostic().WFWorkflowActions;
+  const mathIndex = actions.findIndex((action) => action.WFWorkflowActionIdentifier.endsWith(".math"));
+  assert.equal(actions[mathIndex].WFWorkflowActionParameters.WFMathOperation, "×");
+  assert.equal(actions[mathIndex].WFWorkflowActionParameters.WFMathOperand, "1");
+  const displays = actions.map((action, index) => ({ action, index })).filter(({ action }) => action.WFWorkflowActionIdentifier.endsWith("showresult") && /^[123]\/3/.test(action.WFWorkflowActionParameters.Text.Value.string));
+  assert.equal(displays.length, 3);
+  assert.ok(displays[0].index < mathIndex && displays[1].index < mathIndex && displays[2].index > mathIndex);
+  assert.equal(actions.filter((action) => action.WFWorkflowActionIdentifier.endsWith(".math")).length, 1);
+});
 
 test("retries Apple 500/502 once without changing the source or public signing mode", () => {
   for (const code of [500, 502]) {

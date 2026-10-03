@@ -26,6 +26,56 @@ const tokenText = (value) => state("WFTextTokenString", { string: "\uFFFC", atta
 const item = (key, type, value) => ({ WFKey: text(key), WFItemType: type, WFValue: value });
 const dictionary = (items) => state("WFDictionaryFieldValue", { WFDictionaryFieldValueItems: items });
 
+function workflow(actions, name) {
+  return {
+    WFWorkflowName: name, WFWorkflowActions: actions,
+    WFWorkflowClientVersion: "2600.0.0", WFWorkflowMinimumClientVersion: 900,
+    WFWorkflowMinimumClientVersionString: "900", WFWorkflowHasOutputFallback: false,
+    WFWorkflowIcon: { WFWorkflowIconStartColor: 4282601983, WFWorkflowIconGlyphNumber: 59511 },
+    WFWorkflowInputContentItemClasses: [], WFWorkflowOutputContentItemClasses: [],
+    WFWorkflowTypes: [], WFWorkflowImportQuestions: []
+  };
+}
+
+function healthFilter(label) {
+  return state("WFContentPredicateTableTemplate", {
+    WFActionParameterFilterPrefix: 1,
+    WFContentPredicateBoundedDate: false,
+    WFActionParameterFilterTemplates: [
+      { Bounded: true, Removable: false, Property: "Type", Operator: 4, Values: { Enumeration: state("WFStringSubstitutableState", label) } },
+      { Bounded: true, Removable: false, Property: "Start Date", Operator: 1002, Values: { Number: "7", Unit: 16 } }
+    ]
+  });
+}
+
+export function buildEnergyDiagnostic() {
+  const actions = [];
+  const action = (id, params = {}) => {
+    const UUID = randomUUID().toUpperCase();
+    actions.push({ WFWorkflowActionIdentifier: `is.workflow.actions.${id}`, WFWorkflowActionParameters: { UUID, ...params } });
+    return UUID;
+  };
+  const display = (prefix, source, suffix = "") => {
+    const message = `${prefix}\uFFFC${suffix}`;
+    action("showresult", { Text: state("WFTextTokenString", { string: message, attachmentsByRange: { [`{${prefix.length}, 1}`]: source } }) });
+  };
+  action("comment", { WFCommentActionText: "Lokale Diagnose: genau eine heutige aktive Energie-Messung. Kein Sync-Schlüssel, kein Netzwerk, keine Tagesgesamtsumme. Zuerst Originalwert/Einheit anzeigen, dann denselben Wert mit 1 multiplizieren. So lässt sich die erste fehlerhafte Zahl eingrenzen." });
+  const sample = action("filter.health.quantity", { WFContentItemLimitEnabled: true, WFContentItemLimitNumber: 1, WFContentItemFilter: healthFilter("Active Calories") });
+  const guard = randomUUID().toUpperCase();
+  action("conditional", { GroupingIdentifier: guard, WFControlFlowMode: 0, WFCondition: 101, WFInput: { Type: "Variable", Variable: input(ref(sample, "Health Samples")) } });
+  action("showresult", { Text: text("Keine heutige Energie-Messung gefunden. Bitte Typauswahl und Health-Leserechte prüfen. Keine Daten gesendet.") });
+  action("exit");
+  action("conditional", { GroupingIdentifier: guard, WFControlFlowMode: 2 });
+  const value = action("properties.health.quantity", { WFContentItemPropertyName: "Value", WFInput: input(ref(sample, "Health Samples")) });
+  const unit = action("properties.health.quantity", { WFContentItemPropertyName: "Unit", WFInput: input(ref(sample, "Health Samples")) });
+  // Display the untouched details BEFORE any conversion, even if Math fails.
+  display("1/3 Originalwert einer Messung: ", ref(value, "Value"), "\nKeine Tagesgesamtsumme. Bitte Screenshot machen.");
+  display("2/3 Einheit dieser Messung: ", ref(unit, "Unit"));
+  const identity = action("math", { WFInput: input(ref(value, "Value")), WFMathOperation: "×", WFMathOperand: "1" });
+  display("3/3 Derselbe Wert mal 1: ", ref(identity, "Calculation Result"), "\nMuss dem Originalwert entsprechen. Keine Umrechnung, keine Summe, kein JSON, nichts gesendet.");
+  return workflow(actions, "FitFamily Energie Diagnose");
+}
+
 export function buildHealthShortcut({ profileId = "papa", server = "http://192.168.1.253:3000" } = {}) {
   if (!/^[a-zA-Z0-9_-]{1,64}$/.test(profileId)) throw new Error("Ungültige Profil-ID.");
   const url = new URL(server);
@@ -54,14 +104,7 @@ export function buildHealthShortcut({ profileId = "papa", server = "http://192.1
     action("comment", { WFCommentActionText: `${metric.key}: nur heute. Die Summe wird einmal nach dem Auslesen gebildet. Keine Einzelmessungen im POST.` });
     const samples = action("filter.health.quantity", {
       WFContentItemLimitEnabled: false,
-      WFContentItemFilter: state("WFContentPredicateTableTemplate", {
-        WFActionParameterFilterPrefix: 1,
-        WFContentPredicateBoundedDate: false,
-        WFActionParameterFilterTemplates: [
-          { Bounded: true, Removable: false, Property: "Type", Operator: 4, Values: { Enumeration: state("WFStringSubstitutableState", metric.label) } },
-          { Bounded: true, Removable: false, Property: "Start Date", Operator: 1002, Values: { Number: "7", Unit: 16 } }
-        ]
-      })
+      WFContentItemFilter: healthFilter(metric.label)
     });
     stopIfMissing(ref(samples, "Health Samples"), `Keine heutigen Messungen für ${metric.key}. Nichts übertragen. Prüfe Health-Leserechte und heutige Daten. Kein Treffer bedeutet nicht sicher 0.`);
     if (metric.key === "stepCount") {
@@ -114,14 +157,7 @@ export function buildHealthShortcut({ profileId = "papa", server = "http://192.1
     ])
   });
   action("showresult", { Text: tokenText(ref(sent, "Contents of URL")) });
-  return {
-    WFWorkflowName: "FitFamily Health Vergleich", WFWorkflowActions: actions,
-    WFWorkflowClientVersion: "2600.0.0", WFWorkflowMinimumClientVersion: 900,
-    WFWorkflowMinimumClientVersionString: "900", WFWorkflowHasOutputFallback: false,
-    WFWorkflowIcon: { WFWorkflowIconStartColor: 4282601983, WFWorkflowIconGlyphNumber: 59511 },
-    WFWorkflowInputContentItemClasses: [], WFWorkflowOutputContentItemClasses: [],
-    WFWorkflowTypes: [], WFWorkflowImportQuestions: []
-  };
+  return workflow(actions, "FitFamily Health Vergleich");
 }
 
 const escapeXml = (value) => String(value).replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
@@ -152,12 +188,12 @@ export function signWithApple({ source, target, mode, run = spawnSync, hasOutput
 
 function main() {
   const args = process.argv.slice(2);
-  const allowed = new Set(["--profile", "--server", "--output", "--sign", "--sign-mode"]);
+  const allowed = new Set(["--profile", "--server", "--output", "--sign", "--sign-mode", "--diagnose-energy"]);
   const options = {};
   for (let index = 0; index < args.length; index++) {
     if (!allowed.has(args[index])) throw new Error(`Unbekannte Option: ${args[index]}`);
     const key = args[index];
-    if (key === "--sign") options.sign = true;
+    if (key === "--sign" || key === "--diagnose-energy") options[key.slice(2)] = true;
     else {
       const value = args[++index];
       if (!value || value.startsWith("--")) throw new Error(`Wert für ${key} fehlt.`);
@@ -166,9 +202,10 @@ function main() {
   }
   const signMode = options["sign-mode"] ?? "anyone";
   if (!["anyone", "people-who-know-me"].includes(signMode)) throw new Error("Signierungsmodus muss anyone oder people-who-know-me sein.");
-  const output = resolve(options.output ?? "artifacts/FitFamily-Health-Vergleich-v3.unsigned.shortcut");
+  const output = resolve(options.output ?? (options["diagnose-energy"] ? "artifacts/FitFamily-Energie-Diagnose-v1.unsigned.shortcut" : "artifacts/FitFamily-Health-Vergleich-v3.unsigned.shortcut"));
+  const template = options["diagnose-energy"] ? buildEnergyDiagnostic() : buildHealthShortcut({ profileId: options.profile, server: options.server });
   mkdirSync(dirname(output), { recursive: true });
-  writeFileSync(output, `<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n<plist version="1.0">${plist(buildHealthShortcut({ profileId: options.profile, server: options.server }))}</plist>\n`);
+  writeFileSync(output, `<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n<plist version="1.0">${plist(template)}</plist>\n`);
   console.log(`Vorlage erzeugt: ${output}`);
   if (options.sign) {
     if (process.platform !== "darwin") throw new Error("Signierung benötigt macOS. Die unsignierte Vorlage bleibt erhalten.");
