@@ -113,6 +113,10 @@ ln -s "$APP_DIR/data" "$STAGE/data"
 ln -s "$APP_DIR/backups" "$STAGE/backups"
 ln -s "$APP_DIR/.env.local" "$STAGE/.env.local"
 chown -hR root:fitfamily "$STAGE"
+# mktemp creates the staging directory as mode 0700. Keep the release
+# root-owned, but grant the service account group traversal/read access so
+# systemd can enter the atomically activated release after a restart.
+chmod -R g+rX "$STAGE"
 # Code and package scripts cannot be replaced by the web service.
 chmod -R go-w "$STAGE"
 mkdir -p "$STAGE/.next/cache"
