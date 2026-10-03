@@ -3,29 +3,26 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { ArrowLeft, AlertTriangle, Bot, CheckCircle2, ClipboardList, Database, FileText, HardDrive, Lock, Monitor, Moon, Plus, RotateCcw, ShieldCheck, Sparkles, Sun, Users, Video, Wrench, X } from "lucide-react";
+import { ArrowLeft, AlertTriangle, Bot, CheckCircle2, ClipboardList, Database, FileText, HardDrive, Lock, Monitor, Moon, Plus, RotateCcw, ShieldCheck, Sparkles, Sun, Video, Wrench, X } from "lucide-react";
 import { TouchPinpad } from "@/components/touch-pinpad";
 import { AdminLogsPanel, summarizeAdminLog, type AdminLogEntry, type AdminLogFilter } from "@/components/admin-logs-panel";
 import { AdminBackupPanel, type BackupStatus } from "@/components/admin-backup-panel";
 import { AdminUpdatePanel, type UpdateInfo, type UpdateSuccess } from "@/components/admin-update-panel";
 import { AdminDataTransferPanel, type ImportValidation } from "@/components/admin-data-transfer-panel";
 import { AdminSystemStatusPanel, type SystemStatus } from "@/components/admin-system-status-panel";
-import { AdminFamilyEditModal } from "@/components/admin-family-edit-modal";
 import { ManualPdfField, readManualPdf } from "@/components/manual-pdf-field";
 import { MAX_DATA_IMPORT_BYTES } from "@/lib/data-transfer-schema";
-import { getFitnessStageCount, getStartingFitnessStages, type ProfileAvatar } from "@/lib/domain";
 import { showToast } from "@/components/toast";
 import { applyTheme, cacheDisplaySettings, getStoredThemeSetting, subscribeTheme, type ThemeSetting } from "@/lib/theme";
 import { TIME_ZONE_OPTIONS } from "@/lib/display-time";
 import { DEFAULT_DISPLAY_SETTINGS, type DisplaySettings } from "@/lib/display-settings-shared";
-import { formatGermanDate, formatGermanLogTimestamp } from "@/lib/date-format";
+import { formatGermanLogTimestamp } from "@/lib/date-format";
 import { ApiRequestError, requestJson } from "@/lib/api-client";
 
 type AiUsage = { requests: number; inputTokens: number; outputTokens: number; estimateUsd: number; updatedAt: string | null };
 type Status = { openai: boolean; gemini: boolean; nas: boolean; models: { openai: string; gemini: string }; usage: { openai: AiUsage; gemini: AiUsage } };
 type ExerciseMedia = { id: string; name: string; type: "strength" | "endurance"; equipment: string; instructions: string; safetyNotes: string; videoUrl: string | null; active: boolean };
 type EquipmentItem = { id: string; name: string; quantity: number; available: boolean; active: boolean; videoUrl?: string | null; manualPdfUrl?: string | null; instructions?: string | null };
-type AdminProfile = { id: string; name: string; score: number; email: string | null; birthDate: string | null; startingFitness: number; avatar: ProfileAvatar; goal: string };
 type ExerciseDraft = { name: string; type: "strength" | "endurance"; equipment: string; instructions: string; safetyNotes: string; videoUrl: string };
 type ConfirmModalConfig = {
   title: string;
@@ -40,16 +37,7 @@ type ConfirmModalConfig = {
 
 const ADMIN_SESSION_STORAGE_KEY = "fitfamily_admin_session";
 
-function calculateAge(birthDate: string) {
-  const birth = new Date(`${birthDate}T00:00:00`);
-  if (!Number.isFinite(birth.getTime())) return null;
-  const today = new Date();
-  let age = today.getFullYear() - birth.getFullYear();
-  if (today.getMonth() < birth.getMonth() || (today.getMonth() === birth.getMonth() && today.getDate() < birth.getDate())) age--;
-  return age >= 0 ? age : null;
-}
-
-type AdminSection = "allgemein" | "ki" | "sicherung" | "daten" | "protokolle" | "sportraum" | "familie";
+type AdminSection = "allgemein" | "ki" | "sicherung" | "daten" | "protokolle" | "sportraum";
 
 const ADMIN_SECTIONS: { id: AdminSection; label: string; detail: string; icon: typeof Monitor }[] = [
   { id: "allgemein", label: "Allgemein", detail: "Design & Ruhemodus", icon: Monitor },
@@ -57,18 +45,15 @@ const ADMIN_SECTIONS: { id: AdminSection; label: string; detail: string; icon: t
   { id: "sicherung", label: "Datensicherung", detail: "NAS & Speicherorte", icon: HardDrive },
   { id: "daten", label: "System, Daten & Speicher", detail: "Updates, Export & Speicher", icon: Database },
   { id: "protokolle", label: "Protokolle", detail: "Fehler & Backup-Ereignisse", icon: ClipboardList },
-  { id: "sportraum", label: "Sportraum", detail: "Geräte & Videos", icon: Wrench },
-  { id: "familie", label: "Familie", detail: "Score-Verwaltung", icon: Users }
+  { id: "sportraum", label: "Sportraum", detail: "Geräte & Videos", icon: Wrench }
 ];
 
 export function AdminView({
-  profiles,
   exercises,
   equipment,
   initialVersion = "0.2.17",
   initialCommit
 }: {
-  profiles: AdminProfile[];
   exercises: ExerciseMedia[];
   equipment: EquipmentItem[];
   initialVersion?: string;
@@ -82,9 +67,6 @@ export function AdminView({
   const [activeAdminSection, setActiveAdminSection] = useState<AdminSection>("allgemein");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
-  const [profileScores, setProfileScores] = useState<Record<string, number>>(() =>
-    Object.fromEntries(profiles.map((p) => [p.id, p.score]))
-  );
   const [confirmModal, setConfirmModal] = useState<ConfirmModalConfig | null>(null);
   const [confirmPin, setConfirmPin] = useState("");
   const [confirmPinError, setConfirmPinError] = useState("");
@@ -107,10 +89,6 @@ export function AdminView({
   const [newEquipmentInstructions, setNewEquipmentInstructions] = useState("");
   const [showEquipmentCreateModal, setShowEquipmentCreateModal] = useState(false);
   const [equipmentModalId, setEquipmentModalId] = useState<string | null>(null);
-  const [familyItems, setFamilyItems] = useState(profiles);
-  const [familyModalId, setFamilyModalId] = useState<string | null>(null);
-  const [familyDraft, setFamilyDraft] = useState<AdminProfile | null>(null);
-  const [savingFamily, setSavingFamily] = useState(false);
   const [apiKeys, setApiKeys] = useState({ openai: "", gemini: "" });
   const [savingApi, setSavingApi] = useState<string | null>(null);
 
@@ -166,12 +144,12 @@ export function AdminView({
   const currentInstalledCommit = updateInfo?.currentCommit ?? initialCommit;
 
   useEffect(() => {
-    const modalOpen = Boolean(confirmModal || exerciseModalId || showExerciseCreateModal || showEquipmentCreateModal || equipmentModalId || familyModalId);
+    const modalOpen = Boolean(confirmModal || exerciseModalId || showExerciseCreateModal || showEquipmentCreateModal || equipmentModalId);
     if (!modalOpen) return;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => { document.body.style.overflow = previousOverflow; };
-  }, [confirmModal, exerciseModalId, showExerciseCreateModal, showEquipmentCreateModal, equipmentModalId, familyModalId]);
+  }, [confirmModal, exerciseModalId, showExerciseCreateModal, showEquipmentCreateModal, equipmentModalId]);
 
   const currentTheme = useSyncExternalStore(
     subscribeTheme,
@@ -750,42 +728,6 @@ export function AdminView({
     }
   }
 
-  function requestResetScore(profileId: string) {
-    const prof = profiles.find((p) => p.id === profileId);
-    setConfirmModal({
-      title: `Score von ${prof?.name ?? "Profil"} auf 0 setzen?`,
-      badge: "Verlauf bleibt erhalten",
-      description: "Nur der sichtbare Punktestand wird auf 0 zurückgesetzt. Alle bisherigen Trainings, Zeiten und Statistiken im Verlauf bleiben vollständig erhalten.",
-      icon: "reset",
-      confirmLabel: "Score auf 0 setzen",
-      confirmVariant: "danger",
-      action: () => executeResetScore(profileId)
-    });
-  }
-
-  async function executeResetScore(profileId: string) {
-    const prof = profiles.find((p) => p.id === profileId);
-    try {
-      await requestJson("/api/admin/reset-score", "Score konnte nicht zurückgesetzt werden.", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pin, profileId })
-      });
-      setProfileScores((prev) => ({ ...prev, [profileId]: 0 }));
-      setNotice(`Score von ${prof?.name ?? "Profil"} wurde auf 0 gesetzt. Der Trainingsverlauf blieb erhalten.`);
-      showToast({
-        type: "success",
-        title: "Score zurückgesetzt",
-        message: `Punkte für ${prof?.name ?? "Profil"} wurden auf 0 gesetzt. Der Verlauf bleibt erhalten.`
-      });
-      router.refresh();
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Server konnte nicht erreicht werden.";
-      setNotice(message);
-      showToast({ type: "error", title: "Fehler beim Zurücksetzen", message });
-    }
-  }
-
   async function saveExercise(exerciseId: string, overrides: Partial<ExerciseMedia> = {}) {
     const exercise = { ...exerciseEdits[exerciseId], ...overrides };
     setSavingExercise(exerciseId); setNotice("");
@@ -871,26 +813,6 @@ export function AdminView({
       return false;
     } finally {
       setSavingEquipment(null);
-    }
-  }
-
-  async function saveFamilyProfile() {
-    if (!familyDraft) return;
-    setSavingFamily(true);
-    try {
-      await requestJson(`/api/profiles/${encodeURIComponent(familyDraft.id)}`, "Profil konnte nicht gespeichert werden.", {
-        method: "PATCH", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pin, name: familyDraft.name, email: familyDraft.email?.trim() || null, birthDate: familyDraft.birthDate || null, avatar: familyDraft.avatar, startingFitness: familyDraft.startingFitness, goal: familyDraft.goal })
-      });
-      setFamilyItems((items) => items.map((item) => item.id === familyDraft.id ? familyDraft : item));
-      showToast({ type: "success", title: "Profil gespeichert", message: `${familyDraft.name} wurde aktualisiert.` });
-      setFamilyModalId(null);
-      setFamilyDraft(null);
-      router.refresh();
-    } catch (error) {
-      showToast({ type: "error", title: "Profil nicht gespeichert", message: error instanceof Error ? error.message : "Bitte Verbindung prüfen." });
-    } finally {
-      setSavingFamily(false);
     }
   }
 
@@ -1371,15 +1293,9 @@ export function AdminView({
         </form></div>}
       </article>
       </>}
-      {activeAdminSection === "familie" && <>
-      <article className="wide"><div className="admin-title"><Users /><div><h2>Familienprofile</h2><p>E-Mail, Geburtsdatum, aktuelle Fitnessstufe und Avatar bearbeiten. Das Alter wird aus dem Geburtsdatum berechnet.</p></div></div><div className="equipment-table-wrap"><table className="equipment-table"><thead><tr><th>Name</th><th>E-Mail</th><th>Geburtsdatum</th><th>Alter</th><th>Fitnessstufe</th><th></th></tr></thead><tbody>{familyItems.map((profile) => { const age = profile.birthDate ? calculateAge(profile.birthDate) : null; const stages = getStartingFitnessStages(profile.id, profile.birthDate); const stageCount = getFitnessStageCount(profile.id, profile.birthDate); return <tr key={profile.id}><td><b>{profile.name}</b></td><td>{profile.email || "Nicht hinterlegt"}</td><td>{profile.birthDate ? formatGermanDate(profile.birthDate) : "–"}</td><td>{age == null ? "–" : `${age} Jahre`}</td><td>{Math.min(profile.startingFitness, stages.length)} von {stageCount}</td><td><button type="button" onClick={() => { setFamilyDraft({ ...profile, startingFitness: Math.min(profile.startingFitness, stages.length) }); setFamilyModalId(profile.id); }}>Bearbeiten</button></td></tr>; })}</tbody></table></div></article>
-      <article className="wide"><div className="admin-title"><RotateCcw /><div><h2>Scores zurücksetzen</h2><p>Der vollständige Trainingsverlauf bleibt erhalten.</p></div></div><div className="reset-list">{familyItems.map((profile) => <div key={profile.id}><span>{profile.name}<small>{profileScores[profile.id] ?? 0} Punkte</small></span><button type="button" onClick={() => requestResetScore(profile.id)}>Auf 0 setzen</button></div>)}</div></article>
-      </>}
     </section>
         </div>
       </div>
-
-      {familyModalId && familyDraft && <AdminFamilyEditModal draft={familyDraft} age={familyDraft.birthDate ? calculateAge(familyDraft.birthDate) : null} busy={savingFamily} onChange={setFamilyDraft} onSave={() => void saveFamilyProfile()} onClose={() => { setFamilyModalId(null); setFamilyDraft(null); }} />}
 
       {confirmModal && (
         <div className="modal-backdrop" onClick={() => { setConfirmModal(null); setConfirmPin(""); setConfirmPinError(""); }}>

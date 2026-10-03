@@ -29,8 +29,10 @@ type ProfileEditModalProps = {
   isMobile: boolean;
   busy: boolean;
   notice: string;
+  resettingScore: boolean;
   onClose: () => void;
   onResetIdleTimer: () => void;
+  onResetScore: () => void;
   onSubmit: FormEventHandler<HTMLFormElement>;
   onAvatarSaved: (saved: boolean) => void;
 };
@@ -49,8 +51,10 @@ export function ProfileEditModal({
   isMobile,
   busy,
   notice,
+  resettingScore,
   onClose,
   onResetIdleTimer,
+  onResetScore,
   onSubmit,
   onAvatarSaved
 }: ProfileEditModalProps) {
@@ -89,6 +93,7 @@ export function ProfileEditModal({
         </div>
         <div className="profile-edit-basics">
           <label>Anzeigename<input name="name" required maxLength={30} defaultValue={profile.name} /></label>
+          <label>E-Mail-Adresse<input name="email" type="email" maxLength={254} defaultValue={profile.email ?? ""} placeholder="name@example.com" autoComplete="email" /></label>
           <label>Geburtsdatum<input name="birthDate" type="date" value={birthDate} onChange={(event) => onBirthDateChange(event.target.value)} /></label>
         </div>
         <div className="profile-edit-goals">
@@ -121,6 +126,9 @@ export function ProfileEditModal({
         />
         {notice && <p className="form-error" role="alert">{notice}</p>}
         <button className="primary-submit" disabled={busy}>{busy ? "Wird gespeichert …" : "Änderungen speichern"}</button>
+        <button type="button" className="profile-reset-score-button" disabled={busy || resettingScore} onClick={onResetScore}>
+          {resettingScore ? "Punkte werden zurückgesetzt …" : "Punktestand auf 0 setzen"}
+        </button>
       </form>
     </Modal>
   );

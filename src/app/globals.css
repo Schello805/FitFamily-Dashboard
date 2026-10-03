@@ -1447,6 +1447,8 @@ body::before {
 .user-help-note { margin: 12px 0 0; color: var(--muted); font-size: 10px; line-height: 1.4; }
 .user-help-modal .primary-submit { width: 100%; margin-top: 14px; }
 .profile-edit-modal .primary-submit { margin-top: 20px; }
+.profile-reset-score-button { width: 100%; min-height: 44px; margin-top: 10px; border: 1px solid rgba(225,29,72,.28); border-radius: 12px; color: #be123c; background: rgba(225,29,72,.06); font-weight: 750; cursor: pointer; touch-action: manipulation; }
+[data-theme="dark"] .profile-reset-score-button { color: #fda4af; }
 .profile-notice { color: var(--brand-bright); text-align: center; font-size: 13px; }
 .modal-close { position: absolute; right: 13px; top: 13px; width: 44px; height: 44px; border-radius: 12px; border: 1px solid var(--line); background: var(--subtle-bg); color: var(--text); font-size: 25px; cursor: pointer; touch-action: manipulation; }
 

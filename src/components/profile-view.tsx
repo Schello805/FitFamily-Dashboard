@@ -70,6 +70,7 @@ export function ProfileView({
 }) {
   const [profile, setProfile] = useState(initialProfile);
   const [busy, setBusy] = useState(false);
+  const [resettingScore, setResettingScore] = useState(false);
   const [handoff, setHandoff] = useState<{ qr: string; url?: string; expiresAt: string; token?: string } | null>(null);
   const [handoffScanned, setHandoffScanned] = useState(false);
   const [longRunning, setLongRunning] = useState(false);
@@ -373,7 +374,7 @@ export function ProfileView({
         method: "PATCH", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: form.get("name"),
-          email: profile.email ?? null,
+          email: String(form.get("email") ?? "").trim() || null,
           birthDate: form.get("birthDate") || null,
           avatar: editAvatar,
           startingFitness: Number(editStartingFitness),
@@ -396,6 +397,31 @@ export function ProfileView({
       showToast({ type: "error", title: "Verbindungsfehler", message: err });
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function resetProfileScore() {
+    if (editPin.length !== 4) {
+      setProfileNotice("Bitte zuerst die 4-stellige Eltern-PIN eingeben.");
+      return;
+    }
+    if (!window.confirm(`Punktestand von ${profile.name} wirklich auf 0 setzen? Der Trainingsverlauf bleibt erhalten.`)) return;
+    setResettingScore(true);
+    setProfileNotice("");
+    try {
+      await requestJson("/api/admin/reset-score", "Punktestand konnte nicht zurückgesetzt werden.", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pin: editPin, profileId: profile.id })
+      });
+      showToast({ type: "success", title: "Punktestand zurückgesetzt", message: "Der Trainingsverlauf bleibt erhalten." });
+      await refresh(true);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Punktestand konnte nicht zurückgesetzt werden.";
+      setProfileNotice(message);
+      showToast({ type: "error", title: "Zurücksetzen fehlgeschlagen", message });
+    } finally {
+      setResettingScore(false);
     }
   }
 
@@ -800,9 +826,11 @@ Falls Kurzbefehle eine Health-Art oder einen Schritt nicht unterstützt, erfinde
         secondsLeft={secondsLeft}
         isMobile={isMobile}
         busy={busy}
+        resettingScore={resettingScore}
         notice={profileNotice}
         onClose={() => setEditingProfile(false)}
         onResetIdleTimer={resetTimer}
+        onResetScore={() => void resetProfileScore()}
         onSubmit={saveProfile}
         onAvatarSaved={(saved) => { setProfile((current) => ({ ...current, customAvatar: saved })); void refresh(true); }}
       />}
