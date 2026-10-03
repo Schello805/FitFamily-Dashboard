@@ -1,0 +1,7 @@
+# Replace this hostname with the local DNS name or fixed IP used by phones.
+fitfamily-host.example {
+  tls internal
+  reverse_proxy 127.0.0.1:3000 {
+    header_up X-Forwarded-Proto {scheme}
+  }
+}

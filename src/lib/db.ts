@@ -103,6 +103,16 @@ async function createSchema(client: Client) {
       value TEXT NOT NULL,
       updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     )`,
+    `CREATE TABLE IF NOT EXISTS admin_sessions (
+      token_hash TEXT PRIMARY KEY,
+      pin_hash TEXT NOT NULL,
+      expires_at INTEGER NOT NULL
+    )`,
+    `CREATE TABLE IF NOT EXISTS admin_login_attempts (
+      scope TEXT PRIMARY KEY,
+      attempts INTEGER NOT NULL,
+      window_started_at INTEGER NOT NULL
+    )`,
     `CREATE TABLE IF NOT EXISTS paired_devices (
       id TEXT PRIMARY KEY,
       profile_id TEXT NOT NULL REFERENCES profiles(id),

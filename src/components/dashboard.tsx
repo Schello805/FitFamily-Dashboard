@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   CloudSun,
   MapPin,
@@ -19,6 +19,9 @@ import { UserHelp } from "@/components/user-help";
 import { DEFAULT_DISPLAY_SETTINGS, type DisplaySettings } from "@/lib/display-settings-shared";
 import { requestJson } from "@/lib/api-client";
 import { formatGermanDate, formatGermanTime } from "@/lib/date-format";
+import { Modal } from "@/components/modal";
+import { ConnectionStatus } from "@/components/connection-status";
+import { useDashboardConnection } from "@/components/use-dashboard-connection";
 
 type Weather = { temperature: number; apparent: number; code: number; updatedAt: string } | null;
 
@@ -77,7 +80,7 @@ function ProfileDashboardCard({ profile, clock }: { profile: DashboardProfile; c
           <Avatar profile={profile} />
           <div className="profile-name"><span>Profil</span><h2>{profile.name}</h2><p>{profile.goal}</p></div>
         </Link>
-        <ActivityTrendChart points={profile.activityTrend} color={profile.color} targetMinutes={profile.targetMinutes} targetPeriod={profile.targetPeriod} />
+        <ActivityTrendChart points={profile.activityTrend} color={profile.color} targetMinutes={profile.targetMinutes} targetPeriod={profile.targetPeriod} profileName={profile.name} />
         <GoalRing value={profile.targetPercent} color={profile.color} targetMinutes={profile.targetMinutes} targetPeriod={profile.targetPeriod} />
       </div>
 
@@ -207,23 +210,13 @@ export function Dashboard({
     }
   }, [activeUrl]);
 
-  const refresh = useCallback(async () => {
-    try {
-      const data = await requestJson<{ profiles: DashboardProfile[]; displaySettings?: DisplaySettings }>(
-        "/api/dashboard", "Dashboard-Daten konnten nicht aktualisiert werden.", { cache: "no-store" }
-      );
-      setProfiles(data.profiles);
-      if (data.displaySettings) {
-        setDisplaySettings(data.displaySettings);
-        localStorage.setItem("fitfamily_display_settings", JSON.stringify(data.displaySettings));
-      }
-    } catch { /* Die zuletzt geladenen Dashboard-Daten bleiben sichtbar. */ }
-  }, []);
-
-  useEffect(() => {
-    const timer = window.setInterval(refresh, 5000);
-    return () => window.clearInterval(timer);
-  }, [refresh]);
+  const { lastRefreshedAt, connectionError } = useDashboardConnection((data) => {
+    setProfiles(data.profiles);
+    if (data.displaySettings) {
+      setDisplaySettings(data.displaySettings);
+      try { localStorage.setItem("fitfamily_display_settings", JSON.stringify(data.displaySettings)); } catch { /* Storage is optional. */ }
+    }
+  });
 
   useEffect(() => {
     let disposed = false;
@@ -339,7 +332,7 @@ export function Dashboard({
             style={{ cursor: "pointer" }}
             role="button"
             tabIndex={0}
-            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") enterQuietMode(); }}
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); enterQuietMode(); } }}
           >
             <time>{formatGermanTime(clock)}</time>
             <span>{dateText}</span>
@@ -352,7 +345,7 @@ export function Dashboard({
       </section>
 
       <footer className="app-footer">
-        <span className="system-online"><i /> Lokal verbunden</span>
+        <ConnectionStatus connectionError={connectionError} lastRefreshedAt={lastRefreshedAt} />
         <span>Source Available von Michael Schellenberger</span>
         <a href={commitUrl ?? "https://github.com/Schello805/FitFamily-Dashboard"} target="_blank" rel="noreferrer"><GitHubIcon /> GitHub · v{version} · Rev. {revision}</a>
       </footer>
@@ -382,8 +375,8 @@ export function Dashboard({
       )}
 
       {showQrModal && activeQr && (
-        <div className="modal-backdrop" onClick={() => setShowQrModal(false)}>
-          <div className="qr-modal" onClick={(e) => e.stopPropagation()}>
+        <Modal onClose={() => setShowQrModal(false)}>
+          <div className="qr-modal" role="dialog" aria-modal="true" aria-labelledby="dashboard-qr-title">
             <button
               type="button"
               className="modal-close"
@@ -396,7 +389,7 @@ export function Dashboard({
               <Smartphone size={32} />
             </div>
             <span className="setup-badge">Auf dem Smartphone</span>
-            <h2>Mit Handy verbinden</h2>
+            <h2 id="dashboard-qr-title">Mit Handy verbinden</h2>
             <p>Scanne diesen Code mit der Handykamera, um FitFamily auf deinem Smartphone zu öffnen (im selben WLAN).</p>
             <Image
               src={activeQr}
@@ -413,7 +406,7 @@ export function Dashboard({
               </div>
             )}
           </div>
-        </div>
+        </Modal>
       )}
 
     </main>

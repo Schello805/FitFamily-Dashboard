@@ -1,9 +1,10 @@
-import { createCipheriv, createHash, randomBytes, randomUUID } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import { mkdir, mkdtemp, readdir, readFile, rename, rm, stat, unlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { db, getSetting } from "@/lib/db";
 import { createVerifiedDatabaseSnapshot } from "@/lib/sqlite-snapshot";
+import { encryptDatabase, recoverDatabase } from "@/lib/backup-format.mjs";
 
 export type BackupInfo = {
   name: string;
@@ -42,14 +43,16 @@ export async function getBackupEncryptionKey(): Promise<string> {
   const envSecret = process.env.BACKUP_ENCRYPTION_KEY?.trim();
   if (envSecret && envSecret.length >= 16) return envSecret;
 
-  // Auto-generate a secure 32-character key and store it
+  // Concurrent first backups must use the same winning key, never overwrite it.
   const newKey = randomBytes(24).toString("hex");
   const client = await db();
   await client.execute({
-    sql: "INSERT INTO settings (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP",
+    sql: "INSERT INTO settings (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP WHERE length(trim(settings.value)) < 16",
     args: ["nas_backup_key", newKey]
   });
-  return newKey;
+  const key = await getSetting("nas_backup_key");
+  if (!key || key.trim().length < 16) throw new Error("Sicherungsschlüssel konnte nicht gespeichert werden.");
+  return key.trim();
 }
 
 export async function getBackupSettings(): Promise<BackupSettings> {
@@ -82,8 +85,8 @@ export async function getBackupSettings(): Promise<BackupSettings> {
     accessible = true;
 
     // Test write permission with a hidden probe file
-    const probePath = path.join(targetPath, `.probe-${Date.now()}`);
-    await writeFile(probePath, "fitfamily-probe-test", "utf8");
+    const probePath = path.join(targetPath, `.probe-${randomUUID()}`);
+    await writeFile(probePath, "fitfamily-probe-test", { encoding: "utf8", flag: "wx", mode: 0o600 });
     await unlink(probePath);
     writable = true;
     statusMessage = "NAS-Ordner ist erreichbar und beschreibbar.";
@@ -190,12 +193,7 @@ export async function executeBackup(): Promise<{
   try {
     await createVerifiedDatabaseSnapshot(snapshotPath);
     const content = await readFile(snapshotPath);
-    const iv = randomBytes(12);
-    const key = createHash("sha256").update(secret).digest();
-    const cipher = createCipheriv("aes-256-gcm", key, iv);
-    const encrypted = Buffer.concat([cipher.update(content), cipher.final()]);
-    const tag = cipher.getAuthTag();
-    const payload = Buffer.concat([Buffer.from("FFDB1"), iv, tag, encrypted]);
+    const payload = encryptDatabase(content, secret);
     await writeFile(stagingPath, payload, { mode: 0o600 });
     await rename(stagingPath, fullPath);
   } finally {
@@ -244,4 +242,15 @@ export async function executeBackup(): Promise<{
     sizeFormatted: formatBytes(fileStat.size),
     createdAt: new Date().toISOString()
   };
+}
+
+export async function recoverBackupFile(content: Uint8Array, secret: string): Promise<Buffer> {
+  const tempDir = await mkdtemp(path.join(tmpdir(), "fitfamily-recovery-"));
+  try {
+    const restoredPath = path.join(tempDir, "recovered.db");
+    await recoverDatabase(content, secret, restoredPath);
+    return await readFile(restoredPath);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
 }

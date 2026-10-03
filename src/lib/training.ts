@@ -10,6 +10,7 @@ type StartInput = {
 };
 
 export async function startOrSwitchTraining(input: StartInput) {
+  await enforceSafetyPauses();
   const client = await db();
   const now = new Date().toISOString();
   const active = await client.execute({
@@ -62,6 +63,7 @@ export async function startOrSwitchTraining(input: StartInput) {
 }
 
 export async function stopTraining(profileId: string) {
+  await enforceSafetyPauses();
   const client = await db();
   const now = new Date().toISOString();
   const active = await client.execute({
@@ -90,21 +92,30 @@ export async function stopTraining(profileId: string) {
 
 export async function enforceSafetyPauses() {
   const client = await db();
-  const cutoff = new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString();
+  const limitMs = 4 * 60 * 60 * 1000;
   const sessions = await client.execute({
-    sql: "SELECT id, profile_id FROM training_sessions WHERE status = 'active' AND started_at <= ?",
-    args: [cutoff]
+    sql: "SELECT id, profile_id, started_at FROM training_sessions WHERE status = 'active' AND julianday(started_at) <= julianday(?)",
+    args: [new Date(Date.now() - limitMs).toISOString()]
   });
-  const now = new Date().toISOString();
   for (const session of sessions.rows) {
-    const sessionId = String(session.id);
-    await client.batch([
-      { sql: "UPDATE training_segments SET ended_at = ? WHERE session_id = ? AND ended_at IS NULL", args: [now, sessionId] },
-      { sql: "UPDATE training_sessions SET ended_at = ?, status = 'paused' WHERE id = ?", args: [now, sessionId] },
-      {
-        sql: "INSERT INTO audit_log (id, action, profile_id, details) VALUES (?, 'training.safety_pause', ?, ?)",
-        args: [randomUUID(), String(session.profile_id), JSON.stringify({ sessionId })]
-      }
-    ], "write");
+      const sessionId = String(session.id);
+      const endedAt = new Date(new Date(String(session.started_at)).getTime() + limitMs).toISOString();
+      // A delayed read or switch must never credit time after the safety limit.
+      // Keep late segments as zero-duration records instead of deleting history.
+      const details = JSON.stringify({ sessionId, endedAt });
+      await client.batch([
+        { sql: `UPDATE training_segments SET
+            started_at = CASE WHEN julianday(started_at) > julianday(?) THEN ? ELSE started_at END,
+            ended_at = CASE WHEN ended_at IS NULL OR julianday(ended_at) > julianday(?) THEN ? ELSE ended_at END
+            WHERE session_id = ? AND EXISTS (SELECT 1 FROM training_sessions WHERE id = ? AND status = 'active')`, args: [endedAt, endedAt, endedAt, endedAt, sessionId, sessionId] },
+        { sql: "UPDATE training_sessions SET ended_at = ?, status = 'paused' WHERE id = ? AND status = 'active'", args: [endedAt, sessionId] },
+        {
+          sql: `INSERT INTO audit_log (id, action, profile_id, details)
+            SELECT ?, 'training.safety_pause', ?, ?
+            WHERE EXISTS (SELECT 1 FROM training_sessions WHERE id = ? AND status = 'paused' AND ended_at = ?)
+            AND NOT EXISTS (SELECT 1 FROM audit_log WHERE action = 'training.safety_pause' AND details = ?)`,
+          args: [randomUUID(), String(session.profile_id), details, sessionId, endedAt, details]
+        }
+      ], "write");
   }
 }

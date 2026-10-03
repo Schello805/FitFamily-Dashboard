@@ -116,6 +116,7 @@ set_user_gsetting() {
 set_user_gsetting org.gnome.desktop.session idle-delay 0
 set_user_gsetting org.gnome.desktop.screensaver lock-enabled false
 set_user_gsetting org.gnome.settings-daemon.plugins.power sleep-inactive-ac-type 'nothing'
+set_user_gsetting org.gnome.desktop.a11y.applications screen-keyboard-enabled true
 echo "   Bildschirm-Timeout auf Dauerbetrieb gesetzt (kein automatisches Abdunkeln/Sperren)."
 
 # 6. FitFamily Hintergrunddienst aktivieren

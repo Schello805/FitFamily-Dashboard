@@ -7,15 +7,16 @@ Wants=network-online.target
 Type=simple
 User=fitfamily
 Group=fitfamily
-WorkingDirectory=/opt/fitfamily
+WorkingDirectory=/opt/fitfamily/current
+Environment=HOST=0.0.0.0
 EnvironmentFile=-/opt/fitfamily/.env.local
 Environment=NODE_ENV=production
-ExecStart=/usr/bin/npm start
+ExecStart=/usr/bin/node /opt/fitfamily/current/node_modules/next/dist/bin/next start -H ${HOST} -p 3000
 Restart=on-failure
 RestartSec=5
 PrivateTmp=true
 ProtectSystem=full
-ReadWritePaths=/opt/fitfamily -/mnt/nas/fitfamily
+ReadWritePaths=/opt/fitfamily/data /opt/fitfamily/backups -/mnt/nas/fitfamily
 
 [Install]
 WantedBy=multi-user.target

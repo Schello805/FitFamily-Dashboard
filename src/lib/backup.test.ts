@@ -1,93 +1,116 @@
-import { describe, expect, it, beforeEach } from "vitest";
-import { executeBackup, formatBytes, getBackupConfiguredPath, getBackupEncryptionKey, getBackupSettings, setBackupSettings } from "@/lib/backup";
-import { db } from "@/lib/db";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { createClient, type Client } from "@libsql/client";
 import { mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { createDecipheriv, createHash } from "node:crypto";
-import { createClient } from "@libsql/client";
+import { executeBackup, formatBytes, getBackupConfiguredPath, getBackupEncryptionKey, getBackupSettings, recoverBackupFile, setBackupSettings } from "@/lib/backup";
+import { decryptDatabase, encryptDatabase, readBackupConfiguration, recoverDatabase, snapshotDatabase } from "@/lib/backup-format.mjs";
 
-describe("NAS Backup Service", () => {
-  let tempBackupDir: string;
+const isolated = vi.hoisted(() => ({ client: null as Client | null }));
+vi.mock("@/lib/db", () => ({
+  db: async () => isolated.client!,
+  getSetting: async (key: string) => {
+    const result = await isolated.client!.execute({ sql: "SELECT value FROM settings WHERE key = ?", args: [key] });
+    return result.rows[0] ? String(result.rows[0].value) : null;
+  }
+}));
 
+describe("NAS backup and offline recovery", () => {
+  let directory: string;
+  let backupDirectory: string;
   beforeEach(async () => {
-    tempBackupDir = await mkdtemp(path.join(tmpdir(), "fitfamily-test-backup-"));
-    const client = await db();
-    await client.execute({ sql: "DELETE FROM settings WHERE key IN ('nas_backup_path', 'nas_backup_key')", args: [] });
-    delete process.env.NAS_BACKUP_PATH;
-    delete process.env.BACKUP_ENCRYPTION_KEY;
+    directory = await mkdtemp(path.join(tmpdir(), "fitfamily-backup-test-"));
+    backupDirectory = path.join(directory, "nas");
+    const databaseUrl = `file:${path.join(directory, "source.db")}`;
+    vi.stubEnv("DATABASE_URL", databaseUrl);
+    vi.stubEnv("NAS_BACKUP_PATH", "");
+    vi.stubEnv("BACKUP_ENCRYPTION_KEY", "");
+    isolated.client = createClient({ url: databaseUrl });
+    await isolated.client.execute("PRAGMA journal_mode = WAL");
+    await isolated.client.batch([
+      "CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at TEXT)",
+      "CREATE TABLE profiles (id TEXT PRIMARY KEY, name TEXT)",
+      "CREATE TABLE training_sessions (id TEXT PRIMARY KEY, profile_id TEXT REFERENCES profiles(id))",
+      "CREATE TABLE training_segments (id TEXT PRIMARY KEY, session_id TEXT REFERENCES training_sessions(id))",
+      "CREATE TABLE admin_sessions (id TEXT PRIMARY KEY)",
+      "CREATE TABLE paired_devices (id TEXT PRIMARY KEY)",
+      "CREATE TABLE handoff_tokens (id TEXT PRIMARY KEY)",
+      "INSERT INTO admin_sessions VALUES ('historical-session')",
+      "INSERT INTO paired_devices VALUES ('historical-device')",
+      "INSERT INTO handoff_tokens VALUES ('historical-link')",
+      "INSERT INTO profiles VALUES ('mama', 'Wal-Test')",
+      "INSERT INTO training_sessions VALUES ('recent-workout', 'mama')"
+    ], "write");
+  });
+  afterEach(async () => {
+    isolated.client?.close();
+    isolated.client = null;
+    vi.unstubAllEnvs();
+    await rm(directory, { recursive: true, force: true });
   });
 
-  it("formats bytes accurately", () => {
+  it("formats bytes and reports an unconfigured NAS", async () => {
     expect(formatBytes(500)).toBe("500 B");
     expect(formatBytes(1500)).toBe("1.5 KB");
     expect(formatBytes(1048576 * 2.5)).toBe("2.5 MB");
+    expect((await getBackupSettings()).configured).toBe(false);
   });
 
-  it("returns unconfigured status when no path is set", async () => {
-    const settings = await getBackupSettings();
-    expect(settings.configured).toBe(false);
-    expect(settings.path).toBe("");
-    expect(settings.accessible).toBe(false);
+  it("uses saved NAS path and key before environment values for web and scheduled backup", async () => {
+    vi.stubEnv("NAS_BACKUP_PATH", path.join(directory, "old-nas"));
+    vi.stubEnv("BACKUP_ENCRYPTION_KEY", "old-environment-key-123");
+    await setBackupSettings({ path: backupDirectory, key: "new-saved-key-123456789" });
+    expect(await getBackupConfiguredPath()).toBe(backupDirectory);
+    expect(await getBackupEncryptionKey()).toBe("new-saved-key-123456789");
+    expect(await readBackupConfiguration(isolated.client!)).toEqual({ target: backupDirectory, secret: "new-saved-key-123456789" });
   });
 
-  it("saves NAS backup path to settings and detects accessible directory", async () => {
-    const updated = await setBackupSettings({ path: tempBackupDir });
-    expect(updated.configured).toBe(true);
-    expect(updated.path).toBe(tempBackupDir);
-    expect(updated.accessible).toBe(true);
-    expect(updated.writable).toBe(true);
-
-    const pathFromDb = await getBackupConfiguredPath();
-    expect(pathFromDb).toBe(tempBackupDir);
-  });
-
-  it("generates an encryption key if none is provided", async () => {
-    const key = await getBackupEncryptionKey();
-    expect(key).toBeDefined();
-    expect(key.length).toBeGreaterThanOrEqual(16);
-
-    // Subsequent call returns the same stored key
-    const key2 = await getBackupEncryptionKey();
-    expect(key2).toBe(key);
-  });
-
-  it("executes encrypted backup and creates .db.enc file", async () => {
-    await setBackupSettings({ path: tempBackupDir });
-
-    const result = await executeBackup();
-    expect(result.filename).toMatch(/^fitfamily-.*\.db\.enc$/);
-    expect(result.sizeBytes).toBeGreaterThan(0);
-
-    const files = await readdir(tempBackupDir);
-    const backupFiles = files.filter((f) => f.endsWith(".db.enc"));
-    expect(backupFiles.length).toBe(1);
-
-    // Verify magic bytes "FFDB1"
-    const content = await readFile(path.join(tempBackupDir, backupFiles[0]));
-    const magic = content.subarray(0, 5).toString("utf8");
-    expect(magic).toBe("FFDB1");
-
-    // Restore the encrypted payload to a temporary SQLite file and run the
-    // same integrity check used after snapshot creation.
+  it("generates a stable exportable key and recovers committed WAL data from encrypted backup", async () => {
+    await setBackupSettings({ path: backupDirectory });
     const secret = await getBackupEncryptionKey();
-    const iv = content.subarray(5, 17);
-    const tag = content.subarray(17, 33);
-    const decipher = createDecipheriv("aes-256-gcm", createHash("sha256").update(secret).digest(), iv);
-    decipher.setAuthTag(tag);
-    const restored = Buffer.concat([decipher.update(content.subarray(33)), decipher.final()]);
-    expect(restored.subarray(0, 16).toString("utf8")).toBe("SQLite format 3\0");
-    const restoredPath = path.join(tempBackupDir, "restored.db");
-    await writeFile(restoredPath, restored);
-    const restoredClient = createClient({ url: `file:${restoredPath}` });
+    expect(secret.length).toBeGreaterThanOrEqual(16);
+    expect(await getBackupEncryptionKey()).toBe(secret);
+    const result = await executeBackup();
+    const content = await readFile(result.fullPath);
+    expect(content.subarray(0, 5).toString()).toBe("FFDB1");
+    expect((await readdir(backupDirectory)).filter((name) => name.endsWith(".db.enc"))).toHaveLength(1);
+    const recovered = await recoverBackupFile(content, secret);
+    const recoveredPath = path.join(directory, "recovered.db");
+    await writeFile(recoveredPath, recovered);
+    const restored = createClient({ url: `file:${recoveredPath}` });
     try {
-      const integrity = await restoredClient.execute("PRAGMA integrity_check");
-      expect(integrity.rows.map((row) => String(row.integrity_check))).toEqual(["ok"]);
-    } finally {
-      await restoredClient.close();
-    }
+      expect((await restored.execute("SELECT name FROM profiles WHERE id = 'mama'")).rows[0]?.name).toBe("Wal-Test");
+      expect((await restored.execute("SELECT id FROM training_sessions")).rows[0]?.id).toBe("recent-workout");
+      expect((await restored.execute("SELECT * FROM admin_sessions")).rows).toHaveLength(0);
+      expect((await restored.execute("SELECT * FROM paired_devices")).rows).toHaveLength(0);
+      expect((await restored.execute("SELECT * FROM handoff_tokens")).rows).toHaveLength(0);
+    } finally { restored.close(); }
+  });
 
-    // Clean up
-    await rm(tempBackupDir, { recursive: true, force: true });
+  it("keeps one key when initial backups and key exports run concurrently", async () => {
+    const keys = await Promise.all(Array.from({ length: 8 }, () => getBackupEncryptionKey()));
+    expect(new Set(keys).size).toBe(1);
+    expect(await getBackupEncryptionKey()).toBe(keys[0]);
+  });
+
+  it("rejects an incorrect key and tampering before creating a recovery artifact", async () => {
+    const snapshot = path.join(directory, "snapshot.db");
+    await snapshotDatabase(process.env.DATABASE_URL!, snapshot);
+    const encrypted = encryptDatabase(await readFile(snapshot), "correct-secret-123456");
+    expect(() => decryptDatabase(encrypted, "wrong-secret-123456789")).toThrow("beschädigt");
+    encrypted[encrypted.length - 1] ^= 1;
+    await expect(recoverDatabase(encrypted, "correct-secret-123456", path.join(directory, "invalid.db"))).rejects.toThrow("beschädigt");
+    expect(await readdir(directory)).not.toContain("invalid.db");
+  });
+
+  it("refuses to overwrite an existing recovered file", async () => {
+    const snapshot = path.join(directory, "snapshot.db");
+    await snapshotDatabase(process.env.DATABASE_URL!, snapshot);
+    const secret = "correct-secret-123456";
+    const encrypted = encryptDatabase(await readFile(snapshot), secret);
+    const destination = path.join(directory, "offline.db");
+    await recoverDatabase(encrypted, secret, destination);
+    await expect(recoverDatabase(encrypted, secret, destination)).rejects.toMatchObject({ code: "EEXIST" });
+    expect((await readFile(destination)).subarray(0, 16).toString()).toBe("SQLite format 3\0");
   });
 });

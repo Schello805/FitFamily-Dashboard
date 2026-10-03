@@ -19,7 +19,8 @@ EXPECTED_DIR="/opt/fitfamily"
 APP_USER="fitfamily"
 
 if [[ "$APP_DIR" != "$EXPECTED_DIR" ]]; then
-  echo "Hinweis: Das Projekt liegt unter $APP_DIR (Standard: $EXPECTED_DIR)."
+  echo "Fehler: Die Systeminstallation benötigt einen Checkout unter $EXPECTED_DIR."
+  exit 1
 fi
 
 if [[ ! -f "$APP_DIR/package.json" ]]; then
@@ -118,13 +119,9 @@ APP_URL="${input_url:-$default_url}"
 
 echo ""
 echo "=========================================================="
-echo " Schritt 3: Eltern-Sicherheits-PIN für die Verwaltung"
+echo " Schritt 3: Ersteinrichtung"
 echo "=========================================================="
-existing_pin="$(grep -E '^ADMIN_PIN=' "$APP_DIR/.env.local" 2>/dev/null | cut -d= -f2- || true)"
-default_pin="${existing_pin:-1234}"
-echo " Dieser PIN schützt den Bereich '/verwaltung' vor Kinderhänden."
-read -r -p " 4-stelliger Eltern-PIN [$default_pin]: " input_pin
-ADMIN_PIN="${input_pin:-$default_pin}"
+echo " Der Eltern-PIN wird bei der Ersteinrichtung im Browser festgelegt."
 
 echo ""
 echo "=========================================================="
@@ -134,6 +131,10 @@ existing_openai="$(grep -E '^OPENAI_API_KEY=' "$APP_DIR/.env.local" 2>/dev/null 
 existing_gemini="$(grep -E '^GEMINI_API_KEY=' "$APP_DIR/.env.local" 2>/dev/null | cut -d= -f2- || true)"
 existing_nas="$(grep -E '^NAS_BACKUP_PATH=' "$APP_DIR/.env.local" 2>/dev/null | cut -d= -f2- || true)"
 NAS_BACKUP_PATH="$existing_nas"
+BACKUP_ENCRYPTION_KEY="$(grep -E '^BACKUP_ENCRYPTION_KEY=' "$APP_DIR/.env.local" 2>/dev/null | cut -d= -f2- || true)"
+TRUST_PROXY="$(grep -E '^TRUST_PROXY=' "$APP_DIR/.env.local" 2>/dev/null | cut -d= -f2- || true)"
+APP_HOST=0.0.0.0
+[[ "$TRUST_PROXY" == true ]] && APP_HOST=127.0.0.1
 
 echo " (Hinweis: NAS-Backups & KI-Schlüssel können jederzeit bequem"
 echo "  in der Web-Verwaltung unter '/verwaltung' eingerichtet werden.)"
@@ -157,50 +158,51 @@ cat <<EOF > "$APP_DIR/.env.local"
 # FitFamily Konfiguration – Automatisch generiert
 NODE_ENV=production
 PORT=3000
-HOST=0.0.0.0
-DATABASE_URL=file:./data/fitfamily.db
+HOST=$APP_HOST
+DATABASE_URL=file:/opt/fitfamily/data/fitfamily.db
 APP_URL=$APP_URL
-ADMIN_PIN=$ADMIN_PIN
 SESSION_SECRET=$SESSION_SECRET
 OPENAI_API_KEY=$OPENAI_API_KEY
 GEMINI_API_KEY=$GEMINI_API_KEY
 NAS_BACKUP_PATH=$NAS_BACKUP_PATH
+BACKUP_ENCRYPTION_KEY=$BACKUP_ENCRYPTION_KEY
+TRUST_PROXY=${TRUST_PROXY:-false}
 EOF
-chmod 0600 "$APP_DIR/.env.local"
+chown root:fitfamily "$APP_DIR/.env.local"
+chmod 0640 "$APP_DIR/.env.local"
 echo ""
 echo "-> Konfiguration (.env.local) erfolgreich gespeichert."
 
-# 5. Sudoers für 1-Click Web-Update & Reparatur einrichten
-SUDOERS_TMP="/etc/sudoers.d/fitfamily.tmp.$$"
-cat > "$SUDOERS_TMP" <<EOF
-fitfamily ALL=(ALL) NOPASSWD: /bin/systemctl, /usr/bin/systemctl, /bin/chown, /usr/bin/chown, /bin/rm, /usr/bin/rm, /bin/mv, /usr/bin/mv, /bin/mount, /usr/bin/mount, /bin/umount, /usr/bin/umount, /bin/mkdir, /usr/bin/mkdir, $APP_DIR/scripts/update.sh, $APP_DIR/scripts/repair.sh, $APP_DIR/scripts/backup.sh
-EOF
-chmod 0440 "$SUDOERS_TMP"
-visudo -cf "$SUDOERS_TMP"
-mv "$SUDOERS_TMP" /etc/sudoers.d/fitfamily
+# 5. Privileged helpers are root-owned and accept only fixed operations.
+"$APP_DIR/scripts/install-privileged-helpers.sh"
 
 # 6. Abhängigkeiten installieren & App bauen
 echo ""
 echo "-> 2/6: Abhängigkeiten installieren & Dashboard bauen..."
-chown -R "$APP_USER:$APP_USER" "$APP_DIR"
+chown -hR root:fitfamily "$APP_DIR"
+chmod -R go-w "$APP_DIR"
+chown -R "$APP_USER:$APP_USER" "$APP_DIR/data" "$APP_DIR/backups"
 cd "$APP_DIR"
-sudo -u "$APP_USER" npm ci
-sudo -u "$APP_USER" npm run build
+# Preserve the legacy build as a rollback target during migration.
+if [[ ! -e "$APP_DIR/current" && -f "$APP_DIR/.next/BUILD_ID" ]]; then
+  ln -s "$APP_DIR" "$APP_DIR/current"
+fi
 
 # 7. Systemd Service einrichten & aktivieren
 echo ""
 echo "-> 3/6: Hintergrunddienst einrichten..."
 install -m 0644 "$APP_DIR/deploy/systemd/fitfamily.service" /etc/systemd/system/fitfamily.service
+install -m 0644 "$APP_DIR/deploy/systemd/fitfamily-backup.service" /etc/systemd/system/fitfamily-backup.service
+install -m 0644 "$APP_DIR/deploy/systemd/fitfamily-backup.timer" /etc/systemd/system/fitfamily-backup.timer
 systemctl daemon-reload
-systemctl enable --now fitfamily.service
-systemctl restart fitfamily.service
+systemctl enable fitfamily.service
+/usr/local/libexec/fitfamily-update --install-local
+systemctl enable --now fitfamily-backup.timer
 
 # 8. Firewall prüfen
 echo ""
 echo "-> 4/6: Lokale Firewall prüfen (Port 3000)..."
-if command -v ufw >/dev/null 2>&1; then
-  ufw allow 3000/tcp comment 'FitFamily Dashboard' >/dev/null 2>&1 || true
-fi
+echo "   Firewall unverändert. Zugriff nur für das eigene Heimnetz erlauben (siehe Anleitung)."
 
 # 9. Betriebsmodus-spezifische Einrichtung
 echo ""
@@ -251,6 +253,7 @@ EOF
   # Bildschirm-Timeout & Standby für Dauerbetrieb deaktivieren
   USER_UID="$(id -u "$DESKTOP_USER" 2>/dev/null || echo 1000)"
   sudo -u "$DESKTOP_USER" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$USER_UID/bus" gsettings set org.gnome.desktop.session idle-delay 0 2>/dev/null || true
+  sudo -u "$DESKTOP_USER" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$USER_UID/bus" gsettings set org.gnome.desktop.a11y.applications screen-keyboard-enabled true 2>/dev/null || true
   sudo -u "$DESKTOP_USER" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$USER_UID/bus" gsettings set org.gnome.desktop.screensaver lock-enabled false 2>/dev/null || true
   sudo -u "$DESKTOP_USER" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$USER_UID/bus" gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-ac-type 'nothing' 2>/dev/null || true
   echo "   Bildschirm-Timeout auf Dauerbetrieb gesetzt (kein automatisches Schwarzbild)."
@@ -291,7 +294,7 @@ echo " - Direkt an diesem PC:  http://localhost:3000"
 echo " - Im Heimnetz (Handy):  $APP_URL"
 echo ""
 echo " Einstellungen:"
-echo " - Eltern-PIN:           $ADMIN_PIN"
+echo " - Eltern-PIN:           im Browser einrichten"
 echo " - Verwaltung:           http://localhost:3000/verwaltung"
 echo ""
 if [[ "$OPERATION_MODE" == "1" ]]; then

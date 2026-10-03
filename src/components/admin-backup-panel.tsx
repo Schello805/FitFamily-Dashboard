@@ -2,6 +2,7 @@
 
 import { HardDrive, RefreshCw } from "lucide-react";
 import { formatGermanDateTime } from "@/lib/date-format";
+import { useState } from "react";
 
 export type BackupInfo = { name: string; sizeBytes: number; sizeFormatted: string; date: string };
 export type BackupStatus = {
@@ -16,6 +17,7 @@ export type BackupStatus = {
 };
 
 type AdminBackupPanelProps = {
+  pin?: string;
   status: BackupStatus | null;
   path: string;
   encryptionKey: string;
@@ -44,11 +46,52 @@ type AdminBackupPanelProps = {
 };
 
 export function AdminBackupPanel({
+  pin = "",
   status, path, encryptionKey, server, share, username, password,
   showMountForm, showAdvanced, saving, testing, backingUp, mounting,
   onPathChange, onKeyChange, onServerChange, onShareChange, onUsernameChange, onPasswordChange,
   onToggleMountForm, onToggleAdvanced, onSavePath, onTestConnection, onStartBackup, onMountShare
 }: AdminBackupPanelProps) {
+  const [recoveryFile, setRecoveryFile] = useState<File | null>(null);
+  const [recoveryKey, setRecoveryKey] = useState("");
+  const [recovering, setRecovering] = useState(false);
+  const [recoveryMessage, setRecoveryMessage] = useState("");
+
+  async function downloadRecovery(action: "key" | "database") {
+    setRecovering(true);
+    setRecoveryMessage("");
+    try {
+      let body: string | FormData;
+      let headers: HeadersInit | undefined;
+      if (action === "key") {
+        body = JSON.stringify({ action: "recovery-key", pin });
+        headers = { "Content-Type": "application/json" };
+      } else {
+        if (!recoveryFile) return;
+        const form = new FormData();
+        form.set("pin", pin);
+        form.set("backup", recoveryFile);
+        form.set("key", recoveryKey);
+        body = form;
+      }
+      const response = await fetch("/api/admin/backup", { method: "POST", headers, body });
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || "Wiederherstellung fehlgeschlagen.");
+      }
+      const objectUrl = URL.createObjectURL(await response.blob());
+      const anchor = document.createElement("a");
+      anchor.href = objectUrl;
+      anchor.download = action === "key" ? "fitfamily-recovery-key.txt" : "fitfamily-recovered.db";
+      anchor.click();
+      setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+      setRecoveryMessage(action === "key" ? "Schlüssel heruntergeladen. Bewahre ihn getrennt von NAS und App-Gerät auf." : "SQLite-Datei geprüft und heruntergeladen. Zum Einspielen den Dienst stoppen und die Anleitung zur Wiederherstellung verwenden.");
+    } catch (error) {
+      setRecoveryMessage(error instanceof Error ? error.message : "Wiederherstellung fehlgeschlagen.");
+    } finally {
+      setRecovering(false);
+    }
+  }
   return (
     <article className="wide backup-card">
       <div className="admin-title">
@@ -110,7 +153,16 @@ export function AdminBackupPanel({
         <p className="data-text" style={{ fontSize: "11px", marginTop: "6px" }}>Backups werden standardmäßig mit einem sicheren AES-256-GCM-Schlüssel verschlüsselt. Wenn du hier einen eigenen Schlüssel einträgst, wird dieser für künftige Sicherungen genutzt.</p>
       </div>}
 
-      <p className="data-text" style={{ marginTop: "14px" }}>Der NAS-Snapshot enthält den vollständigen Datenbestand. Eine Wiederherstellung aus diesem Snapshot ist derzeit nicht in der App verfügbar. Alte Stände werden automatisch nach 7 Tagen, 4 Wochen und 12 Monaten rotiert.</p>
+      <div style={{ marginTop: "16px", display: "grid", gap: "10px" }}>
+        <h3>Wiederherstellung vorbereiten</h3>
+        <p className="data-text">Lade den Schlüssel jetzt herunter und bewahre ihn getrennt von NAS und App-Gerät auf. Nach einer Schlüsseländerung erneut herunterladen; frühere Backups benötigen ihren bisherigen Schlüssel.</p>
+        <button type="button" className="backup-advanced-toggle" disabled={recovering} onClick={() => void downloadRecovery("key")}>Wiederherstellungsschlüssel herunterladen</button>
+        <label className="api-key-field">Verschlüsselte Sicherung<input type="file" accept=".enc" onChange={(event) => setRecoveryFile(event.target.files?.[0] ?? null)} /></label>
+        <label className="api-key-field">Schlüssel der gewählten Sicherung<input type="password" autoComplete="off" value={recoveryKey} onChange={(event) => setRecoveryKey(event.target.value)} /></label>
+        <button type="button" className="update-secondary-btn" disabled={recovering || !recoveryFile || recoveryKey.trim().length < 16} onClick={() => void downloadRecovery("database")}>{recovering ? "Prüft …" : "SQLite-Datei wiederherstellen und herunterladen"}</button>
+        {recoveryMessage && <p role="status" className="data-text">{recoveryMessage}</p>}
+      </div>
+      <p className="data-text" style={{ marginTop: "14px" }}>Der NAS-Snapshot enthält den vollständigen Datenbestand. Eine wiederhergestellte SQLite-Datei wird bei gestopptem Dienst mit dem Wiederherstellungsskript eingespielt (Installationsanleitung). Alte Stände werden nach den sieben jüngsten Sicherungen, vier Wochen und zwölf Monaten rotiert.</p>
     </article>
   );
 }

@@ -1,6 +1,7 @@
 import type { ActivityTrendPoint } from "@/lib/domain";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useId, useState } from "react";
 import { X } from "lucide-react";
+import { Modal } from "@/components/modal";
 
 function makeLine(points: ActivityTrendPoint[], value: (point: ActivityTrendPoint) => number | null, max: number) {
   let path = "";
@@ -19,13 +20,15 @@ function makeLine(points: ActivityTrendPoint[], value: (point: ActivityTrendPoin
   return path.trim();
 }
 
-export function ActivityTrendChart({ points, color, targetMinutes, targetPeriod }: {
+export function ActivityTrendChart({ points, color, targetMinutes, targetPeriod, profileName }: {
   points: ActivityTrendPoint[];
   color: string;
   targetMinutes: number;
   targetPeriod: "Tag" | "Woche";
+  profileName?: string;
 }) {
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const titleId = useId();
   const closeDetails = useCallback(() => setDetailsOpen(false), []);
   useEffect(() => {
     if (!detailsOpen) return;
@@ -35,8 +38,7 @@ export function ActivityTrendChart({ points, color, targetMinutes, targetPeriod 
       timer = window.setTimeout(closeDetails, 60_000);
     };
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") closeDetails();
-      else resetTimer();
+      if (event.key !== "Escape") resetTimer();
     };
     window.addEventListener("keydown", onKeyDown);
     window.addEventListener("pointerdown", resetTimer);
@@ -59,8 +61,8 @@ export function ActivityTrendChart({ points, color, targetMinutes, targetPeriod 
   const marker = (index: number) => index < 0 ? 0 : (254 * index) / Math.max(1, points.length - 1) + 3;
   const explanation = `Zeitauflösung: ältere Daten je Jahr, danach je Monat, die letzten 30 Tage täglich. Ist = der jeweils höhere Tageswert aus Apple-Health-Trainingsminuten und abgeschlossenen FitFamily-Trainingsminuten; diese Werte werden nicht addiert, damit dasselbe Training nicht doppelt zählt. Monats- und Jahreswerte sind Durchschnittswerte pro Tag aus den Tagen, für die Daten vorliegen. Soll: ${targetLabel}. Fehlende Übertragungen bleiben Lücken.`;
 
-  const chart = (large = false) => <div className={`dashboard-history-chart${large ? " dashboard-history-chart-large" : ""}`} title={explanation} aria-label={explanation}
-    {...(!large ? { role: "button", tabIndex: 0, onClick: () => setDetailsOpen(true), onKeyDown: (event: React.KeyboardEvent<HTMLDivElement>) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setDetailsOpen(true); } } } : {})}>
+  const chart = (large = false) => <div className={`dashboard-history-chart${large ? " dashboard-history-chart-large" : ""}`} title={explanation} aria-label={large ? explanation : `Trainingsverlauf${profileName ? ` von ${profileName}` : ""} öffnen`}
+    {...(!large ? { role: "button", tabIndex: 0, "aria-haspopup": "dialog" as const, "aria-expanded": detailsOpen, onClick: () => setDetailsOpen(true), onKeyDown: (event: React.KeyboardEvent<HTMLDivElement>) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setDetailsOpen(true); } } } : {})}>
       <div className="dashboard-history-chart-heading">
         <span>VERLAUF · JAHRE / MONATE / TAGE</span>
         <span>{hasData ? "IST / SOLL" : "NOCH KEINE IST-DATEN"}</span>
@@ -73,7 +75,7 @@ export function ActivityTrendChart({ points, color, targetMinutes, targetPeriod 
         {hasData && <path className="dashboard-history-actual" d={actualLine} pathLength={1} style={{ stroke: color }} />}
         {points.map((point, index) => point.activityMinutes === null ? null : (
           <circle key={`${point.resolution}-${point.date}`} className="dashboard-history-point" cx={(3 + (254 * index) / Math.max(1, points.length - 1)).toFixed(1)} cy={(92 - (84 * Math.max(0, point.activityMinutes)) / scaleMax).toFixed(1)} r="2.5" style={{ fill: color }}>
-            <title>{point.label}: Ø {new Intl.NumberFormat("de-DE", { maximumFractionDigits: 1 }).format(point.activityMinutes)} Minuten/Tag, Daten für {point.measuredDays} von {point.periodDays} Tagen.</title>
+            <title>{`${point.label}: Ø ${new Intl.NumberFormat("de-DE", { maximumFractionDigits: 1 }).format(point.activityMinutes)} Minuten/Tag, Daten für ${point.measuredDays} von ${point.periodDays} Tagen.`}</title>
           </circle>
         ))}
       </svg>
@@ -87,10 +89,10 @@ export function ActivityTrendChart({ points, color, targetMinutes, targetPeriod 
 
   return <>
     {chart()}
-    {detailsOpen && <div className="modal-backdrop dashboard-history-backdrop" onClick={closeDetails}>
-      <section className="dashboard-history-modal" role="dialog" aria-modal="true" aria-labelledby="dashboard-history-title" onClick={(event) => event.stopPropagation()}>
+    {detailsOpen && <Modal className="dashboard-history-backdrop" onClose={closeDetails}>
+      <section className="dashboard-history-modal" role="dialog" aria-modal="true" aria-labelledby={titleId}>
         <button className="dashboard-history-close" type="button" aria-label="Verlauf schließen" onClick={closeDetails}><X size={22} /></button>
-        <h2 id="dashboard-history-title">Dein Trainingsverlauf</h2>
+        <h2 id={titleId}>Dein Trainingsverlauf</h2>
         <p>Die Kurve zeigt deinen tatsächlichen Verlauf im Vergleich zu deinem persönlichen Soll.</p>
         {chart(true)}
         <div className="dashboard-history-explanation">
@@ -100,6 +102,6 @@ export function ActivityTrendChart({ points, color, targetMinutes, targetPeriod 
         </div>
         <small>Schließt sich bei Inaktivität nach 60 Sekunden. Zum Schließen außen tippen oder Escape drücken.</small>
       </section>
-    </div>}
+    </Modal>}
   </>;
 }

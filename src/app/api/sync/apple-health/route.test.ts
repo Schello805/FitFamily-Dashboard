@@ -1,4 +1,5 @@
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { randomUUID } from "node:crypto";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { DELETE, GET, POST } from "./route";
 import { POST as readAdminLogs } from "@/app/api/admin/logs/route";
 import { DELETE as deleteTrainingEntry } from "@/app/api/manual-training/route";
@@ -414,5 +415,92 @@ describe("Apple Health sync endpoint", () => {
       body: JSON.stringify({ profileId, secret, dryRun: true })
     }));
     expect(staleKeyResponse.status).toBe(401);
+  });
+});
+
+describe("atomic Apple Health imports", () => {
+  const isolatedProfile = `atomic-health-${randomUUID()}`;
+  const isolatedSecret = "atomic-health-sync-token-long-enough-for-schema";
+  const startedAt = "2026-09-30T10:00:00Z";
+  const endedAt = "2026-09-30T10:30:00Z";
+  const dateKey = (offset: number) => {
+    const date = new Date();
+    date.setDate(date.getDate() + offset);
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+  };
+  const send = (data: Record<string, unknown>) => POST(new Request("http://localhost/api/sync/apple-health", {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ profileId: isolatedProfile, secret: isolatedSecret, ...data })
+  }));
+
+  beforeEach(async () => {
+    const client = await db();
+    await client.batch([
+      { sql: "INSERT INTO profiles (id, name, color, avatar) VALUES (?, 'Atomic Health Test', '#22d3ee', 'papa')", args: [isolatedProfile] },
+      { sql: "INSERT INTO apple_health_tokens (profile_id, token_hash) VALUES (?, ?)", args: [isolatedProfile, hashToken(isolatedSecret)] }
+    ], "write");
+  });
+
+  afterEach(async () => {
+    vi.restoreAllMocks();
+    const client = await db();
+    await client.execute("DROP TRIGGER IF EXISTS atomic_health_reject_day");
+    await client.batch([
+      { sql: "DELETE FROM training_segments WHERE session_id IN (SELECT id FROM training_sessions WHERE profile_id = ?)", args: [isolatedProfile] },
+      { sql: "DELETE FROM training_sessions WHERE profile_id = ?", args: [isolatedProfile] },
+      { sql: "DELETE FROM apple_health_daily WHERE profile_id = ?", args: [isolatedProfile] },
+      { sql: "DELETE FROM apple_health_tokens WHERE profile_id = ?", args: [isolatedProfile] },
+      { sql: "DELETE FROM audit_log WHERE profile_id = ?", args: [isolatedProfile] },
+      { sql: "DELETE FROM profiles WHERE id = ?", args: [isolatedProfile] }
+    ], "write");
+  });
+
+  it("rejects invalid later activity before saving any workout or earlier day", async () => {
+    const payload = { workouts: [{ id: randomUUID(), startedAt, endedAt }], dailyActivity: [{ date: dateKey(0), exerciseMinutes: 30 }, { date: dateKey(1), stepCount: 1000 }] };
+    expect((await send(payload)).status).toBe(400);
+    expect((await send({ ...payload, dryRun: true })).status).toBe(400);
+    const client = await db();
+    const sessions = await client.execute({ sql: "SELECT id FROM training_sessions WHERE profile_id = ?", args: [isolatedProfile] });
+    const days = await client.execute({ sql: "SELECT date FROM apple_health_daily WHERE profile_id = ?", args: [isolatedProfile] });
+    expect(sessions.rows).toHaveLength(0);
+    expect(days.rows).toHaveLength(0);
+  });
+
+  it("rolls back workouts and earlier days when a later database write fails", async () => {
+    const client = await db();
+    await client.execute({ sql: "INSERT INTO apple_health_daily (profile_id, date, exercise_minutes) VALUES (?, ?, 12)", args: [isolatedProfile, dateKey(0)] });
+    await client.execute(`CREATE TRIGGER atomic_health_reject_day BEFORE INSERT ON apple_health_daily
+      WHEN NEW.profile_id = '${isolatedProfile}' AND NEW.date = '${dateKey(-1)}'
+      BEGIN SELECT RAISE(ABORT, 'test rejection'); END`);
+    const response = await send({ workouts: [{ id: randomUUID(), startedAt, endedAt }], dailyActivity: [{ date: dateKey(0), exerciseMinutes: 30 }, { date: dateKey(-1), exerciseMinutes: 20 }] });
+    expect(response.status).toBe(500);
+    expect(await response.json()).toMatchObject({ imported: 0, activityDaysSynced: 0 });
+    expect((await client.execute({ sql: "SELECT id FROM training_sessions WHERE profile_id = ?", args: [isolatedProfile] })).rows).toHaveLength(0);
+    const days = await client.execute({ sql: "SELECT date, exercise_minutes FROM apple_health_daily WHERE profile_id = ?", args: [isolatedProfile] });
+    expect(days.rows).toHaveLength(1);
+    expect(days.rows[0]).toMatchObject({ date: dateKey(0), exercise_minutes: 12 });
+    expect((await client.execute({ sql: "SELECT id FROM audit_log WHERE profile_id = ? AND action = 'health.apple_sync'", args: [isolatedProfile] })).rows).toHaveLength(0);
+  });
+
+  it.each([true, false])("serializes concurrent duplicates (workout ID: %s)", async (withId) => {
+    const payload = { workouts: [{ ...(withId ? { id: randomUUID() } : {}), startedAt, endedAt }] };
+    const responses = await Promise.all([send(payload), send(payload)]);
+    expect(responses.map((response) => response.status)).toEqual([200, 200]);
+    const results = await Promise.all(responses.map((response) => response.json()));
+    expect(results.reduce((sum, result) => sum + result.imported, 0)).toBe(1);
+    expect(results.reduce((sum, result) => sum + result.skipped, 0)).toBe(1);
+  });
+
+  it("rechecks a token revoked between authentication and the atomic write", async () => {
+    const client = await db();
+    const originalBatch = client.batch.bind(client);
+    vi.spyOn(client, "batch").mockImplementationOnce(async (statements, mode) => {
+      await client.execute({ sql: "DELETE FROM apple_health_tokens WHERE profile_id = ?", args: [isolatedProfile] });
+      return originalBatch(statements, mode);
+    });
+    const response = await send({ workouts: [{ id: randomUUID(), startedAt, endedAt }], dailyActivity: [{ date: dateKey(0), exerciseMinutes: 30 }] });
+    expect(response.status).toBe(401);
+    expect(await response.json()).toMatchObject({ imported: 0, activityDaysSynced: 0 });
+    expect((await client.execute({ sql: "SELECT id FROM training_sessions WHERE profile_id = ?", args: [isolatedProfile] })).rows).toHaveLength(0);
+    expect((await client.execute({ sql: "SELECT date FROM apple_health_daily WHERE profile_id = ?", args: [isolatedProfile] })).rows).toHaveLength(0);
   });
 });

@@ -22,6 +22,9 @@ import { showToast } from "@/components/toast";
 import { AppleActivityRings } from "@/components/apple-activity-rings";
 import { TouchPinpad } from "@/components/touch-pinpad";
 import { ApiRequestError, requestJson } from "@/lib/api-client";
+import { Modal } from "@/components/modal";
+import { ConnectionStatus } from "@/components/connection-status";
+import { useDashboardConnection } from "@/components/use-dashboard-connection";
 
 type Exercise = { id: string; name: string; type: string; equipment: string };
 
@@ -79,6 +82,7 @@ export function ProfileView({
   const [healthPinBusy, setHealthPinBusy] = useState(false);
   const [healthSyncToken, setHealthSyncToken] = useState("");
   const [healthTokenConfigured, setHealthTokenConfigured] = useState(false);
+  const [healthTokenStatus, setHealthTokenStatus] = useState<"loading" | "ready" | "error">("loading");
   const [showHealthSyncToken, setShowHealthSyncToken] = useState(false);
   const [copiedShortcutPrompt, setCopiedShortcutPrompt] = useState(false);
   const [prepCountdown, setPrepCountdown] = useState<{
@@ -148,17 +152,17 @@ export function ProfileView({
       `/api/sync/apple-health/token?profileId=${encodeURIComponent(profile.id)}`,
       "Sync-Schlüsselstatus nicht verfügbar.", { cache: "no-store" }
     )
-      .then((data) => setHealthTokenConfigured(Boolean(data?.configured)))
-      .catch(() => setHealthTokenConfigured(false));
+      .then((data) => {
+        setHealthTokenConfigured(Boolean(data?.configured));
+        setHealthTokenStatus("ready");
+      })
+      .catch(() => setHealthTokenStatus("error"));
   }, [healthModal, profile.id]);
 
-  const refresh = useCallback(async () => {
-    const data = await requestJson<{ profiles: DashboardProfile[] }>(
-      "/api/dashboard", "Dashboard-Daten konnten nicht aktualisiert werden.", { cache: "no-store" }
-    );
+  const { refresh, connectionError, lastRefreshedAt } = useDashboardConnection((data) => {
     const current = data.profiles.find((item) => item.id === profile.id);
     if (current) setProfile(current);
-  }, [profile.id]);
+  });
 
   const [totalIdleSeconds] = useState(() => {
     if (typeof window !== "undefined") {
@@ -207,11 +211,6 @@ export function ProfileView({
       events.forEach((event) => window.removeEventListener(event, handleActivity));
     };
   }, [resetTimer, router, isMobile, prepCountdown, totalIdleSeconds]);
-
-  useEffect(() => {
-    const interval = window.setInterval(refresh, 5000);
-    return () => window.clearInterval(interval);
-  }, [refresh]);
 
   useEffect(() => {
     const update = () => setLongRunning(Boolean(profile.activeTraining && Date.now() - new Date(profile.activeTraining.startedAt).getTime() > 2 * 60 * 60 * 1000));
@@ -287,25 +286,28 @@ export function ProfileView({
             message: "Trainingszeit läuft (+2 Punkte je Minute)."
           });
       } else {
+          setProfile((current) => ({ ...current, activeTraining: null }));
           showToast({
             type: "info",
             title: "✓ Training beendet & gespeichert",
             message: "Klasse Einsatz! Punkte und Trainingszeit wurden gutgeschrieben."
           });
       }
+      await refresh(true);
+      if (exerciseId) router.push(`/uebung/${exerciseId}?profil=${profile.id}`);
     } catch (error) {
       showToast({
         type: "error",
         title: "Training fehlgeschlagen",
         message: error instanceof Error ? error.message : "Server konnte nicht erreicht werden."
       });
+    } finally {
+      setBusy(false);
     }
-    await refresh();
-    setBusy(false);
-    if (exerciseId) router.push(`/uebung/${exerciseId}?profil=${profile.id}`);
   }
 
   function requestTrainingStart(type: TrainingType, exerciseId?: string) {
+    if (busy) return;
     if (activeType === type && (!exerciseId || profile.activeTraining?.exerciseId === exerciseId)) {
       return;
     }
@@ -350,12 +352,16 @@ export function ProfileView({
     const clientOrigin = typeof window !== "undefined" && !window.location.origin.includes("0.0.0.0") && !window.location.origin.includes("localhost") && !window.location.origin.includes("127.0.0.1")
       ? window.location.origin
       : undefined;
-    const result = await requestJson<typeof handoff>("/api/handoff", "Handy-Verbindung konnte nicht gestartet werden.", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ profileId: profile.id, clientOrigin })
-    });
-    setHandoff(result);
+    try {
+      const result = await requestJson<typeof handoff>("/api/handoff", "Handy-Verbindung konnte nicht gestartet werden.", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ profileId: profile.id, clientOrigin })
+      });
+      setHandoff(result);
+    } catch (error) {
+      showToast({ type: "error", title: "Handy-Verbindung fehlgeschlagen", message: error instanceof Error ? error.message : "Keine Verbindung zum Dashboard." });
+    }
   }
 
   async function saveProfile(event: React.FormEvent<HTMLFormElement>) {
@@ -381,7 +387,7 @@ export function ProfileView({
         title: "Profil aktualisiert",
         message: `Angaben für ${profile.name} wurden gespeichert.`
       });
-      await refresh();
+      await refresh(true);
     } catch (error) {
       const err = error instanceof ApiRequestError
         ? error.message
@@ -440,6 +446,7 @@ Falls Kurzbefehle eine Health-Art oder einen Schritt nicht unterstützt, erfinde
         setHealthSyncToken(data.token);
         setShowHealthSyncToken(true);
         setHealthTokenConfigured(true);
+        setHealthTokenStatus("ready");
         const copied = await copyTextToClipboard(data.token);
         showToast({
           type: "success",
@@ -452,6 +459,7 @@ Falls Kurzbefehle eine Health-Art oder einen Schritt nicht unterstützt, erfinde
         setHealthSyncToken("");
         setShowHealthSyncToken(false);
         setHealthTokenConfigured(false);
+        setHealthTokenStatus("ready");
         showToast({ type: "info", title: "Sync-Schlüssel widerrufen", message: "Apple-Health-Übertragungen dieses Profils sind jetzt gesperrt." });
       }
       return true;
@@ -520,8 +528,9 @@ Falls Kurzbefehle eine Health-Art oder einen Schritt nicht unterstützt, erfinde
       setConfirmResetHealth(false);
       setHealthSyncToken("");
       setHealthTokenConfigured(false);
+      setHealthTokenStatus("ready");
       setProfile((prev) => ({ ...prev, appleHealthRings: null }));
-      await refresh();
+      await refresh(true);
       return true;
     } catch (error) {
       setHealthPinError(error instanceof ApiRequestError ? error.message : "Konnte nicht mit dem Server kommunizieren.");
@@ -611,7 +620,7 @@ Falls Kurzbefehle eine Health-Art oder einen Schritt nicht unterstützt, erfinde
         <>
           <div className="mobile-connected-banner">
             <Smartphone size={16} />
-            <span>Handy-Steuerung aktiv · Live mit Dashboard synchronisiert</span>
+            <span>Handy-Steuerung aktiv</span>
           </div>
           <div className="mobile-health-card">
             <div className="mobile-health-info">
@@ -627,6 +636,7 @@ Falls Kurzbefehle eine Health-Art oder einen Schritt nicht unterstützt, erfinde
           </div>
         </>
       )}
+      <ConnectionStatus className="profile-connection-status" connectionError={connectionError} lastRefreshedAt={lastRefreshedAt} />
 
       <section className="training-hero">
         <div className="profile-hero-left">
@@ -709,6 +719,7 @@ Falls Kurzbefehle eine Health-Art oder einen Schritt nicht unterstützt, erfinde
             {exercises.filter((exercise) => exercise.type === "strength").map((exercise) => (
               <button
                 key={exercise.id}
+                disabled={busy}
                 className={profile.activeTraining?.exerciseId === exercise.id ? "active" : ""}
                 onClick={() => requestTrainingStart("strength", exercise.id)}
                 title={`Übung ${exercise.name} (${exercise.equipment}) auswählen`}
@@ -793,18 +804,18 @@ Falls Kurzbefehle eine Health-Art oder einen Schritt nicht unterstützt, erfinde
         onClose={() => setEditingProfile(false)}
         onResetIdleTimer={resetTimer}
         onSubmit={saveProfile}
-        onAvatarSaved={(saved) => { setProfile((current) => ({ ...current, customAvatar: saved })); void refresh(); }}
+        onAvatarSaved={(saved) => { setProfile((current) => ({ ...current, customAvatar: saved })); void refresh(true); }}
       />}
 
       {healthModal && (
-        <div className="modal-backdrop" onClick={() => setHealthModal(false)}>
-          <div className="health-modal" onClick={(event) => event.stopPropagation()}>
-            <button type="button" className="modal-close" onClick={() => setHealthModal(false)}>×</button>
+        <Modal onClose={() => setHealthModal(false)}>
+          <div className="health-modal" role="dialog" aria-modal="true" aria-labelledby="health-modal-title">
+            <button type="button" className="modal-close" onClick={() => setHealthModal(false)} aria-label="Apple Health schließen">×</button>
             <div className="health-modal-header">
               <div className="health-apple-circle"><Apple size={30} /></div>
               <div>
-                <h2>Apple Health für {profile.name}</h2>
-                <span className="health-connection-status">{healthTokenConfigured ? "Schlüssel eingerichtet" : "Noch nicht eingerichtet"}</span>
+                <h2 id="health-modal-title">Apple Health für {profile.name}</h2>
+                <span className="health-connection-status" role="status">{healthTokenStatus === "error" ? "Schlüsselstatus konnte nicht geprüft werden" : healthTokenStatus === "loading" ? "Schlüsselstatus wird geprüft" : healthTokenConfigured ? "Schlüssel eingerichtet" : "Noch nicht eingerichtet"}</span>
               </div>
             </div>
 
@@ -870,11 +881,11 @@ Falls Kurzbefehle eine Health-Art oder einen Schritt nicht unterstützt, erfinde
               </div>
             </details>
           </div>
-        </div>
+        </Modal>
       )}
 
       {healthPinAction && (
-        <div className="modal-backdrop health-pin-backdrop" onClick={() => !healthPinBusy && setHealthPinAction(undefined)}>
+        <Modal className="health-pin-backdrop" onClose={() => setHealthPinAction(undefined)} closeDisabled={healthPinBusy}>
           <div className="confirm-modal-card health-pin-card" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="health-pin-title">
             <button type="button" className="modal-close" disabled={healthPinBusy} onClick={() => setHealthPinAction(undefined)} aria-label="Schließen"><X size={20} /></button>
             <div className="confirm-modal-top">
@@ -898,18 +909,18 @@ Falls Kurzbefehle eine Health-Art oder einen Schritt nicht unterstützt, erfinde
               </button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
 
       {prepCountdown && (
-        <div className="prep-countdown-overlay" onClick={cancelCountdown}>
-          <div className="prep-countdown-card" onClick={(event) => event.stopPropagation()}>
+        <Modal className="prep-countdown-overlay" onClose={cancelCountdown}>
+          <div className="prep-countdown-card" role="dialog" aria-modal="true" aria-labelledby="prep-countdown-title">
             <div className="prep-countdown-badge">
               {prepCountdown.type === "strength" ? <Dumbbell size={16} /> : <Activity size={16} />}
               <span>{prepCountdown.type === "strength" ? "Krafttraining" : "Ausdauertraining"}</span>
             </div>
 
-            <h2 className="prep-countdown-title">
+            <h2 className="prep-countdown-title" id="prep-countdown-title">
               {prepCountdown.secondsLeft === 0 ? "LOS GEHT'S!" : "Bereitmachen!"}
             </h2>
             <p className="prep-countdown-subtitle">
@@ -963,17 +974,17 @@ Falls Kurzbefehle eine Health-Art oder einen Schritt nicht unterstützt, erfinde
               </button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
 
       {handoff && (
-        <div className="modal-backdrop" onClick={() => { setHandoff(null); setHandoffScanned(false); }}>
-          <section className="qr-modal" onClick={(event) => event.stopPropagation()}>
-            <button className="modal-close" onClick={() => { setHandoff(null); setHandoffScanned(false); }}>×</button>
+        <Modal onClose={() => { setHandoff(null); setHandoffScanned(false); }}>
+          <section className="qr-modal" role="dialog" aria-modal="true" aria-labelledby="handoff-title">
+            <button className="modal-close" onClick={() => { setHandoff(null); setHandoffScanned(false); }} aria-label="Handy-Verbindung schließen">×</button>
             {handoffScanned ? (
               <div className="qr-modal-scanned">
                 <div className="qr-modal-scanned-icon"><CheckCircle2 size={38} /></div>
-                <h3>Smartphone verbunden!</h3>
+                <h3 id="handoff-title">Smartphone verbunden!</h3>
                 <p>{profile.name} ist jetzt auf dem Smartphone aktiv.</p>
               </div>
             ) : (
@@ -981,12 +992,12 @@ Falls Kurzbefehle eine Health-Art oder einen Schritt nicht unterstützt, erfinde
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", marginBottom: "4px" }}>
                   <span className="setup-badge">Smartphone-Kopplung</span>
                   {!isMobile && (
-                    <span className="modal-idle-badge" onClick={resetTimer} title="Automatische Rückkehr zum Dashboard bei Inaktivität (Tippen zum Verlängern)">
+                    <button type="button" className="modal-idle-badge" onClick={resetTimer} title="Automatische Rückkehr zum Dashboard bei Inaktivität (Tippen zum Verlängern)">
                       Dashboard in {secondsLeft}s
-                    </span>
+                    </button>
                   )}
                 </div>
-                <h2>Profil auf dem Handy öffnen</h2>
+                <h2 id="handoff-title">Profil auf dem Handy öffnen</h2>
                 <p style={{ maxWidth: "480px", margin: "6px auto 14px", lineHeight: "1.45", fontSize: "13px", color: "var(--muted)" }}>
                   Scanne den QR-Code mit der iPhone- oder Android-Kamera. <b>{profile.name}</b> öffnet sich direkt auf deinem Smartphone zur mobilen Trainingssteuerung und Apple Health Synchronisation (10 Minuten gültig).
                 </p>
@@ -995,7 +1006,7 @@ Falls Kurzbefehle eine Health-Art oder einen Schritt nicht unterstützt, erfinde
               </>
             )}
           </section>
-        </div>
+        </Modal>
       )}
     </main>
   );

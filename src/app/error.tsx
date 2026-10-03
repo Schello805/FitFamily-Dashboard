@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect } from "react";
 import { AlertTriangle, RefreshCw } from "lucide-react";
 
-export default function ErrorPage({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
+export default function ErrorPage({ error, retry }: { error: Error & { digest?: string }; retry: () => void }) {
   useEffect(() => {
     console.error("FitFamily-Anwendungsfehler", error);
     void fetch("/api/admin/logs/client-error", {
@@ -23,7 +23,7 @@ export default function ErrorPage({ error, reset }: { error: Error & { digest?: 
         <p>Die technische Meldung wurde – sofern das Dashboard erreichbar war – aufgezeichnet. Bitte versuche es erneut.</p>
         {error.digest && <small>Fehlerkennung: {error.digest}</small>}
         <div>
-          <button type="button" onClick={reset}><RefreshCw size={16} /> Erneut versuchen</button>
+          <button type="button" onClick={retry}><RefreshCw size={16} /> Erneut versuchen</button>
           <Link href="/">Zum Dashboard</Link>
         </div>
       </div>

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getDisplaySettings, setDisplaySettings } from "@/lib/display-settings";
-import { verifyAdminPinOrReject } from "@/lib/security";
+import { adminPinSchema, verifyAdminPinOrReject } from "@/lib/security";
 
 export const dynamic = "force-dynamic";
 
@@ -11,7 +11,7 @@ export async function GET() {
 }
 
 const postSchema = z.object({
-  pin: z.string().regex(/^\d{4}$/),
+  pin: adminPinSchema,
   idleTimeoutMinutes: z.number().int().min(0).max(180).optional(),
   nightModeEnabled: z.boolean().optional(),
   nightIdleTimeoutMinutes: z.number().int().min(0).max(120).optional(),
@@ -25,7 +25,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Ungültige Eingabedaten." }, { status: 400 });
   }
 
-  const pinError = await verifyAdminPinOrReject(body.data.pin);
+  const pinError = await verifyAdminPinOrReject(body.data.pin, request);
   if (pinError) return pinError;
 
   const updated = await setDisplaySettings({

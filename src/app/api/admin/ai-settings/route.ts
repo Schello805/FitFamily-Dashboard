@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getAiApiKey, getAiProviderStatus, setAiApiKey, type AiProvider } from "@/lib/ai-config";
-import { verifyAdminPinOrReject } from "@/lib/security";
+import { adminPinSchema, verifyAdminPinOrReject } from "@/lib/security";
 
 const schema = z.object({
-  pin: z.string().regex(/^\d{4}$/),
+  pin: adminPinSchema,
   provider: z.enum(["openai", "gemini"]),
   action: z.enum(["save", "remove", "test"]),
   apiKey: z.string().max(500).optional()
@@ -20,7 +20,7 @@ async function testKey(provider: AiProvider, key: string) {
 export async function POST(request: Request) {
   const body = schema.safeParse(await request.json().catch(() => null));
   if (!body.success) return NextResponse.json({ error: "Bitte Anbieter, Schlüssel und Eltern-PIN prüfen." }, { status: 400 });
-  const pinError = await verifyAdminPinOrReject(body.data.pin);
+  const pinError = await verifyAdminPinOrReject(body.data.pin, request);
   if (pinError) return pinError;
 
   if (body.data.action === "remove") {

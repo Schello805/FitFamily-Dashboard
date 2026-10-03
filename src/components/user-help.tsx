@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { CircleHelp, X } from "lucide-react";
+import { Modal } from "@/components/modal";
 
 const helpSeenKey = "fitfamily-user-help-seen-v1";
 
@@ -23,18 +24,11 @@ export function UserHelp() {
     return () => window.clearTimeout(timer);
   }, []);
 
-  useEffect(() => {
-    if (!open) return;
-    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === "Escape") close(); };
-    window.addEventListener("keydown", closeOnEscape);
-    return () => window.removeEventListener("keydown", closeOnEscape);
-  }, [open, close]);
-
   return <>
     <button type="button" className="user-help-launch" onClick={() => setOpen(true)} aria-label="Hilfe zum Ablauf öffnen" title="So funktioniert FitFamily">
       <CircleHelp size={21} /><span>Hilfe</span>
     </button>
-    {open && <div className="modal-backdrop user-help-backdrop" onClick={close}>
+    {open && <Modal className="user-help-backdrop" onClose={close}>
       <section className="user-help-modal" role="dialog" aria-modal="true" aria-labelledby="user-help-title" onClick={(event) => event.stopPropagation()}>
         <button type="button" className="modal-close" onClick={close} aria-label="Hilfe schließen"><X /></button>
         <span className="setup-badge">FitFamily · Kurz erklärt</span>
@@ -50,6 +44,6 @@ export function UserHelp() {
         <p className="user-help-note">Die KI ist eine Trainingshilfe und kein Ersatz für medizinische Beratung. Trainiere nur so, wie es sich für dich sicher anfühlt.</p>
         <button type="button" className="primary-submit" onClick={close}>Alles klar</button>
       </section>
-    </div>}
+    </Modal>}
   </>;
 }

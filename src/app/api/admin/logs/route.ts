@@ -1,17 +1,17 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { verifyAdminPinOrReject } from "@/lib/security";
+import { adminPinSchema, verifyAdminPinOrReject } from "@/lib/security";
 
 const schema = z.object({
-  pin: z.string().regex(/^\d{4}$/),
+  pin: adminPinSchema,
   filter: z.enum(["all", "errors", "updates", "backups", "health"]).default("all")
 });
 
 export async function POST(request: Request) {
   const body = schema.safeParse(await request.json().catch(() => null));
   if (!body.success) return NextResponse.json({ error: "Ungültige Anfrage." }, { status: 400 });
-  const pinError = await verifyAdminPinOrReject(body.data.pin);
+  const pinError = await verifyAdminPinOrReject(body.data.pin, request);
   if (pinError) return pinError;
 
   const client = await db();

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Camera, Sparkles, Trash2 } from "lucide-react";
 import { Avatar } from "@/components/avatar";
 import { TouchPinpad } from "@/components/touch-pinpad";
+import { Modal } from "@/components/modal";
 import { getFitnessStageCount, type AvatarDesignId, type AvatarPhysique } from "@/lib/domain";
 
 async function adjustedAvatarImage(source: string, scale: number, offsetX: number, offsetY: number) {
@@ -268,7 +269,7 @@ export function PersonalAvatarEditor({
         {error && <p className="form-error" role="alert">{error}</p>}
         {hasSavedAvatar && <p className="personal-avatar-footnote">Dein gespeicherter KI-Kopf wird auch auf den verschiedenen Fitnessstufen angezeigt.</p>}
       </div>}
-      {expanded && pinModalOpen && <div className="modal-backdrop personal-avatar-pin-backdrop" onClick={() => setPinModalOpen(false)}>
+      {expanded && pinModalOpen && <Modal className="personal-avatar-pin-backdrop" onClose={() => setPinModalOpen(false)}>
         <div className="confirm-modal-card personal-avatar-pin-card" role="dialog" aria-modal="true" aria-labelledby="personal-avatar-pin-title" onClick={(event) => event.stopPropagation()}>
           <h3 id="personal-avatar-pin-title">Eltern-PIN eingeben</h3>
           <p>Tippe deine vierstellige PIN auf dem Ziffernblock ein.</p>
@@ -278,7 +279,7 @@ export function PersonalAvatarEditor({
             <button type="button" className="confirm-submit-btn primary" disabled={pin.length !== 4} onClick={() => setPinModalOpen(false)}>Weiter</button>
           </div>
         </div>
-      </div>}
+      </Modal>}
     </section>
   );
 }

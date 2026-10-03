@@ -3,12 +3,12 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { isAllowedVideoUrl } from "@/lib/exercise-video";
-import { verifyAdminPinOrReject } from "@/lib/security";
+import { adminPinSchema, verifyAdminPinOrReject } from "@/lib/security";
 
 const isWebDocumentUrl = (url: string | null | undefined) => !url || /^https?:\/\//i.test(url);
 
 const schema = z.object({
-  pin: z.string().regex(/^\d{4}$/),
+  pin: adminPinSchema,
   name: z.string().trim().min(2).max(60),
   quantity: z.number().int().min(1).max(8),
   available: z.boolean(),
@@ -24,7 +24,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (!parsed.success) return NextResponse.json({ error: "Bitte Gerätename, Stückzahl und Verfügbarkeit prüfen." }, { status: 400 });
   if (!isAllowedVideoUrl(parsed.data.videoUrl ?? null)) return NextResponse.json({ error: "Bitte einen gültigen HTTPS-Link zu YouTube angeben." }, { status: 400 });
   if (!isWebDocumentUrl(parsed.data.manualPdfUrl)) return NextResponse.json({ error: "Die PDF-Anleitung muss über HTTP oder HTTPS erreichbar sein." }, { status: 400 });
-  const pinError = await verifyAdminPinOrReject(parsed.data.pin);
+  const pinError = await verifyAdminPinOrReject(parsed.data.pin, request);
   if (pinError) return pinError;
   const client = await db();
   const current = await client.execute({ sql: "SELECT id, name, video_url, instructions, manual_pdf_url, active FROM equipment_inventory WHERE id = ?", args: [id] });
@@ -50,7 +50,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
   if (typeof body?.pin !== "string" || !/^\d{4}$/.test(body.pin)) {
     return NextResponse.json({ error: "Bitte die vierstellige Eltern-PIN eingeben." }, { status: 400 });
   }
-  const pinError = await verifyAdminPinOrReject(body.pin);
+  const pinError = await verifyAdminPinOrReject(body.pin, request);
   if (pinError) return pinError;
 
   const client = await db();

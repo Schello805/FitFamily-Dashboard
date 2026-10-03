@@ -57,6 +57,126 @@ describe("admin data validation", () => {
     expect(result.errors.length).toBeGreaterThan(0);
   });
 
+  it.each([
+    { profiles: [{ id: "papa", name: "Changed", color: "#22d3ee", avatar: "papa", score_baseline: -1 }] },
+    { profiles: [{ id: 12, name: "Changed", color: "#22d3ee", avatar: "papa" }] },
+    { profiles: [], training_sessions: [{ id: "invalid-time", profile_id: "papa", status: "completed", started_at: "not-a-date", ended_at: "2026-09-30T10:30:00Z" }] },
+    { profiles: [], training_segments: [{ id: "invalid-type", session_id: "missing", type: "invalid", started_at: "2026-09-30T10:00:00Z" }] },
+    { profiles: [], apple_health_daily: [{ profile_id: "papa", date: "2026-09-30", exercise_minutes: -5 }] },
+    { profiles: [], apple_health_daily: [{ profile_id: "papa", date: "2026-02-31", step_count: 5000 }] },
+    { profiles: [], equipment_inventory: [{ id: "bad-quantity", name: "Bad Quantity", quantity: 9 }] },
+    { profiles: [], equipment_inventory: [{ id: "unsafe-manual", name: "Unsafe Manual", manual_pdf_url: "javascript:alert(1)" }] },
+    { profiles: [], exercises: [{ id: "unsafe-video", name: "Unsafe Video", type: "strength", equipment: "Kraftstation", video_url: "javascript:alert(1)" }] },
+    { profiles: [], training_plans: [{ id: "bad-plan", profile_id: "papa", title: "Bad Plan", goal: "Fitness", plan_json: "not-json" }] },
+    { profiles: [{ id: "papa", name: "A", color: "#22d3ee", avatar: "papa" }, { id: "papa", name: "B", color: "#22d3ee", avatar: "papa" }] }
+  ])("rejects malformed field types, values and duplicate keys: %j", async (data) => {
+    const client = await db();
+    const before = await client.execute("SELECT name, score_baseline FROM profiles WHERE id = 'papa'");
+    const request = (action: string) => new Request("http://localhost/api/admin/data", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pin: "2468", action, backup: { format: "fitfamily-export", version: 1, data } })
+    });
+    const validation = await POST(request("validate"));
+    expect((await validation.json()).valid).toBe(false);
+    expect((await POST(request("import"))).status).toBe(400);
+    expect((await client.execute("SELECT name, score_baseline FROM profiles WHERE id = 'papa'")).rows).toEqual(before.rows);
+  });
+
+  it.each(["outside", "overlap", "missing-end", "open-completed", "multiple-active", "too-long"])("rejects inconsistent training relationships: %s", async (kind) => {
+    const sessionId = `relation-${randomUUID()}`;
+    const session = { id: sessionId, profile_id: "papa", started_at: "2026-09-30T10:00:00Z", ended_at: "2026-09-30T11:00:00Z" as string | null, status: "completed" };
+    const segment = { id: randomUUID(), session_id: sessionId, type: "endurance", started_at: "2026-09-30T10:00:00Z", ended_at: "2026-09-30T10:30:00Z" as string | null };
+    const sessions = [session];
+    const segments = [segment];
+    if (kind === "outside") segment.ended_at = "2026-09-30T12:00:00Z";
+    if (kind === "overlap") segments.push({ ...segment, id: randomUUID(), started_at: "2026-09-30T10:15:00Z", ended_at: "2026-09-30T11:00:00Z" });
+    if (kind === "missing-end") session.ended_at = null;
+    if (kind === "too-long") session.ended_at = "2026-10-02T11:00:00Z";
+    if (kind === "open-completed") segment.ended_at = null;
+    if (kind === "multiple-active") {
+      session.status = "active";
+      session.ended_at = null;
+      segment.ended_at = null;
+      const otherId = randomUUID();
+      sessions.push({ ...session, id: otherId });
+      segments.push({ ...segment, id: randomUUID(), session_id: otherId });
+    }
+    const response = await POST(new Request("http://localhost/api/admin/data", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pin: "2468", action: "validate", backup: { format: "fitfamily-export", version: 1, data: { profiles: [], training_sessions: sessions, training_segments: segments } } })
+    }));
+    const result = await response.json();
+    expect(result.valid).toBe(false);
+    expect(result.errors.length).toBeGreaterThan(0);
+  });
+
+  it("imports valid SQLite and offset timestamps as canonical training times", async () => {
+    const client = await db();
+    const sessionId = randomUUID();
+    const segmentId = randomUUID();
+    try {
+      const response = await POST(new Request("http://localhost/api/admin/data", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pin: "2468", action: "import", backup: { format: "fitfamily-export", version: 1, data: {
+          profiles: [],
+          training_sessions: [{ id: sessionId, profile_id: "papa", status: "completed", started_at: "2026-09-30 10:00:00", ended_at: "2026-09-30T13:00:00+02:00", created_at: "2026-09-30 12:00:00" }],
+          training_segments: [{ id: segmentId, session_id: sessionId, type: "endurance", started_at: "2026-09-30T12:00:00+02:00", ended_at: "2026-09-30 11:00:00" }]
+        } } })
+      }));
+      expect(response.status).toBe(200);
+      const saved = await client.execute({ sql: "SELECT started_at, ended_at FROM training_sessions WHERE id = ?", args: [sessionId] });
+      expect(saved.rows[0]).toMatchObject({ started_at: "2026-09-30T10:00:00.000Z", ended_at: "2026-09-30T11:00:00.000Z" });
+    } finally {
+      await client.batch([{ sql: "DELETE FROM training_segments WHERE id = ?", args: [segmentId] }, { sql: "DELETE FROM training_sessions WHERE id = ?", args: [sessionId] }], "write");
+    }
+  });
+
+  it("validates partial updates against stored session and segment bounds", async () => {
+    const client = await db();
+    const sessionId = randomUUID();
+    const segmentId = randomUUID();
+    await client.batch([
+      { sql: "INSERT INTO training_sessions (id, profile_id, started_at, ended_at, status) VALUES (?, 'papa', '2026-09-30T10:00:00Z', '2026-09-30T11:00:00Z', 'completed')", args: [sessionId] },
+      { sql: "INSERT INTO training_segments (id, session_id, type, started_at, ended_at) VALUES (?, ?, 'endurance', '2026-09-30T10:00:00Z', '2026-09-30T11:00:00Z')", args: [segmentId, sessionId] }
+    ], "write");
+    try {
+      const response = await POST(new Request("http://localhost/api/admin/data", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pin: "2468", action: "validate", backup: { format: "fitfamily-export", version: 1, data: { profiles: [], training_segments: [{ id: segmentId, session_id: sessionId, type: "endurance", started_at: "2026-09-30T10:00:00Z", ended_at: "2026-09-30T12:00:00Z" }] } } })
+      }));
+      expect((await response.json()).valid).toBe(false);
+    } finally {
+      await client.batch([{ sql: "DELETE FROM training_segments WHERE id = ?", args: [segmentId] }, { sql: "DELETE FROM training_sessions WHERE id = ?", args: [sessionId] }], "write");
+    }
+  });
+
+  it("enforces the request size limit without relying on Content-Length", async () => {
+    const response = await POST(new Request("http://localhost/api/admin/data", { method: "POST", body: "x".repeat(15 * 1024 * 1024 + 1) }));
+    expect(response.status).toBe(413);
+  });
+
+  it("rolls back all merged data if the database rejects a later write", async () => {
+    const client = await db();
+    const equipmentId = randomUUID();
+    const previous = await client.execute("SELECT name FROM profiles WHERE id = 'papa'");
+    await client.execute(`CREATE TRIGGER reject_import_test BEFORE INSERT ON equipment_inventory
+      WHEN NEW.id = '${equipmentId}' BEGIN SELECT RAISE(ABORT, 'test failure'); END`);
+    try {
+      const response = await POST(new Request("http://localhost/api/admin/data", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pin: "2468", action: "import", backup: { format: "fitfamily-export", version: 1, data: {
+          profiles: [{ id: "papa", name: "Should Roll Back", color: "#22d3ee", avatar: "papa" }],
+          equipment_inventory: [{ id: equipmentId, name: `Rollback Equipment ${equipmentId}` }]
+        } } })
+      }));
+      expect(response.status).toBe(500);
+      expect((await client.execute("SELECT name FROM profiles WHERE id = 'papa'")).rows).toEqual(previous.rows);
+      expect((await client.execute({ sql: "SELECT id FROM equipment_inventory WHERE id = ?", args: [equipmentId] })).rows).toHaveLength(0);
+    } finally {
+      await client.execute("DROP TRIGGER IF EXISTS reject_import_test");
+    }
+  });
+
   it("round-trips avatar, profile stage, equipment manual and cycling distance", async () => {
     const client = await db();
     const id = `transfer-test-${randomUUID()}`;

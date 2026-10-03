@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import type { InStatement } from "@libsql/client";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
@@ -7,7 +8,6 @@ import { hashToken, verifyAdminPinOrReject } from "@/lib/security";
 import {
   APPLE_HEALTH_ACTIVITY_FIELDS,
   APPLE_HEALTH_MAX_SYNC_DAYS,
-  appleHealthActivitySchema,
   appleHealthActivityShape,
   appleHealthDailySchema,
   isAppleHealthDateWithinWindow,
@@ -30,7 +30,7 @@ function inferTrainingType(title?: string | null, explicitType?: string | null):
 }
 
 const workoutItemSchema = z.object({
-  id: z.string().max(200).optional(),
+  id: z.string().max(200).optional().transform((value) => value || undefined),
   title: z.string().max(200).optional().nullable(),
   type: z.enum(["strength", "endurance"]).optional().nullable(),
   startedAt: z.string().datetime({ offset: true }).optional().nullable(),
@@ -49,7 +49,7 @@ const bodySchema = z.object({
   workouts: z.array(workoutItemSchema).max(500).optional(),
   dailyActivity: z.array(appleHealthDailySchema).max(90).optional(),
   // Single workout fallback fields for simple Shortcuts
-  id: z.string().max(200).optional(),
+  id: z.string().max(200).optional().transform((value) => value || undefined),
   title: z.string().max(200).optional().nullable(),
   type: z.enum(["strength", "endurance"]).optional().nullable(),
   startedAt: z.string().datetime({ offset: true }).optional().nullable(),
@@ -174,6 +174,23 @@ export async function POST(request: Request) {
     }
   }
 
+  const todayStr = localIsoDate(new Date());
+  const hasLegacyActivity = APPLE_HEALTH_ACTIVITY_FIELDS.some(({ key }) => parsed.data[key] != null);
+  const legacyDay = hasLegacyActivity ? {
+    date: parsed.data.date ?? todayStr,
+    ...Object.fromEntries(APPLE_HEALTH_ACTIVITY_FIELDS.flatMap(({ key }) =>
+      parsed.data[key] == null ? [] : [[key, parsed.data[key]]]
+    ))
+  } as z.infer<typeof appleHealthDailySchema> : undefined;
+  const dailyActivity = mergeAppleHealthDays(parsed.data.dailyActivity ?? [], legacyDay);
+  if (dailyActivity.length > APPLE_HEALTH_MAX_SYNC_DAYS || dailyActivity.some((day) => !isAppleHealthDateWithinWindow(day.date, todayStr))) {
+    const message = dailyActivity.length > APPLE_HEALTH_MAX_SYNC_DAYS
+      ? "Pro Sync sind höchstens 30 verschiedene Aktivitätstage erlaubt."
+      : "Tagesaktivität darf nur gültige Datumswerte der letzten 30 Tage enthalten.";
+    await finishSyncLog("health.apple_sync.failed", { status: "failed", received: rawList.length, imported: 0, activityDaysSynced: 0, message });
+    return NextResponse.json({ error: message, imported: 0, activityDaysSynced: 0 }, { status: 400 });
+  }
+
   if (parsed.data.dryRun) {
     await finishSyncLog("health.apple_sync.checked", { status: "checked", received: rawList.length, imported: 0, skipped: 0, message: "Schlüssel geprüft; keine Trainingsdaten gespeichert" });
     return NextResponse.json({
@@ -184,157 +201,95 @@ export async function POST(request: Request) {
     });
   }
 
-  const now = new Date();
   let importedCount = 0;
   let skippedCount = 0;
   let totalPointsEarned = 0;
+
+  const statements: InStatement[] = [{
+    sql: "SELECT token_hash FROM apple_health_tokens WHERE profile_id = ? AND token_hash = ?",
+    args: [profileId, hashToken(parsed.data.secret)]
+  }];
+  const pendingWorkouts: { resultIndex: number; points: number }[] = [];
+  const syncedActivityDays: { date: string; fields: string[] }[] = [];
+  const activityResultIndices: number[] = [];
+  let hasActivityData = false;
+  let activityDaysSynced = 0;
+  const secretHash = hashToken(parsed.data.secret);
 
   for (const item of rawList) {
     if (!item.startedAt || !item.endedAt) continue;
     const startIso = new Date(item.startedAt).toISOString();
     const endIso = new Date(item.endedAt).toISOString();
-    const durMinutes = (new Date(endIso).getTime() - new Date(startIso).getTime()) / 60000;
+    const durMinutes = (Date.parse(endIso) - Date.parse(startIso)) / 60000;
     const externalId = item.id ?? `start:${startIso}`;
-
-    if (!Number.isFinite(Date.parse(startIso)) || !Number.isFinite(Date.parse(endIso))) {
-      await finishSyncLog("health.apple_sync.failed", { status: "failed", received: rawList.length, imported: importedCount, skipped: skippedCount, message: "Ungültige Trainingszeit" });
-      return NextResponse.json({ error: "Ungültige Trainingszeit." }, { status: 400 });
-    }
-
-    const ignored = await client.execute({
-      sql: "SELECT external_id FROM apple_health_ignored_workouts WHERE profile_id = ? AND external_id = ? LIMIT 1",
-      args: [profileId, externalId]
-    });
-    if (ignored.rows.length) {
-      skippedCount++;
-      continue;
-    }
-
-    // Duplicate guard for repeated HealthKit imports.
-    const duplicate = item.id
-      ? await client.execute({
-          sql: "SELECT id FROM training_sessions WHERE profile_id = ? AND source = 'apple_health' AND external_id = ? LIMIT 1",
-          args: [profileId, item.id]
-        })
-      : await client.execute({
-          sql: `SELECT id FROM training_sessions
-            WHERE profile_id = ? AND source = 'apple_health' AND ABS(strftime('%s', started_at) - strftime('%s', ?)) < 180
-            LIMIT 1`,
-          args: [profileId, startIso]
-        });
-
-    if (duplicate.rows.length > 0) {
-      skippedCount++;
-      continue;
-    }
-
     const trainingType = inferTrainingType(item.title, item.type);
     const sessionId = randomUUID();
-    const segmentId = randomUUID();
     const points = durMinutes * SCORE_MULTIPLIER[trainingType];
-    const secretHash = hashToken(parsed.data.secret);
-
-    try {
-      const writeResults = await client.batch([
-        {
-          sql: `INSERT INTO training_sessions
-            (id, profile_id, started_at, ended_at, status, source, external_id, health_title, health_calories, health_distance_km, edited)
-            SELECT ?, ?, ?, ?, 'completed', 'apple_health', ?, ?, ?, ?, 0
-            WHERE EXISTS (SELECT 1 FROM apple_health_tokens WHERE profile_id = ? AND token_hash = ?)`,
-          args: [sessionId, profileId, startIso, endIso, externalId, item.title ?? "Apple Health Workout", item.calories ?? null, item.distanceKm ?? null, profileId, secretHash]
-        },
-        {
-          sql: `INSERT INTO training_segments (id, session_id, type, exercise_id, started_at, ended_at)
-            SELECT ?, ?, ?, NULL, ?, ? WHERE EXISTS (SELECT 1 FROM training_sessions WHERE id = ?)`,
-          args: [segmentId, sessionId, trainingType, startIso, endIso, sessionId]
-        },
-        {
-          sql: `INSERT INTO audit_log (id, action, profile_id, details)
-            SELECT ?, 'health.apple_sync', ?, ? WHERE EXISTS (SELECT 1 FROM training_sessions WHERE id = ?)`,
-          args: [
-            randomUUID(),
-            profileId,
-            JSON.stringify({
-              title: item.title ?? "Apple Health Training",
-              type: trainingType,
-              durationMinutes: durMinutes,
-              calories: item.calories,
-              distanceKm: item.distanceKm,
-              points
-            }),
-            sessionId
-          ]
-        }
-      ], "write");
-      if (writeResults[0]?.rowsAffected !== 1) {
-        await finishSyncLog("health.apple_sync.failed", { status: "failed", received: rawList.length, imported: importedCount, skipped: skippedCount, message: "Sync-Schlüssel während des Imports getrennt" });
-        return NextResponse.json({ error: "Der Sync-Schlüssel wurde während des Imports getrennt. Es wurden keine Daten übernommen." }, { status: 401 });
+    const duplicateSql = item.id
+      ? "external_id = ?"
+      : "ABS(strftime('%s', started_at) - strftime('%s', ?)) < 180";
+    pendingWorkouts.push({ resultIndex: statements.length, points });
+    statements.push(
+      {
+        sql: `INSERT INTO training_sessions
+          (id, profile_id, started_at, ended_at, status, source, external_id, health_title, health_calories, health_distance_km, edited)
+          SELECT ?, ?, ?, ?, 'completed', 'apple_health', ?, ?, ?, ?, 0
+          WHERE EXISTS (SELECT 1 FROM apple_health_tokens WHERE profile_id = ? AND token_hash = ?)
+          AND NOT EXISTS (SELECT 1 FROM apple_health_ignored_workouts WHERE profile_id = ? AND external_id = ?)
+          AND NOT EXISTS (SELECT 1 FROM training_sessions WHERE profile_id = ? AND source = 'apple_health' AND ${duplicateSql})`,
+        args: [sessionId, profileId, startIso, endIso, externalId, item.title ?? "Apple Health Workout", item.calories ?? null, item.distanceKm ?? null, profileId, secretHash, profileId, externalId, profileId, item.id ?? startIso]
+      },
+      {
+        sql: `INSERT INTO training_segments (id, session_id, type, exercise_id, started_at, ended_at)
+          SELECT ?, ?, ?, NULL, ?, ? WHERE EXISTS (SELECT 1 FROM training_sessions WHERE id = ?)`,
+        args: [randomUUID(), sessionId, trainingType, startIso, endIso, sessionId]
+      },
+      {
+        sql: `INSERT INTO audit_log (id, action, profile_id, details)
+          SELECT ?, 'health.apple_sync', ?, ? WHERE EXISTS (SELECT 1 FROM training_sessions WHERE id = ?)`,
+        args: [randomUUID(), profileId, JSON.stringify({ title: item.title ?? "Apple Health Training", type: trainingType, durationMinutes: durMinutes, calories: item.calories, distanceKm: item.distanceKm, points }), sessionId]
       }
-    } catch (error) {
-      if (!item.id) throw error;
-      const concurrentDuplicate = await client.execute({
-        sql: "SELECT id FROM training_sessions WHERE profile_id = ? AND source = 'apple_health' AND external_id = ? LIMIT 1",
-        args: [profileId, externalId]
-      });
-      if (!concurrentDuplicate.rows.length) throw error;
-      skippedCount++;
-      continue;
-    }
-
-    importedCount++;
-    totalPointsEarned += points;
+    );
   }
-
-  const todayStr = localIsoDate(now);
-  const hasLegacyActivity = APPLE_HEALTH_ACTIVITY_FIELDS.some(({ key }) => parsed.data[key] != null);
-  let legacyDay: z.infer<typeof appleHealthDailySchema> | undefined;
-  if (hasLegacyActivity) {
-    const legacyDate = parsed.data.date ?? todayStr;
-    const activity = Object.fromEntries(APPLE_HEALTH_ACTIVITY_FIELDS.flatMap(({ key }) =>
-      parsed.data[key] == null ? [] : [[key, parsed.data[key]]]
-    )) as z.infer<typeof appleHealthActivitySchema>;
-    legacyDay = { date: legacyDate, ...activity };
-  }
-
-  const dailyActivity = mergeAppleHealthDays(parsed.data.dailyActivity ?? [], legacyDay);
-  if (dailyActivity.length > APPLE_HEALTH_MAX_SYNC_DAYS) {
-    await finishSyncLog("health.apple_sync.failed", { status: "failed", received: rawList.length, message: "Mehr als 30 verschiedene Aktivitätstage empfangen" });
-    return NextResponse.json({ error: "Pro Sync sind höchstens 30 verschiedene Aktivitätstage erlaubt." }, { status: 400 });
-  }
-
-  let activityDaysSynced = 0;
-  let hasActivityData = false;
-  const syncedActivityDays: { date: string; fields: string[] }[] = [];
 
   for (const day of dailyActivity) {
-    if (!isAppleHealthDateWithinWindow(day.date, todayStr)) {
-      await finishSyncLog("health.apple_sync.failed", { status: "failed", received: rawList.length, message: "Tagesaktivität muss ein gültiges Datum innerhalb der letzten 30 Tage haben" });
-      return NextResponse.json({ error: "Tagesaktivität darf nur gültige Datumswerte der letzten 30 Tage enthalten." }, { status: 400 });
-    }
-
     const providedFields = APPLE_HEALTH_ACTIVITY_FIELDS.filter(({ key }) => day[key] != null);
     if (!providedFields.length) continue;
     hasActivityData = hasActivityData || providedFields.some(({ key }) => !key.endsWith("Goal"));
     const columns = ["profile_id", "date", ...providedFields.map(({ column }) => column), "updated_at"];
     const selectedValues = ["?", "?", ...providedFields.map(() => "?"), "CURRENT_TIMESTAMP"];
-    const updates = [
-      ...providedFields.map(({ column }) => `${column} = excluded.${column}`),
-      "updated_at = CURRENT_TIMESTAMP"
-    ];
-    const ringResult = await client.execute({
+    const updates = [...providedFields.map(({ column }) => `${column} = excluded.${column}`), "updated_at = CURRENT_TIMESTAMP"];
+    activityResultIndices.push(statements.length);
+    statements.push({
       sql: `INSERT INTO apple_health_daily (${columns.join(", ")})
         SELECT ${selectedValues.join(", ")}
         WHERE EXISTS (SELECT 1 FROM apple_health_tokens WHERE profile_id = ? AND token_hash = ?)
-        ON CONFLICT(profile_id, date) DO UPDATE SET
-          ${updates.join(",\n          ")}`,
-      args: [profileId, day.date, ...providedFields.map(({ key }) => day[key] as number), profileId, hashToken(parsed.data.secret)]
+        ON CONFLICT(profile_id, date) DO UPDATE SET ${updates.join(", ")}`,
+      args: [profileId, day.date, ...providedFields.map(({ key }) => day[key] as number), profileId, secretHash]
     });
-    if (ringResult.rowsAffected !== 1) {
-      await finishSyncLog("health.apple_sync.failed", { status: "failed", received: rawList.length, imported: importedCount, skipped: skippedCount, activityDaysSynced, message: "Sync-Schlüssel während des Imports getrennt" });
-      return NextResponse.json({ error: "Der Sync-Schlüssel wurde während des Imports getrennt. Es wurden keine Aktivitätswerte übernommen." }, { status: 401 });
-    }
-    activityDaysSynced++;
     syncedActivityDays.push({ date: day.date, fields: providedFields.map(({ key }) => key) });
+  }
+
+  try {
+    // One write transaction serializes duplicate checks, revocation and every
+    // data change. A failed statement rolls back the entire request.
+    const results = await client.batch(statements, "write");
+    if (!results[0]?.rows.length) {
+      await finishSyncLog("health.apple_sync.failed", { status: "failed", received: rawList.length, imported: 0, skipped: 0, activityDaysSynced: 0, message: "Sync-Schlüssel vor dem Import getrennt" });
+      return NextResponse.json({ error: "Der Sync-Schlüssel wurde getrennt. Es wurden keine Daten übernommen.", imported: 0, activityDaysSynced: 0 }, { status: 401 });
+    }
+    for (const workout of pendingWorkouts) {
+      if (results[workout.resultIndex]?.rowsAffected === 1) {
+        importedCount++;
+        totalPointsEarned += workout.points;
+      } else {
+        skippedCount++;
+      }
+    }
+    activityDaysSynced = activityResultIndices.filter((index) => results[index]?.rowsAffected === 1).length;
+  } catch {
+    await finishSyncLog("health.apple_sync.failed", { status: "failed", received: rawList.length, imported: 0, skipped: 0, activityDaysSynced: 0, message: "Import fehlgeschlagen; alle Datenänderungen zurückgerollt" }).catch(() => undefined);
+    return NextResponse.json({ error: "Der Import ist fehlgeschlagen. Es wurden keine Daten übernommen.", imported: 0, activityDaysSynced: 0 }, { status: 500 });
   }
 
   const message = importedCount > 0
@@ -354,7 +309,7 @@ export async function POST(request: Request) {
     activityDays: syncedActivityDays,
     pointsEarned: totalPointsEarned,
     message
-  });
+  }).catch(() => undefined);
 
   return NextResponse.json({
     ok: true,
@@ -441,7 +396,7 @@ export async function DELETE(request: Request) {
   if (typeof body?.pin !== "string" || !/^\d{4}$/.test(body.pin)) {
     return NextResponse.json({ error: "Zum Löschen ist die Eltern-PIN erforderlich." }, { status: 400 });
   }
-  const pinError = await verifyAdminPinOrReject(body.pin);
+  const pinError = await verifyAdminPinOrReject(body.pin, request);
   if (pinError) return pinError;
 
   const client = await db();

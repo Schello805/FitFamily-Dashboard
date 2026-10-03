@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { AVATAR_DESIGN_IDS, getStartingFitnessStages, GOALS } from "@/lib/domain";
-import { verifyAdminPinOrReject } from "@/lib/security";
+import { adminPinSchema, verifyAdminPinOrReject } from "@/lib/security";
 
 const schema = z.object({
   name: z.string().trim().min(1).max(30),
@@ -12,7 +12,7 @@ const schema = z.object({
   avatar: z.enum([...AVATAR_DESIGN_IDS, "female", "male", "neutral"]),
   startingFitness: z.number().int().min(1).max(7),
   goal: z.string().min(1).max(100),
-  pin: z.string().regex(/^\d{4}$/)
+  pin: adminPinSchema
 });
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ profileId: string }> }) {
@@ -28,7 +28,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ pr
   if (body.data.startingFitness > getStartingFitnessStages(profileId, body.data.birthDate).length) {
     return NextResponse.json({ error: "Die gewählte Startstufe passt nicht zum Alter des Profils." }, { status: 400 });
   }
-  const pinError = await verifyAdminPinOrReject(body.data.pin);
+  const pinError = await verifyAdminPinOrReject(body.data.pin, request);
   if (pinError) return pinError;
 
   await client.batch([

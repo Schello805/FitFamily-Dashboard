@@ -225,7 +225,7 @@ body::before {
 .clock-block span { color: var(--muted); text-transform: capitalize; margin-top: 8px; font-size: 13px; }
 
 .profile-grid { min-height: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: repeat(2, minmax(390px, 1fr)); grid-auto-rows: minmax(390px, 1fr); gap: 18px; }
-.profile-card { position: relative; min-width: 0; min-height: 0; overflow: hidden; padding: 23px 25px 19px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--card-bg); box-shadow: var(--card-shadow); transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease; display: grid; grid-template-rows: auto minmax(0, 1fr) auto auto; align-content: stretch; gap: 8px; }
+.profile-card { position: relative; min-width: 0; min-height: 0; overflow: hidden; padding: 23px 25px 19px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--card-bg); box-shadow: var(--card-shadow); transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease; display: grid; grid-template-rows: auto auto auto auto; align-content: start; gap: 12px; }
 .profile-card::after { content: ""; position: absolute; width: 220px; height: 220px; border-radius: 50%; right: -100px; top: -110px; background: var(--profile); opacity: .07; filter: blur(6px); pointer-events: none; }
 .profile-card-link::after { content: ""; position: absolute; inset: 0; z-index: 2; border-radius: inherit; }
 .profile-card-link:focus-visible::after { outline: 3px solid var(--profile); outline-offset: -4px; }
@@ -263,12 +263,12 @@ body::before {
 .dashboard-history-legend { display: flex; align-items: center; gap: 3px; }
 .dashboard-history-chart-footer > span:nth-child(1), .dashboard-history-chart-footer > span:nth-child(2), .dashboard-history-chart-footer > span:nth-child(3) { font-size: 7px; white-space: nowrap; }
 .profile-card .profile-heading > .profile-identity { width: auto; min-width: 0; }
-.profile-card .profile-heading > .dashboard-history-chart { position: relative; inset: auto; z-index: 1; grid-column: 2; grid-row: 1; justify-self: stretch; align-self: stretch; width: 100%; height: 100%; min-height: 100px; padding: 10px 12px 8px; border: 1px solid color-mix(in srgb, var(--profile) 16%, var(--line)); border-radius: 15px; background: linear-gradient(180deg, color-mix(in srgb, var(--profile) 6%, var(--panel)), color-mix(in srgb, var(--profile) 2%, var(--panel))); }
+.profile-card .profile-heading > .dashboard-history-chart { position: relative; inset: auto; z-index: 3; grid-column: 2; grid-row: 1; justify-self: stretch; align-self: stretch; width: 100%; height: 100%; min-height: 100px; padding: 10px 12px 8px; border: 1px solid color-mix(in srgb, var(--profile) 16%, var(--line)); border-radius: 15px; background: linear-gradient(180deg, color-mix(in srgb, var(--profile) 6%, var(--panel)), color-mix(in srgb, var(--profile) 2%, var(--panel))); }
 .profile-card .profile-heading > .dashboard-history-chart svg { height: 100%; min-height: 0; }
 .profile-card .profile-heading > .dashboard-history-chart .dashboard-history-chart-heading { font-size: 10px; }
 .profile-card .profile-heading > .dashboard-history-chart .dashboard-history-chart-footer { font-size: 9px; }
 .profile-card .profile-heading > .dashboard-history-chart .dashboard-history-chart-footer > span:nth-child(1), .profile-card .profile-heading > .dashboard-history-chart .dashboard-history-chart-footer > span:nth-child(2), .profile-card .profile-heading > .dashboard-history-chart .dashboard-history-chart-footer > span:nth-child(3) { font-size: 8px; }
-.profile-card > .score-row { margin: 0; align-self: center; width: 100%; }
+.profile-card > .score-row { margin: 0; align-self: start; width: 100%; }
 .profile-card > .dashboard-apple-rings { margin: 0; padding: 5px 12px 0; align-self: stretch; border-top: 1px solid var(--line); }
 .profile-card > .dashboard-apple-rings .apple-rings-widget.compact .apple-rings-graphic { width: 84px; height: 84px; }
 .profile-card.has-health > .dashboard-apple-rings { padding-top: 3px; }
@@ -2076,7 +2076,7 @@ body::before {
 .admin-grid { gap: 12px; }
 .admin-grid article { padding: 18px; border-radius: 18px; }
 .admin-grid > .screensaver-card { grid-column: 1 / -1; }
-.screensaver-night-settings { padding: 20px 22px; }
+.screensaver-night-settings { padding: 12px 0; }
 .admin-title h2 { font-size: 18px; }
 @media (max-width: 900px) {
   .admin-layout { grid-template-columns: 1fr; gap: 14px; }
@@ -2092,7 +2092,7 @@ body::before {
   .admin-page > header h1 { font-size: 27px; }
   .admin-layout { gap: 10px; }
   .admin-grid article { padding: 15px; border-radius: 15px; }
-  .screensaver-night-settings { padding: 16px 14px; }
+  .screensaver-night-settings { padding: 12px 0; }
   .admin-nav-item { min-width: 116px; }
 }
 .admin-grid ul { list-style: none; padding: 10px 0; }
@@ -2788,9 +2788,9 @@ body::before {
   .score-row { margin: 7px 0 8px; }
 }
 
-/* Kompakte Kiosk-Ansicht: vier Familienkarten ohne Scrollen auf 16:9. */
+/* Kiosk: cards fill a spacious screen; short screens scroll instead of clipping content. */
 @media (min-width: 901px) and (min-height: 650px) {
-  .dashboard-shell { min-height: 100dvh; height: 100dvh; padding: 9px 18px 7px; gap: 9px; }
+  .dashboard-shell { min-height: 100dvh; height: auto; padding: 9px 18px 7px; gap: 9px; }
   .topbar { min-height: 68px; gap: 14px; }
   .persistent-radio.dashboard-radio { top: 9px; gap: 10px; }
   .radio-theme-toggle { width: 68px; min-width: 68px; height: 68px; min-height: 68px; border-radius: 13px; padding: 5px; gap: 4px; }
@@ -2807,7 +2807,7 @@ body::before {
   .location { padding-left: 9px; font-size: 11px; }
   .clock-block time { font-size: clamp(28px, 2.6vw, 40px); }
   .clock-block span { margin-top: 4px; font-size: 11px; }
-  .profile-grid { grid-template-rows: repeat(2, minmax(0, 1fr)); grid-auto-rows: minmax(0, 1fr); gap: 12px; }
+  .profile-grid { grid-template-rows: repeat(2, minmax(min-content, 1fr)); grid-auto-rows: minmax(min-content, 1fr); gap: 12px; }
   .profile-card {
     padding: 14px 19px 13px;
     border-radius: 22px;
@@ -2946,11 +2946,9 @@ body::before {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 11px 13px;
-  border-radius: 13px;
-  background: var(--subtle-bg);
-  border: 1px solid var(--line);
-  margin-top: 10px;
+  min-height: 48px;
+  padding: 0;
+  margin: 0;
   cursor: pointer;
 }
 .night-mode-toggle-wrap input[type="checkbox"] {
@@ -3182,6 +3180,33 @@ body::before {
 .pinpad-key:disabled {
   opacity: 0.35;
   cursor: not-allowed;
+}
+
+/* Touch hardware can have a desktop-sized viewport and an optional mouse. */
+@media (any-pointer: coarse) {
+  :root {
+    --touch-target-size: 48px;
+  }
+  button:not(.quiet-overlay), a[href], input:not([type="checkbox"]):not([type="radio"]), select, summary {
+    min-height: var(--touch-target-size);
+    touch-action: manipulation;
+  }
+  button:not(.quiet-overlay), .admin-shortcut, .theme-toggle, .quiet-shortcut, .modal-close {
+    min-width: var(--touch-target-size);
+  }
+  input[type="range"] { touch-action: pan-y; }
+  .personal-avatar-adjustments input[type="range"] { touch-action: pan-x; }
+  .pinpad-key { min-height: var(--pinpad-key-height); }
+  .profile-card .dashboard-history-chart { touch-action: manipulation; }
+}
+@media (any-pointer: coarse) and (min-width: 621px) {
+  :root {
+    --pinpad-width: 240px;
+    --pinpad-min-width: 200px;
+    --pinpad-key-height: 58px;
+    --pinpad-key-font-size: 24px;
+    --pinpad-grid-gap: 10px;
+  }
 }
 
 .backup-card {
@@ -4110,7 +4135,7 @@ body::before {
   .dashboard-history-chart-footer > span:nth-child(1),
   .dashboard-history-chart-footer > span:nth-child(2),
   .dashboard-history-chart-footer > span:nth-child(3) { font-size: 9px; }
-  .profile-card.has-health > .score-row { margin: 8px 0 16px; }
+  .profile-card.has-health > .score-row { margin: 0; }
   .profile-card.has-health > .dashboard-apple-rings { padding-top: 9px; }
   .score strong { font-size: clamp(32px, 2.2vw, 40px); }
   .score span, .today span { font-size: 11px; }
@@ -4126,3 +4151,39 @@ body::before {
   .dashboard-apple-rings .health-activity-stats strong { font-size: 14px; }
   .app-footer { font-size: 11px; }
 }
+
+/* Keep the Health values readable while reducing the vertical budget on scaled displays. */
+@media (min-width: 901px) and (max-height: 850px) {
+  .profile-card { padding: 12px 18px; gap: 9px; }
+  .profile-card .avatar-generated { width: 68px; height: 92px; }
+  .profile-card .profile-heading > .profile-identity { grid-template-columns: 68px minmax(0, 1fr); gap: 10px; }
+  .profile-card .profile-name h2 { font-size: clamp(18px, 1.6vw, 26px); overflow-wrap: anywhere; }
+  .profile-card .profile-name p { font-size: 10px; overflow-wrap: anywhere; }
+  .profile-card .profile-heading > .dashboard-history-chart { height: 100px; min-height: 100px; }
+  .profile-card .goal-ring-summary { width: 100px; }
+  .profile-card .goal-ring { width: 76px; height: 76px; }
+  .profile-card .goal-ring strong { font-size: 24px; }
+  .profile-card .goal-ring-target { font-size: 9px; }
+  .profile-card .score strong { font-size: 30px; }
+  .profile-card .today strong { font-size: 22px; }
+  .profile-card > .dashboard-apple-rings { padding: 9px 0 0; }
+  .dashboard-apple-rings .apple-rings-widget.compact .apple-rings-graphic { width: 88px; height: 88px; }
+  .dashboard-apple-rings .apple-rings-legend { gap: 4px; }
+  .dashboard-apple-rings .rings-apple-badge { font-size: 12px; }
+  .dashboard-apple-rings .ring-title { font-size: 11px; }
+  .dashboard-apple-rings .ring-label-box strong { font-size: 15px; }
+  .dashboard-apple-rings .ring-label-box strong small { font-size: 11px; }
+  .dashboard-apple-rings .health-activity-stats { margin-top: 4px; padding-top: 6px; gap: 7px; }
+  .dashboard-apple-rings .health-activity-stats div { font-size: 11px; }
+  .dashboard-apple-rings .health-activity-stats strong { font-size: 13px; }
+}
+
+.connection-status { display: inline-flex; align-items: flex-start; gap: 7px; color: var(--muted); font-size: 11px; }
+.connection-status > i { flex: none; width: 7px; height: 7px; margin-top: 3px; border-radius: 50%; background: var(--muted); }
+.connection-status.is-connected > i { background: #22c55e; }
+.connection-status.is-offline { color: var(--danger); }
+.connection-status.is-offline > i { background: currentColor; }
+.connection-status small { display: block; margin-top: 3px; font-size: 10px; }
+.profile-connection-status { display: flex; margin: 10px 0 16px; }
+.qr-modal { max-height: calc(100dvh - 40px); overflow-y: auto; }
+.prep-countdown-overlay { z-index: 1000; }

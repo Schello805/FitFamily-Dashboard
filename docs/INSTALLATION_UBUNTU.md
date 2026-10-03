@@ -2,6 +2,8 @@
 
 Diese Anleitung richtet FitFamily auf dem Lenovo All-in-One ein. Der PC ist dabei gleichzeitig Dashboard und lokaler Anwendungsserver; ein zweiter Server wird nicht benötigt. Er muss eingeschaltet und im Heimnetz sein, damit Handys die App erreichen.
 
+Ab v0.2.96 siehe auch [sicherer Betrieb, einmalige Umstellung, Touch, HTTPS und Wiederherstellung](BETRIEB_UND_WIEDERHERSTELLUNG.md). Insbesondere die dauerhafte Handy-Kopplung benötigt HTTPS.
+
 ## Voraussetzungen
 
 - Ubuntu Desktop 22.04 oder neuer (64 Bit)
@@ -157,4 +159,3 @@ Die NAS-Verbindung für Backups wird nicht mehr über die CLI oder Konfiguration
 3. Mit **„Verbindung testen“** prüfst du direkt die Schreibrechte.
 4. Mit **„Jetzt sichern“** kannst du jederzeit eine verschlüsselte Sicherung (AES-256-GCM) anstoßen.
 5. Vorhandene Backups werden automatisch nach dem Rotationsprinzip (7 Tage, 4 Wochen, 12 Monate) gepflegt.
-

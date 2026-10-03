@@ -14,7 +14,9 @@ if ! id "$APP_USER" >/dev/null 2>&1; then
 fi
 
 mkdir -p "$APP_DIR/data" "$APP_DIR/backups"
-chown -R "$APP_USER:$APP_USER" "$APP_DIR"
+chown -hR root:fitfamily "$APP_DIR"
+chmod -R go-w "$APP_DIR"
+chown -R "$APP_USER:$APP_USER" "$APP_DIR/data" "$APP_DIR/backups"
 
 if [[ ! -f "$APP_DIR/package.json" ]]; then
   echo "Projektdateien müssen zuerst nach $APP_DIR kopiert oder dort geklont werden."
@@ -22,13 +24,16 @@ if [[ ! -f "$APP_DIR/package.json" ]]; then
 fi
 
 cd "$APP_DIR"
-sudo -u "$APP_USER" npm ci
-sudo -u "$APP_USER" npm run build
+./scripts/install-privileged-helpers.sh
+if [[ ! -e "$APP_DIR/current" && -f "$APP_DIR/.next/BUILD_ID" ]]; then
+  ln -s "$APP_DIR" "$APP_DIR/current"
+fi
 
 install -m 0644 deploy/systemd/fitfamily.service /etc/systemd/system/fitfamily.service
 install -m 0644 deploy/systemd/fitfamily-backup.service /etc/systemd/system/fitfamily-backup.service
 install -m 0644 deploy/systemd/fitfamily-backup.timer /etc/systemd/system/fitfamily-backup.timer
 systemctl daemon-reload
-systemctl enable --now fitfamily.service
+systemctl enable fitfamily.service
+/usr/local/libexec/fitfamily-update --install-local
 systemctl enable --now fitfamily-backup.timer
 echo "FitFamily läuft auf Port 3000."

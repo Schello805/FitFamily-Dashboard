@@ -1,158 +1,43 @@
-import { execFileSync } from "node:child_process";
-import { mkdtempSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
-import os from "node:os";
-import path from "node:path";
+import { execFile } from "node:child_process";
+import { stat } from "node:fs/promises";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { verifyAdminPinOrReject } from "@/lib/security";
 import { setBackupSettings } from "@/lib/backup";
 
 export const dynamic = "force-dynamic";
-
-const mountSchema = z.object({
-  pin: z.string().regex(/^\d{4}$/),
-  server: z.string().min(1),
-  share: z.string().min(1),
-  username: z.string().optional(),
-  password: z.string().optional(),
-  mountPath: z.string().optional()
+const TARGET = "/mnt/nas/fitfamily";
+const HELPER = "/usr/local/libexec/fitfamily-mount";
+const schema = z.object({
+  pin: z.string().regex(/^\d{4}$/).or(z.literal("")).optional(),
+  server: z.string().trim().regex(/^[A-Za-z0-9._:-]{1,253}$/),
+  share: z.string().trim().min(1).max(500),
+  username: z.string().max(500).optional(),
+  password: z.string().max(500).optional(),
+  mountPath: z.literal(TARGET).optional()
 });
 
 export async function POST(request: Request) {
-  const body = mountSchema.safeParse(await request.json().catch(() => null));
-  if (!body.success) {
-    return NextResponse.json({ error: "Bitte Server-Adresse, Freigabename und PIN ausfüllen." }, { status: 400 });
-  }
-
-  const { pin, server, share, username, password, mountPath: customMountPath } = body.data;
-
-  const pinError = await verifyAdminPinOrReject(pin);
+  const body = schema.safeParse(await request.json().catch(() => null));
+  if (!body.success) return NextResponse.json({ error: "Bitte gültige NAS-Daten eingeben. Automatisches Einhängen ist ausschließlich unter /mnt/nas/fitfamily möglich." }, { status: 400 });
+  const pinError = await verifyAdminPinOrReject(body.data.pin, request);
   if (pinError) return pinError;
-
-  const cleanServer = server.trim().replace(/^[\\/]+/, "").replace(/[\\/]+$/, "");
-  const shareParts = share.trim().replace(/\\/g, "/").replace(/^\/+|\/+$/g, "").split("/");
-  if (
-    !cleanServer || /[\s/\\,]/.test(cleanServer) ||
-    shareParts.some((part) => !part || part === "." || part === ".." || /[,\r\n]/.test(part))
-  ) {
-    return NextResponse.json({ error: "Bitte eine gültige Serveradresse und Freigabe angeben (z. B. 192.168.1.118 und Public/fitfamily)." }, { status: 400 });
-  }
-  const cleanShare = shareParts[0];
-  const shareSubdirectory = shareParts.slice(1).join("/");
-  const mountTarget = (customMountPath && customMountPath.trim()) ? customMountPath.trim() : "/mnt/nas/fitfamily";
-  if (!path.isAbsolute(mountTarget) || /[\0\r\n]/.test(mountTarget) || mountTarget === "/") {
-    return NextResponse.json({ error: "Der lokale Einhängepfad muss ein gültiger absoluter Pfad sein und darf nicht das Wurzelverzeichnis sein." }, { status: 400 });
-  }
-  if (/[\r\n]/.test(username ?? "") || /[\r\n]/.test(password ?? "")) {
-    return NextResponse.json({ error: "Benutzername und Passwort dürfen keine Zeilenumbrüche enthalten." }, { status: 400 });
-  }
-  const unc = `//${cleanServer}/${cleanShare}`;
-  let credentialsDir: string | null = null;
-  let credentialsPath: string | null = null;
-
   try {
-    // 1. Erstelle lokales Mount-Verzeichnis falls nötig
-    execFileSync("sudo", ["-n", "/bin/mkdir", "-p", mountTarget], { timeout: 10000, stdio: "pipe" });
-
-    // 2. Mount-Optionen zusammenstellen
-    const opts: string[] = ["rw", "file_mode=0775", "dir_mode=0775"];
-    if (typeof process.getuid === "function" && typeof process.getgid === "function") {
-      opts.push(`uid=${process.getuid()}`, `gid=${process.getgid()}`);
-    }
-    if (shareSubdirectory) opts.push(`prefixpath=${shareSubdirectory}`);
-    if (username && username.trim()) {
-      opts.push(`username=${username.trim()}`);
-      if (password && password.trim()) {
-        // Passwort niemals als Prozessargument übergeben (sichtbar via ps / in Fehlertexten).
-        credentialsDir = mkdtempSync(path.join(os.tmpdir(), "fitfamily-cifs-"));
-        credentialsPath = path.join(credentialsDir, "credentials");
-        writeFileSync(credentialsPath, `username=${username.trim()}\npassword=${password.trim()}\n`, { mode: 0o600 });
-        opts.splice(opts.indexOf(`username=${username.trim()}`), 1, `credentials=${credentialsPath}`);
-      }
-    } else {
-      opts.push("guest");
-    }
-
-    const optionsStr = opts.join(",");
-
-    // 3. Prüfen, ob bereits gemountet
-    let alreadyMounted = false;
-    try {
-      const currentMounts = execFileSync("/bin/mount", [], { encoding: "utf-8" });
-      if (currentMounts.includes(mountTarget)) {
-        alreadyMounted = true;
-      }
-    } catch {}
-
-    const probeMountWriteAccess = () => {
-      const testFile = path.join(mountTarget, `.fitfamily_test_${Date.now()}`);
-      try {
-        writeFileSync(testFile, "ok", { flag: "wx" });
-        unlinkSync(testFile);
-      } catch (writeError) {
-        try { unlinkSync(testFile); } catch {}
-        throw writeError;
-      }
-    };
-
-    let alreadyWritable = false;
-    if (alreadyMounted) {
-      try {
-        probeMountWriteAccess();
-        alreadyWritable = true;
-      } catch (writeError) {
-        const permissionDenied = ["EACCES", "EPERM"].includes((writeError as NodeJS.ErrnoException).code ?? "");
-        if (!permissionDenied) throw writeError;
-        if (!username?.trim()) {
-          throw new Error("Das vorhandene Netzlaufwerk ist für FitFamily nicht beschreibbar. Gib den NAS-Benutzernamen mit Schreibrechten ein, damit FitFamily den Mount sicher erneuern kann.");
-        }
-        // Only retry after an explicit admin request with credentials. Never force-unmount
-        // an in-use share; a busy mount returns an error and remains untouched.
-        execFileSync("sudo", ["-n", "/bin/umount", mountTarget], { timeout: 10000, stdio: "pipe" });
-        alreadyMounted = false;
-      }
-    }
-
-    if (!alreadyMounted) {
-      execFileSync("sudo", ["-n", "/bin/mount", "-t", "cifs", "-o", optionsStr, unc, mountTarget], {
-        timeout: 25000,
-        encoding: "utf-8",
-        stdio: "pipe"
+    const metadata = await stat(HELPER);
+    if (metadata.uid !== 0 || metadata.mode & 0o022) throw new Error("Der NAS-Helfer ist nicht sicher installiert. Bitte die Installationsanleitung zur Aktualisierung der Systemhelfer verwenden.");
+    await new Promise<void>((resolve, reject) => {
+      const child = execFile("sudo", ["-n", HELPER], { timeout: 50000, encoding: "utf8" }, (error) => {
+        if (error) reject(new Error("NAS konnte nicht eingehängt werden. Prüfe Freigabe, Zugangsdaten und ob das Laufwerk noch verwendet wird."));
+        else resolve();
       });
-    }
-
-    // 4. Schreibtest auf einem neuen oder reparierten Mount durchführen
-    if (!alreadyWritable) {
-      try {
-        probeMountWriteAccess();
-      } catch (writeError) {
-        const code = (writeError as NodeJS.ErrnoException).code;
-        if (code === "EACCES" || code === "EPERM") {
-          throw new Error("Das Netzlaufwerk wurde eingebunden, aber das NAS verweigert Schreibzugriffe. Prüfe, ob der angegebene SMB-Benutzer Schreibrechte für diesen Ordner hat.");
-        }
-        throw new Error(`Verbindung besteht, aber der Einhängepfad ist nicht beschreibbar: ${(writeError as Error).message}`);
-      }
-    }
-
-    // 5. Automatisch als NAS-Sicherungspfad abspeichern
-    const status = await setBackupSettings({ path: mountTarget });
-
-    return NextResponse.json({
-      ok: true,
-      message: `Netzlaufwerk ${unc} wurde erfolgreich unter ${mountTarget} eingebunden und als Sicherungspfad eingerichtet!`,
-      path: mountTarget,
-      status
+      const { pin: _pin, ...configuration } = body.data;
+      void _pin;
+      child.stdin?.end(JSON.stringify({ ...configuration, mountPath: TARGET }));
     });
-  } catch (err) {
-    const commandError = err as NodeJS.ErrnoException & { stderr?: Buffer | string };
-    const stderr = commandError.stderr?.toString().trim();
-    const errorMsg = (stderr || commandError.message || "Unbekannter Mount-Fehler")
-      .replace(/password=[^,\s"']+/gi, "password=[geschützt]");
-    return NextResponse.json({
-      ok: false,
-      error: `Einbinden fehlgeschlagen: Konnte ${unc} nicht nach ${mountTarget} mounten. Details: ${errorMsg}`
-    }, { status: 500 });
-  } finally {
-    if (credentialsDir) rmSync(credentialsDir, { recursive: true, force: true });
+    const status = await setBackupSettings({ path: TARGET });
+    if (!status.writable) throw new Error(status.statusMessage);
+    return NextResponse.json({ ok: true, path: TARGET, status, message: "Netzlaufwerk unter /mnt/nas/fitfamily eingehängt. Für automatisches Einhängen nach einem Neustart siehe Installationsanleitung." });
+  } catch (error) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : "NAS konnte nicht eingehängt werden." }, { status: 500 });
   }
 }

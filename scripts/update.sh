@@ -1,170 +1,133 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# FitFamily Dashboard – Automatisches Update- & Self-Healing-Skript
-# Kann im Terminal aufgerufen werden: sudo /opt/fitfamily/scripts/update.sh oder npm run update
-
-NO_RESTART=0
-for arg in "$@"; do
-  if [[ "$arg" == "--no-restart" ]]; then
-    NO_RESTART=1
-  fi
-done
-
+# Installed as a root-owned helper. Git and package scripts ALWAYS run unprivileged.
 if [[ $EUID -ne 0 ]]; then
-  echo "Für Updates und Dienst-Neustart sind Root-Rechte erforderlich."
-  if sudo -n true 2>/dev/null; then
-    exec sudo -n /bin/bash "$0" "$@"
-  else
-    exec sudo /bin/bash "$0" "$@"
-  fi
+  exec sudo /usr/local/libexec/fitfamily-update
 fi
-
-APP_DIR=""
-# 1. Prüfe ob der systemd-Dienst läuft und ein WorkingDirectory hat
-if command -v systemctl >/dev/null 2>&1; then
-  SYSTEMD_WD="$(systemctl show fitfamily -p WorkingDirectory --value 2>/dev/null || true)"
-  if [[ -n "$SYSTEMD_WD" && -d "$SYSTEMD_WD" && -f "$SYSTEMD_WD/package.json" ]]; then
-    APP_DIR="$SYSTEMD_WD"
-  fi
+APP_DIR=/opt/fitfamily
+APP_USER=fitfamily
+source /usr/local/libexec/fitfamily-release-state
+REPOSITORY=https://github.com/Schello805/FitFamily-Dashboard.git
+LOCAL_INSTALL=0
+JOB_ID="${1:-$(cat /proc/sys/kernel/random/uuid)}"
+if [[ "$JOB_ID" == "--install-local" ]]; then
+  LOCAL_INSTALL=1
+  JOB_ID="$(cat /proc/sys/kernel/random/uuid)"
 fi
+[[ "$JOB_ID" =~ ^[a-f0-9-]{36}$ ]] || { echo 'Ungültige Update-ID.' >&2; exit 1; }
+mkdir -p /var/lib/fitfamily "$APP_DIR/releases"
+chmod 0755 /var/lib/fitfamily
+exec 9>/run/lock/fitfamily-update.lock
+STARTED_AT="$(date -u +%FT%TZ)"
+NEW_COMMIT=""
+NEW_VERSION=""
+STAGE=""
+SNAPSHOT_DIR=""
+PREVIOUS="$(readlink -f "$APP_DIR/current" 2>/dev/null || true)"
+SWITCHED=0
+SERVICE_STOPPED=0
 
-# 2. Prüfe ob das Skript innerhalb des Projektverzeichnisses aufgerufen wird
-if [[ -z "$APP_DIR" && -f "$(dirname "${BASH_SOURCE[0]}")/../package.json" ]]; then
-  APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-fi
-
-# 3. Fallback auf /opt/fitfamily
-if [[ -z "$APP_DIR" && -d "/opt/fitfamily" ]]; then
-  APP_DIR="/opt/fitfamily"
-fi
-
-# 4. Suche in typischen Benutzerverzeichnissen
-if [[ -z "$APP_DIR" ]]; then
-  FOUND_DIR="$(find /home /opt -maxdepth 3 -name "package.json" -exec grep -l '"name": "sportboard"' {} + 2>/dev/null | head -n1 || true)"
-  if [[ -n "$FOUND_DIR" ]]; then
-    APP_DIR="$(dirname "$FOUND_DIR")"
-  fi
-fi
-
-if [[ -z "$APP_DIR" || ! -d "$APP_DIR" ]]; then
-  echo "Fehler: Projektverzeichnis konnte nicht gefunden werden." >&2
+write_status() {
+  /usr/bin/python3 - "$1" "$2" "$JOB_ID" "$STARTED_AT" "$NEW_COMMIT" "$NEW_VERSION" <<'PY'
+import json, os, sys, tempfile
+state, message, job, started, commit, version = sys.argv[1:]
+fd, temporary = tempfile.mkstemp(dir='/var/lib/fitfamily', prefix='.update-')
+with os.fdopen(fd, 'w') as stream:
+    json.dump(dict(state=state, message=message, jobId=job, startedAt=started, newCommit=commit, newVersion=version), stream)
+os.chmod(temporary, 0o644)
+os.replace(temporary, '/var/lib/fitfamily/update-' + job + '.json')
+fd, latest = tempfile.mkstemp(dir='/var/lib/fitfamily', prefix='.update-')
+with os.fdopen(fd, 'w') as stream:
+    json.dump(dict(state=state, message=message, jobId=job, startedAt=started, newCommit=commit, newVersion=version), stream)
+os.chmod(latest, 0o644)
+os.replace(latest, '/var/lib/fitfamily/update-status.json')
+PY
+}
+if ! flock -n 9; then
+  write_status error 'Ein anderes Update läuft bereits.'
   exit 1
 fi
+STAGE="$(mktemp -d "$APP_DIR/releases/.building.XXXXXXXX")"
 
-APP_USER="fitfamily"
-
-cd "$APP_DIR"
-
-echo "=========================================================="
-echo " FitFamily Dashboard – Automatisches Update & Check       "
-echo "=========================================================="
-
-echo ""
-echo "-> 1/6: Sicherheitskopie der Datenbank anlegen..."
-TIMESTAMP="$(date +%Y%m%d_%H%M%S)"
-mkdir -p "$APP_DIR/backups"
-if [[ -f "$APP_DIR/data/fitfamily.db" ]]; then
-  cp "$APP_DIR/data/fitfamily.db" "$APP_DIR/backups/fitfamily-backup-pre-update-$TIMESTAMP.db"
-  echo "   Gesichert: backups/fitfamily-backup-pre-update-$TIMESTAMP.db"
-fi
-
-echo ""
-echo "-> 2/6: Neueste Änderungen von GitHub laden..."
-git config --system --add safe.directory "$APP_DIR" 2>/dev/null || git config --global --add safe.directory "$APP_DIR" 2>/dev/null || true
-git -c safe.directory='*' fetch origin main
-git -c safe.directory='*' checkout -f main
-git -c safe.directory='*' reset --hard origin/main
-
-echo ""
-echo "-> 3/6: Konfiguration, Berechtigungen & Dashboard bauen..."
-if ! id -u "$APP_USER" >/dev/null 2>&1; then
-  useradd --system --no-create-home --shell /usr/sbin/nologin "$APP_USER" || true
-fi
-
-# Dateirechte vor dem Build korrigieren, damit Next.js nicht an Root-Artefakten scheitert
-chown -R "$APP_USER:$APP_USER" "$APP_DIR"
-# Nur den Build-Cache löschen, aber .next/static erhalten, damit der laufende Dienst während des Builds keine 404-Fehler wirft
-rm -rf "$APP_DIR/.next/cache" 2>/dev/null || true
-
-if id -u "$APP_USER" >/dev/null 2>&1; then
-  sudo -u "$APP_USER" npm ci --prefer-offline --no-audit --no-fund
-  sudo -u "$APP_USER" npm run build
-else
-  npm ci --prefer-offline --no-audit --no-fund
-  npm run build
-fi
-
-chown -R "$APP_USER:$APP_USER" "$APP_DIR"
-
-echo ""
-echo "-> 4/6: Hintergrunddienst & Sudoers prüfen..."
-# Systemd Service-Definition aktualisieren
-if [[ -f "$APP_DIR/deploy/systemd/fitfamily.service" ]]; then
-  cp "$APP_DIR/deploy/systemd/fitfamily.service" /etc/systemd/system/fitfamily.service
-  systemctl daemon-reload
-fi
-
-# Sudoers für 1-Click Update, Rechte-Self-Healing & NAS Mount
-SUDOERS_TMP="/etc/sudoers.d/fitfamily.tmp.$$"
-cat > "$SUDOERS_TMP" <<EOF
-fitfamily ALL=(ALL) NOPASSWD: /bin/systemctl, /usr/bin/systemctl, /bin/chown, /usr/bin/chown, /bin/rm, /usr/bin/rm, /bin/mv, /usr/bin/mv, /bin/mount, /usr/bin/mount, /bin/umount, /usr/bin/umount, /bin/mkdir, /usr/bin/mkdir, $APP_DIR/scripts/update.sh, $APP_DIR/scripts/repair.sh, $APP_DIR/scripts/backup.sh
-EOF
-chmod 0440 "$SUDOERS_TMP"
-visudo -cf "$SUDOERS_TMP"
-mv "$SUDOERS_TMP" /etc/sudoers.d/fitfamily
-
-chmod +x "$APP_DIR/scripts/"*.sh || true
-chown -R "$APP_USER:$APP_USER" "$APP_DIR"
-if [[ -f "$APP_DIR/.env.local" ]]; then
-  if grep -q "APP_URL=http://0.0.0.0" "$APP_DIR/.env.local" 2>/dev/null; then
-    REAL_LAN_IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
-    if [[ -n "$REAL_LAN_IP" && "$REAL_LAN_IP" != "0.0.0.0" ]]; then
-      sed -i "s|APP_URL=http://0.0.0.0:3000|APP_URL=http://${REAL_LAN_IP}:3000|g" "$APP_DIR/.env.local"
+rollback() {
+  local exit_code=$?
+  if [[ $exit_code -ne 0 ]]; then
+    if [[ $SWITCHED -eq 1 && -n "$PREVIOUS" ]]; then
+      systemctl stop fitfamily.service || true
+      restore_release "$APP_DIR" "$PREVIOUS" "$JOB_ID"
+      if [[ -n "$SNAPSHOT_DIR" && -f "$SNAPSHOT_DIR/fitfamily.db" ]]; then
+        cp --remove-destination "$SNAPSHOT_DIR/fitfamily.db" "$APP_DIR/data/fitfamily.db"
+        chown "$APP_USER:$APP_USER" "$APP_DIR/data/fitfamily.db"
+        chmod 0600 "$APP_DIR/data/fitfamily.db"
+        rm -f "$APP_DIR/data/fitfamily.db-wal" "$APP_DIR/data/fitfamily.db-shm"
+      fi
+      systemctl start fitfamily.service || true
+      write_status error 'Update fehlgeschlagen; vorherige Version und Datenbank wurden wiederhergestellt.'
+    else
+      if [[ $SERVICE_STOPPED -eq 1 && $SWITCHED -eq 0 && -n "$PREVIOUS" ]]; then
+        systemctl start fitfamily.service || true
+      elif [[ $SWITCHED -eq 1 ]]; then
+        systemctl stop fitfamily.service || true
+      fi
+      write_status error 'Update fehlgeschlagen; die aktive Version wurde nicht ausgetauscht. Siehe journalctl -u fitfamily-update.'
     fi
   fi
-  chown "$APP_USER:$APP_USER" "$APP_DIR/.env.local" || true
-  chmod 0640 "$APP_DIR/.env.local" || true
-fi
-
-# Desktop-Icon & Autostart sicherstellen
-if [[ -n "${SUDO_USER:-}" && "${SUDO_USER}" != "root" ]]; then
-  "$APP_DIR/scripts/create-desktop-shortcut.sh" || true
-fi
-
-echo ""
-echo "-> 5/6: Firewall prüfen (Port 3000)..."
-if command -v ufw >/dev/null 2>&1; then
-  ufw allow 3000/tcp comment 'FitFamily Dashboard' >/dev/null 2>&1 || true
-fi
-
-if [[ "$NO_RESTART" -eq 1 ]]; then
-  echo ""
-  echo "-> 6/6: Update erfolgreich abgeschlossen! (Neustart wird vom aufrufenden Prozess durchgeführt)"
-  exit 0
-fi
-
-echo ""
-echo "-> 6/6: Dienst aktivieren & neu starten..."
-systemctl enable --now fitfamily.service
-systemctl restart fitfamily.service
-sleep 2
-
-LAN_IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
-[[ -z "$LAN_IP" ]] && LAN_IP="localhost"
-
-echo ""
-if systemctl is-active --quiet fitfamily.service; then
-  echo "=========================================================="
-  echo " Update erfolgreich abgeschlossen! FitFamily läuft!"
-  echo " Stand: $(git rev-parse --short HEAD)"
-  echo ""
-  echo " - Am Monitor:          http://localhost:3000"
-  echo " - Im Heimnetz (Handy): http://${LAN_IP}:3000"
-  echo "=========================================================="
+  # Retain failed stages for diagnostics; never delete the active release.
+  chown -hR root:fitfamily "$STAGE" 2>/dev/null || true
+}
+trap rollback EXIT
+write_status running 'Neue Version wird getrennt von der aktiven Version vorbereitet.'
+chown "$APP_USER:$APP_USER" "$STAGE"
+if [[ $LOCAL_INSTALL -eq 1 ]]; then
+  # Bootstrap from the reviewed checkout; exclude all runtime state and build output.
+  runuser -u "$APP_USER" -- tar -C "$APP_DIR" --exclude='./releases' --exclude='./current' --exclude='./data' --exclude='./backups' --exclude='./.env.local' --exclude='./node_modules' --exclude='./.next' --exclude='./.git' -cf - . | runuser -u "$APP_USER" -- tar -C "$STAGE" -xf -
+  NEW_COMMIT="$(runuser -u "$APP_USER" -- git -c safe.directory="$APP_DIR" -C "$APP_DIR" rev-parse --short HEAD 2>/dev/null || true)"
 else
-  echo "=========================================================="
-  echo " ACHTUNG: Dienst ist nicht aktiv. Fehlerprotokoll:"
-  echo "=========================================================="
-  journalctl -u fitfamily -n 25 --no-pager
+  runuser -u "$APP_USER" -- git -c core.hooksPath=/dev/null clone --depth 1 --branch main --single-branch "$REPOSITORY" "$STAGE"
+  NEW_COMMIT="$(runuser -u "$APP_USER" -- git -C "$STAGE" rev-parse --short HEAD)"
 fi
+cd "$STAGE"
+runuser -u "$APP_USER" -- npm ci --prefer-offline --no-audit --no-fund
+mkdir "$STAGE/.build-data"
+chown "$APP_USER:$APP_USER" "$STAGE/.build-data"
+runuser -u "$APP_USER" -- env DATABASE_URL="file:$STAGE/.build-data/fitfamily.db" npm run build
+[[ -f "$STAGE/.next/BUILD_ID" ]] || { echo 'Build ist unvollständig.' >&2; exit 1; }
+NEW_VERSION="$(/usr/bin/python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("version", ""))' "$STAGE/package.json")"
+
+# Quiesce writes only after the build succeeds, before taking the rollback snapshot.
+systemctl stop fitfamily.service
+SERVICE_STOPPED=1
+# Snapshot through SQLite, including all committed WAL pages.
+if [[ -f "$APP_DIR/data/fitfamily.db" ]]; then
+  SNAPSHOT_DIR="$(mktemp -d /var/lib/fitfamily/pre-update.XXXXXXXX)"
+  chown "$APP_USER:$APP_USER" "$SNAPSHOT_DIR"
+  runuser -u "$APP_USER" -- node "$STAGE/scripts/sqlite-maintenance.mjs" snapshot "file:$APP_DIR/data/fitfamily.db" "$SNAPSHOT_DIR/fitfamily.db"
+  chown -hR root:fitfamily "$SNAPSHOT_DIR"
+  chmod 0750 "$SNAPSHOT_DIR"
+  [[ -f "$SNAPSHOT_DIR/fitfamily.db" && ! -L "$SNAPSHOT_DIR/fitfamily.db" ]] || exit 1
+  runuser -u "$APP_USER" -- cp "$SNAPSHOT_DIR/fitfamily.db" "$APP_DIR/backups/fitfamily-pre-update-$JOB_ID.db"
+fi
+runuser -u "$APP_USER" -- rm -rf "$STAGE/.build-data"
+ln -s "$APP_DIR/data" "$STAGE/data"
+ln -s "$APP_DIR/backups" "$STAGE/backups"
+ln -s "$APP_DIR/.env.local" "$STAGE/.env.local"
+chown -hR root:fitfamily "$STAGE"
+# Code and package scripts cannot be replaced by the web service.
+chmod -R go-w "$STAGE"
+mkdir -p "$STAGE/.next/cache"
+chown -R "$APP_USER:$APP_USER" "$STAGE/.next/cache"
+write_status running 'Build und Sicherung geprüft; aktiviere neue Version.'
+activate_release "$APP_DIR" "$STAGE" "$JOB_ID"
+SWITCHED=1
+systemctl restart fitfamily.service
+for attempt in $(seq 1 30); do
+  if curl --fail --silent --max-time 2 http://127.0.0.1:3000/api/dashboard >/dev/null && systemctl is-active --quiet fitfamily.service; then
+    write_status success 'Update installiert und Dienst erfolgreich geprüft.'
+    trap - EXIT
+    exit 0
+  fi
+  sleep 1
+done
+echo 'Neue Version beantwortet die Gesundheitsprüfung nicht.' >&2
+exit 1

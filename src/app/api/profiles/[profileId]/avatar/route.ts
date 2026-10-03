@@ -201,7 +201,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ pro
       return jsonError("Bitte ein Foto im JPG-, PNG- oder WebP-Format auswählen.");
     }
     if (photoFile.size === 0 || photoFile.size > MAX_PHOTO_BYTES) return jsonError("Das Foto darf höchstens 10 MB groß sein.");
-    const pinError = await verifyAdminPinOrReject(pin);
+    const pinError = await verifyAdminPinOrReject(pin, request);
     if (pinError) return pinError;
 
     const now = Date.now();
@@ -236,7 +236,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ pro
   if (!body || (body.action !== "save" && body.action !== "delete") || typeof body.pin !== "string" || !/^\d{4}$/.test(body.pin)) {
     return jsonError("Bitte Aktion und vierstellige Eltern-PIN prüfen.");
   }
-  const pinError = await verifyAdminPinOrReject(body.pin);
+  const pinError = await verifyAdminPinOrReject(body.pin, request);
   if (pinError) return pinError;
 
   const client = await db();
@@ -281,7 +281,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ p
   if (!profile) return jsonError("Profil nicht gefunden.", 404);
   const body = await request.json().catch(() => null) as { pin?: unknown } | null;
   if (!body || typeof body.pin !== "string" || !/^\d{4}$/.test(body.pin)) return jsonError("Bitte vierstellige Eltern-PIN eingeben.");
-  const pinError = await verifyAdminPinOrReject(body.pin);
+  const pinError = await verifyAdminPinOrReject(body.pin, request);
   if (pinError) return pinError;
   const client = await db();
   await client.execute({ sql: "UPDATE profiles SET custom_avatar_data = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?", args: [profileId] });

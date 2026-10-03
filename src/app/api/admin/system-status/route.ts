@@ -2,9 +2,9 @@ import { stat, statfs } from "node:fs/promises";
 import path from "node:path";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { verifyAdminPinOrReject } from "@/lib/security";
+import { adminPinSchema, verifyAdminPinOrReject } from "@/lib/security";
 
-const schema = z.object({ pin: z.string().regex(/^\d{4}$/) });
+const schema = z.object({ pin: adminPinSchema });
 
 async function volumeInfo(targetPath: string) {
   try {
@@ -18,7 +18,7 @@ async function volumeInfo(targetPath: string) {
 export async function POST(request: Request) {
   const body = schema.safeParse(await request.json().catch(() => null));
   if (!body.success) return NextResponse.json({ error: "Ungültige Anfrage." }, { status: 400 });
-  const pinError = await verifyAdminPinOrReject(body.data.pin);
+  const pinError = await verifyAdminPinOrReject(body.data.pin, request);
   if (pinError) return pinError;
 
   const databaseUrl = process.env.DATABASE_URL ?? "file:./data/fitfamily.db";

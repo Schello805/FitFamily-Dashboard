@@ -4,6 +4,7 @@ import type { FormEventHandler } from "react";
 import { Avatar } from "@/components/avatar";
 import { AvatarPicker } from "@/components/avatar-picker";
 import { PersonalAvatarEditor } from "@/components/personal-avatar-editor";
+import { Modal } from "@/components/modal";
 import {
   GOALS,
   getAvatarProgress,
@@ -57,15 +58,15 @@ export function ProfileEditModal({
   const preview = getAvatarProgress(startingFitness, profile.strengthMinutes, profile.enduranceMinutes, stageCount);
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
+    <Modal onClose={onClose} closeDisabled={busy}>
       <form className="profile-edit-modal" role="dialog" aria-modal="true" aria-labelledby="profile-edit-title" onSubmit={onSubmit} onClick={(event) => event.stopPropagation()}>
-        <button type="button" className="modal-close" onClick={onClose} aria-label="Profilbearbeitung schließen">×</button>
+        <button type="button" className="modal-close" disabled={busy} onClick={onClose} aria-label="Profilbearbeitung schließen">×</button>
         <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
           <span className="setup-badge">Profil bearbeiten</span>
           {!isMobile && (
-            <span className="modal-idle-badge" onClick={onResetIdleTimer} title="Automatische Rückkehr zum Dashboard bei Inaktivität (Tippen zum Verlängern)">
+            <button type="button" className="modal-idle-badge" onClick={onResetIdleTimer} title="Automatische Rückkehr zum Dashboard bei Inaktivität (Tippen zum Verlängern)">
               Dashboard in {secondsLeft}s
-            </span>
+            </button>
           )}
         </div>
         <h2 id="profile-edit-title">Angaben für {profile.name}</h2>
@@ -121,6 +122,6 @@ export function ProfileEditModal({
         {notice && <p className="form-error" role="alert">{notice}</p>}
         <button className="primary-submit" disabled={busy}>{busy ? "Wird gespeichert …" : "Änderungen speichern"}</button>
       </form>
-    </div>
+    </Modal>
   );
 }

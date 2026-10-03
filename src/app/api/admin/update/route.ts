@@ -1,241 +1,74 @@
-import { exec, execSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync } from "node:fs";
-import path from "node:path";
+import { execFile } from "node:child_process";
+import { randomUUID } from "node:crypto";
+import { lstat, readFile } from "node:fs/promises";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { verifyAdminPinOrReject } from "@/lib/security";
-
 import { getAppRevision } from "@/lib/version";
 import { writeAdminLog } from "@/lib/admin-log";
-import { createVerifiedDatabaseSnapshot } from "@/lib/sqlite-snapshot";
 
 export const dynamic = "force-dynamic";
-
-function getGitCommit(cmd: string): string | null {
-  try {
-    const cwd = process.cwd();
-    return execSync(`git -c safe.directory='*' ${cmd}`, { cwd, encoding: "utf-8", timeout: 4000 }).trim();
-  } catch {
-    return null;
-  }
-}
-
-function getPackageVersion(): string {
-  try {
-    const pkgPath = path.join(process.cwd(), "package.json");
-    const content = JSON.parse(readFileSync(pkgPath, "utf-8"));
-    return content.version ?? "0.2.17";
-  } catch {
-    return "0.2.17";
-  }
-}
+const HELPER = "/usr/local/libexec/fitfamily-update-request";
+const REPOSITORY = "https://github.com/Schello805/FitFamily-Dashboard.git";
+const statusSchema = z.object({
+  state: z.enum(["idle", "running", "success", "error"]),
+  jobId: z.string().optional(), startedAt: z.string().optional(), message: z.string().optional(),
+  newCommit: z.string().optional(), newVersion: z.string().optional()
+});
 
 export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const pin = searchParams.get("pin");
-
-  const pinError = await verifyAdminPinOrReject(pin ?? "");
-  if (pinError) return pinError;
-
-  const cwd = process.cwd();
-  let currentCommit = getGitCommit("rev-parse --short HEAD");
-  if (!currentCommit) {
-    const rev = getAppRevision();
-    currentCommit = rev.commit || "unbekannt";
+  const authError = await verifyAdminPinOrReject(undefined, request);
+  if (authError) return authError;
+  const parameters = new URL(request.url).searchParams;
+  if (parameters.get("status") === "1") {
+    const jobId = parameters.get("jobId");
+    if (jobId && !/^[a-f0-9-]{36}$/.test(jobId)) return NextResponse.json({ error: "Ungültige Update-ID." }, { status: 400 });
+    try {
+      const filename = jobId ? `/var/lib/fitfamily/update-${jobId}.json` : "/var/lib/fitfamily/update-status.json";
+      const status = statusSchema.parse(JSON.parse(await readFile(filename, "utf8")));
+      return NextResponse.json(status, { headers: { "Cache-Control": "no-store" } });
+    } catch {
+      return NextResponse.json({ state: jobId ? "running" : "idle", jobId: jobId ?? undefined, message: jobId ? "Update-Dienst wird gestartet …" : undefined }, { headers: { "Cache-Control": "no-store" } });
+    }
   }
-  
-  // Der Update-Check darf keinen veralteten origin/main-Stand als aktuell ausgeben.
-  // Auf einem Raspberry Pi kann der GitHub-Fetch bei langsamem WLAN länger dauern.
-  let remoteFetchSucceeded = false;
+  const current = getAppRevision();
   try {
-    execSync("git -c safe.directory='*' fetch --no-tags origin main", {
-      cwd,
-      timeout: 30000,
-      stdio: "ignore"
+    const remote = await new Promise<string>((resolve, reject) => {
+      execFile("git", ["ls-remote", "--heads", REPOSITORY, "main"], { timeout: 30000, encoding: "utf8" }, (error, output) => error ? reject(error) : resolve(output));
     });
-    remoteFetchSucceeded = true;
+    const latestCommit = remote.trim().split(/\s+/)[0]?.slice(0, 7);
+    if (!latestCommit || !/^[a-f0-9]{7}$/.test(latestCommit)) throw new Error("GitHub lieferte keine gültige Revision.");
+    const response = await fetch("https://raw.githubusercontent.com/Schello805/FitFamily-Dashboard/main/package.json", { cache: "no-store", signal: AbortSignal.timeout(15000) });
+    if (!response.ok) throw new Error("Versionsabfrage fehlgeschlagen.");
+    const packageInfo = await response.json() as { version?: unknown };
+    const latestVersion = typeof packageInfo.version === "string" ? packageInfo.version : current.version;
+    return NextResponse.json({ ok: true, currentCommit: current.commit, latestCommit, latestMessage: "Aktueller Stand des Hauptzweigs", hasUpdate: latestCommit !== current.commit || latestVersion !== current.version, version: current.version, latestVersion }, { headers: { "Cache-Control": "no-store" } });
   } catch {
-    // Ohne erfolgreichen Fetch ist origin/main möglicherweise veraltet.
+    return NextResponse.json({ error: "GitHub konnte nicht zuverlässig abgefragt werden. Bitte Netzwerk prüfen.", currentCommit: current.commit, version: current.version }, { status: 503 });
   }
-
-  if (!remoteFetchSucceeded) {
-    await writeAdminLog("admin.update.check.error", "error", "GitHub konnte beim Update-Check nicht erreicht werden.").catch(() => undefined);
-    return NextResponse.json(
-      {
-        ok: false,
-        error: "GitHub konnte nicht zuverlässig abgefragt werden. Bitte Netzwerk prüfen und erneut versuchen; es wurde kein veralteter Stand als aktuell angezeigt.",
-        currentCommit,
-        version: getPackageVersion()
-      },
-      { status: 503, headers: { "Cache-Control": "no-store, max-age=0" } }
-    );
-  }
-
-  const latestCommit = getGitCommit("rev-parse --short origin/main");
-  const latestMessage = getGitCommit("log -1 --format=%s origin/main");
-  const version = getPackageVersion();
-  let latestVersion = version;
-  try {
-    const remotePkgJson = execSync("git -c safe.directory='*' show origin/main:package.json", { cwd, encoding: "utf-8", timeout: 3000 });
-    const parsed = JSON.parse(remotePkgJson);
-    if (parsed.version) latestVersion = parsed.version;
-  } catch {}
-
-  const hasUpdate = Boolean(
-    (latestCommit && currentCommit !== "unbekannt" && currentCommit !== latestCommit) ||
-    (latestVersion && latestVersion !== version)
-  );
-
-  await writeAdminLog("admin.update.check", "info", hasUpdate ? "Neues Update auf GitHub gefunden." : "Dashboard ist auf dem aktuellen Stand.", {
-    currentVersion: version,
-    latestVersion,
-    currentCommit,
-    latestCommit,
-    hasUpdate
-  }).catch(() => undefined);
-
-  return NextResponse.json({
-    ok: true,
-    currentCommit,
-    latestCommit: latestCommit ?? currentCommit,
-    latestMessage: latestMessage ?? "Keine Information verfügbar",
-    hasUpdate,
-    version,
-    latestVersion
-  }, { headers: { "Cache-Control": "no-store, max-age=0" } });
 }
 
-const postSchema = z.object({ pin: z.string().regex(/^\d{4}$/) });
-
+const schema = z.object({ pin: z.string().regex(/^\d{4}$/).or(z.literal("")).optional() });
 export async function POST(request: Request) {
-  const body = postSchema.safeParse(await request.json());
+  const body = schema.safeParse(await request.json().catch(() => null));
   if (!body.success) return NextResponse.json({ error: "Ungültige Anfrage." }, { status: 400 });
-  const pinError = await verifyAdminPinOrReject(body.data.pin);
-  if (pinError) return pinError;
-
-  await writeAdminLog("admin.update.started", "info", "Updateinstallation gestartet.").catch(() => undefined);
-
-  const cwd = process.cwd();
-
-  // 1. Sicherheits-Backup der Datenbank
+  const authError = await verifyAdminPinOrReject(body.data.pin, request);
+  if (authError) return authError;
   try {
-    const backupDir = path.join(cwd, "backups");
-    if (existsSync(path.join(cwd, "data", "fitfamily.db"))) {
-      mkdirSync(backupDir, { recursive: true });
-      const backupPath = path.join(backupDir, `fitfamily-pre-update-${Date.now()}.db`);
-      await createVerifiedDatabaseSnapshot(backupPath);
-    }
-  } catch (err) {
-    await writeAdminLog("admin.update.error", "error", `Update-Backup fehlgeschlagen: ${(err as Error).message}`).catch(() => undefined);
-    return NextResponse.json(
-      { error: `Backup vor dem Update fehlgeschlagen: ${(err as Error).message}` },
-      { status: 500 }
-    );
+    const metadata = await lstat(HELPER);
+    if (!metadata.isFile() || metadata.uid !== 0 || metadata.mode & 0o022) throw new Error("Unsicherer Update-Helfer.");
+  } catch {
+    return NextResponse.json({ error: "Sichere Update-Helfer fehlen. Auf dem Server einmal sudo ./scripts/install-ubuntu.sh ausführen. Die aktive Version bleibt erhalten." }, { status: 503 });
   }
-
-  // 2. Git Fetch & Reset --hard, npm install und Build ausführen
+  const jobId = randomUUID();
   try {
-    let updatedViaScript = false;
-    const scriptPath = path.join(cwd, "scripts", "update.sh");
-    if (existsSync(scriptPath)) {
-      try {
-        execSync(
-          `sudo -n "${scriptPath}" --no-restart 2>&1 || sudo -n /bin/bash "${scriptPath}" --no-restart 2>&1 || sudo -n /opt/fitfamily/scripts/update.sh --no-restart 2>&1 || sudo -n /bin/bash /opt/fitfamily/scripts/update.sh --no-restart 2>&1`,
-          {
-            cwd,
-            timeout: 240000,
-            encoding: "utf-8"
-          }
-        );
-        updatedViaScript = true;
-      } catch {
-        updatedViaScript = false;
-      }
-    }
-
-    if (!updatedViaScript) {
-      // 1. Versuche Dateirechte via sudo zu korrigieren, falls sudoers vorhanden
-      try {
-        execSync(
-          "sudo -n /bin/chown -R fitfamily:fitfamily /opt/fitfamily 2>/dev/null || sudo -n /usr/bin/chown -R fitfamily:fitfamily /opt/fitfamily 2>/dev/null || true",
-          { cwd, timeout: 5000 }
-        );
-      } catch {}
-
-      // 2. WICHTIG: .next niemals in-place unlinken (scheitert bei Root-Artefakten mit EACCES)!
-      // In Linux benötigt das Verschieben/Umbenennen eines Verzeichnisses nur Schreibrecht auf dem Elternordner (/opt/fitfamily).
-      // Damit kann der fitfamily-User den alten .next-Ordner IMMER wegbewegen, selbst wenn Dateien darin root gehören!
-      try {
-        const trashDir = path.join(cwd, `.next_trash_${Date.now()}`);
-        if (existsSync(path.join(cwd, ".next"))) {
-          execSync(`sudo -n /bin/rm -rf .next 2>/dev/null || mv .next "${trashDir}" 2>/dev/null || true`, { cwd });
-          execSync(`sudo -n /bin/rm -rf .next_trash_* 2>/dev/null || rm -rf .next_trash_* 2>/dev/null || true`, { cwd });
-        }
-      } catch {}
-
-      // 3. Git Fetch & Reset --hard
-      execSync(
-        "git config --global --add safe.directory '*' 2>/dev/null || true; git config --system --add safe.directory '*' 2>/dev/null || true; git -c safe.directory='*' fetch origin main && git -c safe.directory='*' checkout -f main && git -c safe.directory='*' reset --hard origin/main",
-        { cwd, timeout: 45000, encoding: "utf-8" }
-      );
-
-      // 4. npm install
-      execSync("npm ci --prefer-offline --no-audit --no-fund", { cwd, timeout: 120000, encoding: "utf-8" });
-
-      // 5. Build mit automatischer Selbstreparatur bei EACCES
-      try {
-        execSync("npm run build", { cwd, timeout: 180000, encoding: "utf-8" });
-      } catch (buildErr) {
-        const errMsg = (buildErr as Error)?.message || String(buildErr);
-        // Falls trotz allem ein EACCES oder unlink-Problem aufgetreten ist:
-        if (errMsg.includes("EACCES") || errMsg.includes("permission denied") || errMsg.includes("unlink")) {
-          const emergencyTrash = path.join(cwd, `.next_emergency_${Date.now()}`);
-          execSync(`sudo -n /bin/rm -rf .next 2>/dev/null || mv .next "${emergencyTrash}" 2>/dev/null || true`, { cwd });
-          // Zweiter Versuch mit komplett jungfräulichem Verzeichnis
-          execSync("npm run build", { cwd, timeout: 180000, encoding: "utf-8" });
-        } else {
-          throw buildErr;
-        }
-      }
-    }
-  } catch (err) {
-    const errorMsg = (err as Error)?.message || String(err);
-    const userMessage = `Update fehlgeschlagen: ${errorMsg}. Der bisherige Dienst bleibt unverändert aktiv.`;
-    await writeAdminLog("admin.update.error", "error", userMessage).catch(() => undefined);
-
-    return NextResponse.json(
-      {
-        error: userMessage
-      },
-      { status: 500 }
-    );
-  }
-
-  const newCommit = getGitCommit("rev-parse --short HEAD") ?? getAppRevision().commit ?? "aktuell";
-  const newVersion = getPackageVersion();
-  await writeAdminLog("admin.update.success", "info", "Update installiert; Dienst wird neu gestartet.", { version: newVersion, commit: newCommit }).catch(() => undefined);
-
-  // 3. Dienst nach kurzer Verzögerung neu starten, damit die HTTP-Antwort noch sauber ankommt
-  setTimeout(() => {
-    exec("sudo -n /bin/systemctl restart fitfamily || sudo -n systemctl restart fitfamily || systemctl restart fitfamily", { cwd }, (err) => {
-      if (err) {
-        // Fallback: Falls systemctl ohne Sudo-Passwort blockiert, beende Node.js kontrolliert mit Exit 1.
-        // systemd (Restart=on-failure) startet den Dienst sofort mit dem neuen Build neu!
-        setTimeout(() => {
-          process.exit(1);
-        }, 500);
-      }
+    await new Promise<void>((resolve, reject) => {
+      const child = execFile("sudo", ["-n", HELPER], { timeout: 10000, encoding: "utf8" }, (error) => error ? reject(error) : resolve());
+      child.stdin?.end(`${jobId}\n`);
     });
-    // Zusätzlicher Sicherheits-Timeout: Falls sudo/systemctl auf Eingabe wartet
-    setTimeout(() => {
-      process.exit(1);
-    }, 3500);
-  }, 1500);
-
-  return NextResponse.json({
-    ok: true,
-    message: "Update wurde erfolgreich installiert! Das Dashboard startet in wenigen Sekunden neu...",
-    newCommit,
-    newVersion
-  });
+    await writeAdminLog("admin.update.started", "info", "Update wird in einer getrennten Version vorbereitet.", { jobId }).catch(() => undefined);
+    return NextResponse.json({ ok: true, pending: true, jobId }, { status: 202, headers: { "Cache-Control": "no-store" } });
+  } catch {
+    return NextResponse.json({ error: "Update-Dienst konnte nicht gestartet werden. Prüfe Systemhelfer und sudoers-Konfiguration; die aktive Version bleibt erhalten." }, { status: 503 });
+  }
 }

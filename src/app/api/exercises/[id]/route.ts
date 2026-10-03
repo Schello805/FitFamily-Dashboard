@@ -3,11 +3,11 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { isAllowedVideoUrl } from "@/lib/exercise-video";
-import { verifyAdminPinOrReject } from "@/lib/security";
+import { adminPinSchema, verifyAdminPinOrReject } from "@/lib/security";
 import { getExerciseGuide, getExerciseGuideFromRecord } from "@/lib/exercise-guides";
 
 const schema = z.object({
-  pin: z.string().regex(/^\d{4}$/),
+  pin: adminPinSchema,
   name: z.string().trim().min(2).max(80).optional(),
   type: z.enum(["strength", "endurance"]).optional(),
   equipment: z.string().trim().min(2).max(80).optional(),
@@ -56,7 +56,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (parsed.data.videoUrl !== undefined && !isAllowedVideoUrl(parsed.data.videoUrl)) {
     return NextResponse.json({ error: "Bitte einen gültigen HTTPS-Link zu YouTube oder einen leeren Eintrag angeben." }, { status: 400 });
   }
-  const pinError = await verifyAdminPinOrReject(parsed.data.pin);
+  const pinError = await verifyAdminPinOrReject(parsed.data.pin, request);
   if (pinError) return pinError;
 
   const client = await db();
@@ -95,7 +95,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
   const { id } = await params;
   const body = await request.json().catch(() => null) as { pin?: unknown } | null;
   if (typeof body?.pin !== "string" || !/^\d{4}$/.test(body.pin)) return NextResponse.json({ error: "Bitte die vierstellige Eltern-PIN eingeben." }, { status: 400 });
-  const pinError = await verifyAdminPinOrReject(body.pin);
+  const pinError = await verifyAdminPinOrReject(body.pin, request);
   if (pinError) return pinError;
   const client = await db();
   const result = await client.execute({ sql: "UPDATE exercises SET active = 0 WHERE id = ? AND active = 1", args: [id] });

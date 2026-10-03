@@ -3,10 +3,10 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { isAllowedVideoUrl } from "@/lib/exercise-video";
-import { verifyAdminPinOrReject } from "@/lib/security";
+import { adminPinSchema, verifyAdminPinOrReject } from "@/lib/security";
 
 const createSchema = z.object({
-  pin: z.string().regex(/^\d{4}$/),
+  pin: adminPinSchema,
   name: z.string().trim().min(2).max(80),
   type: z.enum(["strength", "endurance"]),
   equipment: z.string().trim().min(2).max(80),
@@ -39,7 +39,7 @@ export async function POST(request: Request) {
   const parsed = createSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Bitte Name, Trainingsart, Gerät und eine vollständige Anleitung samt Sicherheitshinweisen angeben." }, { status: 400 });
   if (!isAllowedVideoUrl(parsed.data.videoUrl ?? null)) return NextResponse.json({ error: "Bitte einen gültigen HTTPS-Link zu YouTube angeben." }, { status: 400 });
-  const pinError = await verifyAdminPinOrReject(parsed.data.pin);
+  const pinError = await verifyAdminPinOrReject(parsed.data.pin, request);
   if (pinError) return pinError;
 
   const client = await db();

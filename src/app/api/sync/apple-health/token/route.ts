@@ -21,7 +21,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const parsed = schema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Bitte Profil, Eltern-PIN und Aktion prüfen." }, { status: 400 });
-  const pinError = await verifyAdminPinOrReject(parsed.data.pin);
+  const pinError = await verifyAdminPinOrReject(parsed.data.pin, request);
   if (pinError) return pinError;
 
   const client = await db();

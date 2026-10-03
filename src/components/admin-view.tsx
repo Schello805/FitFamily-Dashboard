@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { ArrowLeft, AlertTriangle, Bot, CheckCircle2, ClipboardList, Database, HardDrive, Lock, Monitor, Moon, Plus, RotateCcw, ShieldCheck, Sparkles, Sun, Users, Wrench, X } from "lucide-react";
 import { TouchPinpad } from "@/components/touch-pinpad";
 import { AdminLogsPanel, summarizeAdminLog, type AdminLogEntry, type AdminLogFilter } from "@/components/admin-logs-panel";
@@ -37,7 +37,6 @@ type ConfirmModalConfig = {
 };
 
 const ADMIN_SESSION_STORAGE_KEY = "fitfamily_admin_session";
-const ADMIN_SESSION_DURATION_MS = 60 * 60 * 1000;
 
 function calculateAge(birthDate: string) {
   const birth = new Date(`${birthDate}T00:00:00`);
@@ -157,7 +156,8 @@ export function AdminView({
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
   const [checkingUpdate, setCheckingUpdate] = useState(false);
   const [runningUpdate, setRunningUpdate] = useState(false);
-  const [updateCountdown, setUpdateCountdown] = useState<number | null>(null);
+  const [updateCountdown] = useState<number | null>(null);
+  const updatePollTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const currentInstalledVersion = updateInfo?.version ?? initialVersion;
   const currentInstalledCommit = updateInfo?.currentCommit ?? initialCommit;
 
@@ -172,13 +172,11 @@ export function AdminView({
     () => "system" as ThemeSetting
   );
 
-  async function checkUpdate(effectivePin?: string) {
-    const pinToUse = effectivePin || pin;
-    if (!pinToUse) return;
+  async function checkUpdate() {
     setCheckingUpdate(true);
     try {
       const data = await requestJson<UpdateInfo>(
-        `/api/admin/update?pin=${encodeURIComponent(pinToUse)}`,
+        "/api/admin/update",
         "Update-Prüfung fehlgeschlagen.",
         { cache: "no-store" }
       );
@@ -194,25 +192,59 @@ export function AdminView({
 
   const [postUpdateSuccess, setPostUpdateSuccess] = useState<UpdateSuccess | null>(null);
 
-  function waitForServerAndReload() {
-    setNotice("Dashboard-Dienst startet neu … Stelle Verbindung wieder her …");
-    let attempts = 0;
-    const pollTimer = setInterval(async () => {
-      attempts += 1;
+  useEffect(() => () => {
+    if (updatePollTimer.current) clearInterval(updatePollTimer.current);
+  }, []);
+
+  function monitorUpdate(jobId: string) {
+    if (updatePollTimer.current) clearInterval(updatePollTimer.current);
+    const startedAt = Date.now();
+    let polling = false;
+    updatePollTimer.current = setInterval(async () => {
+      if (polling) return;
+      polling = true;
       try {
-        const res = await fetch("/api/dashboard", { cache: "no-store" });
-        if (res.ok) {
-          clearInterval(pollTimer);
+        const result = await requestJson<{
+          state: "idle" | "running" | "success" | "error";
+          message?: string; newCommit?: string; newVersion?: string;
+        }>(`/api/admin/update?status=1&jobId=${encodeURIComponent(jobId)}`, "Update-Status nicht erreichbar.", { cache: "no-store", signal: AbortSignal.timeout(10_000) });
+        if (result.state === "error") {
+          if (updatePollTimer.current) clearInterval(updatePollTimer.current);
+          updatePollTimer.current = null;
+          setRunningUpdate(false);
+          setNotice(result.message || "Update fehlgeschlagen. Die vorherige Version wurde beibehalten.");
+          showToast({ type: "error", title: "Update fehlgeschlagen", message: result.message || "Bitte das Betriebsprotokoll prüfen." });
+        } else if (result.state === "success") {
+          if (updatePollTimer.current) clearInterval(updatePollTimer.current);
+          updatePollTimer.current = null;
+          try {
+            sessionStorage.setItem("fitfamily_last_update_status", JSON.stringify({
+              targetCommit: result.newCommit, targetVersion: result.newVersion
+            }));
+          } catch {}
           window.location.reload();
+        } else {
+          setNotice(result.message || "Update wird vorbereitet und geprüft …");
         }
-      } catch {
-        // Noch beim Booten
+      } catch (error) {
+        if (error instanceof ApiRequestError && (error.status === 401 || error.status === 403)) {
+          if (updatePollTimer.current) clearInterval(updatePollTimer.current);
+          updatePollTimer.current = null;
+          setRunningUpdate(false);
+          setNotice("Bitte erneut entsperren, um den Update-Status zu prüfen.");
+        } else {
+          setNotice("Verbindung während des Updates unterbrochen. Status wird erneut geprüft …");
+        }
+      } finally {
+        polling = false;
+        if (Date.now() - startedAt > 15 * 60_000 && updatePollTimer.current) {
+          clearInterval(updatePollTimer.current);
+          updatePollTimer.current = null;
+          setRunningUpdate(false);
+          setNotice("Update-Status noch unklar. Bitte Betriebsprotokoll und installierte Version prüfen.");
+        }
       }
-      if (attempts >= 25) {
-        clearInterval(pollTimer);
-        window.location.reload();
-      }
-    }, 1500);
+    }, 3000);
   }
 
   function requestApplyUpdate() {
@@ -232,74 +264,25 @@ export function AdminView({
 
   async function executeApplyUpdate(freshPin = pin) {
     setRunningUpdate(true);
-    setNotice("Update läuft. Das kann einige Minuten dauern; das Dashboard startet danach automatisch neu.");
+    setNotice("Neue Version wird separat gebaut und geprüft. Die laufende App bleibt verfügbar.");
     try {
-      const response = await fetch("/api/admin/update", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pin: freshPin })
+      const result = await requestJson<{ pending?: boolean; jobId?: string }>("/api/admin/update", "Update konnte nicht gestartet werden.", {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pin: freshPin })
       });
-      const data = await response.json();
-      if (!response.ok) {
-        const errorMsg = data.error ?? "Update fehlgeschlagen.";
-        setNotice(errorMsg);
-        showToast({ type: "error", title: "Update fehlgeschlagen", message: errorMsg });
-        setRunningUpdate(false);
-        return;
-      }
-      try {
-        sessionStorage.setItem("fitfamily_last_update_status", JSON.stringify({
-          timestamp: Date.now(),
-          targetCommit: data.newCommit || updateInfo?.latestCommit || currentInstalledCommit || "",
-          targetVersion: data.newVersion || updateInfo?.latestVersion || currentInstalledVersion
-        }));
-      } catch {}
-      setNotice("Update erfolgreich abgeschlossen! Dashboard startet neu …");
-      showToast({ type: "success", title: "Update installiert", message: "Das Dashboard startet neu und wird geladen." });
-      let countdown = 6;
-      setUpdateCountdown(countdown);
-      const timer = setInterval(() => {
-        countdown -= 1;
-        setUpdateCountdown(countdown);
-        if (countdown <= 0) {
-          clearInterval(timer);
-          waitForServerAndReload();
-        }
-      }, 1000);
-    } catch {
-      try {
-        sessionStorage.setItem("fitfamily_last_update_status", JSON.stringify({
-          timestamp: Date.now(),
-          targetCommit: updateInfo?.latestCommit || currentInstalledCommit || "",
-          targetVersion: updateInfo?.latestVersion || currentInstalledVersion
-        }));
-      } catch {}
-      setNotice("Dashboard-Dienst wird neu gestartet … Seite lädt gleich neu.");
-      showToast({ type: "info", title: "Dashboard startet neu", message: "Verbindung wird neu aufgebaut." });
-      waitForServerAndReload();
+      if (!result.pending || !result.jobId) throw new Error("Der Server hat keinen eindeutigen Update-Auftrag bestätigt.");
+      monitorUpdate(result.jobId);
+    } catch (error) {
+      setRunningUpdate(false);
+      setNotice(error instanceof Error ? error.message : "Update-Start konnte nicht bestätigt werden.");
+      showToast({ type: "error", title: "Update nicht bestätigt", message: "Bitte Verbindung und Betriebsprotokoll prüfen." });
     }
   }
 
   useEffect(() => {
-    let restoreTimer: number | undefined;
-    try {
-      const stored = localStorage.getItem(ADMIN_SESSION_STORAGE_KEY);
-      if (!stored) return;
-      const session = JSON.parse(stored) as { pin?: unknown; expiresAt?: unknown };
-      if (typeof session.pin !== "string" || !/^\d{4}$/.test(session.pin) || typeof session.expiresAt !== "number" || session.expiresAt <= Date.now()) {
-        localStorage.removeItem(ADMIN_SESSION_STORAGE_KEY);
-        return;
-      }
-      restoreTimer = window.setTimeout(() => {
-        setPin(session.pin as string);
-        setAuthExpiresAt(session.expiresAt as number);
-        void performUnlock(session.pin as string, session.expiresAt as number);
-      }, 0);
-    } catch {
-      try { localStorage.removeItem(ADMIN_SESSION_STORAGE_KEY); } catch {}
-    }
-    return () => { if (restoreTimer !== undefined) window.clearTimeout(restoreTimer); };
-    // Restore this browser's short-lived admin authorization after an app restart.
+    // Remove legacy PIN storage. Authorization now lives in an HttpOnly cookie.
+    try { localStorage.removeItem(ADMIN_SESSION_STORAGE_KEY); } catch {}
+    const restoreTimer = window.setTimeout(() => { void performUnlock(); }, 0);
+    return () => window.clearTimeout(restoreTimer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -309,7 +292,7 @@ export function AdminView({
       setStatus(null);
       setPin("");
       setAuthExpiresAt(null);
-      try { localStorage.removeItem(ADMIN_SESSION_STORAGE_KEY); } catch {}
+      void fetch("/api/admin/verify", { method: "DELETE" }).catch(() => undefined);
     };
     const remaining = authExpiresAt - Date.now();
     if (remaining <= 0) {
@@ -320,12 +303,13 @@ export function AdminView({
     return () => window.clearTimeout(timeout);
   }, [authExpiresAt]);
 
-  async function performUnlock(pinToTest: string, existingExpiry?: number) {
-    if (!pinToTest || pinToTest.length < 4) return;
+  async function performUnlock(pinToTest?: string) {
+    if (pinToTest && pinToTest.length !== 4) return;
     setVerifying(true);
     setError("");
     try {
       const result = await requestJson<{
+        expiresAt: number;
         providers: Pick<Status, "openai" | "gemini">;
         usage: Status["usage"];
         models: Status["models"];
@@ -333,15 +317,13 @@ export function AdminView({
         backup?: BackupStatus;
         displaySettings?: DisplaySettings;
       }>("/api/admin/verify", "Eltern-PIN ist falsch", {
-        method: "POST",
+        method: pinToTest ? "POST" : "GET",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pin: pinToTest })
+        body: pinToTest ? JSON.stringify({ pin: pinToTest }) : undefined,
+        cache: "no-store"
       });
-      const expiresAt = existingExpiry && existingExpiry > Date.now() ? existingExpiry : Date.now() + ADMIN_SESSION_DURATION_MS;
-      setAuthExpiresAt(expiresAt);
-      try {
-        localStorage.setItem(ADMIN_SESSION_STORAGE_KEY, JSON.stringify({ pin: pinToTest, expiresAt }));
-      } catch {}
+      setAuthExpiresAt(result.expiresAt);
+      setPin("");
       try {
         const updateDoneRaw = sessionStorage.getItem("fitfamily_last_update_status");
         if (updateDoneRaw) {
@@ -366,11 +348,10 @@ export function AdminView({
       if (result.displaySettings) {
         setDisplaySettings(result.displaySettings);
       }
-      void checkUpdate(pinToTest);
+      void checkUpdate();
     } catch (error) {
       if (error instanceof ApiRequestError) {
-        setError(error.message);
-        try { localStorage.removeItem(ADMIN_SESSION_STORAGE_KEY); } catch {}
+        if (pinToTest || error.status !== 401) setError(error.message);
       } else {
         setError("Verbindungsfehler beim Prüfen der PIN");
       }
@@ -1001,7 +982,7 @@ export function AdminView({
             setStatus(null);
             setPin("");
             setAuthExpiresAt(null);
-            try { localStorage.removeItem(ADMIN_SESSION_STORAGE_KEY); } catch {}
+            void fetch("/api/admin/verify", { method: "DELETE" }).catch(() => undefined);
           }}
         >
           <Lock size={15} /> Sperren
@@ -1101,8 +1082,8 @@ export function AdminView({
           </div>
         </div>
 
-        <div className="screensaver-night-settings" style={{ marginTop: "14px", borderRadius: "14px", background: "var(--subtle-bg)", border: "1px solid var(--line)" }}>
-          <label className="night-mode-toggle-wrap" style={{ margin: 0, padding: 0 }}>
+        <div className="screensaver-night-settings" style={{ marginTop: "14px" }}>
+          <label className="night-mode-toggle-wrap">
             <input
               type="checkbox"
               checked={displaySettings.nightModeEnabled}
