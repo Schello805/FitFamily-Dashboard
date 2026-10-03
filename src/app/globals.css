@@ -4090,12 +4090,13 @@ body::before {
   .profile-card { padding: 16px 20px 14px; }
   .avatar-generated.avatar-small { width: 88px; height: 122px; }
   .profile-identity { gap: 14px; }
+  .profile-card .profile-heading { grid-template-columns: minmax(0, .72fr) minmax(0, 1.35fr) auto; }
   .profile-heading > .profile-identity { grid-template-columns: 88px minmax(0, 1fr); }
   .profile-heading .profile-name { min-width: 0; }
   .profile-heading .profile-name p { max-width: 130px; line-height: 1.2; }
   .profile-name span { font-size: 12px; }
-  .profile-name h2 { font-size: clamp(30px, 2.2vw, 39px); }
-  .profile-name p { font-size: 14px; }
+  .profile-name h2 { font-size: clamp(26px, 1.8vw, 32px); }
+  .profile-name p { font-size: 12px; }
   .goal-ring-summary { width: 116px; gap: 6px; }
   .goal-ring { width: 98px; height: 98px; }
   .goal-ring::after { inset: 10px; }

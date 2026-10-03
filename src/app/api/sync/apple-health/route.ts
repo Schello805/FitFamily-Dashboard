@@ -4,6 +4,16 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { SCORE_MULTIPLIER, type TrainingType } from "@/lib/domain";
 import { hashToken, verifyAdminPinOrReject } from "@/lib/security";
+import {
+  APPLE_HEALTH_ACTIVITY_FIELDS,
+  APPLE_HEALTH_MAX_SYNC_DAYS,
+  appleHealthActivitySchema,
+  appleHealthActivityShape,
+  appleHealthDailySchema,
+  isAppleHealthDateWithinWindow,
+  localIsoDate,
+  mergeAppleHealthDays
+} from "@/lib/apple-health-activity";
 
 function inferTrainingType(title?: string | null, explicitType?: string | null): TrainingType {
   if (explicitType === "strength" || explicitType === "endurance") return explicitType;
@@ -31,29 +41,13 @@ const workoutItemSchema = z.object({
   source: z.string().max(80).optional()
 });
 
-const dailyActivitySchema = z.object({
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  moveCalories: z.number().nonnegative().max(100_000).optional().nullable(),
-  moveGoal: z.number().positive().max(100_000).optional().nullable(),
-  exerciseMinutes: z.number().nonnegative().max(1440).optional().nullable(),
-  exerciseGoal: z.number().positive().max(1440).optional().nullable(),
-  standHours: z.number().nonnegative().max(24).optional().nullable(),
-  standGoal: z.number().positive().max(24).optional().nullable(),
-  stepCount: z.number().int().nonnegative().max(200_000).optional().nullable(),
-  walkingRunningDistanceKm: z.number().nonnegative().max(500).optional().nullable(),
-  cyclingDistanceKm: z.number().nonnegative().max(2_000).optional().nullable(),
-  flightsClimbed: z.number().nonnegative().max(1_000).optional().nullable()
-}).refine((entry) => Object.entries(entry).some(([key, value]) => key !== "date" && value != null), {
-  message: "Jeder Tag braucht mindestens einen Aktivitätswert."
-});
-
 const bodySchema = z.object({
   profileId: z.string().min(1),
   secret: z.string().min(32).max(256),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   dryRun: z.boolean().optional(),
   workouts: z.array(workoutItemSchema).max(500).optional(),
-  dailyActivity: z.array(dailyActivitySchema).max(90).optional(),
+  dailyActivity: z.array(appleHealthDailySchema).max(90).optional(),
   // Single workout fallback fields for simple Shortcuts
   id: z.string().max(200).optional(),
   title: z.string().max(200).optional().nullable(),
@@ -63,17 +57,7 @@ const bodySchema = z.object({
   durationMinutes: z.number().min(1).max(1440).optional().nullable(),
   calories: z.number().nonnegative().max(100_000).optional().nullable(),
   distanceKm: z.number().nonnegative().max(2_000).optional().nullable(),
-  // Activity Rings fields
-  moveCalories: z.number().nonnegative().max(100_000).optional().nullable(),
-  moveGoal: z.number().positive().max(100_000).optional().nullable(),
-  exerciseMinutes: z.number().nonnegative().max(1440).optional().nullable(),
-  exerciseGoal: z.number().positive().max(1440).optional().nullable(),
-  standHours: z.number().nonnegative().max(24).optional().nullable(),
-  standGoal: z.number().positive().max(24).optional().nullable(),
-  stepCount: z.number().int().nonnegative().max(200_000).optional().nullable(),
-  walkingRunningDistanceKm: z.number().nonnegative().max(500).optional().nullable(),
-  cyclingDistanceKm: z.number().nonnegative().max(2_000).optional().nullable(),
-  flightsClimbed: z.number().nonnegative().max(1_000).optional().nullable()
+  ...appleHealthActivityShape
 });
 
 export async function POST(request: Request) {
@@ -301,61 +285,34 @@ export async function POST(request: Request) {
     totalPointsEarned += points;
   }
 
-  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-
-  const ringFields = [
-    { key: "moveCalories", column: "move_calories" },
-    { key: "moveGoal", column: "move_goal" },
-    { key: "exerciseMinutes", column: "exercise_minutes" },
-    { key: "exerciseGoal", column: "exercise_goal" },
-    { key: "standHours", column: "stand_hours" },
-    { key: "standGoal", column: "stand_goal" },
-    { key: "stepCount", column: "step_count" },
-    { key: "walkingRunningDistanceKm", column: "walking_running_distance_km" },
-    { key: "cyclingDistanceKm", column: "cycling_distance_km" },
-    { key: "flightsClimbed", column: "flights_climbed" }
-  ] as const;
-  const dailyByDate = new Map<string, z.infer<typeof dailyActivitySchema>>();
-  for (const day of parsed.data.dailyActivity ?? []) {
-    const existing = dailyByDate.get(day.date);
-    const suppliedValues = Object.fromEntries(Object.entries(day).filter(([key, value]) => key === "date" || value != null));
-    dailyByDate.set(day.date, existing ? { ...existing, ...suppliedValues } as z.infer<typeof dailyActivitySchema> : day);
-  }
-  const hasLegacyActivity = ringFields.some(({ key }) => parsed.data[key] != null);
+  const todayStr = localIsoDate(now);
+  const hasLegacyActivity = APPLE_HEALTH_ACTIVITY_FIELDS.some(({ key }) => parsed.data[key] != null);
+  let legacyDay: z.infer<typeof appleHealthDailySchema> | undefined;
   if (hasLegacyActivity) {
     const legacyDate = parsed.data.date ?? todayStr;
-    const legacyDay = Object.fromEntries([
-      ["date", legacyDate],
-      ...ringFields.flatMap(({ key }) => parsed.data[key] == null ? [] : [[key, parsed.data[key]]])
-    ]) as z.infer<typeof dailyActivitySchema>;
-    const existing = dailyByDate.get(legacyDate);
-    dailyByDate.set(legacyDate, existing ? { ...existing, ...legacyDay } : legacyDay);
+    const activity = Object.fromEntries(APPLE_HEALTH_ACTIVITY_FIELDS.flatMap(({ key }) =>
+      parsed.data[key] == null ? [] : [[key, parsed.data[key]]]
+    )) as z.infer<typeof appleHealthActivitySchema>;
+    legacyDay = { date: legacyDate, ...activity };
   }
 
-  const dailyActivity = [...dailyByDate.values()];
-  if (dailyActivity.length > 30) {
+  const dailyActivity = mergeAppleHealthDays(parsed.data.dailyActivity ?? [], legacyDay);
+  if (dailyActivity.length > APPLE_HEALTH_MAX_SYNC_DAYS) {
     await finishSyncLog("health.apple_sync.failed", { status: "failed", received: rawList.length, message: "Mehr als 30 verschiedene Aktivitätstage empfangen" });
     return NextResponse.json({ error: "Pro Sync sind höchstens 30 verschiedene Aktivitätstage erlaubt." }, { status: 400 });
   }
 
-  const dateTimestamp = (value: string) => {
-    const timestamp = Date.parse(`${value}T00:00:00Z`);
-    return Number.isFinite(timestamp) && new Date(timestamp).toISOString().slice(0, 10) === value ? timestamp : null;
-  };
-  const todayTimestamp = dateTimestamp(todayStr)!;
-  const oldestAllowedTimestamp = todayTimestamp - 29 * 24 * 60 * 60 * 1000;
   let activityDaysSynced = 0;
   let hasActivityData = false;
   const syncedActivityDays: { date: string; fields: string[] }[] = [];
 
   for (const day of dailyActivity) {
-    const dayTimestamp = dateTimestamp(day.date);
-    if (dayTimestamp == null || dayTimestamp > todayTimestamp || dayTimestamp < oldestAllowedTimestamp) {
+    if (!isAppleHealthDateWithinWindow(day.date, todayStr)) {
       await finishSyncLog("health.apple_sync.failed", { status: "failed", received: rawList.length, message: "Tagesaktivität muss ein gültiges Datum innerhalb der letzten 30 Tage haben" });
       return NextResponse.json({ error: "Tagesaktivität darf nur gültige Datumswerte der letzten 30 Tage enthalten." }, { status: 400 });
     }
 
-    const providedFields = ringFields.filter(({ key }) => day[key] != null);
+    const providedFields = APPLE_HEALTH_ACTIVITY_FIELDS.filter(({ key }) => day[key] != null);
     if (!providedFields.length) continue;
     hasActivityData = hasActivityData || providedFields.some(({ key }) => !key.endsWith("Goal"));
     const columns = ["profile_id", "date", ...providedFields.map(({ column }) => column), "updated_at"];

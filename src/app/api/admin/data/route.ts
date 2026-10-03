@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { verifyAdminPin } from "@/lib/security";
+import { adminPinRejectedResponse, verifyAdminPinOrReject } from "@/lib/security";
 import { writeAdminLog } from "@/lib/admin-log";
 import { DATA_IMPORT_ORDER, DATA_TABLE_SPECS, DATA_TRANSFER_TABLES, isPortableSetting } from "@/lib/data-transfer-schema";
 
@@ -110,7 +110,9 @@ async function mergeData(rows: Record<string, Row[]>) {
 export async function POST(request: Request) {
   if (Number(request.headers.get("content-length") ?? 0) > 15 * 1024 * 1024) return NextResponse.json({ error: "Die Datei ist größer als 15 MB." }, { status: 413 });
   const body = await request.json().catch(() => null) as { pin?: unknown; action?: unknown; backup?: unknown } | null;
-  if (!body || typeof body.pin !== "string" || !/^\d{4}$/.test(body.pin) || !(await verifyAdminPin(body.pin))) return NextResponse.json({ error: "Eltern-PIN ist nicht richtig." }, { status: 401 });
+  if (!body || typeof body.pin !== "string" || !/^\d{4}$/.test(body.pin)) return adminPinRejectedResponse();
+  const pinError = await verifyAdminPinOrReject(body.pin);
+  if (pinError) return pinError;
   if (body.action !== "validate" && body.action !== "import") return NextResponse.json({ error: "Unbekannte Datenaktion." }, { status: 400 });
   const normalized = normalize(body.backup);
   if (!normalized.errors.length) normalized.errors.push(...await checkReferences(normalized.rows));
