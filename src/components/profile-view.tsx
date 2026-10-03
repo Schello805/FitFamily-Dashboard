@@ -451,7 +451,7 @@ Der Kurzbefehl überträgt zunächst ausschließlich die echten Tageswerte von H
 - Strecke (Fahrrad) / Cycling Distance: Kilometer -> cyclingDistanceKm (Zahl)
 Keine Etagen oder Stehminuten übertragen. Für den Stehen-Ring wird standHours benötigt: Anzahl erfüllter Stehstunden von heute. Wenn Kurzbefehle diesen Datentyp nicht anbietet, das Feld weglassen; Stand Time darf nicht durch 60 geteilt werden. Optional die tatsächlichen Ringziele als moveGoal (kcal), exerciseGoal (Minuten), standGoal (Stunden) übertragen. Zahlen müssen numerische JSON-Zahlen ohne Einheitstext bleiben.
 
-Der POST-Body enthält profileId = „${profile.id}“, secret = „HIER_DEN_SYNC_SCHLUESSEL_EINFUEGEN“ und dailyActivity mit genau einem Tageswörterbuch. Dieses hat date im Format YYYY-MM-DD (heutiges lokales Datum) und die oben genannten Felder. Führe genau eine Aktion „Inhalte von URL abrufen“ aus: POST an ${getWebhookUrl()}, Haupttext JSON. Den Secret-Platzhalter unverändert lassen; ich ersetze ihn selbst durch meinen privaten FitFamily-Schlüssel. Kein echter Schlüssel in einen geteilten Kurzbefehl. Zeige die Antwort des Servers an.
+Der POST-Body enthält profileId = „${profile.id}“, secret = „HIER_DEN_SYNC_SCHLUESSEL_EINFUEGEN“ und dailyActivity als einzelnes Wörterbuch. Dieses hat date im Format YYYY-MM-DD (heutiges lokales Datum) und die oben genannten Felder. Nach jeder Health-Suche ausdrücklich nur die numerischen Werte summieren, diese Summe als eigene benannte Variable speichern und im JSON diese Variable einsetzen. Niemals Health-Messobjekte oder die Suchergebnisliste an die URL-Aktion übergeben. Bei keinen Treffern, etwa keiner Radfahrt heute, den Tageswert auf 0 setzen und fortfahren; alternativ das optionale Feld weglassen. Führe genau eine Aktion „Inhalte von URL abrufen“ aus: POST an ${getWebhookUrl()}, Haupttext JSON. Den Secret-Platzhalter unverändert lassen; ich ersetze ihn selbst durch meinen privaten FitFamily-Schlüssel. Kein echter Schlüssel in einen geteilten Kurzbefehl. Zeige die Antwort des Servers an.
 
 Falls Kurzbefehle eine Health-Art oder einen Schritt nicht unterstützt, erfinde keine andere Datenstruktur, sondern erkläre genau, welche Aktion ich stattdessen antippen muss. iPhone und FitFamily-Server müssen im selben WLAN sein oder über VPN erreichbar sein.`;
     if (await copyTextToClipboard(prompt)) {
@@ -512,12 +512,13 @@ Falls Kurzbefehle eine Health-Art oder einen Schritt nicht unterstützt, erfinde
   }
 
   async function testHealthSync() {
-    if (!healthSyncToken) {
-      showToast({ type: "error", title: "Sync-Schlüssel fehlt", message: "Erstelle zuerst einen Schlüssel und kopiere ihn in deinen Kurzbefehl." });
-      return;
-    }
     setTestingHealth(true);
     try {
+      if (!healthSyncToken) {
+        const status = await requestJson<{ configured: boolean }>(`/api/sync/apple-health/token?profileId=${encodeURIComponent(profile.id)}`, "Server konnte nicht erreicht werden.", { cache: "no-store" });
+        showToast({ type: status.configured ? "success" : "info", title: "Server erreichbar", message: status.configured ? "Ein Sync-Schlüssel ist eingerichtet. Ob dein iPhone Daten überträgt, prüfst du durch Ausführen des Kurzbefehls und im Importprotokoll." : "Noch kein Sync-Schlüssel eingerichtet. Erstelle zuerst einen Schlüssel." });
+        return;
+      }
       const data = await requestJson<{ message?: string }>("/api/sync/apple-health", "Der Schlüssel konnte nicht geprüft werden.", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -902,7 +903,7 @@ Falls Kurzbefehle eine Health-Art oder einen Schritt nicht unterstützt, erfinde
             <section className="health-workflow-step">
               <h3><span>3</span> Synchronisieren</h3>
               <p>Füge den Schlüssel im Kurzbefehl ein. Öffne ihn danach auf dem iPhone und tippe auf ▶︎.</p>
-              <button type="button" className="health-secondary-btn" disabled={testingHealth || resettingHealth || !healthSyncToken} onClick={testHealthSync}>
+              <button type="button" className="health-secondary-btn" disabled={testingHealth || resettingHealth} onClick={testHealthSync}>
                 <Zap size={16} /> {testingHealth ? "Wird geprüft …" : "Verbindung prüfen"}
               </button>
               <small>Prüft die Verbindung, ohne Daten zu importieren.</small>

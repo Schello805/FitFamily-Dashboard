@@ -297,6 +297,12 @@ describe("Apple Health sync endpoint", () => {
       ]);
       expect(second.status).toBe(200);
       expect((await second.json()).activityDaysSynced).toBe(2);
+      const dictionaryResponse = await POST(new Request("http://localhost/api/sync/apple-health", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ profileId, secret, dailyActivity: payload.dailyActivity[0] })
+      }));
+      expect(dictionaryResponse.status).toBe(200);
+      expect((await dictionaryResponse.json()).activityDaysSynced).toBe(1);
 
       const syncLogResponse = await readAdminLogs(new Request("http://localhost/api/admin/logs", {
         method: "POST",

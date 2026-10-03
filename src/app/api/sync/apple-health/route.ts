@@ -47,7 +47,7 @@ const bodySchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   dryRun: z.boolean().optional(),
   workouts: z.array(workoutItemSchema).max(500).optional(),
-  dailyActivity: z.array(appleHealthDailySchema).max(90).optional(),
+  dailyActivity: z.union([z.array(appleHealthDailySchema).max(90), appleHealthDailySchema.transform((day) => [day])]).optional(),
   // Single workout fallback fields for simple Shortcuts
   id: z.string().max(200).optional().transform((value) => value || undefined),
   title: z.string().max(200).optional().nullable(),
@@ -320,7 +320,8 @@ export async function POST(request: Request) {
     receivedActivity: {
       ...diagnosticActivityPayload(json),
       dailyActivity: Array.isArray((json as Record<string, unknown>).dailyActivity)
-        ? ((json as Record<string, unknown>).dailyActivity as unknown[]).map(diagnosticActivityPayload) : []
+        ? ((json as Record<string, unknown>).dailyActivity as unknown[]).map(diagnosticActivityPayload)
+        : (json as Record<string, unknown>).dailyActivity ? [diagnosticActivityPayload((json as Record<string, unknown>).dailyActivity)] : []
     },
     savedActivity: await Promise.all(dailyActivity.map(async (day) => {
       const stored = await client.execute({ sql: "SELECT * FROM apple_health_daily WHERE profile_id = ? AND date = ?", args: [profileId, day.date] });

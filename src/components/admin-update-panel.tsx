@@ -36,7 +36,7 @@ export function AdminUpdatePanel({ info, installedVersion, installedCommit, succ
 
       <div className="update-status-grid">
         <div className="update-meta-box"><span>Auf diesem Gerät installiert</span><b>v{installedVersion}</b>{installedCommit && <small>Build {installedCommit}</small>}</div>
-        <div className="update-meta-box"><span>Neuer Stand auf GitHub</span><b className={info?.hasUpdate ? "update-tag-new" : "update-tag-current"}>{info ? (info.hasUpdate ? `Update verfügbar · v${info.latestVersion || installedVersion}` : `Auf aktuellem Stand · v${installedVersion}`) : (checking ? "Prüfung läuft …" : "Noch nicht geprüft")}</b>{info?.latestCommit && <small>Build {info.latestCommit}</small>}</div>
+        <div className="update-meta-box"><span>Neuer Stand auf GitHub</span><b className={info?.hasUpdate ? "update-tag-new" : "update-tag-current"}>{info ? (info.hasUpdate ? (info.latestVersion === installedVersion ? "Neuere Build-Revision verfügbar" : `Update verfügbar · v${info.latestVersion ?? "unbekannt"}`) : `Auf aktuellem Stand · v${installedVersion}`) : (checking ? "Prüfung läuft …" : "Noch nicht geprüft")}</b>{info?.latestCommit && <small>Build {info.latestCommit}</small>}</div>
       </div>
       {info?.hasUpdate && <div className="update-alert-banner"><Sparkles /><div><b>Ein Update ist bereit.</b><p className="update-commit-log">Vor der Installation wird automatisch eine Sicherung deiner Daten erstellt.</p></div></div>}
       <div className="update-action-row">

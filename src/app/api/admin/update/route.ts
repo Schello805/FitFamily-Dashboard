@@ -36,12 +36,14 @@ export async function GET(request: Request) {
     const remote = await new Promise<string>((resolve, reject) => {
       execFile("git", ["ls-remote", "--heads", REPOSITORY, "main"], { timeout: 30000, encoding: "utf8" }, (error, output) => error ? reject(error) : resolve(output));
     });
-    const latestCommit = remote.trim().split(/\s+/)[0]?.slice(0, 7);
+    const latestFullCommit = remote.trim().split(/\s+/)[0];
+    const latestCommit = latestFullCommit?.slice(0, 7);
     if (!latestCommit || !/^[a-f0-9]{7}$/.test(latestCommit)) throw new Error("GitHub lieferte keine gültige Revision.");
-    const response = await fetch("https://raw.githubusercontent.com/Schello805/FitFamily-Dashboard/main/package.json", { cache: "no-store", signal: AbortSignal.timeout(15000) });
+    const response = await fetch(`https://raw.githubusercontent.com/Schello805/FitFamily-Dashboard/${latestFullCommit}/package.json`, { cache: "no-store", signal: AbortSignal.timeout(15000) });
     if (!response.ok) throw new Error("Versionsabfrage fehlgeschlagen.");
     const packageInfo = await response.json() as { version?: unknown };
-    const latestVersion = typeof packageInfo.version === "string" ? packageInfo.version : current.version;
+    if (typeof packageInfo.version !== "string") throw new Error("GitHub lieferte keine Versionsnummer.");
+    const latestVersion = packageInfo.version;
     return NextResponse.json({ ok: true, currentCommit: current.commit, latestCommit, latestMessage: "Aktueller Stand des Hauptzweigs", hasUpdate: latestCommit !== current.commit || latestVersion !== current.version, version: current.version, latestVersion }, { headers: { "Cache-Control": "no-store" } });
   } catch {
     return NextResponse.json({ error: "GitHub konnte nicht zuverlässig abgefragt werden. Bitte Netzwerk prüfen.", currentCommit: current.commit, version: current.version }, { status: 503 });
