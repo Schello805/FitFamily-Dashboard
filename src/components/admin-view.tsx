@@ -276,9 +276,10 @@ export function AdminView({
       if (!result.pending || !result.jobId) throw new Error("Der Server hat keinen eindeutigen Update-Auftrag bestätigt.");
       monitorUpdate(result.jobId);
     } catch (error) {
+      const message = error instanceof ApiRequestError ? error.message : error instanceof Error ? error.message : "Update-Start konnte nicht bestätigt werden.";
       setRunningUpdate(false);
-      setNotice(error instanceof Error ? error.message : "Update-Start konnte nicht bestätigt werden.");
-      showToast({ type: "error", title: "Update nicht bestätigt", message: "Bitte Verbindung und Betriebsprotokoll prüfen." });
+      setNotice(message);
+      showToast({ type: "error", title: "Update nicht bestätigt", message });
     }
   }
 
