@@ -9,8 +9,10 @@ import { showToast } from "@/components/toast";
 import { formatGermanDate, formatGermanTime, formatGermanWeekday } from "@/lib/date-format";
 import { KioskIdleBar } from "@/components/kiosk-idle-bar";
 import { requestJson } from "@/lib/api-client";
+import { EquipmentStats } from "@/components/equipment-stats";
+import type { EquipmentStats as DeviceStats } from "@/lib/equipment-stats";
 
-type Segment = { id: string; type: "strength" | "endurance"; exerciseName: string | null; startedAt: string; endedAt: string | null };
+type Segment = { id: string; type: "strength" | "endurance"; exerciseName: string | null; equipmentName?: string | null; startedAt: string; endedAt: string | null };
 type Session = {
   id: string;
   startedAt: string;
@@ -21,8 +23,8 @@ type Session = {
   segments: Segment[];
 };
 
-function minutes(start: string, end: string | null) {
-  return Math.max(0, Math.round((new Date(end ?? Date.now()).getTime() - new Date(start).getTime()) / 60000));
+function elapsedMinutes(start: string, end: string | null) {
+  return Math.max(0, (new Date(end ?? Date.now()).getTime() - new Date(start).getTime()) / 60000);
 }
 
 function SwipeableSessionRow({
@@ -143,8 +145,8 @@ function SwipeableSessionRow({
               <span>
                 <b>{segment.exerciseName ?? (segment.type === "strength" ? "Krafttraining" : "Ausdauertraining")}</b>
                 <small>
-                  {formatGermanTime(segment.startedAt)} ·{" "}
-                  {minutes(segment.startedAt, segment.endedAt)} Minuten
+                  {segment.equipmentName && `${segment.equipmentName} · `}{formatGermanTime(segment.startedAt)} ·{" "}
+                  {elapsedMinutes(segment.startedAt, segment.endedAt) < 1 ? "< 1" : Math.floor(elapsedMinutes(segment.startedAt, segment.endedAt))} Minuten
                 </small>
               </span>
             </div>
@@ -191,6 +193,8 @@ function SwipeableSessionRow({
 
 export function HistoryView({ profile }: { profile: DashboardProfile }) {
   const [sessions, setSessions] = useState<Session[]>([]);
+  const [equipmentStats, setEquipmentStats] = useState<DeviceStats[]>([]);
+  const [loadError, setLoadError] = useState("");
 
   // Manual Add Modal state
   const [manual, setManual] = useState(false);
@@ -213,21 +217,21 @@ export function HistoryView({ profile }: { profile: DashboardProfile }) {
   const [deleteError, setDeleteError] = useState("");
   const [busyDelete, setBusyDelete] = useState(false);
 
-  const load = () => requestJson<{ sessions?: Session[] }>(
+  const load = () => requestJson<{ sessions?: Session[]; equipmentStats?: DeviceStats[] }>(
     `/api/history/${encodeURIComponent(profile.id)}`, "Trainingsverlauf konnte nicht geladen werden."
-  ).then((data) => setSessions(data.sessions ?? []));
+  ).then((data) => { setSessions(data.sessions ?? []); setEquipmentStats(data.equipmentStats ?? []); setLoadError(""); });
 
   useEffect(() => {
-    load();
+    void load().catch(error => setLoadError(error instanceof Error ? error.message : "Verlauf nicht erreichbar."));
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const totals = useMemo(
     () =>
-      sessions.reduce(
+      Math.floor(sessions.reduce(
         (sum, session) =>
-          sum + session.segments.reduce((segmentSum, segment) => segmentSum + minutes(segment.startedAt, segment.endedAt), 0),
+          sum + session.segments.reduce((segmentSum, segment) => segmentSum + elapsedMinutes(segment.startedAt, segment.endedAt), 0),
         0
-      ),
+      )),
     [sessions]
   );
 
@@ -392,6 +396,9 @@ export function HistoryView({ profile }: { profile: DashboardProfile }) {
           <span>Einheiten</span>
         </div>
       </section>
+
+      {loadError && <p role="alert" className="form-error">{loadError}</p>}
+      {equipmentStats.length > 0 && <EquipmentStats items={equipmentStats} />}
 
       {sessions.length > 0 && (
         <div className="swipe-hint">
@@ -577,7 +584,7 @@ export function HistoryView({ profile }: { profile: DashboardProfile }) {
                   {formatGermanTime(deletingSession.startedAt)}
                 </b>
                 <br />
-                {minutes(deletingSession.startedAt, deletingSession.endedAt)} Minuten ·{" "}
+                {Math.floor(elapsedMinutes(deletingSession.startedAt, deletingSession.endedAt))} Minuten ·{" "}
                 {deletingSession.segments[0]?.type === "strength" ? "Kraft" : "Ausdauer"}
               </p>
               <p style={{ marginTop: "6px", color: "var(--muted)", fontSize: "11px" }}>

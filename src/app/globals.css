@@ -3662,6 +3662,15 @@ body::before {
 .qr-modal { max-height: calc(100dvh - 40px); overflow-y: auto; }
 .prep-countdown-overlay { z-index: 1000; }
 .scan-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin: 20px 0; }
+.equipment-stats { margin: 24px 0; }
+.equipment-stats > p { color: var(--muted); font-size: 14px; }
+.equipment-stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 12px; }
+.equipment-stats-grid article { padding: 18px; border: 1px solid var(--line); border-radius: 18px; background: var(--panel); }
+.equipment-stats-grid h3 { margin: 0 0 12px; overflow-wrap: anywhere; }
+.equipment-stats-grid strong { display: block; color: var(--profile); font-size: 28px; }
+.equipment-stats-grid article > span, .equipment-stats-grid small { color: var(--muted); font-size: 13px; }
+.equipment-stats-grid article > div { display: grid; gap: 6px; margin: 14px 0; }
+.equipment-stats-grid article > div > span { display: flex; align-items: center; gap: 8px; font-size: 14px; }
 .device-training { max-width: 560px; margin: 0 auto; padding: 20px 16px 100px; }
 .device-training header { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 16px; }
 .device-training-card { padding: 24px; text-align: center; border: 1px solid var(--line); border-radius: 24px; background: var(--panel); box-shadow: var(--card-shadow); }

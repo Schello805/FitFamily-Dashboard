@@ -4,6 +4,13 @@ Alle wichtigen Änderungen werden hier nach dem Prinzip von Keep a Changelog dok
 
 ## [Unreleased]
 
+## [0.3.4] – 2026-10-03
+
+### Hinzugefügt
+
+- Geräte-Auswertung pro Profil im Trainingsverlauf: sekundengenau summierte Zeit, Kraft-/Ausdauer-Anteile, Anzahl genutzter Einheiten und letzte Nutzung; auch noch nicht genutzte Geräte sind sichtbar.
+- Geräte-Gesamtsummen umfassen die gesamte Historie unabhängig von der Begrenzung der Eintragsliste. Laufende Einheiten und Apple-Health-Daten zählen nicht mit; Geräte ohne Zuordnung bleiben separat.
+
 ## [0.3.3] – 2026-10-03
 
 ### Hinzugefügt
