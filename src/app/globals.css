@@ -3660,3 +3660,15 @@ body::before {
 .profile-connection-status { display: flex; margin: 10px 0 16px; }
 .qr-modal { max-height: calc(100dvh - 40px); overflow-y: auto; }
 .prep-countdown-overlay { z-index: 1000; }
+
+/* Fill each wall-display card with its trend and anchor the score below it. */
+@media (min-width: 901px) and (min-height: 650px) {
+  .profile-grid { grid-template-rows: repeat(2, minmax(0, 1fr)); grid-auto-rows: minmax(0, 1fr); }
+  .profile-card { grid-template-rows: minmax(112px, 1fr) auto auto; align-content: stretch; }
+  .profile-card .profile-heading { min-height: 0; }
+  .profile-card .profile-heading > .dashboard-history-chart { height: 100%; min-height: 112px; transform: none; }
+  .profile-card > .score-row { min-height: 72px; }
+  .profile-card .score strong { font-size: clamp(34px, 2.5vw, 48px); }
+  .profile-card .today strong { font-size: clamp(26px, 2vw, 36px); }
+  .profile-card::after { width: 320px; height: 320px; opacity: .10; }
+}
