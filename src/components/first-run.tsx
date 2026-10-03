@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { RefreshCw, Sparkles } from "lucide-react";
+import { requestJson } from "@/lib/api-client";
 
 export function FirstRun({ setupUrl, qr }: { setupUrl: string; qr: string }) {
   const [complete, setComplete] = useState(false);
@@ -10,16 +11,13 @@ export function FirstRun({ setupUrl, qr }: { setupUrl: string; qr: string }) {
   useEffect(() => {
     const interval = setInterval(async () => {
       try {
-        const res = await fetch("/api/setup", { cache: "no-store" });
-        if (res.ok) {
-          const data = await res.json();
-          if (data.setupComplete) {
-            setComplete(true);
-            clearInterval(interval);
-            setTimeout(() => {
-              window.location.reload();
-            }, 500);
-          }
+        const data = await requestJson<{ setupComplete?: boolean }>("/api/setup", "Einrichtungsstatus nicht verfügbar.", { cache: "no-store" });
+        if (data.setupComplete) {
+          setComplete(true);
+          clearInterval(interval);
+          setTimeout(() => {
+            window.location.reload();
+          }, 500);
         }
       } catch {
         // ignore network error

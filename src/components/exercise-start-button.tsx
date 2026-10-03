@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Play } from "lucide-react";
 import { showToast } from "@/components/toast";
+import { requestJson } from "@/lib/api-client";
 
 export function ExerciseStartButton({
   profileId,
@@ -27,7 +28,7 @@ export function ExerciseStartButton({
     setStarting(true);
     const targetUrl = returnUrl || `/profil/${profileId}`;
     try {
-      const response = await fetch("/api/training", {
+      await requestJson("/api/training", "Das Training konnte nicht gestartet werden.", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -38,26 +39,17 @@ export function ExerciseStartButton({
           source: "touch"
         })
       });
-      if (response.ok) {
-        showToast({
+      showToast({
           type: "success",
           title: `Training gestartet: ${exerciseName}`,
           message: `${type === "strength" ? "Krafttraining (+1 Pkt./Min.)" : "Ausdauertraining (+2 Pkt./Min.)"} läuft.`
-        });
-        router.push(targetUrl);
-      } else {
-        const data = await response.json().catch(() => null);
-        showToast({
-          type: "error",
-          title: "Start fehlgeschlagen",
-          message: data?.error ?? "Das Training konnte nicht gestartet werden."
-        });
-      }
-    } catch {
+      });
+      router.push(targetUrl);
+    } catch (error) {
       showToast({
         type: "error",
-        title: "Verbindungsfehler",
-        message: "Das Dashboard konnte nicht erreicht werden."
+        title: "Start fehlgeschlagen",
+        message: error instanceof Error ? error.message : "Das Dashboard konnte nicht erreicht werden."
       });
     } finally {
       setStarting(false);

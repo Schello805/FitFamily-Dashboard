@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Check, ChevronRight, LockKeyhole, ShieldCheck } from "lucide-react";
 import { AVATAR_DESIGN_IDS, avatarAssetForProfile, getStartingFitnessStages, type AvatarId, type AvatarDesignId, type ProfileAvatar } from "@/lib/domain";
 import { AvatarPicker } from "@/components/avatar-picker";
+import { requestJson } from "@/lib/api-client";
 
 type SetupProfile = { id: AvatarId; name: string; birthDate: string; avatar: ProfileAvatar; startingFitness: number };
 
@@ -68,12 +69,10 @@ export function SetupForm() {
     if (pin !== confirmPin) return setError("Die beiden PIN-Eingaben stimmen nicht überein.");
     setBusy(true);
     try {
-      const response = await fetch("/api/setup", {
+      await requestJson("/api/setup", "Einrichtung konnte nicht gespeichert werden.", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ pin, profiles: profiles.map((profile) => ({ ...profile, birthDate: profile.birthDate || null })) })
       });
-      const result = await response.json();
-      if (!response.ok) return setError(result.error ?? "Einrichtung konnte nicht gespeichert werden.");
       try { window.sessionStorage.removeItem(setupDraftKey); } catch { /* Best effort cleanup. */ }
       setDone(true);
       setTimeout(() => {

@@ -19,6 +19,17 @@ export function formatGermanDateTime(value: string | Date) {
   return formatGermanDate(value, { hour: "2-digit", minute: "2-digit" });
 }
 
+export function formatGermanTime(value: string | Date) {
+  return new Intl.DateTimeFormat("de-DE", { hour: "2-digit", minute: "2-digit" }).format(toLocalDate(value));
+}
+
+/** Server log timestamps without a zone are stored as UTC. */
+export function formatGermanLogTimestamp(value: string) {
+  const normalized = value.replace(" ", "T");
+  const zoned = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(normalized) ? normalized : `${normalized}Z`;
+  return formatGermanDateTime(zoned);
+}
+
 export function formatGermanWeekday(value: string | Date) {
   return new Intl.DateTimeFormat("de-DE", { weekday: "long" }).format(toLocalDate(value));
 }

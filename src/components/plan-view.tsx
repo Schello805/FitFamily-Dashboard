@@ -13,6 +13,7 @@ import { KioskIdleBar } from "@/components/kiosk-idle-bar";
 import { LiveDuration } from "@/components/live-duration";
 import { formatGermanDate } from "@/lib/date-format";
 import { YoutubePlayer } from "@/components/youtube-player";
+import { requestJson } from "@/lib/api-client";
 
 type Plan = {
   id: string;
@@ -73,7 +74,8 @@ export function PlanView({ profile, goals }: { profile: DashboardProfile; goals:
   const lastBeep = useRef<number | null>(null);
   const unitLastActivity = useRef(0);
   const [weekPage, setWeekPage] = useState<{ planId: string; page: number } | null>(null);
-  const load = () => fetch(`/api/plans?profileId=${profile.id}`).then((response) => response.json()).then((data) => setPlans(data.plans || []));
+  const load = () => requestJson<{ plans?: Plan[] }>(`/api/plans?profileId=${encodeURIComponent(profile.id)}`, "Trainingspläne konnten nicht geladen werden.")
+    .then((data) => setPlans(data.plans ?? []));
   useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const active = plans.find((plan) => plan.status === "active");
   const archivedPlans = plans.filter((plan) => plan.status === "archived");
@@ -176,7 +178,7 @@ export function PlanView({ profile, goals }: { profile: DashboardProfile; goals:
     } catch { /* Ein defekter lokaler Eintrag wird beim nächsten Start ersetzt. */ }
     setStartingSession(true);
     try {
-      const response = await fetch("/api/training", {
+      await requestJson("/api/training", "Training konnte nicht gestartet werden.", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -186,24 +188,15 @@ export function PlanView({ profile, goals }: { profile: DashboardProfile; goals:
           source: "touch"
         })
       });
-      if (response.ok) {
-        const startedAt = new Date().toISOString();
-        localStorage.setItem("fitfamily_running_plan_unit", JSON.stringify({ key: sessionKey, startedAt }));
-        setRunningUnitKey(sessionKey);
-        openUnitView(session, startedAt);
-        showToast({
-          type: "success",
-          title: `Einheit gestartet: ${session.title}`,
-          message: `${session.type === "strength" ? "Krafttraining (+1 Pkt./Min.)" : "Ausdauertraining (+2 Pkt./Min.)"} läuft.`
-        });
-      } else {
-        const data = await response.json().catch(() => null);
-        showToast({
-          type: "error",
-          title: "Start fehlgeschlagen",
-          message: data?.error ?? "Training konnte nicht gestartet werden."
-        });
-      }
+      const startedAt = new Date().toISOString();
+      localStorage.setItem("fitfamily_running_plan_unit", JSON.stringify({ key: sessionKey, startedAt }));
+      setRunningUnitKey(sessionKey);
+      openUnitView(session, startedAt);
+      showToast({
+        type: "success",
+        title: `Einheit gestartet: ${session.title}`,
+        message: `${session.type === "strength" ? "Krafttraining (+1 Pkt./Min.)" : "Ausdauertraining (+2 Pkt./Min.)"} läuft.`
+      });
     } catch {
       showToast({
         type: "error",
@@ -219,15 +212,14 @@ export function PlanView({ profile, goals }: { profile: DashboardProfile; goals:
     let id = resolveExerciseId(exerciseName);
     setSelectedExercise({ id, name: exerciseName, mode, loading: true });
     try {
-      const matchResponse = await fetch(`/api/exercises?name=${encodeURIComponent(exerciseName)}`, { cache: "no-store" });
-      if (matchResponse.ok) {
-        const matchData = await matchResponse.json();
-        if (matchData.exercise?.id) id = String(matchData.exercise.id);
-      }
+      const matchData = await requestJson<{ exercise?: { id?: string | number } }>(
+        `/api/exercises?name=${encodeURIComponent(exerciseName)}`, "Übung konnte nicht gefunden werden.", { cache: "no-store" }
+      );
+      if (matchData.exercise?.id) id = String(matchData.exercise.id);
       setSelectedExercise({ id, name: exerciseName, mode, loading: true });
-      const response = await fetch(`/api/exercises/${encodeURIComponent(id)}`, { cache: "no-store" });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error ?? "Übungsanleitung konnte nicht geladen werden.");
+      const data = await requestJson<{ guide: ExerciseGuideData; videoUrl?: string | null; manualPdfUrl?: string | null }>(
+        `/api/exercises/${encodeURIComponent(id)}`, "Übungsanleitung konnte nicht geladen werden.", { cache: "no-store" }
+      );
       setSelectedExercise({ id, name: exerciseName, mode, guide: data.guide, videoUrl: data.videoUrl ?? null, manualPdfUrl: data.manualPdfUrl ?? null });
     } catch (error) {
       setSelectedExercise({ id, name: exerciseName, mode });
@@ -238,12 +230,11 @@ export function PlanView({ profile, goals }: { profile: DashboardProfile; goals:
   async function stopUnit() {
     setStoppingSession(true);
     try {
-      const response = await fetch("/api/training", {
+      await requestJson("/api/training", "Das Training konnte nicht beendet werden.", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "stop", profileId: profile.id })
       });
-      if (!response.ok) throw new Error("Das Training konnte nicht beendet werden.");
       localStorage.removeItem("fitfamily_running_plan_unit");
       setRunningUnitKey(null);
       setUnitDialog(null);
@@ -259,16 +250,9 @@ export function PlanView({ profile, goals }: { profile: DashboardProfile; goals:
   async function create(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault(); setBusy(true); setNotice(""); const form = new FormData(event.currentTarget);
     try {
-      const response = await fetch("/api/plans", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
+      const result = await requestJson<{ fallbackReason?: string; provider?: string }>("/api/plans", "Plan konnte nicht erstellt werden.", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
         profileId: profile.id, goal: form.get("goal"), level: form.get("level"), sessionsPerWeek: Number(form.get("sessions")), minutesPerSession: Number(form.get("minutes")), targetDate: form.get("targetDate") || null, provider: form.get("provider")
       }) });
-      const result = await response.json();
-      if (!response.ok) {
-        const err = result.error ?? "Plan konnte nicht erstellt werden.";
-        setNotice(err);
-        showToast({ type: "error", title: "Fehler beim Erstellen", message: err });
-        return;
-      }
       const selectedProvider = form.get("provider");
       const msg = result.fallbackReason
         ? result.fallbackReason
@@ -305,14 +289,7 @@ export function PlanView({ profile, goals }: { profile: DashboardProfile; goals:
     setBusy(true); setNotice("");
     try {
       const plan = JSON.parse(await file.text());
-      const response = await fetch("/api/plans", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "import", profileId: profile.id, plan }) });
-      const result = await response.json();
-      if (!response.ok) {
-        const err = result.error ?? "Der Trainingsplan konnte nicht importiert werden.";
-        setNotice(err);
-        showToast({ type: "error", title: "Import fehlgeschlagen", message: err });
-        return;
-      }
+      await requestJson("/api/plans", "Der Trainingsplan konnte nicht importiert werden.", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "import", profileId: profile.id, plan }) });
       setNotice("Trainingsplan importiert. Der vorherige aktive Plan wurde archiviert.");
       showToast({
         type: "success",
@@ -320,10 +297,12 @@ export function PlanView({ profile, goals }: { profile: DashboardProfile; goals:
         message: "Der importierte Plan ist ab jetzt aktiv."
       });
       await load();
-    } catch {
-      const err = "Die Datei enthält kein gültiges JSON. Nutze am besten die FitFamily-Vorlage.";
+    } catch (error) {
+      const err = error instanceof SyntaxError
+        ? "Die Datei enthält kein gültiges JSON. Nutze am besten die FitFamily-Vorlage."
+        : error instanceof Error ? error.message : "Der Trainingsplan konnte nicht importiert werden.";
       setNotice(err);
-      showToast({ type: "error", title: "Ungültiges Format", message: err });
+      showToast({ type: "error", title: error instanceof SyntaxError ? "Ungültiges Format" : "Import fehlgeschlagen", message: err });
     } finally {
       setBusy(false);
     }
@@ -333,9 +312,7 @@ export function PlanView({ profile, goals }: { profile: DashboardProfile; goals:
     if (!active || !window.confirm(`Möchtest du „${active.title}“ archivieren? Der Plan kann später wiederhergestellt werden.`)) return;
     setBusy(true);
     try {
-      const response = await fetch("/api/plans", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ profileId: profile.id, planId: active.id }) });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error ?? "Trainingsplan konnte nicht archiviert werden.");
+      await requestJson("/api/plans", "Trainingsplan konnte nicht archiviert werden.", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ profileId: profile.id, planId: active.id }) });
       showToast({ type: "success", title: "Trainingsplan archiviert", message: "Du kannst den Plan unten jederzeit wiederherstellen." });
       await load();
     } catch (error) {
@@ -348,9 +325,7 @@ export function PlanView({ profile, goals }: { profile: DashboardProfile; goals:
   async function restorePlan(plan: Plan) {
     setBusy(true);
     try {
-      const response = await fetch("/api/plans", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ profileId: profile.id, planId: plan.id }) });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error ?? "Trainingsplan konnte nicht wiederhergestellt werden.");
+      await requestJson("/api/plans", "Trainingsplan konnte nicht wiederhergestellt werden.", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ profileId: profile.id, planId: plan.id }) });
       showToast({ type: "success", title: "Trainingsplan wiederhergestellt", message: `„${plan.title}“ ist wieder aktiv.` });
       await load();
     } catch (error) {

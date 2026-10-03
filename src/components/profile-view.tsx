@@ -24,6 +24,8 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { showToast } from "@/components/toast";
 import { AppleActivityRings } from "@/components/apple-activity-rings";
 import { TouchPinpad } from "@/components/touch-pinpad";
+import { ApiRequestError, requestJson } from "@/lib/api-client";
+import { formatGermanLogTimestamp } from "@/lib/date-format";
 
 type Exercise = { id: string; name: string; type: string; equipment: string };
 type AppleHealthSyncLog = { id: string; action: string; createdAt: string; details: Record<string, unknown> };
@@ -379,7 +381,7 @@ export function ProfileView({
     setBusy(true); setProfileNotice("");
     const form = new FormData(event.currentTarget);
     try {
-      const response = await fetch(`/api/profiles/${profile.id}`, {
+      await requestJson(`/api/profiles/${profile.id}`, "Profil konnte nicht gespeichert werden.", {
         method: "PATCH", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: form.get("name"),
@@ -391,13 +393,6 @@ export function ProfileView({
           pin: editPin
         })
       });
-      const result = await response.json();
-      if (!response.ok) {
-        const err = result.error ?? "Profil konnte nicht gespeichert werden.";
-        setProfileNotice(err);
-        showToast({ type: "error", title: "Fehler beim Speichern", message: err });
-        return;
-      }
       setEditingProfile(false);
       showToast({
         type: "success",
@@ -405,8 +400,10 @@ export function ProfileView({
         message: `Angaben für ${profile.name} wurden gespeichert.`
       });
       await refresh();
-    } catch {
-      const err = "Keine Verbindung. Bitte prüfe das Heimnetz und versuche es erneut.";
+    } catch (error) {
+      const err = error instanceof ApiRequestError
+        ? error.message
+        : "Keine Verbindung. Bitte prüfe das Heimnetz und versuche es erneut.";
       setProfileNotice(err);
       showToast({ type: "error", title: "Verbindungsfehler", message: err });
     } finally {
@@ -475,13 +472,11 @@ Wichtig für den Aufbau: Erstelle zuerst alle 6 Tageswert-Abfragen einzeln und f
 
   async function manageHealthToken(action: "create" | "revoke", pin: string): Promise<boolean> {
     try {
-      const response = await fetch("/api/sync/apple-health/token", {
+      const data = await requestJson<{ token?: string }>("/api/sync/apple-health/token", "Sync-Schlüssel konnte nicht geändert werden.", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ profileId: profile.id, pin, action })
       });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error ?? "Sync-Schlüssel konnte nicht geändert werden.");
       if (action === "create" && typeof data.token === "string") {
         setHealthSyncToken(data.token);
         setShowHealthSyncToken(true);
@@ -562,30 +557,24 @@ Wichtig für den Aufbau: Erstelle zuerst alle 6 Tageswert-Abfragen einzeln und f
   async function performHealthReset(pin: string): Promise<boolean> {
     setResettingHealth(true);
     try {
-      const response = await fetch(`/api/sync/apple-health?profileId=${encodeURIComponent(profile.id)}`, {
+      const data = await requestJson<{ message?: string }>(`/api/sync/apple-health?profileId=${encodeURIComponent(profile.id)}`, "Vorgang fehlgeschlagen.", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ pin })
       });
-      const data = await response.json();
-      if (response.ok) {
-        showToast({
+      showToast({
           type: "success",
           title: "Apple Health getrennt & gelöscht",
           message: data.message ?? "Daten wurden erfolgreich entfernt."
-        });
-        setConfirmResetHealth(false);
-        setHealthSyncToken("");
-        setHealthTokenConfigured(false);
-        setProfile((prev) => ({ ...prev, appleHealthRings: null }));
-        await refresh();
-        return true;
-      } else {
-        setHealthPinError(data.error ?? "Vorgang fehlgeschlagen.");
-        return false;
-      }
-    } catch {
-      setHealthPinError("Konnte nicht mit dem Server kommunizieren.");
+      });
+      setConfirmResetHealth(false);
+      setHealthSyncToken("");
+      setHealthTokenConfigured(false);
+      setProfile((prev) => ({ ...prev, appleHealthRings: null }));
+      await refresh();
+      return true;
+    } catch (error) {
+      setHealthPinError(error instanceof ApiRequestError ? error.message : "Konnte nicht mit dem Server kommunizieren.");
       return false;
     } finally {
       setResettingHealth(false);
@@ -1028,7 +1017,7 @@ Wichtig für den Aufbau: Erstelle zuerst alle 6 Tageswert-Abfragen einzeln und f
                         entry.details.skipped !== undefined ? `${entry.details.skipped} übersprungen` : null
                       ].filter(Boolean).join(" · ");
                       return <li key={entry.id} className={`health-sync-log-entry ${status}`}>
-                        <div><b>{label}</b><time>{new Date(entry.createdAt.replace(" ", "T") + (entry.createdAt.endsWith("Z") ? "" : "Z")).toLocaleString("de-DE")}</time></div>
+                        <div><b>{label}</b><time>{formatGermanLogTimestamp(entry.createdAt)}</time></div>
                         {counts && <span>{counts}</span>}
                         {typeof entry.details.message === "string" && <small>{entry.details.message}</small>}
                       </li>;

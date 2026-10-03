@@ -11,7 +11,8 @@ import { avatarAssetForProfile, getFitnessStageCount, getStartingFitnessStages, 
 import { showToast } from "@/components/toast";
 import { applyTheme, getStoredThemeSetting, subscribeTheme, type ThemeSetting } from "@/lib/theme";
 import { DEFAULT_DISPLAY_SETTINGS, type DisplaySettings } from "@/lib/display-settings-shared";
-import { formatGermanDate, formatGermanDateTime } from "@/lib/date-format";
+import { formatGermanDate, formatGermanDateTime, formatGermanLogTimestamp } from "@/lib/date-format";
+import { ApiRequestError, requestJson } from "@/lib/api-client";
 
 type AiUsage = { requests: number; inputTokens: number; outputTokens: number; estimateUsd: number; updatedAt: string | null };
 type Status = { openai: boolean; gemini: boolean; nas: boolean; models: { openai: string; gemini: string }; usage: { openai: AiUsage; gemini: AiUsage } };
@@ -191,17 +192,16 @@ export function AdminView({
     if (!pinToUse) return;
     setCheckingUpdate(true);
     try {
-      const response = await fetch(`/api/admin/update?pin=${encodeURIComponent(pinToUse)}`, { cache: "no-store" });
-      const data = await response.json();
-      if (response.ok) {
-        setUpdateInfo(data);
-      } else {
-        const errorMessage = data.error ?? "Update-Prüfung fehlgeschlagen.";
-        setNotice(errorMessage);
-        showToast({ type: "error", title: "Update-Prüfung fehlgeschlagen", message: errorMessage });
-      }
-    } catch {
-      setNotice("Update-Server konnte nicht erreicht werden.");
+      const data = await requestJson<UpdateInfo>(
+        `/api/admin/update?pin=${encodeURIComponent(pinToUse)}`,
+        "Update-Prüfung fehlgeschlagen.",
+        { cache: "no-store" }
+      );
+      setUpdateInfo(data);
+    } catch (error) {
+      const message = error instanceof ApiRequestError ? error.message : "Update-Server konnte nicht erreicht werden.";
+      setNotice(message);
+      showToast({ type: "error", title: "Update-Prüfung fehlgeschlagen", message });
     } finally {
       setCheckingUpdate(false);
     }
@@ -340,18 +340,18 @@ export function AdminView({
     setVerifying(true);
     setError("");
     try {
-      const response = await fetch("/api/admin/verify", {
+      const result = await requestJson<{
+        providers: Pick<Status, "openai" | "gemini">;
+        usage: Status["usage"];
+        models: Status["models"];
+        nas: boolean;
+        backup?: BackupStatus;
+        displaySettings?: DisplaySettings;
+      }>("/api/admin/verify", "Eltern-PIN ist falsch", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ pin: pinToTest })
       });
-      const result = await response.json();
-      if (!response.ok) {
-        setError(result.error ?? "Eltern-PIN ist falsch");
-        try { localStorage.removeItem(ADMIN_SESSION_STORAGE_KEY); } catch {}
-        setVerifying(false);
-        return;
-      }
       const expiresAt = existingExpiry && existingExpiry > Date.now() ? existingExpiry : Date.now() + ADMIN_SESSION_DURATION_MS;
       setAuthExpiresAt(expiresAt);
       try {
@@ -382,8 +382,13 @@ export function AdminView({
         setDisplaySettings(result.displaySettings);
       }
       void checkUpdate(pinToTest);
-    } catch {
-      setError("Verbindungsfehler beim Prüfen der PIN");
+    } catch (error) {
+      if (error instanceof ApiRequestError) {
+        setError(error.message);
+        try { localStorage.removeItem(ADMIN_SESSION_STORAGE_KEY); } catch {}
+      } else {
+        setError("Verbindungsfehler beim Prüfen der PIN");
+      }
     } finally {
       setVerifying(false);
     }
@@ -397,18 +402,15 @@ export function AdminView({
       localStorage.setItem("fitfamily_display_settings", JSON.stringify(updated));
     }
     try {
-      const response = await fetch("/api/admin/display-settings", {
+      const data = await requestJson<{ settings: DisplaySettings }>("/api/admin/display-settings", "Einstellungen konnten nicht gespeichert werden.", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ pin, ...changes })
       });
-      if (response.ok) {
-        const data = await response.json();
-        setDisplaySettings(data.settings);
-        showToast({ type: "success", title: "Gespeichert", message: "Ruhemodus-Einstellungen wurden aktualisiert." });
-      }
-    } catch {
-      showToast({ type: "error", title: "Fehler", message: "Einstellungen konnten nicht gespeichert werden." });
+      setDisplaySettings(data.settings);
+      showToast({ type: "success", title: "Gespeichert", message: "Ruhemodus-Einstellungen wurden aktualisiert." });
+    } catch (error) {
+      showToast({ type: "error", title: "Fehler", message: error instanceof ApiRequestError ? error.message : "Einstellungen konnten nicht gespeichert werden." });
     } finally {
       setSavingDisplay(false);
     }
@@ -585,17 +587,13 @@ export function AdminView({
   async function manageApiKey(provider: "openai" | "gemini", action: "save" | "remove" | "test") {
     setSavingApi(`${provider}-${action}`); setNotice("");
     try {
-      const response = await fetch("/api/admin/ai-settings", {
+      const result = await requestJson<{
+        message?: string;
+        status?: Partial<Status>;
+      }>("/api/admin/ai-settings", "API-Einstellung konnte nicht verarbeitet werden.", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ pin, provider, action, apiKey: apiKeys[provider] || undefined })
       });
-      const result = await response.json();
-      if (!response.ok) {
-        const msg = result.error ?? "API-Einstellung konnte nicht verarbeitet werden.";
-        setNotice(msg);
-        showToast({ type: "error", title: "KI-Fehler", message: msg });
-        return;
-      }
       if (action === "test") {
         const msg = result.message ?? "API-Schlüssel ist gültig.";
         setNotice(msg);
@@ -607,8 +605,8 @@ export function AdminView({
         setNotice(msg);
         showToast({ type: "success", title: "KI-Einstellung aktualisiert", message: msg });
       }
-    } catch {
-      const msg = "Keine Verbindung zum Dashboard. Bitte Heimnetz prüfen und erneut versuchen.";
+    } catch (error) {
+      const msg = error instanceof ApiRequestError ? error.message : "Keine Verbindung zum Dashboard. Bitte Heimnetz prüfen und erneut versuchen.";
       setNotice(msg);
       showToast({ type: "error", title: "Verbindungsfehler", message: msg });
     } finally {
@@ -631,13 +629,11 @@ export function AdminView({
   async function loadAdminLogs(filter: AdminLogFilter = logFilter) {
     setLoadingLogs(true);
     try {
-      const response = await fetch("/api/admin/logs", {
+      const result = await requestJson<{ logs?: AdminLogEntry[] }>("/api/admin/logs", "Protokolle konnten nicht geladen werden.", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ pin, filter })
       });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error ?? "Protokolle konnten nicht geladen werden.");
       setAdminLogs(Array.isArray(result.logs) ? result.logs : []);
     } catch (loadError) {
       showToast({ type: "error", title: "Protokolle nicht verfügbar", message: loadError instanceof Error ? loadError.message : "Keine Verbindung zum Dashboard." });
@@ -648,7 +644,7 @@ export function AdminView({
 
   async function copyAdminLogs() {
     const text = adminLogs.map((entry) => {
-      const timestamp = new Date(entry.createdAt.replace(" ", "T") + (entry.createdAt.endsWith("Z") ? "" : "Z")).toLocaleString("de-DE");
+      const timestamp = formatGermanLogTimestamp(entry.createdAt);
       const level = entry.details.level === "error" ? "FEHLER" : entry.details.level === "warning" ? "WARNUNG" : "INFO";
       const message = typeof entry.details.message === "string" ? entry.details.message : entry.action;
       return `[${timestamp}] ${level} · ${message}`;
@@ -682,13 +678,11 @@ export function AdminView({
   async function refreshSystemStatus() {
     setLoadingSystemStatus(true);
     try {
-      const response = await fetch("/api/admin/system-status", {
+      const result = await requestJson<SystemStatus>("/api/admin/system-status", "Speicherstatus konnte nicht geladen werden.", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ pin })
       });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error ?? "Speicherstatus konnte nicht geladen werden.");
       setSystemStatus(result);
     } catch (statusError) {
       showToast({ type: "error", title: "Speicherstatus nicht verfügbar", message: statusError instanceof Error ? statusError.message : "Keine Verbindung zum Dashboard." });

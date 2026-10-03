@@ -1378,7 +1378,7 @@ body::before {
 .message-page h1 { font-size: 42px; margin: 10px 0; }
 .message-page p { color: var(--muted); }
 .message-page a { display: inline-block; margin-top: 15px; color: var(--brand-bright); font-weight: 800; }
-.modal-backdrop { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 20px; background: var(--modal-backdrop); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+.modal-backdrop { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; min-width: 0; max-width: 100vw; padding: 20px; background: var(--modal-backdrop); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
 .qr-modal { width: min(480px, 100%); position: relative; text-align: center; padding: 30px; border-radius: 28px; background: var(--modal-bg); border: 1px solid var(--line-strong); box-shadow: var(--card-shadow); }
 .qr-modal h2 { font-size: 28px; margin: 15px 0 7px; }
 .qr-modal p { color: var(--muted); margin: 0 0 17px; }
@@ -1477,7 +1477,9 @@ body::before {
     --pinpad-dot-size: 17px;
     --pinpad-dot-gap: 16px;
   }
-  .modal-backdrop:has(.profile-edit-modal) { width: 100%; max-width: 100vw; padding: 10px; overflow-x: clip; }
+  .modal-backdrop { width: 100vw; max-width: 100vw; padding: 10px; overflow-x: clip; }
+  .modal-backdrop > * { min-width: 0; max-width: 100%; }
+  .modal-backdrop :is(.profile-edit-modal, .admin-edit-modal, .confirm-modal-card, .health-modal, .plan-modal, .manual-modal, .user-help-modal, .dashboard-history-modal, .qr-modal) { overflow-x: hidden; }
   .profile-edit-modal { width: 100%; min-width: 0; max-width: 100%; max-height: 94dvh; padding: 22px 16px 18px; border-radius: 20px; }
   .profile-edit-modal h2 { margin: 11px 46px 12px 0; font-size: 23px; }
   .profile-edit-preview-row { gap: 10px; padding: 9px 10px; margin-bottom: 11px; }

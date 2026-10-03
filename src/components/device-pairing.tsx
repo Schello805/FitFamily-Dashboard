@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Smartphone, ShieldCheck } from "lucide-react";
+import { requestJson } from "@/lib/api-client";
 
 export function DevicePairing({ profiles, nextPath }: { profiles: { id: string; name: string; color: string }[]; nextPath: string }) {
   const [profileId, setProfileId] = useState("");
@@ -11,13 +12,16 @@ export function DevicePairing({ profiles, nextPath }: { profiles: { id: string; 
 
   async function pair() {
     setBusy(true); setError("");
-    const response = await fetch("/api/device/pair", {
+    try {
+      await requestJson("/api/device/pair", "Kopplung fehlgeschlagen", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ profileId, pin, label: navigator.userAgent.includes("iPhone") ? "iPhone" : "Mobilgerät" })
-    });
-    const result = await response.json();
-    if (!response.ok) { setBusy(false); setError(result.error ?? "Kopplung fehlgeschlagen"); return; }
-    window.location.href = nextPath;
+      });
+      window.location.href = nextPath;
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Kopplung fehlgeschlagen");
+      setBusy(false);
+    }
   }
 
   return <main className="mobile-page"><section className="pair-card">

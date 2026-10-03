@@ -17,6 +17,8 @@ import { AppleActivityRings } from "@/components/apple-activity-rings";
 import { ActivityTrendChart } from "@/components/activity-trend-chart";
 import { UserHelp } from "@/components/user-help";
 import { DEFAULT_DISPLAY_SETTINGS, type DisplaySettings } from "@/lib/display-settings-shared";
+import { requestJson } from "@/lib/api-client";
+import { formatGermanDate, formatGermanTime } from "@/lib/date-format";
 
 type Weather = { temperature: number; apparent: number; code: number; updatedAt: string } | null;
 
@@ -63,6 +65,46 @@ function GoalRing({ value, color, targetMinutes, targetPeriod }: { value: number
       </span>
       <span className="goal-ring-target">SOLL {targetMinutes} Minuten/{targetPeriod === "Tag" ? "Tag" : "Woche"}</span>
     </div>
+  );
+}
+
+function ProfileDashboardCard({ profile, clock }: { profile: DashboardProfile; clock: Date }) {
+  return (
+    <article className={`profile-card ${profile.activeTraining ? "is-active" : ""} ${profile.appleHealthRings ? "has-health" : ""}`} style={{ "--profile": profile.color } as React.CSSProperties}>
+      <div className="card-accent" />
+      <div className="profile-heading">
+        <Link className="profile-identity profile-card-link" href={`/profil/${profile.id}`} aria-label={`${profile.name}: Profil öffnen`}>
+          <Avatar profile={profile} />
+          <div className="profile-name"><span>Profil</span><h2>{profile.name}</h2><p>{profile.goal}</p></div>
+        </Link>
+        <GoalRing value={profile.targetPercent} color={profile.color} targetMinutes={profile.targetMinutes} targetPeriod={profile.targetPeriod} />
+      </div>
+
+      <ActivityTrendChart points={profile.activityTrend} color={profile.color} targetMinutes={profile.targetMinutes} targetPeriod={profile.targetPeriod} />
+
+      <div className="score-row">
+        <div className="score"><Trophy size={22} /><div><strong>{profile.score.toLocaleString("de-DE")}</strong><span>Gesamtpunkte</span></div></div>
+        <div className="today"><strong>{profile.todayMinutes}</strong><span>Minuten heute</span></div>
+      </div>
+
+      {profile.appleHealthRings && <div className="dashboard-apple-rings"><AppleActivityRings rings={profile.appleHealthRings} compact /></div>}
+
+      {profile.activeTraining && (
+        <div className="active-strip">
+          <div className="pulse-dot" />
+          <span className="active-training-kind">{profile.activeTraining.type === "strength" ? "Krafttraining" : "Ausdauertraining"}</span>
+          <div>
+            <div className="active-strip-title">
+              <span>{profile.activeTraining.exerciseName ?? (profile.activeTraining.type === "strength" ? "Krafttraining" : "Ausdauertraining")}</span>
+              {clock.getTime() - new Date(profile.activeTraining.startedAt).getTime() > 2 * 60 * 60 * 1000 && (
+                <span className="long-running-badge" title="Training läuft seit über 2 Stunden. Automatische Pause nach 4 Stunden.">Läuft &gt;2h</span>
+              )}
+            </div>
+            <strong><LiveDuration since={profile.activeTraining.segmentStartedAt} /></strong>
+          </div>
+        </div>
+      )}
+    </article>
   );
 }
 
@@ -167,17 +209,16 @@ export function Dashboard({
   }, [activeUrl]);
 
   const refresh = useCallback(async () => {
-    const response = await fetch("/api/dashboard", { cache: "no-store" });
-    if (response.ok) {
-      const data = await response.json();
+    try {
+      const data = await requestJson<{ profiles: DashboardProfile[]; displaySettings?: DisplaySettings }>(
+        "/api/dashboard", "Dashboard-Daten konnten nicht aktualisiert werden.", { cache: "no-store" }
+      );
       setProfiles(data.profiles);
       if (data.displaySettings) {
         setDisplaySettings(data.displaySettings);
-        if (typeof window !== "undefined") {
-          localStorage.setItem("fitfamily_display_settings", JSON.stringify(data.displaySettings));
-        }
+        localStorage.setItem("fitfamily_display_settings", JSON.stringify(data.displaySettings));
       }
-    }
+    } catch { /* Die zuletzt geladenen Dashboard-Daten bleiben sichtbar. */ }
   }, []);
 
   useEffect(() => {
@@ -189,9 +230,9 @@ export function Dashboard({
     let disposed = false;
     const checkForAppUpdate = async () => {
       try {
-        const response = await fetch("/api/version", { cache: "no-store" });
-        if (!response.ok) return;
-        const current = await response.json() as { version?: string; commit?: string };
+        const current = await requestJson<{ version?: string; commit?: string }>(
+          "/api/version", "Version konnte nicht geprüft werden.", { cache: "no-store" }
+        );
         if (!disposed && (current.version !== version || current.commit !== revision)) setAppUpdateAvailable(true);
       } catch { /* A temporarily unavailable version endpoint should not disturb the dashboard. */ }
     };
@@ -205,8 +246,9 @@ export function Dashboard({
   }, [appUpdateAvailable, profiles]);
 
   useEffect(() => {
-    fetch("/api/weather")
-      .then((response) => response.ok ? response.json() : null)
+    requestJson<{ current?: { temperature_2m: number; apparent_temperature: number; weather_code: number; time: string } }>(
+      "/api/weather", "Wetter ist nicht verfügbar."
+    )
       .then((data) => data?.current && setWeather({
         temperature: data.current.temperature_2m,
         apparent: data.current.apparent_temperature,
@@ -216,9 +258,7 @@ export function Dashboard({
       .catch(() => undefined);
   }, []);
 
-  const dateText = useMemo(() => new Intl.DateTimeFormat("de-DE", {
-    weekday: "long", day: "2-digit", month: "long"
-  }).format(clock), [clock]);
+  const dateText = useMemo(() => formatGermanDate(clock, { weekday: "long", day: "2-digit", month: "long", year: undefined }), [clock]);
 
   const hasActiveTraining = profiles.some((profile) => profile.activeTraining);
   const idleMinutes = (clock.getTime() - lastActivity) / 60000;
@@ -302,50 +342,14 @@ export function Dashboard({
             tabIndex={0}
             onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") enterQuietMode(); }}
           >
-            <time>{clock.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })}</time>
+            <time>{formatGermanTime(clock)}</time>
             <span>{dateText}</span>
           </div>
         </section>
       </header>
 
       <section className="profile-grid" aria-label="Familienprofile">
-        {profiles.map((profile) => (
-          <article className={`profile-card ${profile.activeTraining ? "is-active" : ""} ${profile.appleHealthRings ? "has-health" : ""}`} key={profile.id} style={{ "--profile": profile.color } as React.CSSProperties}>
-            <div className="card-accent" />
-            <div className="profile-heading">
-              <Link className="profile-identity profile-card-link" href={`/profil/${profile.id}`} aria-label={`${profile.name}: Profil öffnen`}>
-                <Avatar profile={profile} />
-                <div className="profile-name"><span>Profil</span><h2>{profile.name}</h2><p>{profile.goal}</p></div>
-              </Link>
-              <GoalRing value={profile.targetPercent} color={profile.color} targetMinutes={profile.targetMinutes} targetPeriod={profile.targetPeriod} />
-            </div>
-
-            <ActivityTrendChart points={profile.activityTrend} color={profile.color} targetMinutes={profile.targetMinutes} targetPeriod={profile.targetPeriod} />
-
-            <div className="score-row">
-              <div className="score"><Trophy size={22} /><div><strong>{profile.score.toLocaleString("de-DE")}</strong><span>Gesamtpunkte</span></div></div>
-              <div className="today"><strong>{profile.todayMinutes}</strong><span>Minuten heute</span></div>
-            </div>
-
-            {profile.appleHealthRings && <div className="dashboard-apple-rings"><AppleActivityRings rings={profile.appleHealthRings} compact /></div>}
-
-            {profile.activeTraining ? (
-              <div className="active-strip">
-                <div className="pulse-dot" />
-                <span className="active-training-kind">{profile.activeTraining.type === "strength" ? "Krafttraining" : "Ausdauertraining"}</span>
-                <div>
-                  <div className="active-strip-title">
-                    <span>{profile.activeTraining.exerciseName ?? (profile.activeTraining.type === "strength" ? "Krafttraining" : "Ausdauertraining")}</span>
-                    {clock.getTime() - new Date(profile.activeTraining.startedAt).getTime() > 2 * 60 * 60 * 1000 && (
-                      <span className="long-running-badge" title="Training läuft seit über 2 Stunden. Automatische Pause nach 4 Stunden.">Läuft &gt;2h</span>
-                    )}
-                  </div>
-                  <strong><LiveDuration since={profile.activeTraining.segmentStartedAt} /></strong>
-                </div>
-              </div>
-            ) : null}
-          </article>
-        ))}
+        {profiles.map((profile) => <ProfileDashboardCard key={profile.id} profile={profile} clock={clock} />)}
       </section>
 
       <footer className="app-footer">
@@ -364,7 +368,7 @@ export function Dashboard({
             className="quiet-content-wrap"
             style={{ transform: `translate3d(${pixelShift.x}px, ${pixelShift.y}px, 0)` }}
           >
-            <span className="quiet-time">{clock.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })}</span>
+            <span className="quiet-time">{formatGermanTime(clock)}</span>
             <span className="quiet-date">{dateText}</span>
             {weather && (
               <div className="quiet-weather">

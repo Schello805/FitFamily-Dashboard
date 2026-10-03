@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { requestJson } from "@/lib/api-client";
 import { ExternalLink, Headphones, Minus, Music2, Pause, Play, Plus, Radio, Volume2, X } from "lucide-react";
 import { RADIO_STATIONS, SPORTS_RADIO_PAGE } from "@/lib/radio";
 
@@ -119,9 +120,11 @@ export function MusicPlayer() {
 
     async function refreshMetadata() {
       try {
-        const response = await fetch(`/api/radio/now-playing?station=${encodeURIComponent(currentStation.id)}`, { signal: controller.signal, cache: "no-store" });
-        if (!response.ok) return;
-        const data = await response.json() as { title?: string | null };
+        const data = await requestJson<{ title?: string | null }>(
+          `/api/radio/now-playing?station=${encodeURIComponent(currentStation.id)}`,
+          "Radiosender-Informationen nicht verfügbar.",
+          { signal: controller.signal, cache: "no-store" }
+        );
         setTrackTitle(data.title?.trim() ?? "");
       } catch (error) {
         if (error instanceof Error && error.name !== "AbortError") setTrackTitle("");
