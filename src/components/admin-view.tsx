@@ -7,6 +7,7 @@ import { ArrowLeft, AlertTriangle, Bot, CheckCircle2, ClipboardList, Database, D
 import { TouchPinpad } from "@/components/touch-pinpad";
 import { AdminLogsPanel, summarizeAdminLog, type AdminLogEntry, type AdminLogFilter } from "@/components/admin-logs-panel";
 import { AdminBackupPanel, type BackupStatus } from "@/components/admin-backup-panel";
+import { AdminUpdatePanel, type UpdateInfo, type UpdateSuccess } from "@/components/admin-update-panel";
 import { AvatarPicker } from "@/components/avatar-picker";
 import { Avatar } from "@/components/avatar";
 import { avatarAssetForProfile, getFitnessStageCount, getStartingFitnessStages, GOALS, type AvatarDesignId, type ProfileAvatar } from "@/lib/domain";
@@ -22,7 +23,6 @@ type ExerciseMedia = { id: string; name: string; type: "strength" | "endurance";
 type EquipmentItem = { id: string; name: string; quantity: number; available: boolean; active: boolean; videoUrl?: string | null; manualPdfUrl?: string | null; instructions?: string | null };
 type AdminProfile = { id: string; name: string; score: number; email: string | null; birthDate: string | null; startingFitness: number; avatar: ProfileAvatar; goal: string };
 type ExerciseDraft = { name: string; type: "strength" | "endurance"; equipment: string; instructions: string; safetyNotes: string; videoUrl: string };
-type UpdateInfo = { currentCommit: string; latestCommit: string; latestMessage: string; hasUpdate: boolean; version: string; latestVersion?: string };
 type SystemStatus = {
   database: { kind: "local" | "remote"; location: string; sizeBytes: number | null; error: string | null };
   applicationVolume: { availableBytes: number | null; totalBytes: number | null; error: string | null };
@@ -195,7 +195,7 @@ export function AdminView({
     }
   }
 
-  const [postUpdateSuccess, setPostUpdateSuccess] = useState<{ version?: string; commit?: string } | null>(null);
+  const [postUpdateSuccess, setPostUpdateSuccess] = useState<UpdateSuccess | null>(null);
 
   function waitForServerAndReload() {
     setNotice("Dashboard-Dienst startet neu … Stelle Verbindung wieder her …");
@@ -1292,36 +1292,18 @@ export function AdminView({
         onMountShare={() => void mountNasShare()}
       />}
       {activeAdminSection === "daten" && <>
-        <article className="wide update-card">
-          <div className="admin-title"><RefreshCw className={checkingUpdate || runningUpdate ? "spin" : ""} /><div><h2>Software-Update</h2><p>Dashboard auf den neuesten Stand von GitHub bringen</p></div></div>
-          {postUpdateSuccess && (
-            <div className="update-alert-banner" style={{ background: "color-mix(in srgb, var(--brand) 15%, var(--subtle-bg))", borderColor: "var(--brand)", marginBottom: "16px" }}>
-              <Sparkles size={24} style={{ color: "var(--brand-bright)", flexShrink: 0 }} />
-              <div style={{ flex: 1 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
-                  <b style={{ color: "var(--text)" }}>Update erfolgreich installiert!</b>
-                  <span style={{ fontSize: "11px", fontWeight: "800", padding: "2px 8px", borderRadius: "999px", background: "var(--brand)", color: "#06201d" }}>
-                    v{postUpdateSuccess.version}{postUpdateSuccess.commit ? ` · Build ${postUpdateSuccess.commit}` : ""}
-                  </span>
-                </div>
-                <p className="update-commit-log" style={{ margin: "4px 0 0" }}>
-                  Das Dashboard wurde neu gebaut, neu gestartet und läuft ab sofort auf der aktuellsten Version.
-                </p>
-              </div>
-              <button type="button" className="modal-close" style={{ position: "static", width: "32px", height: "32px", fontSize: "18px" }} onClick={() => setPostUpdateSuccess(null)} aria-label="Hinweis schließen">×</button>
-            </div>
-          )}
-          <div className="update-status-grid">
-            <div className="update-meta-box"><span>Auf diesem Gerät installiert</span><b>v{currentInstalledVersion}</b>{currentInstalledCommit && <small>Build {currentInstalledCommit}</small>}</div>
-            <div className="update-meta-box"><span>Neuer Stand auf GitHub</span><b className={updateInfo?.hasUpdate ? "update-tag-new" : "update-tag-current"}>{updateInfo ? (updateInfo.hasUpdate ? `Update verfügbar · v${updateInfo.latestVersion || currentInstalledVersion}` : `Auf aktuellem Stand · v${currentInstalledVersion}`) : (checkingUpdate ? "Prüfung läuft …" : "Noch nicht geprüft")}</b>{updateInfo?.latestCommit && <small>Build {updateInfo.latestCommit}</small>}</div>
-          </div>
-          {updateInfo?.hasUpdate && <div className="update-alert-banner"><Sparkles /><div><b>Ein Update ist bereit.</b><p className="update-commit-log">Vor der Installation wird automatisch eine Sicherung deiner Daten erstellt.</p></div></div>}
-          <div className="update-action-row">
-            <button type="button" className="update-secondary-btn" disabled={checkingUpdate || runningUpdate} onClick={() => void checkUpdate()}><RefreshCw className={checkingUpdate ? "spin" : ""} />{checkingUpdate ? "Prüfe …" : "Nach Updates suchen"}</button>
-            {updateInfo?.hasUpdate && <button type="button" className="primary-update-btn" disabled={runningUpdate} onClick={requestApplyUpdate}>{runningUpdate ? (<><RefreshCw className="spin" />Update läuft …</>) : (<><Sparkles />Update installieren</>)}</button>}
-          </div>
-          {updateCountdown !== null && <div className="update-countdown-alert">Dienst wurde neu gestartet. Das Dashboard lädt neu in <b>{updateCountdown}</b> Sekunden …</div>}
-        </article>
+        <AdminUpdatePanel
+          info={updateInfo}
+          installedVersion={currentInstalledVersion}
+          installedCommit={currentInstalledCommit}
+          success={postUpdateSuccess}
+          checking={checkingUpdate}
+          running={runningUpdate}
+          countdown={updateCountdown}
+          onDismissSuccess={() => setPostUpdateSuccess(null)}
+          onCheck={() => void checkUpdate()}
+          onInstall={requestApplyUpdate}
+        />
         <article className="wide">
           <div className="admin-title"><HardDrive /><div><h2>Speicherstatus</h2><p>Datenbankdatei und freier Speicher auf dem App-Server</p></div></div>
           <div className="update-status-grid data-status-grid">
