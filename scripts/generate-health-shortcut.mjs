@@ -71,9 +71,18 @@ export function buildEnergyDiagnostic() {
   // Display the untouched details BEFORE any conversion, even if Math fails.
   display("1/3 Originalwert einer Messung: ", ref(value, "Value"), "\nKeine Tagesgesamtsumme. Bitte Screenshot machen.");
   display("2/3 Einheit dieser Messung: ", ref(unit, "Unit"));
-  const identity = action("math", { WFInput: input(ref(value, "Value")), WFMathOperation: "×", WFMathOperand: "1" });
-  display("3/3 Derselbe Wert mal 1: ", ref(identity, "Calculation Result"), "\nMuss dem Originalwert entsprechen. Keine Umrechnung, keine Summe, kein JSON, nichts gesendet.");
-  return workflow(actions, "FitFamily Energie Diagnose");
+  // German-locale diagnostic: replace the decimal dot before Math parses text.
+  // Do not apply this locale-specific experiment to the sync until runtime verification.
+  const decimalText = action("text.replace", {
+    WFInput: input(ref(value, "Value")),
+    WFReplaceTextFind: text("."),
+    WFReplaceTextReplace: text(","),
+    WFReplaceTextCaseSensitive: true,
+    WFReplaceTextRegularExpression: false
+  });
+  const identity = action("math", { WFInput: input(ref(decimalText, "Replace Text")), WFMathOperation: "×", WFMathOperand: "1" });
+  display("3/3 Nach Punkt → Komma, Wert mal 1: ", ref(identity, "Calculation Result"), "\nMuss zahlenmäßig dem Originalwert entsprechen. Test für deutsche Zahleneinstellungen. Keine Umrechnung, keine Summe, kein JSON, nichts gesendet.");
+  return workflow(actions, "FitFamily Energie Diagnose v2");
 }
 
 export function buildHealthShortcut({ profileId = "papa", server = "http://192.168.1.253:3000" } = {}) {
@@ -202,7 +211,7 @@ function main() {
   }
   const signMode = options["sign-mode"] ?? "anyone";
   if (!["anyone", "people-who-know-me"].includes(signMode)) throw new Error("Signierungsmodus muss anyone oder people-who-know-me sein.");
-  const output = resolve(options.output ?? (options["diagnose-energy"] ? "artifacts/FitFamily-Energie-Diagnose-v1.unsigned.shortcut" : "artifacts/FitFamily-Health-Vergleich-v3.unsigned.shortcut"));
+  const output = resolve(options.output ?? (options["diagnose-energy"] ? "artifacts/FitFamily-Energie-Diagnose-v2.unsigned.shortcut" : "artifacts/FitFamily-Health-Vergleich-v3.unsigned.shortcut"));
   const template = options["diagnose-energy"] ? buildEnergyDiagnostic() : buildHealthShortcut({ profileId: options.profile, server: options.server });
   mkdirSync(dirname(output), { recursive: true });
   writeFileSync(output, `<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n<plist version="1.0">${plist(template)}</plist>\n`);

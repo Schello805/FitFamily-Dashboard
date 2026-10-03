@@ -10,9 +10,16 @@ ist damit widerlegt. Den Vergleichs-Sync vorerst nicht weiter ausführen.
 npm run health:shortcut -- --diagnose-energy --sign
 ```
 
-Bei Erfolg `artifacts/FitFamily-Energie-Diagnose-v1.signed.shortcut` importieren.
+Bei Erfolg `artifacts/FitFamily-Energie-Diagnose-v2.signed.shortcut` importieren.
 Kein Schlüssel erforderlich. Genau eine heutige Messung, keine URL-Aktion, kein POST.
-Es erscheinen drei Anzeigen: Originalwert, Einheit, derselbe Originalwert mal 1.
+Der lokale v1-Test ergab: Originalwert `6.337000000000004`, Einheit `kcal`,
+nach Multiplikation mit 1 jedoch `6337000000000000`. Die Zahl wird damit bereits
+bei der Übernahme in die Berechnung falsch interpretiert.
+v2 ersetzt vor der Berechnung den Dezimalpunkt durch ein Komma (kein regulärer
+Ausdruck). Die Berechnung verwendet ausdrücklich die Ausgabe dieser Ersetzung,
+nicht mehr direkt den Health-Wert. Dies ist ein Test für deutsche
+Zahleneinstellungen, noch keine bestätigte allgemeine Lösung für den Sync.
+Es erscheinen drei Anzeigen: Originalwert, Einheit, ersetzter Wert mal 1.
 Alle drei Screenshots vergleichen. Die Messung ist keine Tagesgesamtsumme.
 Falls schon die Multiplikation scheitert, die ersten beiden Anzeigen und den
 Fehler zeigen. Dieser Test prüft die Zahlübernahme, nicht Quellenpriorität oder

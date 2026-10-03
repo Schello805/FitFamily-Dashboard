@@ -6,7 +6,7 @@ import { buildHealthShortcut, buildEnergyDiagnostic, METRICS, plist, SECRET_PLAC
 test("energy diagnostic is strictly local and reads exactly one today's sample", () => {
   const diagnostic = buildEnergyDiagnostic();
   const actions = diagnostic.WFWorkflowActions;
-  assert.equal(diagnostic.WFWorkflowName, "FitFamily Energie Diagnose");
+  assert.equal(diagnostic.WFWorkflowName, "FitFamily Energie Diagnose v2");
   const finds = actions.filter((action) => action.WFWorkflowActionIdentifier.endsWith("filter.health.quantity"));
   assert.equal(finds.length, 1);
   const params = finds[0].WFWorkflowActionParameters;
@@ -15,10 +15,23 @@ test("energy diagnostic is strictly local and reads exactly one today's sample",
   const rows = params.WFContentItemFilter.Value.WFActionParameterFilterTemplates;
   assert.equal(rows[0].Values.Enumeration.Value, "Active Calories");
   assert.equal(rows[1].Operator, 1002);
-  const allowed = ["comment", "filter.health.quantity", "conditional", "showresult", "exit", "properties.health.quantity", "math"].map((id) => `is.workflow.actions.${id}`);
+  const allowed = ["comment", "filter.health.quantity", "conditional", "showresult", "exit", "properties.health.quantity", "text.replace", "math"].map((id) => `is.workflow.actions.${id}`);
   assert.ok(actions.every((action) => allowed.includes(action.WFWorkflowActionIdentifier)));
   assert.ok(!JSON.stringify(diagnostic).includes(SECRET_PLACEHOLDER));
   assert.ok(!JSON.stringify(diagnostic).includes("http"));
+});
+
+test("diagnostic wires literal decimal replacement between original Health value and math", () => {
+  const actions = buildEnergyDiagnostic().WFWorkflowActions;
+  const value = actions.find((action) => action.WFWorkflowActionParameters.WFContentItemPropertyName === "Value").WFWorkflowActionParameters;
+  const replacement = actions.find((action) => action.WFWorkflowActionIdentifier.endsWith("text.replace")).WFWorkflowActionParameters;
+  const math = actions.find((action) => action.WFWorkflowActionIdentifier.endsWith(".math")).WFWorkflowActionParameters;
+  assert.equal(replacement.WFReplaceTextFind.Value.string, ".");
+  assert.equal(replacement.WFReplaceTextReplace.Value.string, ",");
+  assert.equal(replacement.WFReplaceTextRegularExpression, false);
+  assert.equal(replacement.WFInput.Value.OutputUUID, value.UUID);
+  assert.equal(math.WFInput.Value.OutputUUID, replacement.UUID);
+  assert.equal(math.WFInput.Value.OutputName, "Replace Text");
 });
 
 test("diagnostic displays original value and unit before testing identity math", () => {
