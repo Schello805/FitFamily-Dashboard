@@ -2197,6 +2197,14 @@ body::before {
 .display-time-zone { display: grid; gap: 7px; margin-top: 18px; font-size: 13px; font-weight: 750; }
 .display-time-zone select { min-height: 48px; width: min(420px, 100%); padding: 8px; border: 1px solid var(--line); border-radius: 10px; background: var(--input-bg); color: var(--text); }
 .display-time-zone small { color: var(--muted); font-weight: 500; }
+.manual-pdf-field { display: grid; gap: 10px; min-width: 0; }
+.manual-pdf-field small { color: var(--muted); }
+.manual-pdf-field p[role="alert"] { color: var(--danger); margin: 0; }
+.manual-pdf-field input[type="file"] { width: 100%; min-width: 0; font-size: 13px; }
+.manual-pdf-field input::file-selector-button { min-height: 44px; margin-right: 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--subtle-bg); color: var(--text); cursor: pointer; }
+.manual-pdf-selection { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; overflow-wrap: anywhere; }
+.manual-pdf-selection a { color: var(--brand-bright); text-decoration: underline; }
+.manual-pdf-selection button { min-height: 44px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--subtle-bg); color: var(--text); cursor: pointer; }
 .admin-edit-modal .exercise-admin-actions { margin-top: 16px; }
 .dashboard-apple-rings { margin: 0 20px 12px; padding-top: 10px; border-top: 1px solid var(--line); }
 .dashboard-apple-rings .apple-rings-widget { padding: 5px 8px; border: 0; border-radius: 12px; background: transparent; box-shadow: none; backdrop-filter: none; }
@@ -2906,6 +2914,10 @@ body::before {
 .equipment-card:hover, .exercise-admin-card:hover { border-color: var(--brand); background: color-mix(in srgb, var(--brand) 8%, var(--panel)); }
 .equipment-card span, .exercise-admin-card b { font-size: 12px; font-weight: 850; }
 .equipment-card small, .exercise-admin-card small { color: var(--muted); font-size: 10px; }
+.equipment-card-icons { display: inline-flex; align-items: center; gap: 5px; margin-top: 2px; }
+.equipment-card-icon { width: 14px; height: 14px; stroke-width: 2.4; }
+.equipment-card-icon.is-present { color: var(--brand); }
+.equipment-card-icon.is-missing { color: var(--muted); opacity: .42; }
 .equipment-card.archived, .exercise-admin-card.archived { opacity: .58; }
 .exercise-admin-list { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 .exercise-admin-card { min-height: 76px; }

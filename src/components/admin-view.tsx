@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { ArrowLeft, AlertTriangle, Bot, CheckCircle2, ClipboardList, Database, HardDrive, Lock, Monitor, Moon, Plus, RotateCcw, ShieldCheck, Sparkles, Sun, Users, Wrench, X } from "lucide-react";
+import { ArrowLeft, AlertTriangle, Bot, CheckCircle2, ClipboardList, Database, FileText, HardDrive, Lock, Monitor, Moon, Plus, RotateCcw, ShieldCheck, Sparkles, Sun, Users, Video, Wrench, X } from "lucide-react";
 import { TouchPinpad } from "@/components/touch-pinpad";
 import { AdminLogsPanel, summarizeAdminLog, type AdminLogEntry, type AdminLogFilter } from "@/components/admin-logs-panel";
 import { AdminBackupPanel, type BackupStatus } from "@/components/admin-backup-panel";
@@ -11,6 +11,8 @@ import { AdminUpdatePanel, type UpdateInfo, type UpdateSuccess } from "@/compone
 import { AdminDataTransferPanel, type ImportValidation } from "@/components/admin-data-transfer-panel";
 import { AdminSystemStatusPanel, type SystemStatus } from "@/components/admin-system-status-panel";
 import { AdminFamilyEditModal } from "@/components/admin-family-edit-modal";
+import { ManualPdfField, readManualPdf } from "@/components/manual-pdf-field";
+import { MAX_DATA_IMPORT_BYTES } from "@/lib/data-transfer-schema";
 import { getFitnessStageCount, getStartingFitnessStages, type ProfileAvatar } from "@/lib/domain";
 import { showToast } from "@/components/toast";
 import { applyTheme, cacheDisplaySettings, getStoredThemeSetting, subscribeTheme, type ThemeSetting } from "@/lib/theme";
@@ -100,6 +102,8 @@ export function AdminView({
   const [newEquipmentQuantity, setNewEquipmentQuantity] = useState(1);
   const [newEquipmentVideoUrl, setNewEquipmentVideoUrl] = useState("");
   const [newEquipmentManualPdfUrl, setNewEquipmentManualPdfUrl] = useState("");
+  const [newEquipmentManualFile, setNewEquipmentManualFile] = useState<File | null>(null);
+  const [equipmentManualFiles, setEquipmentManualFiles] = useState<Record<string, File | null>>({});
   const [newEquipmentInstructions, setNewEquipmentInstructions] = useState("");
   const [showEquipmentCreateModal, setShowEquipmentCreateModal] = useState(false);
   const [equipmentModalId, setEquipmentModalId] = useState<string | null>(null);
@@ -656,8 +660,8 @@ export function AdminView({
 
   async function validateImportFile() {
     if (!importFile) return;
-    if (importFile.size > 15 * 1024 * 1024) {
-      setImportValidation({ valid: false, total: 0, counts: {}, errors: ["Die Datei ist größer als 15 MB."] });
+    if (importFile.size > MAX_DATA_IMPORT_BYTES) {
+      setImportValidation({ valid: false, total: 0, counts: {}, errors: ["Die Datei ist größer als 20 MiB. Bitte die vollständige Datensicherung verwenden."] });
       setImportPayload(null);
       return;
     }
@@ -836,15 +840,18 @@ export function AdminView({
   }
 
   async function saveEquipment(id: string, overrides: Partial<EquipmentItem> = {}) {
+    if (savingEquipment) return false;
     const item = { ...equipmentEdits[id], ...overrides };
     setSavingEquipment(id); setNotice("");
     try {
+      const manualPdfUpload = await readManualPdf(equipmentManualFiles[id]);
       const result = await requestJson<{ equipment: EquipmentItem }>(`/api/equipment/${encodeURIComponent(id)}`, "Gerät konnte nicht gespeichert werden.", {
         method: "PATCH", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pin, name: item.name, quantity: item.quantity, available: item.available, active: item.active, videoUrl: item.videoUrl?.trim() || null, manualPdfUrl: item.manualPdfUrl?.trim() || null, instructions: item.instructions?.trim() || null })
+        body: JSON.stringify({ pin, name: item.name, quantity: item.quantity, available: item.available, active: item.active, videoUrl: item.videoUrl?.trim() || null, manualPdfUrl: item.manualPdfUrl?.trim() || null, manualPdfUpload, instructions: item.instructions?.trim() || null })
       });
       setEquipmentItems((items) => items.map((entry) => entry.id === id ? result.equipment : entry));
       setEquipmentEdits((values) => ({ ...values, [id]: result.equipment }));
+      setEquipmentManualFiles(values => ({ ...values, [id]: null }));
       setNotice("Gerätebestand gespeichert.");
       showToast({ type: "success", title: "Gerätebestand gespeichert", message: `${item.name} aktualisiert.` });
       return true;
@@ -879,15 +886,19 @@ export function AdminView({
   }
 
   async function addEquipment(event: React.FormEvent) {
-    event.preventDefault(); setNotice("");
+    event.preventDefault();
+    if (savingEquipment) return;
+    setSavingEquipment("new"); setNotice("");
     try {
+      const manualPdfUpload = await readManualPdf(newEquipmentManualFile);
       const result = await requestJson<{ equipment: EquipmentItem }>("/api/equipment", "Gerät konnte nicht ergänzt werden.", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pin, name: newEquipmentName, quantity: newEquipmentQuantity, videoUrl: newEquipmentVideoUrl.trim() || null, manualPdfUrl: newEquipmentManualPdfUrl.trim() || null, instructions: newEquipmentInstructions.trim() || null })
+        body: JSON.stringify({ pin, name: newEquipmentName, quantity: newEquipmentQuantity, videoUrl: newEquipmentVideoUrl.trim() || null, manualPdfUrl: newEquipmentManualPdfUrl.trim() || null, manualPdfUpload, instructions: newEquipmentInstructions.trim() || null })
       });
       setEquipmentItems((items) => [...items, result.equipment].sort((a, b) => a.name.localeCompare(b.name, "de")));
       setEquipmentEdits((values) => ({ ...values, [result.equipment.id]: result.equipment }));
       const addedName = newEquipmentName;
+      setNewEquipmentManualFile(null);
       setNewEquipmentName(""); setNewEquipmentQuantity(1); setNewEquipmentVideoUrl(""); setNewEquipmentManualPdfUrl(""); setNewEquipmentInstructions(""); setNotice("Gerät wurde ergänzt.");
       setShowEquipmentCreateModal(false);
       showToast({ type: "success", title: "Gerät hinzugefügt", message: `${addedName} ist nun verfügbar.` });
@@ -895,6 +906,8 @@ export function AdminView({
       const msg = error instanceof Error ? error.message : "Keine Verbindung. Bitte Heimnetz prüfen und erneut versuchen.";
       setNotice(msg);
       showToast({ type: "error", title: "Fehler", message: msg });
+    } finally {
+      setSavingEquipment(null);
     }
   }
 
@@ -1302,11 +1315,17 @@ export function AdminView({
       {activeAdminSection === "sportraum" && <>
       <article className="wide"><div className="sportraum-header"><div className="admin-title"><Database /><div><h2>Geräte im Sportraum</h2><p>Geräte, Verfügbarkeit und gerätebezogene Videos verwalten. Archivierte Einträge bleiben für die Historie erhalten.</p></div></div><button type="button" className="equipment-add-open" onClick={() => setShowEquipmentCreateModal(true)}><Plus size={17} /> Gerät hinzufügen</button></div>
         <div className="equipment-card-grid" aria-label="Geräte im Sportraum">
-          {equipmentItems.map((item) => <button type="button" key={item.id} className={`equipment-card ${item.active ? "" : "archived"}`} onClick={() => { setEquipmentEdits((values) => ({ ...values, [item.id]: { ...item } })); setEquipmentModalId(item.id); }}><span>{item.name}</span><small>{item.quantity} {item.quantity === 1 ? "Stück" : "Stück"}</small></button>)}
+          {equipmentItems.map((item) => {
+            const hasManual = Boolean(item.manualPdfUrl?.trim());
+            const hasSafety = Boolean(item.instructions?.trim());
+            const hasVideo = Boolean(item.videoUrl?.trim());
+            const statusLabel = `Anleitung ${hasManual ? "vorhanden" : "fehlt"}; Sicherheitshinweise ${hasSafety ? "vorhanden" : "fehlen"}; Video ${hasVideo ? "vorhanden" : "fehlt"}`;
+            return <button type="button" key={item.id} className={`equipment-card ${item.active ? "" : "archived"}`} onClick={() => { setEquipmentEdits((values) => ({ ...values, [item.id]: { ...item } })); setEquipmentManualFiles(values => ({ ...values, [item.id]: null })); setEquipmentModalId(item.id); }}><span>{item.name}</span><small>{item.quantity} Stück</small><span className="equipment-card-icons" aria-label={statusLabel} title={statusLabel}><FileText aria-label={`Anleitung ${hasManual ? "vorhanden" : "fehlt"}`} className={`equipment-card-icon ${hasManual ? "is-present" : "is-missing"}`} /><ShieldCheck aria-label={`Sicherheitshinweise ${hasSafety ? "vorhanden" : "fehlen"}`} className={`equipment-card-icon ${hasSafety ? "is-present" : "is-missing"}`} /><Video aria-label={`Video ${hasVideo ? "vorhanden" : "fehlt"}`} className={`equipment-card-icon ${hasVideo ? "is-present" : "is-missing"}`} /></span></button>;
+          })}
         </div>
       </article>
-      {showEquipmentCreateModal && <div className="modal-backdrop" onClick={() => setShowEquipmentCreateModal(false)}><form className="admin-edit-modal equipment-create-modal" onClick={(event) => event.stopPropagation()} onSubmit={addEquipment}><button type="button" className="modal-close" onClick={() => setShowEquipmentCreateModal(false)} aria-label="Schließen"><X /></button><span className="setup-badge">Sportraum · Neues Gerät</span><h2>Gerät hinzufügen</h2><div className="admin-edit-fields"><label>Gerätename<input autoFocus required minLength={2} maxLength={60} placeholder="z. B. Hantelbank" value={newEquipmentName} onChange={(event) => setNewEquipmentName(event.target.value)} /></label><label>Anzahl<input type="number" min={1} max={8} value={newEquipmentQuantity} onChange={(event) => setNewEquipmentQuantity(Number(event.target.value))} /></label><label className="wide-field">PDF-Geräteanleitung (Link)<input type="url" inputMode="url" maxLength={1000} placeholder="https://…/anleitung.pdf" value={newEquipmentManualPdfUrl} onChange={(event) => setNewEquipmentManualPdfUrl(event.target.value)} /></label><label className="wide-field">Zusätzliche Sicherheitshinweise<textarea rows={4} maxLength={3000} value={newEquipmentInstructions} onChange={(event) => setNewEquipmentInstructions(event.target.value)} placeholder="Hinweise zur sicheren Nutzung …" /></label><label className="wide-field">Gerätevideo (optional)<input type="url" inputMode="url" maxLength={500} placeholder="Optionaler YouTube-Link zum Gerät" value={newEquipmentVideoUrl} onChange={(event) => setNewEquipmentVideoUrl(event.target.value)} /></label></div><div className="exercise-admin-actions"><button type="button" className="confirm-cancel-btn" onClick={() => setShowEquipmentCreateModal(false)}>Abbrechen</button><button type="submit"><Plus size={16} /> Gerät ergänzen</button></div></form></div>}
-      {equipmentModalId && equipmentEdits[equipmentModalId] && (() => { const edit = equipmentEdits[equipmentModalId]; return <div className="modal-backdrop" onClick={() => setEquipmentModalId(null)}><form className="admin-edit-modal" onClick={(event) => event.stopPropagation()} onSubmit={(event) => { event.preventDefault(); void saveEquipment(edit.id).then((saved) => { if (saved) setEquipmentModalId(null); }); }}><button type="button" className="modal-close" onClick={() => setEquipmentModalId(null)} aria-label="Schließen"><X /></button><span className="setup-badge">Sportraum · Gerät</span><h2>{edit.name}</h2><div className="admin-edit-fields"><label>Gerätename<input required minLength={2} maxLength={60} value={edit.name} onChange={(event) => setEquipmentEdits((values) => ({ ...values, [edit.id]: { ...edit, name: event.target.value } }))} /></label><label>Anzahl<input type="number" min={1} max={8} value={edit.quantity} onChange={(event) => setEquipmentEdits((values) => ({ ...values, [edit.id]: { ...edit, quantity: Number(event.target.value) } }))} /></label><label className="wide-field">PDF-Geräteanleitung (Link)<input type="url" inputMode="url" maxLength={1000} placeholder="https://…/anleitung.pdf" value={edit.manualPdfUrl ?? ""} onChange={(event) => setEquipmentEdits((values) => ({ ...values, [edit.id]: { ...edit, manualPdfUrl: event.target.value || null } }))} /></label><label className="wide-field">Zusätzliche Sicherheitshinweise<textarea rows={5} maxLength={3000} value={edit.instructions ?? ""} onChange={(event) => setEquipmentEdits((values) => ({ ...values, [edit.id]: { ...edit, instructions: event.target.value } }))} placeholder="Hinweise zur sicheren Nutzung …" /></label><label className="wide-field">Gerätevideo (optional)<input type="url" inputMode="url" maxLength={500} placeholder="https://www.youtube.com/watch?v=…" value={edit.videoUrl ?? ""} onChange={(event) => setEquipmentEdits((values) => ({ ...values, [edit.id]: { ...edit, videoUrl: event.target.value || null } }))} /></label><label className="inventory-toggle"><input type="checkbox" checked={edit.available} onChange={(event) => setEquipmentEdits((values) => ({ ...values, [edit.id]: { ...edit, available: event.target.checked } }))} /> Verfügbar</label></div><div className="exercise-admin-actions"><button type="submit" disabled={savingEquipment === edit.id}>{savingEquipment === edit.id ? "Speichert …" : "Änderungen speichern"}</button>{edit.active ? <button type="button" className="archive-action" onClick={() => requestArchiveEquipment(edit)}>Archivieren</button> : <button type="button" onClick={() => void saveEquipment(edit.id, { active: true })}>Wiederherstellen</button>}</div></form></div>; })()}
+      {showEquipmentCreateModal && <div className="modal-backdrop" onClick={() => { if (!savingEquipment) setShowEquipmentCreateModal(false); }}><form className="admin-edit-modal equipment-create-modal" onClick={(event) => event.stopPropagation()} onSubmit={addEquipment}><button type="button" className="modal-close" onClick={() => { if (!savingEquipment) setShowEquipmentCreateModal(false); }} aria-label="Schließen"><X /></button><span className="setup-badge">Sportraum · Neues Gerät</span><h2>Gerät hinzufügen</h2><fieldset className="admin-edit-fields" disabled={Boolean(savingEquipment)}><label>Gerätename<input autoFocus required minLength={2} maxLength={60} placeholder="z. B. Hantelbank" value={newEquipmentName} onChange={(event) => setNewEquipmentName(event.target.value)} /></label><label>Anzahl<input type="number" min={1} max={8} value={newEquipmentQuantity} onChange={(event) => setNewEquipmentQuantity(Number(event.target.value))} /></label><ManualPdfField url={newEquipmentManualPdfUrl} file={newEquipmentManualFile} disabled={Boolean(savingEquipment)} onUrlChange={setNewEquipmentManualPdfUrl} onFileChange={setNewEquipmentManualFile} /><label className="wide-field">Zusätzliche Sicherheitshinweise<textarea rows={4} maxLength={3000} value={newEquipmentInstructions} onChange={(event) => setNewEquipmentInstructions(event.target.value)} placeholder="Hinweise zur sicheren Nutzung …" /></label><label className="wide-field">Gerätevideo (optional)<input type="url" inputMode="url" maxLength={500} placeholder="Optionaler YouTube-Link zum Gerät" value={newEquipmentVideoUrl} onChange={(event) => setNewEquipmentVideoUrl(event.target.value)} /></label></fieldset><div className="exercise-admin-actions"><button type="button" className="confirm-cancel-btn" onClick={() => { if (!savingEquipment) setShowEquipmentCreateModal(false); }}>Abbrechen</button><button type="submit" disabled={Boolean(savingEquipment)}><Plus size={16} /> {savingEquipment ? "Speichert …" : "Gerät ergänzen"}</button></div></form></div>}
+      {equipmentModalId && equipmentEdits[equipmentModalId] && (() => { const edit = equipmentEdits[equipmentModalId]; return <div className="modal-backdrop" onClick={() => { if (!savingEquipment) setEquipmentModalId(null); }}><form className="admin-edit-modal" onClick={(event) => event.stopPropagation()} onSubmit={(event) => { event.preventDefault(); void saveEquipment(edit.id).then((saved) => { if (saved) setEquipmentModalId(null); }); }}><button type="button" className="modal-close" onClick={() => { if (!savingEquipment) setEquipmentModalId(null); }} aria-label="Schließen"><X /></button><span className="setup-badge">Sportraum · Gerät</span><h2>{edit.name}</h2><fieldset className="admin-edit-fields" disabled={Boolean(savingEquipment)}><label>Gerätename<input required minLength={2} maxLength={60} value={edit.name} onChange={(event) => setEquipmentEdits((values) => ({ ...values, [edit.id]: { ...edit, name: event.target.value } }))} /></label><label>Anzahl<input type="number" min={1} max={8} value={edit.quantity} onChange={(event) => setEquipmentEdits((values) => ({ ...values, [edit.id]: { ...edit, quantity: Number(event.target.value) } }))} /></label><ManualPdfField url={edit.manualPdfUrl ?? ""} file={equipmentManualFiles[edit.id]} disabled={Boolean(savingEquipment)} onUrlChange={url => setEquipmentEdits(values => ({ ...values, [edit.id]: { ...edit, manualPdfUrl: url || null } }))} onFileChange={file => setEquipmentManualFiles(values => ({ ...values, [edit.id]: file }))} /><label className="wide-field">Zusätzliche Sicherheitshinweise<textarea rows={5} maxLength={3000} value={edit.instructions ?? ""} onChange={(event) => setEquipmentEdits((values) => ({ ...values, [edit.id]: { ...edit, instructions: event.target.value } }))} placeholder="Hinweise zur sicheren Nutzung …" /></label><label className="wide-field">Gerätevideo (optional)<input type="url" inputMode="url" maxLength={500} placeholder="https://www.youtube.com/watch?v=…" value={edit.videoUrl ?? ""} onChange={(event) => setEquipmentEdits((values) => ({ ...values, [edit.id]: { ...edit, videoUrl: event.target.value || null } }))} /></label><label className="inventory-toggle"><input type="checkbox" checked={edit.available} onChange={(event) => setEquipmentEdits((values) => ({ ...values, [edit.id]: { ...edit, available: event.target.checked } }))} /> Verfügbar</label></fieldset><div className="exercise-admin-actions"><button type="submit" disabled={savingEquipment === edit.id}>{savingEquipment === edit.id ? "Speichert …" : "Änderungen speichern"}</button>{edit.active ? <button type="button" className="archive-action" disabled={Boolean(savingEquipment)} onClick={() => requestArchiveEquipment(edit)}>Archivieren</button> : <button type="button" onClick={() => void saveEquipment(edit.id, { active: true })}>Wiederherstellen</button>}</div></form></div>; })()}
       <article className="wide"><div className="admin-title"><CheckCircle2 /><div><h2>Übungen, Anleitungen &amp; Videos</h2><p>Eigene Übungen anlegen, Gerätezuordnung und Sicherheitshinweise bearbeiten. Video-Links lassen sich ergänzen oder durch Leeren des Feldes entfernen.</p></div></div>
         <div className="exercise-admin-list">
           {exerciseItems.map((exercise) => {

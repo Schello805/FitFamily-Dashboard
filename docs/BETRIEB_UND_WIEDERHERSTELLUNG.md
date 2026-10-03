@@ -28,6 +28,12 @@ Die Ubuntu-GNOME-Kiosk-Einrichtung aktiviert zusätzlich die System-Bildschirmta
 
 Unter **Verwaltung → Allgemein** ist **Europe/Berlin** voreingestellt und im Dropdown änderbar. Die Dashboard-Uhr, das Nachtruhe-Zeitfenster und **Auto (Tag/Nacht)** verwenden diese Zeitzone einschließlich Sommer-/Winterzeit. Auto zeigt während des eingestellten Nacht-Zeitfensters das dunkle Design, sonst das helle. Die ausdrücklich gewählten Designs **Hell** und **Dunkel** bleiben unabhängig von der Uhrzeit bestehen. Die Zeitzone ist auch im Datenexport und Backup enthalten.
 
+## PDF-Geräteanleitungen
+
+Unter **Verwaltung → Sportraum → Gerät bearbeiten** eine PDF auswählen und **Änderungen speichern** drücken. Auch beim Anlegen eines Geräts ist ein Upload möglich. Maximal 10 MiB pro PDF; ein vorhandener Web-Link kann alternativ weiterverwendet werden. Eine neue Auswahl wird erst beim Speichern übernommen. Die gespeicherte Anleitung kann geöffnet, ersetzt oder entfernt werden.
+
+PDF-Inhalt und Dateiname liegen zusammen mit dem Gerät in der Server-Datenbank. Deshalb bleiben sie bei App-Updates erhalten und sind in den verschlüsselten SQLite-/NAS-Sicherungen sowie im JSON-Datenexport enthalten. Die Anleitung wird über eine relative App-Adresse ausgeliefert und bleibt beim Umzug auf einen anderen Server erreichbar. JSON-Importe sind bis 20 MiB möglich; größere Bestände über die vollständige Datensicherung wiederherstellen. Für verschlüsselte Backups über 50 MB den unten beschriebenen lokalen Wiederherstellungsbefehl verwenden.
+
 ## HTTPS für iPhones
 
 Dauerhafte Handy-Kopplung setzt in Produktion HTTPS voraus. HTTP-Kopplung meldet jetzt einen klaren Fehler, statt eine nicht gespeicherte Secure-Cookie-Verbindung als erfolgreich anzuzeigen. Dashboard und Kurzbefehle können im lokalen HTTP-Netz weiterhin verwendet werden; HTTP überträgt Daten unverschlüsselt.

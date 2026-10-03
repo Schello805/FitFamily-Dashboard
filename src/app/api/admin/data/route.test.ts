@@ -4,6 +4,7 @@ import { POST as exportData } from "@/app/api/export/route";
 import { setAdminPin } from "@/lib/security";
 import { db } from "@/lib/db";
 import { randomUUID } from "node:crypto";
+import { MAX_DATA_IMPORT_BYTES } from "@/lib/data-transfer-schema";
 
 let previousAdminPinHash: string | null = null;
 
@@ -151,7 +152,7 @@ describe("admin data validation", () => {
   });
 
   it("enforces the request size limit without relying on Content-Length", async () => {
-    const response = await POST(new Request("http://localhost/api/admin/data", { method: "POST", body: "x".repeat(15 * 1024 * 1024 + 1) }));
+    const response = await POST(new Request("http://localhost/api/admin/data", { method: "POST", body: "x".repeat(MAX_DATA_IMPORT_BYTES + 1) }));
     expect(response.status).toBe(413);
   });
 

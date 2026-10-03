@@ -3,10 +3,13 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { verifyAdminPinOrReject } from "@/lib/security";
 import { writeAdminLog } from "@/lib/admin-log";
-import { DATA_IMPORT_ORDER, DATA_TABLE_SPECS, DATA_TRANSFER_TABLES, isPortableSetting, type DataTransferTable } from "@/lib/data-transfer-schema";
+import { MAX_DATA_IMPORT_BYTES, DATA_IMPORT_ORDER, DATA_TABLE_SPECS, DATA_TRANSFER_TABLES, isPortableSetting, type DataTransferTable } from "@/lib/data-transfer-schema";
+import { readBoundedJson } from "@/lib/request-body";
 import { AVATAR_DESIGN_IDS } from "@/lib/domain";
 import { APPLE_HEALTH_ACTIVITY_FIELDS } from "@/lib/apple-health-activity";
 import { isAllowedVideoUrl } from "@/lib/exercise-video";
+import { manualPdfDataSchema, manualPdfUrlSchema } from "@/lib/manual-pdf";
+import { equipmentManualUrl, isStoredManualUrl } from "@/lib/manual-pdf-shared";
 
 type Cell = string | number | boolean | null;
 type Row = Record<string, Cell>;
@@ -26,7 +29,6 @@ const flag = z.union([z.literal(0), z.literal(1), z.boolean()]).transform(Number
 const metadata = { created_at: timestamp.optional(), updated_at: timestamp.optional() };
 const nullableText = text.nullable().optional();
 const videoUrl = z.string().max(500).refine((value) => isAllowedVideoUrl(value), "Video muss ein gültiger HTTPS-Link zu YouTube sein.").nullable().optional();
-const documentUrl = z.string().url().max(1000).refine((value) => /^https?:\/\//i.test(value), "Anleitung muss über HTTP oder HTTPS erreichbar sein.").nullable().optional();
 const dailyFields = Object.fromEntries(APPLE_HEALTH_ACTIVITY_FIELDS.map(({ column, schema }) => [column, schema.unwrap().unwrap()]));
 const rowSchemas: Record<DataTransferTable, z.ZodType> = {
   profiles: z.object({
@@ -41,7 +43,9 @@ const rowSchemas: Record<DataTransferTable, z.ZodType> = {
   exercises: z.object({ id: identifier, name: z.string().min(1).max(200), type: z.enum(["strength", "endurance"]), equipment: text.min(1),
     instructions: nullableText, safety_notes: nullableText, video_url: videoUrl, active: flag.optional() }),
   equipment_inventory: z.object({ id: identifier, name: z.string().min(1).max(200), quantity: z.number().int().min(1).max(8).optional(),
-    available: flag.optional(), active: flag.optional(), video_url: videoUrl, instructions: nullableText, manual_pdf_url: documentUrl, ...metadata }),
+    available: flag.optional(), active: flag.optional(), video_url: videoUrl, instructions: nullableText, manual_pdf_url: manualPdfUrlSchema,
+    manual_pdf_data: manualPdfDataSchema.nullable().optional(), manual_pdf_name: z.string().max(200).nullable().optional(), ...metadata })
+    .refine(row => !row.manual_pdf_url || !isStoredManualUrl(row.manual_pdf_url) || (row.manual_pdf_url === equipmentManualUrl(row.id) && Boolean(row.manual_pdf_data)), "Die gespeicherte PDF-Anleitung fehlt oder gehört zu einem anderen Gerät."),
   training_sessions: z.object({ id: identifier, profile_id: identifier, started_at: trainingTimestamp, ended_at: trainingTimestamp.nullable().optional(),
     status: z.enum(["active", "paused", "completed"]), source: z.enum(["touch", "mobile", "nfc", "manual", "apple_health"]).optional(),
     external_id: identifier.nullable().optional(), health_title: nullableText,
@@ -230,11 +234,9 @@ async function mergeData(rows: Record<string, Row[]>) {
 }
 
 export async function POST(request: Request) {
-  if (Number(request.headers.get("content-length") ?? 0) > 15 * 1024 * 1024) return NextResponse.json({ error: "Die Datei ist größer als 15 MB." }, { status: 413 });
-  const rawBody = await request.text().catch(() => "");
-  if (Buffer.byteLength(rawBody, "utf8") > 15 * 1024 * 1024) return NextResponse.json({ error: "Die Datei ist größer als 15 MB." }, { status: 413 });
-  let body: { pin?: unknown; action?: unknown; backup?: unknown } | null;
-  try { body = JSON.parse(rawBody); } catch { body = null; }
+  const payload = await readBoundedJson(request, MAX_DATA_IMPORT_BYTES, "Die Datei ist größer als 20 MiB. Bitte die Datensicherung verkleinern.");
+  if (payload instanceof Response) return payload;
+  const body = payload as { pin?: unknown; action?: unknown; backup?: unknown } | null;
   const parsedPin = z.string().regex(/^\d{4}$/).or(z.literal("")).optional().safeParse(body?.pin);
   if (!body || !parsedPin.success) return NextResponse.json({ error: "Ungültige Anfrage." }, { status: 400 });
   const pinError = await verifyAdminPinOrReject(parsedPin.data, request);

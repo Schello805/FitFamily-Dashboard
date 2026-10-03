@@ -242,6 +242,11 @@ async function createSchema(client: Client) {
   if (!equipmentColumns.rows.some((row) => String(row.name) === "manual_pdf_url")) {
     await client.execute("ALTER TABLE equipment_inventory ADD COLUMN manual_pdf_url TEXT");
   }
+  for (const column of ["manual_pdf_data", "manual_pdf_name"]) {
+    if (!equipmentColumns.rows.some((row) => String(row.name) === column)) {
+      await client.execute(`ALTER TABLE equipment_inventory ADD COLUMN ${column} TEXT`);
+    }
+  }
 
   const exerciseColumns = await client.execute("PRAGMA table_info(exercises)");
   if (!exerciseColumns.rows.some((row) => String(row.name) === "active")) {

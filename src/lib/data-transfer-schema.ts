@@ -1,3 +1,6 @@
+// The import envelope may contain one 10 MiB PDF as base64 (~13.4 MiB) plus
+// the regular database export. Keep a bounded 20 MiB request limit.
+export const MAX_DATA_IMPORT_BYTES = 20 * 1024 * 1024;
 export const DATA_TABLE_SPECS = {
   profiles: {
     columns: ["id", "name", "email", "color", "avatar", "custom_avatar_data", "starting_fitness", "starting_fitness_stage", "birth_date", "score_baseline", "score_reset_at", "target_reset_at", "goal", "created_at", "updated_at"],
@@ -10,7 +13,7 @@ export const DATA_TABLE_SPECS = {
     required: ["id", "name", "type", "equipment"]
   },
   equipment_inventory: {
-    columns: ["id", "name", "quantity", "available", "active", "created_at", "updated_at", "video_url", "instructions", "manual_pdf_url"],
+    columns: ["id", "name", "quantity", "available", "active", "created_at", "updated_at", "video_url", "instructions", "manual_pdf_url", "manual_pdf_data", "manual_pdf_name"],
     keys: ["id"],
     required: ["id", "name"]
   },

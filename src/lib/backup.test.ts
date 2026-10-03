@@ -32,6 +32,8 @@ describe("NAS backup and offline recovery", () => {
       "CREATE TABLE profiles (id TEXT PRIMARY KEY, name TEXT)",
       "CREATE TABLE training_sessions (id TEXT PRIMARY KEY, profile_id TEXT REFERENCES profiles(id))",
       "CREATE TABLE training_segments (id TEXT PRIMARY KEY, session_id TEXT REFERENCES training_sessions(id))",
+      "CREATE TABLE equipment_inventory (id TEXT PRIMARY KEY, manual_pdf_url TEXT, manual_pdf_data TEXT, manual_pdf_name TEXT)",
+      { sql: "INSERT INTO equipment_inventory VALUES ('manual-test', '/api/equipment/manual-test/manual', ?, 'Anleitung.pdf')", args: [Buffer.from("%PDF-1.4\nBackup-Test\n%%EOF").toString("base64")] },
       "CREATE TABLE admin_sessions (id TEXT PRIMARY KEY)",
       "CREATE TABLE paired_devices (id TEXT PRIMARY KEY)",
       "CREATE TABLE handoff_tokens (id TEXT PRIMARY KEY)",
@@ -81,6 +83,9 @@ describe("NAS backup and offline recovery", () => {
     try {
       expect((await restored.execute("SELECT name FROM profiles WHERE id = 'mama'")).rows[0]?.name).toBe("Wal-Test");
       expect((await restored.execute("SELECT id FROM training_sessions")).rows[0]?.id).toBe("recent-workout");
+      const manual = (await restored.execute("SELECT * FROM equipment_inventory WHERE id = 'manual-test'")).rows[0];
+      expect(manual?.manual_pdf_name).toBe("Anleitung.pdf");
+      expect(Buffer.from(String(manual?.manual_pdf_data), "base64").toString()).toBe("%PDF-1.4\nBackup-Test\n%%EOF");
       expect((await restored.execute("SELECT * FROM admin_sessions")).rows).toHaveLength(0);
       expect((await restored.execute("SELECT * FROM paired_devices")).rows).toHaveLength(0);
       expect((await restored.execute("SELECT * FROM handoff_tokens")).rows).toHaveLength(0);

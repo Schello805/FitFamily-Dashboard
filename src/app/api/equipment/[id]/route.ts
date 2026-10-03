@@ -4,8 +4,8 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { isAllowedVideoUrl } from "@/lib/exercise-video";
 import { adminPinSchema, verifyAdminPinOrReject } from "@/lib/security";
-
-const isWebDocumentUrl = (url: string | null | undefined) => !url || /^https?:\/\//i.test(url);
+import { manualPdfUrlSchema, manualPdfUploadSchema, readEquipmentBody } from "@/lib/manual-pdf";
+import { equipmentManualUrl, isStoredManualUrl } from "@/lib/manual-pdf-shared";
 
 const schema = z.object({
   pin: adminPinSchema,
@@ -14,30 +14,37 @@ const schema = z.object({
   available: z.boolean(),
   active: z.boolean().optional(),
   videoUrl: z.string().url().max(500).nullable().optional(),
-  manualPdfUrl: z.string().url().max(1000).nullable().optional(),
+  manualPdfUrl: manualPdfUrlSchema,
+  manualPdfUpload: manualPdfUploadSchema,
   instructions: z.string().max(3000).nullable().optional()
 });
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const parsed = schema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return NextResponse.json({ error: "Bitte Gerätename, Stückzahl und Verfügbarkeit prüfen." }, { status: 400 });
+  const body = await readEquipmentBody(request);
+  if (body instanceof Response) return body;
+  const parsed = schema.safeParse(body);
+  if (!parsed.success) return NextResponse.json({ error: "Bitte Gerätename, Stückzahl, Verfügbarkeit und PDF-Anleitung (gültige PDF bis 10 MiB oder Web-Link) prüfen." }, { status: 400 });
   if (!isAllowedVideoUrl(parsed.data.videoUrl ?? null)) return NextResponse.json({ error: "Bitte einen gültigen HTTPS-Link zu YouTube angeben." }, { status: 400 });
-  if (!isWebDocumentUrl(parsed.data.manualPdfUrl)) return NextResponse.json({ error: "Die PDF-Anleitung muss über HTTP oder HTTPS erreichbar sein." }, { status: 400 });
   const pinError = await verifyAdminPinOrReject(parsed.data.pin, request);
   if (pinError) return pinError;
   const client = await db();
-  const current = await client.execute({ sql: "SELECT id, name, video_url, instructions, manual_pdf_url, active FROM equipment_inventory WHERE id = ?", args: [id] });
+  const current = await client.execute({ sql: "SELECT id, name, video_url, instructions, manual_pdf_url, manual_pdf_data, manual_pdf_name, active FROM equipment_inventory WHERE id = ?", args: [id] });
   if (!current.rows[0]) return NextResponse.json({ error: "Gerät nicht gefunden." }, { status: 404 });
   const duplicate = await client.execute({ sql: "SELECT id FROM equipment_inventory WHERE name = ? COLLATE NOCASE AND id <> ?", args: [parsed.data.name, id] });
   if (duplicate.rows[0]) return NextResponse.json({ error: "Dieses Gerät ist bereits in der Liste." }, { status: 409 });
   const previousName = String(current.rows[0].name);
   const videoUrlToSave = parsed.data.videoUrl !== undefined ? (parsed.data.videoUrl ? parsed.data.videoUrl.trim() : null) : (current.rows[0].video_url ? String(current.rows[0].video_url) : null);
   const instructionsToSave = parsed.data.instructions !== undefined ? (parsed.data.instructions?.trim() || null) : (current.rows[0].instructions ? String(current.rows[0].instructions) : null);
-  const manualPdfUrlToSave = parsed.data.manualPdfUrl !== undefined ? (parsed.data.manualPdfUrl?.trim() || null) : (current.rows[0].manual_pdf_url ? String(current.rows[0].manual_pdf_url) : null);
+  const upload = parsed.data.manualPdfUpload;
+  const manualPdfUrlToSave = upload ? equipmentManualUrl(id) : parsed.data.manualPdfUrl !== undefined ? (parsed.data.manualPdfUrl?.trim() || null) : (current.rows[0].manual_pdf_url ? String(current.rows[0].manual_pdf_url) : null);
+  const keepStored = manualPdfUrlToSave === equipmentManualUrl(id);
+  const pdfData = upload?.data ?? (keepStored ? current.rows[0].manual_pdf_data : null);
+  const pdfName = upload?.name ?? (keepStored ? current.rows[0].manual_pdf_name : null);
+  if (manualPdfUrlToSave && isStoredManualUrl(manualPdfUrlToSave) && (!keepStored || !pdfData)) return NextResponse.json({ error: "Bitte die PDF-Datei für dieses Gerät hochladen." }, { status: 400 });
   const active = parsed.data.active ?? Boolean(current.rows[0].active);
   await client.batch([
-    { sql: "UPDATE equipment_inventory SET name = ?, quantity = ?, available = ?, active = ?, video_url = ?, instructions = ?, manual_pdf_url = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", args: [parsed.data.name, parsed.data.quantity, Number(parsed.data.available), Number(active), videoUrlToSave, instructionsToSave, manualPdfUrlToSave, id] },
+    { sql: "UPDATE equipment_inventory SET name = ?, quantity = ?, available = ?, active = ?, video_url = ?, instructions = ?, manual_pdf_url = ?, manual_pdf_data = ?, manual_pdf_name = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", args: [parsed.data.name, parsed.data.quantity, Number(parsed.data.available), Number(active), videoUrlToSave, instructionsToSave, manualPdfUrlToSave, pdfData ?? null, pdfName ?? null, id] },
     ...(previousName === parsed.data.name ? [] : [{ sql: "UPDATE exercises SET equipment = ? WHERE equipment = ?", args: [parsed.data.name, previousName] }]),
     { sql: "INSERT INTO audit_log (id, action, details) VALUES (?, 'equipment.update', ?)", args: [randomUUID(), JSON.stringify({ equipmentId: id, quantity: parsed.data.quantity, available: parsed.data.available, videoUrl: videoUrlToSave, renamed: previousName !== parsed.data.name })] }
   ], "write");
