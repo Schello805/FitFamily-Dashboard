@@ -2805,7 +2805,7 @@ body::before {
 
 /* Kiosk: cards fill a spacious screen; short screens scroll instead of clipping content. */
 @media (min-width: 901px) and (min-height: 650px) {
-  .dashboard-shell { min-height: 100dvh; height: auto; padding: 9px 18px 7px; gap: 9px; }
+  .dashboard-shell { min-height: 0; height: 100dvh; box-sizing: border-box; grid-template-rows: auto minmax(0, 1fr) auto; padding: 9px 18px 7px; gap: 9px; overflow: hidden; }
   .topbar { min-height: 68px; gap: 14px; }
   .persistent-radio.dashboard-radio { top: 9px; gap: 10px; }
   .radio-theme-toggle { width: 68px; min-width: 68px; height: 68px; min-height: 68px; border-radius: 13px; padding: 5px; gap: 4px; }
