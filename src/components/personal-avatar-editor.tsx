@@ -6,6 +6,27 @@ import { Avatar } from "@/components/avatar";
 import { TouchPinpad } from "@/components/touch-pinpad";
 import { getFitnessStageCount, type AvatarDesignId, type AvatarPhysique } from "@/lib/domain";
 
+async function adjustedAvatarImage(source: string, scale: number, offsetX: number, offsetY: number) {
+  const image = new window.Image();
+  await new Promise<void>((resolve, reject) => {
+    image.onload = () => resolve();
+    image.onerror = () => reject(new Error("Die Vorschau konnte nicht angepasst werden."));
+    image.src = source;
+  });
+  const canvas = document.createElement("canvas");
+  canvas.width = 512;
+  canvas.height = 512;
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("Die Bildanpassung ist in diesem Browser nicht verfügbar.");
+  const scaleOffsetX = (offsetX / 23) * 512;
+  const scaleOffsetY = (offsetY / 23) * 512;
+  const size = 512 * scale;
+  context.drawImage(image, 256 - size / 2 + scaleOffsetX, scaleOffsetY, size, size);
+  const data = canvas.toDataURL("image/webp", 0.9);
+  if (!data.startsWith("data:image/webp;base64,")) throw new Error("Dieser Browser kann das angepasste Bild nicht speichern. Bitte verwende einen aktuellen Browser.");
+  return data;
+}
+
 export function PersonalAvatarEditor({
   profileId,
   profileName,
@@ -33,6 +54,9 @@ export function PersonalAvatarEditor({
   const [provider, setProvider] = useState<"openai" | "gemini">("openai");
   const [photo, setPhoto] = useState<File | null>(null);
   const [preview, setPreview] = useState("");
+  const [headScale, setHeadScale] = useState(1);
+  const [headOffsetX, setHeadOffsetX] = useState(0);
+  const [headOffsetY, setHeadOffsetY] = useState(0);
   const [consent, setConsent] = useState(false);
   const [guardianConsent, setGuardianConsent] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -126,6 +150,7 @@ export function PersonalAvatarEditor({
       const result = await response.json();
       if (!response.ok || typeof result.image !== "string") throw new Error(result.error ?? "Der Avatar konnte nicht erstellt werden.");
       setPreview(result.image);
+      setHeadScale(1); setHeadOffsetX(0); setHeadOffsetY(0);
       setNotice("Vorschau erstellt. Prüfe, ob der Kopf gut zur Figur passt; gespeichert wird erst nach deiner Bestätigung.");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Der Avatar konnte nicht erstellt werden.");
@@ -138,9 +163,10 @@ export function PersonalAvatarEditor({
     if (!preview || pin.length !== 4) return;
     setBusy(true); setError(""); setNotice("");
     try {
+      const adjustedImage = await adjustedAvatarImage(preview, headScale, headOffsetX, headOffsetY);
       const response = await fetch(`/api/profiles/${encodeURIComponent(profileId)}/avatar`, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "save", pin, image: preview })
+        body: JSON.stringify({ action: "save", pin, image: adjustedImage })
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error ?? "Der Avatar konnte nicht gespeichert werden.");
@@ -214,8 +240,15 @@ export function PersonalAvatarEditor({
           {hasSavedAvatar && <button type="button" className="personal-avatar-remove" onClick={() => void remove()} disabled={busy}><Trash2 size={16} /> KI-Avatar entfernen</button>}
         </div>
         {preview && <div className="personal-avatar-preview">
-          <div className="personal-avatar-sample"><Avatar id={profileId} name={profileName} avatar={avatar} customAvatar customAvatarSrc={preview} fitnessStage={fitnessStage} physique={physique} birthDate={birthDate} size="medium" /></div>
-          <div><b>So sieht es im Dashboard aus</b><p>Wenn dir das Ergebnis gefällt, speichere es ausdrücklich. Sonst bleibt deine aktuelle Figur unverändert.</p>
+          <div className="personal-avatar-sample"><Avatar id={profileId} name={profileName} avatar={avatar} customAvatar customAvatarSrc={preview} customAvatarScale={headScale} customAvatarOffsetX={headOffsetX} customAvatarOffsetY={headOffsetY} fitnessStage={fitnessStage} physique={physique} birthDate={birthDate} size="large" /></div>
+          <div><b>Kopf passend einstellen</b><p>Ziehe die Regler, bis Kopf und Hals sauber sitzen. Die Anpassung wird mit dem Avatar gespeichert.</p>
+            <div className="personal-avatar-adjustments">
+              <label>Kopfgröße <output>{Math.round(headScale * 100)} %</output><input type="range" min="75" max="135" step="1" value={Math.round(headScale * 100)} onChange={(event) => setHeadScale(Number(event.target.value) / 100)} /></label>
+              <label>Waagerecht <output>{headOffsetX > 0 ? "+" : ""}{headOffsetX} %</output><input type="range" min="-12" max="12" step="1" value={headOffsetX} onChange={(event) => setHeadOffsetX(Number(event.target.value))} /></label>
+              <label>Senkrecht <output>{headOffsetY > 0 ? "+" : ""}{headOffsetY} %</output><input type="range" min="-12" max="12" step="1" value={headOffsetY} onChange={(event) => setHeadOffsetY(Number(event.target.value))} /></label>
+              <button type="button" className="personal-avatar-adjust-reset" onClick={() => { setHeadScale(1); setHeadOffsetX(0); setHeadOffsetY(0); }}>Auf Ausgangsposition zurücksetzen</button>
+            </div>
+            <p>Wenn dir die Vorschau gefällt, speichere sie ausdrücklich. Sonst bleibt deine aktuelle Figur unverändert.</p>
             <button type="button" onClick={() => void save()} disabled={busy}>{busy ? "Speichert …" : "Diesen Avatar speichern"}</button>
             <button type="button" className="personal-avatar-cancel" onClick={() => { setPreview(""); setNotice("Vorschau verworfen."); }} disabled={busy}>Vorschau verwerfen</button>
           </div>

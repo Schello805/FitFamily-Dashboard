@@ -301,7 +301,7 @@ body::before {
   -webkit-mask-image: radial-gradient(ellipse 21% 10% at 56% 8%, transparent 0 86%, #fff 100%);
   mask-image: radial-gradient(ellipse 21% 10% at 56% 8%, transparent 0 86%, #fff 100%);
 }
-.avatar-personal-head { position: absolute; z-index: 3; top: 0; left: 50%; width: 36%; height: 23%; object-fit: contain; object-position: center top; transform: translateX(-50%); pointer-events: none; }
+.avatar-personal-head { position: absolute; z-index: 3; top: var(--personal-head-y, 0%); left: calc(50% + var(--personal-head-x, 0%)); width: 36%; height: 23%; object-fit: contain; object-position: center top; transform: translateX(-50%) scale(var(--personal-head-scale, 1)); transform-origin: top center; pointer-events: none; }
 .goal-ring-summary { width: 116px; display: grid; justify-items: center; gap: 6px; padding: 4px 0; color: inherit; }
 .goal-ring { --progress: 0deg; width: 92px; height: 92px; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; background: conic-gradient(var(--profile) var(--progress), var(--ring-track) 0); box-shadow: 0 0 0 5px color-mix(in srgb, var(--ring-track) 72%, transparent); }
 .goal-ring::after { content: ""; position: absolute; inset: 9px; border-radius: 50%; background: var(--ring-inner); }
@@ -1413,6 +1413,12 @@ body::before {
 .personal-avatar-actions .personal-avatar-remove { color: var(--danger); }
 .personal-avatar-preview { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 12px; margin-top: 12px; padding: 10px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
 .personal-avatar-preview > div:last-child { display: grid; gap: 6px; }
+.personal-avatar-preview .personal-avatar-sample { align-self: start; }
+.personal-avatar-adjustments { display: grid; gap: 8px; margin: 4px 0; }
+.personal-avatar-adjustments label { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 2px 10px; color: var(--text); font-size: 10px; font-weight: 750; }
+.personal-avatar-adjustments output { color: var(--muted); font-variant-numeric: tabular-nums; }
+.personal-avatar-adjustments input[type="range"] { grid-column: 1 / -1; width: 100%; min-height: 24px; margin: 0; accent-color: var(--brand); touch-action: pan-x; }
+.personal-avatar-preview .personal-avatar-adjust-reset { justify-self: start; min-height: 32px; padding: 5px 9px; font-size: 10px; }
 .personal-avatar-preview b { font-size: 11px; }
 .personal-avatar-preview p, .personal-avatar-footnote { margin: 0; color: var(--muted); font-size: 10px; line-height: 1.4; }
 .personal-avatar-preview .personal-avatar-cancel { background: transparent; }

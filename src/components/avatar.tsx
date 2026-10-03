@@ -16,6 +16,9 @@ type AvatarProps = {
   avatar?: ProfileAvatar;
   customAvatar?: boolean;
   customAvatarSrc?: string;
+  customAvatarScale?: number;
+  customAvatarOffsetX?: number;
+  customAvatarOffsetY?: number;
   color?: string;
   birthDate?: string | null;
   fitnessStage?: number;
@@ -32,6 +35,9 @@ export function Avatar({
   avatar = profile?.avatar ?? "neutral",
   customAvatar = profile?.customAvatar ?? false,
   customAvatarSrc,
+  customAvatarScale = 1,
+  customAvatarOffsetX = 0,
+  customAvatarOffsetY = 0,
   color = profile?.color ?? "#22d3ee",
   birthDate = profile?.birthDate,
   fitnessStage = profile?.fitnessStage ?? 1,
@@ -77,6 +83,11 @@ export function Avatar({
             height={512}
             unoptimized
             draggable={false}
+            style={{
+              "--personal-head-scale": customAvatarScale,
+              "--personal-head-x": `${customAvatarOffsetX}%`,
+              "--personal-head-y": `${customAvatarOffsetY}%`
+            } as React.CSSProperties}
           />
         )}
       </div>
