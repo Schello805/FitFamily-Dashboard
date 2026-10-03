@@ -7,6 +7,7 @@ import {
   FITNESS_STAGES,
   getAvatarProgress,
   getFitnessStageCount,
+  getProfileAge,
   getStartingFitnessStages,
   movementTargetForAge,
   physiqueLabel,
@@ -16,6 +17,23 @@ import {
 import { isAllowedVideoUrl, youtubeVideoId } from "@/lib/exercise-video";
 
 describe("FitFamily-Domänenregeln", () => {
+  it("changes age and movement target on the birthday rather than after a rounded year", () => {
+    const before = getProfileAge("test", "2008-10-03", new Date(2026, 9, 2, 23, 59));
+    const birthday = getProfileAge("test", "2008-10-03", new Date(2026, 9, 3, 0, 0));
+    expect(before).toBe(17);
+    expect(birthday).toBe(18);
+    expect(movementTargetForAge(before)).toEqual({ minutes: 90, period: "Tag" });
+    expect(movementTargetForAge(birthday)).toEqual({ minutes: 150, period: "Woche" });
+  });
+
+  it("keeps self-assessed fitness separate from points and checks physique boundaries", () => {
+    expect(getAvatarProgress(2, 62, 38)).toMatchObject({ fitnessStage: 2, physique: "strength", trainingMinutes: 100 });
+    expect(getAvatarProgress(2, 61, 39).physique).toBe("balanced");
+    expect(getAvatarProgress(2, 38, 62).physique).toBe("endurance");
+    expect(getAvatarProgress(2, 39, 61).physique).toBe("balanced");
+    expect(getAvatarProgress(99, 100000, 100000, 3).fitnessStage).toBe(3);
+    expect(getAvatarProgress(-1, 0, 0, 7).fitnessStage).toBe(1);
+  });
   it("bewertet Ausdauer doppelt so hoch wie Kraft", () => {
     expect(SCORE_MULTIPLIER.strength).toBe(1);
     expect(SCORE_MULTIPLIER.endurance).toBe(2);

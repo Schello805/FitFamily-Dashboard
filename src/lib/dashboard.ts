@@ -1,6 +1,6 @@
 import { asNumber, asString, db } from "@/lib/db";
 import type { DashboardProfile, Profile, TrainingType } from "@/lib/domain";
-import { getAvatarProgress, getFitnessStageCount, movementTargetForAge, SCORE_MULTIPLIER } from "@/lib/domain";
+import { getAvatarProgress, getFitnessStageCount, getProfileAge, movementTargetForAge, SCORE_MULTIPLIER } from "@/lib/domain";
 import { enforceSafetyPauses } from "@/lib/training";
 import { normalizePlanJson } from "@/lib/plan-normalizer";
 
@@ -119,10 +119,7 @@ export async function getDashboardData(): Promise<DashboardProfile[]> {
       targetResetAt: asString(row.target_reset_at),
       goal: String(row.goal)
     };
-    const birthTime = profile.birthDate ? new Date(profile.birthDate).getTime() : NaN;
-    const age = !isNaN(birthTime)
-      ? Math.floor((now.getTime() - birthTime) / (365.2425 * 24 * 60 * 60 * 1000))
-      : (["fabian", "frieda"].includes(profile.id) ? 17 : 30);
+    const age = getProfileAge(profile.id, profile.birthDate, now);
     const target = movementTargetForAge(age);
     const dailyTarget = target.period === "Woche" ? target.minutes / 7 : target.minutes;
     const dailyActivity = workoutMinutesByProfile.get(profileId) ?? new Map<string, number>();

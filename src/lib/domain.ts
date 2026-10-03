@@ -71,18 +71,21 @@ export const CHILD_FITNESS_STAGES = [
   { stage: 3, label: "3 · Fit", description: "Bewegung ist Teil des Alltags" }
 ] as const;
 
-export function getFitnessStageCount(profileId: string, birthDate?: string | null) {
+export function getProfileAge(profileId: string, birthDate?: string | null, now = new Date()) {
   if (birthDate) {
     const birth = new Date(`${birthDate}T00:00:00`);
     if (!Number.isNaN(birth.getTime())) {
-      const now = new Date();
       let age = now.getFullYear() - birth.getFullYear();
       const monthDifference = now.getMonth() - birth.getMonth();
       if (monthDifference < 0 || (monthDifference === 0 && now.getDate() < birth.getDate())) age -= 1;
-      return age < 18 ? 3 : 7;
+      return age;
     }
   }
-  return profileId === "fabian" || profileId === "frieda" ? 3 : 7;
+  return profileId === "fabian" || profileId === "frieda" ? 17 : 30;
+}
+
+export function getFitnessStageCount(profileId: string, birthDate?: string | null) {
+  return getProfileAge(profileId, birthDate) < 18 ? 3 : 7;
 }
 
 export function getStartingFitnessStages(profileId: string, birthDate?: string | null) {
@@ -95,7 +98,7 @@ export function getAvatarProgress(startingFitness: number, strengthMinutes: numb
   const endurance = Math.max(0, enduranceMinutes);
   const trainingMinutes = strength + endurance;
   // The selected stage is the person's self-assessment. Lifetime training minutes
-  // must not silently promote them; automatic progression uses a separate rule.
+  // must not silently promote them. No automatic level progression is implemented.
   const fitnessStage = Math.max(1, Math.min(stageCount, Math.round(startingFitness)));
   const strengthShare = trainingMinutes ? strength / trainingMinutes : 0.5;
   const physique: AvatarPhysique = strengthShare >= 0.62 ? "strength" : strengthShare <= 0.38 ? "endurance" : "balanced";

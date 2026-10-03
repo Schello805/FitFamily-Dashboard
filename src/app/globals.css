@@ -909,7 +909,8 @@ body::before {
   .profile-hero-left { flex-direction: column; align-items: flex-start; gap: 16px; }
   .profile-hero-right { width: 100%; justify-content: flex-start; flex-wrap: wrap; gap: 16px; }
   .running-clock { border: 0; padding: 0 0 10px; text-align: left; }
-  .training-actions { grid-template-columns: 1fr; }
+  .training-actions,
+  .training-actions.has-active-training { grid-template-columns: minmax(0, 1fr); }
   .training-button { min-height: 156px; padding: 22px; }
   .button-icon { min-width: 84px; height: 84px; }
   .training-button strong { font-size: 32px; }
