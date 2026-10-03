@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { verifyAdminPin } from "@/lib/security";
+import { verifyAdminPinOrReject } from "@/lib/security";
 
 const postSchema = z.object({
   pin: z.string().regex(/^\d{4}$/), profileId: z.string(), type: z.enum(["strength", "endurance"]),
@@ -37,7 +37,8 @@ export async function POST(request: Request) {
     const errorMsg = body.error.issues[0]?.message || "Zeitangaben sind ungültig";
     return NextResponse.json({ error: errorMsg }, { status: 400 });
   }
-  if (!(await verifyAdminPin(body.data.pin))) return NextResponse.json({ error: "Eltern-PIN ist nicht richtig" }, { status: 401 });
+  const pinError = await verifyAdminPinOrReject(body.data.pin);
+  if (pinError) return pinError;
   const sessionId = randomUUID();
   const client = await db();
   await client.batch([
@@ -65,7 +66,8 @@ export async function PUT(request: Request) {
     const errorMsg = body.error.issues[0]?.message || "Zeitangaben oder Eingaben sind ungültig";
     return NextResponse.json({ error: errorMsg }, { status: 400 });
   }
-  if (!(await verifyAdminPin(body.data.pin))) return NextResponse.json({ error: "Eltern-PIN ist nicht richtig" }, { status: 401 });
+  const pinError = await verifyAdminPinOrReject(body.data.pin);
+  if (pinError) return pinError;
 
   const client = await db();
   const existing = await client.execute({
@@ -121,7 +123,8 @@ export async function PUT(request: Request) {
 export async function DELETE(request: Request) {
   const body = deleteSchema.safeParse(await request.json());
   if (!body.success) return NextResponse.json({ error: "Ungültige Anfrage zum Löschen" }, { status: 400 });
-  if (!(await verifyAdminPin(body.data.pin))) return NextResponse.json({ error: "Eltern-PIN ist nicht richtig" }, { status: 401 });
+  const pinError = await verifyAdminPinOrReject(body.data.pin);
+  if (pinError) return pinError;
 
   const client = await db();
   const existing = await client.execute({

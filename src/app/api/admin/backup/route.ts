@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { executeBackup, getBackupSettings, setBackupSettings } from "@/lib/backup";
-import { verifyAdminPin } from "@/lib/security";
+import { verifyAdminPinOrReject } from "@/lib/security";
 import { writeAdminLog } from "@/lib/admin-log";
 
 const postSchema = z.object({
@@ -14,9 +14,8 @@ const postSchema = z.object({
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const pin = searchParams.get("pin");
-  if (!pin || !(await verifyAdminPin(pin))) {
-    return NextResponse.json({ error: "Eltern-PIN ist nicht richtig." }, { status: 401 });
-  }
+  const pinError = await verifyAdminPinOrReject(pin ?? "");
+  if (pinError) return pinError;
 
   const settings = await getBackupSettings();
   return NextResponse.json({ ok: true, status: settings });
@@ -28,9 +27,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Ungültige Anfrage. Bitte PIN und Eingaben prüfen." }, { status: 400 });
   }
 
-  if (!(await verifyAdminPin(body.data.pin))) {
-    return NextResponse.json({ error: "Eltern-PIN ist nicht richtig." }, { status: 401 });
-  }
+  const pinError = await verifyAdminPinOrReject(body.data.pin);
+  if (pinError) return pinError;
 
   const { action, path: inputPath, key: inputKey } = body.data;
 

@@ -15,6 +15,10 @@ export function formatGermanDate(value: string | Date, options: Intl.DateTimeFor
   return new Intl.DateTimeFormat("de-DE", { ...germanDateOptions, ...options }).format(toLocalDate(value));
 }
 
+export function formatGermanDateTime(value: string | Date) {
+  return formatGermanDate(value, { hour: "2-digit", minute: "2-digit" });
+}
+
 export function formatGermanWeekday(value: string | Date) {
   return new Intl.DateTimeFormat("de-DE", { weekday: "long" }).format(toLocalDate(value));
 }

@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { verifyAdminPin } from "@/lib/security";
+import { verifyAdminPinOrReject } from "@/lib/security";
 import { setBackupSettings } from "@/lib/backup";
 
 export const dynamic = "force-dynamic";
@@ -26,9 +26,8 @@ export async function POST(request: Request) {
 
   const { pin, server, share, username, password, mountPath: customMountPath } = body.data;
 
-  if (!(await verifyAdminPin(pin))) {
-    return NextResponse.json({ error: "Eltern-PIN ist nicht richtig." }, { status: 401 });
-  }
+  const pinError = await verifyAdminPinOrReject(pin);
+  if (pinError) return pinError;
 
   const cleanServer = server.trim().replace(/^[\\/]+/, "").replace(/[\\/]+$/, "");
   const shareParts = share.trim().replace(/\\/g, "/").replace(/^\/+|\/+$/g, "").split("/");

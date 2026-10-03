@@ -5,12 +5,13 @@ import sharp from "sharp";
 import { db } from "@/lib/db";
 import { avatarAssetForProfile, type ProfileAvatar } from "@/lib/domain";
 import { getAiApiKey, type AiProvider } from "@/lib/ai-config";
-import { verifyAdminPin } from "@/lib/security";
+import { verifyAdminPinOrReject } from "@/lib/security";
 
 export const maxDuration = 120;
 
 const MAX_PHOTO_BYTES = 10 * 1024 * 1024;
 const MAX_AVATAR_BYTES = 1024 * 1024;
+const MAX_AVATAR_UPLOAD_BYTES = 5 * 1024 * 1024;
 const MAX_GENERATIONS_PER_HOUR = 4;
 const generationWindow = globalThis as typeof globalThis & {
   fitFamilyAvatarGenerations?: Map<string, number[]>;
@@ -200,7 +201,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ pro
       return jsonError("Bitte ein Foto im JPG-, PNG- oder WebP-Format auswählen.");
     }
     if (photoFile.size === 0 || photoFile.size > MAX_PHOTO_BYTES) return jsonError("Das Foto darf höchstens 10 MB groß sein.");
-    if (!(await verifyAdminPin(pin))) return jsonError("Die Eltern-PIN ist nicht richtig.", 401);
+    const pinError = await verifyAdminPinOrReject(pin);
+    if (pinError) return pinError;
 
     const now = Date.now();
     const attempts = generationWindow.fitFamilyAvatarGenerations ??= new Map<string, number[]>();
@@ -234,22 +236,42 @@ export async function POST(request: Request, { params }: { params: Promise<{ pro
   if (!body || (body.action !== "save" && body.action !== "delete") || typeof body.pin !== "string" || !/^\d{4}$/.test(body.pin)) {
     return jsonError("Bitte Aktion und vierstellige Eltern-PIN prüfen.");
   }
-  if (!(await verifyAdminPin(body.pin))) return jsonError("Die Eltern-PIN ist nicht richtig.", 401);
+  const pinError = await verifyAdminPinOrReject(body.pin);
+  if (pinError) return pinError;
 
   const client = await db();
   if (body.action === "delete") {
     await client.execute({ sql: "UPDATE profiles SET custom_avatar_data = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?", args: [profileId] });
     return NextResponse.json({ ok: true });
   }
-  if (typeof body.image !== "string" || body.image.length > 1_500_000 || !/^data:image\/webp;base64,[A-Za-z0-9+/=]+$/.test(body.image)) {
+  const imageData = body.image;
+  const imageMatch = typeof imageData === "string"
+    ? /^data:image\/(png|webp);base64,([A-Za-z0-9+/=]+)$/.exec(imageData)
+    : null;
+  if (!imageMatch || typeof imageData !== "string" || imageData.length > 7_000_000) {
     return jsonError("Die Vorschau ist ungültig oder zu groß. Bitte erstelle den Avatar erneut.");
   }
-  const encoded = body.image.slice("data:image/webp;base64,".length);
+  const encoded = imageMatch[2];
   const imageBytes = Buffer.from(encoded, "base64");
-  if (!imageBytes.length || imageBytes.length > MAX_AVATAR_BYTES || imageBytes.toString("base64") !== encoded) {
+  if (!imageBytes.length || imageBytes.length > MAX_AVATAR_UPLOAD_BYTES || imageBytes.toString("base64") !== encoded) {
     return jsonError("Das Avatarbild konnte nicht geprüft werden.");
   }
-  await client.execute({ sql: "UPDATE profiles SET custom_avatar_data = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", args: [body.image, profileId] });
+  let optimized: Buffer;
+  try {
+    const input = sharp(imageBytes, { limitInputPixels: 1_000_000 });
+    const metadata = await input.metadata();
+    if (metadata.format !== imageMatch[1] || !metadata.width || !metadata.height) {
+      return jsonError("Das Avatarbild hat ein ungültiges Format.");
+    }
+    optimized = await input.rotate().resize(512, 512, { fit: "fill" }).webp({ quality: 88, alphaQuality: 95 }).toBuffer();
+  } catch {
+    return jsonError("Das Avatarbild konnte nicht verarbeitet werden.");
+  }
+  if (!optimized.length || optimized.length > MAX_AVATAR_BYTES) {
+    return jsonError("Das Avatarbild ist zu groß. Bitte passe den Kopf erneut an.");
+  }
+  const savedImage = `data:image/webp;base64,${optimized.toString("base64")}`;
+  await client.execute({ sql: "UPDATE profiles SET custom_avatar_data = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", args: [savedImage, profileId] });
   return NextResponse.json({ ok: true });
 }
 
@@ -259,7 +281,8 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ p
   if (!profile) return jsonError("Profil nicht gefunden.", 404);
   const body = await request.json().catch(() => null) as { pin?: unknown } | null;
   if (!body || typeof body.pin !== "string" || !/^\d{4}$/.test(body.pin)) return jsonError("Bitte vierstellige Eltern-PIN eingeben.");
-  if (!(await verifyAdminPin(body.pin))) return jsonError("Die Eltern-PIN ist nicht richtig.", 401);
+  const pinError = await verifyAdminPinOrReject(body.pin);
+  if (pinError) return pinError;
   const client = await db();
   await client.execute({ sql: "UPDATE profiles SET custom_avatar_data = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?", args: [profileId] });
   return NextResponse.json({ ok: true });

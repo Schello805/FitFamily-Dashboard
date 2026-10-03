@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { createToken, hashToken, verifyAdminPin } from "@/lib/security";
+import { createToken, hashToken, verifyAdminPinOrReject } from "@/lib/security";
 
 const schema = z.object({
   profileId: z.string().min(1),
@@ -21,7 +21,8 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const parsed = schema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Bitte Profil, Eltern-PIN und Aktion prüfen." }, { status: 400 });
-  if (!(await verifyAdminPin(parsed.data.pin))) return NextResponse.json({ error: "Eltern-PIN ist nicht richtig." }, { status: 401 });
+  const pinError = await verifyAdminPinOrReject(parsed.data.pin);
+  if (pinError) return pinError;
 
   const client = await db();
   const profile = await client.execute({ sql: "SELECT id FROM profiles WHERE id = ?", args: [parsed.data.profileId] });

@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { SCORE_MULTIPLIER, type TrainingType } from "@/lib/domain";
-import { hashToken, verifyAdminPin } from "@/lib/security";
+import { hashToken, verifyAdminPinOrReject } from "@/lib/security";
 
 function inferTrainingType(title?: string | null, explicitType?: string | null): TrainingType {
   if (explicitType === "strength" || explicitType === "endurance") return explicitType;
@@ -470,9 +470,11 @@ export async function DELETE(request: Request) {
   if (!profileId) {
     return NextResponse.json({ error: "profileId ist erforderlich." }, { status: 400 });
   }
-  if (typeof body?.pin !== "string" || !/^\d{4}$/.test(body.pin) || !(await verifyAdminPin(body.pin))) {
-    return NextResponse.json({ error: "Zum Löschen ist die Eltern-PIN erforderlich." }, { status: 401 });
+  if (typeof body?.pin !== "string" || !/^\d{4}$/.test(body.pin)) {
+    return NextResponse.json({ error: "Zum Löschen ist die Eltern-PIN erforderlich." }, { status: 400 });
   }
+  const pinError = await verifyAdminPinOrReject(body.pin);
+  if (pinError) return pinError;
 
   const client = await db();
 

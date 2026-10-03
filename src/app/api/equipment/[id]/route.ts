@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { isAllowedVideoUrl } from "@/lib/exercise-video";
-import { verifyAdminPin } from "@/lib/security";
+import { verifyAdminPinOrReject } from "@/lib/security";
 
 const isWebDocumentUrl = (url: string | null | undefined) => !url || /^https?:\/\//i.test(url);
 
@@ -24,7 +24,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (!parsed.success) return NextResponse.json({ error: "Bitte Gerätename, Stückzahl und Verfügbarkeit prüfen." }, { status: 400 });
   if (!isAllowedVideoUrl(parsed.data.videoUrl ?? null)) return NextResponse.json({ error: "Bitte einen gültigen HTTPS-Link zu YouTube angeben." }, { status: 400 });
   if (!isWebDocumentUrl(parsed.data.manualPdfUrl)) return NextResponse.json({ error: "Die PDF-Anleitung muss über HTTP oder HTTPS erreichbar sein." }, { status: 400 });
-  if (!(await verifyAdminPin(parsed.data.pin))) return NextResponse.json({ error: "Eltern-PIN ist nicht richtig." }, { status: 401 });
+  const pinError = await verifyAdminPinOrReject(parsed.data.pin);
+  if (pinError) return pinError;
   const client = await db();
   const current = await client.execute({ sql: "SELECT id, name, video_url, instructions, manual_pdf_url, active FROM equipment_inventory WHERE id = ?", args: [id] });
   if (!current.rows[0]) return NextResponse.json({ error: "Gerät nicht gefunden." }, { status: 404 });
@@ -49,7 +50,8 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
   if (typeof body?.pin !== "string" || !/^\d{4}$/.test(body.pin)) {
     return NextResponse.json({ error: "Bitte die vierstellige Eltern-PIN eingeben." }, { status: 400 });
   }
-  if (!(await verifyAdminPin(body.pin))) return NextResponse.json({ error: "Eltern-PIN ist nicht richtig." }, { status: 401 });
+  const pinError = await verifyAdminPinOrReject(body.pin);
+  if (pinError) return pinError;
 
   const client = await db();
   const current = await client.execute({ sql: "SELECT name, active FROM equipment_inventory WHERE id = ?", args: [id] });

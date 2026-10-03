@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { isAllowedVideoUrl } from "@/lib/exercise-video";
-import { verifyAdminPin } from "@/lib/security";
+import { verifyAdminPinOrReject } from "@/lib/security";
 
 const isWebDocumentUrl = (url: string | null | undefined) => !url || /^https?:\/\//i.test(url);
 
@@ -34,7 +34,8 @@ export async function POST(request: Request) {
   if (!parsed.success) return NextResponse.json({ error: "Bitte einen Gerätenamen und eine Stückzahl von 1 bis 8 angeben." }, { status: 400 });
   if (!isAllowedVideoUrl(parsed.data.videoUrl ?? null)) return NextResponse.json({ error: "Bitte einen gültigen HTTPS-Link zu YouTube angeben." }, { status: 400 });
   if (!isWebDocumentUrl(parsed.data.manualPdfUrl)) return NextResponse.json({ error: "Die PDF-Anleitung muss über HTTP oder HTTPS erreichbar sein." }, { status: 400 });
-  if (!(await verifyAdminPin(parsed.data.pin))) return NextResponse.json({ error: "Eltern-PIN ist nicht richtig." }, { status: 401 });
+  const pinError = await verifyAdminPinOrReject(parsed.data.pin);
+  if (pinError) return pinError;
   const client = await db();
   const duplicate = await client.execute({ sql: "SELECT id FROM equipment_inventory WHERE name = ? COLLATE NOCASE", args: [parsed.data.name] });
   if (duplicate.rows[0]) return NextResponse.json({ error: "Dieses Gerät ist bereits in der Liste." }, { status: 409 });

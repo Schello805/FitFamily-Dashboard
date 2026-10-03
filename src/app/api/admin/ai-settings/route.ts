@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getAiApiKey, getAiProviderStatus, setAiApiKey, type AiProvider } from "@/lib/ai-config";
-import { verifyAdminPin } from "@/lib/security";
+import { verifyAdminPinOrReject } from "@/lib/security";
 
 const schema = z.object({
   pin: z.string().regex(/^\d{4}$/),
@@ -20,7 +20,8 @@ async function testKey(provider: AiProvider, key: string) {
 export async function POST(request: Request) {
   const body = schema.safeParse(await request.json().catch(() => null));
   if (!body.success) return NextResponse.json({ error: "Bitte Anbieter, Schlüssel und Eltern-PIN prüfen." }, { status: 400 });
-  if (!(await verifyAdminPin(body.data.pin))) return NextResponse.json({ error: "Eltern-PIN ist nicht richtig." }, { status: 401 });
+  const pinError = await verifyAdminPinOrReject(body.data.pin);
+  if (pinError) return pinError;
 
   if (body.data.action === "remove") {
     await setAiApiKey(body.data.provider, null);

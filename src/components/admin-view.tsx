@@ -11,7 +11,7 @@ import { avatarAssetForProfile, getFitnessStageCount, getStartingFitnessStages, 
 import { showToast } from "@/components/toast";
 import { applyTheme, getStoredThemeSetting, subscribeTheme, type ThemeSetting } from "@/lib/theme";
 import { DEFAULT_DISPLAY_SETTINGS, type DisplaySettings } from "@/lib/display-settings-shared";
-import { formatGermanDate } from "@/lib/date-format";
+import { formatGermanDate, formatGermanDateTime } from "@/lib/date-format";
 
 type AiUsage = { requests: number; inputTokens: number; outputTokens: number; estimateUsd: number; updatedAt: string | null };
 type Status = { openai: boolean; gemini: boolean; nas: boolean; models: { openai: string; gemini: string }; usage: { openai: AiUsage; gemini: AiUsage } };
@@ -1353,7 +1353,7 @@ export function AdminView({
             </b>
             <small style={{ display: "block", marginTop: "4px", fontSize: "11px", color: "var(--muted)" }}>
               {backupStatus?.lastBackup
-                ? `${backupStatus.lastBackup.name} (${new Date(backupStatus.lastBackup.date).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })})`
+                ? `${backupStatus.lastBackup.name} (${formatGermanDateTime(backupStatus.lastBackup.date)})`
                 : `${backupStatus?.backupCount ?? 0} Sicherungen`}
             </small>
           </div>

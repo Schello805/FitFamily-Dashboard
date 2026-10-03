@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { verifyAdminPin } from "@/lib/security";
+import { verifyAdminPinOrReject } from "@/lib/security";
 
 const requestSchema = z.object({
   profileId: z.string().min(1),
@@ -11,7 +11,8 @@ const requestSchema = z.object({
 export async function POST(request: Request) {
   const parsed = requestSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Bitte Profil und vierstellige Eltern-PIN prüfen." }, { status: 400 });
-  if (!(await verifyAdminPin(parsed.data.pin))) return NextResponse.json({ error: "Eltern-PIN ist nicht richtig." }, { status: 401 });
+  const pinError = await verifyAdminPinOrReject(parsed.data.pin);
+  if (pinError) return pinError;
 
   const client = await db();
   const result = await client.execute({

@@ -22,8 +22,10 @@ async function adjustedAvatarImage(source: string, scale: number, offsetX: numbe
   const scaleOffsetY = (offsetY / 23) * 512;
   const size = 512 * scale;
   context.drawImage(image, 256 - size / 2 + scaleOffsetX, scaleOffsetY, size, size);
-  const data = canvas.toDataURL("image/webp", 0.9);
-  if (!data.startsWith("data:image/webp;base64,")) throw new Error("Dieser Browser kann das angepasste Bild nicht speichern. Bitte verwende einen aktuellen Browser.");
+  // PNG export is consistently supported by iOS Safari. Safari may silently
+  // return PNG even when WebP was requested, which used to make saving fail.
+  const data = canvas.toDataURL("image/png");
+  if (!data.startsWith("data:image/png;base64,")) throw new Error("Das angepasste Bild konnte nicht vorbereitet werden. Bitte versuche es erneut.");
   return data;
 }
 
@@ -69,6 +71,17 @@ export function PersonalAvatarEditor({
   const videoRef = useRef<HTMLVideoElement>(null);
   const cameraStreamRef = useRef<MediaStream | null>(null);
   const isChild = getFitnessStageCount(profileId, birthDate) <= 3;
+
+  async function readAvatarResponse(response: Response, fallback: string) {
+    const result = await response.json().catch(() => null) as { error?: unknown; image?: unknown } | null;
+    if (response.status === 401) {
+      setPin("");
+      setPinModalOpen(true);
+      throw new Error("Die PIN wurde vom Server abgelehnt. Bitte gib sie erneut ein.");
+    }
+    if (!response.ok) throw new Error(typeof result?.error === "string" ? result.error : fallback);
+    return result;
+  }
 
   function stopCamera() {
     cameraStreamRef.current?.getTracks().forEach((track) => track.stop());
@@ -147,8 +160,8 @@ export function PersonalAvatarEditor({
     form.set("photo", photo);
     try {
       const response = await fetch(`/api/profiles/${encodeURIComponent(profileId)}/avatar`, { method: "POST", body: form });
-      const result = await response.json();
-      if (!response.ok || typeof result.image !== "string") throw new Error(result.error ?? "Der Avatar konnte nicht erstellt werden.");
+      const result = await readAvatarResponse(response, "Der Avatar konnte nicht erstellt werden.");
+      if (typeof result?.image !== "string") throw new Error("Der Avatar konnte nicht erstellt werden.");
       setPreview(result.image);
       setHeadScale(1); setHeadOffsetX(0); setHeadOffsetY(0);
       setNotice("Vorschau erstellt. Prüfe, ob der Kopf gut zur Figur passt; gespeichert wird erst nach deiner Bestätigung.");
@@ -168,8 +181,7 @@ export function PersonalAvatarEditor({
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "save", pin, image: adjustedImage })
       });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error ?? "Der Avatar konnte nicht gespeichert werden.");
+      await readAvatarResponse(response, "Der Avatar konnte nicht gespeichert werden.");
       onSaved(true);
       setPreview("");
       setNotice("Dein KI-Avatar ist jetzt gespeichert und wird auf dem Dashboard angezeigt.");
@@ -187,8 +199,7 @@ export function PersonalAvatarEditor({
       const response = await fetch(`/api/profiles/${encodeURIComponent(profileId)}/avatar`, {
         method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pin })
       });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error ?? "Der KI-Avatar konnte nicht entfernt werden.");
+      await readAvatarResponse(response, "Der KI-Avatar konnte nicht entfernt werden.");
       onSaved(false);
       setPreview("");
       setNotice("Der persönliche Avatar wurde entfernt. Die ausgewählte Standardfigur bleibt erhalten.");
@@ -232,7 +243,7 @@ export function PersonalAvatarEditor({
         {isChild && <label className="personal-avatar-consent"><input type="checkbox" checked={guardianConsent} onChange={(event) => setGuardianConsent(event.target.checked)} />
           Ich bin sorgeberechtigt und stimme der KI-Verarbeitung dieses Kinderfotos zu.
         </label>}
-        <div className="personal-avatar-pin-entry"><span>Eltern-PIN · 4 Ziffern</span><button type="button" onClick={() => setPinModalOpen(true)}>{pin.length === 4 ? "PIN eingegeben · ändern" : "PIN mit Ziffernblock eingeben"}</button>{pin.length === 4 && <small>PIN ist für Vorschau und Speichern bereit.</small>}</div>
+        <div className="personal-avatar-pin-entry"><span>Eltern-PIN · 4 Ziffern</span><button type="button" onClick={() => { if (pin.length === 4) setPin(""); setPinModalOpen(true); }}>{pin.length === 4 ? "PIN eingegeben · ändern" : "PIN mit Ziffernblock eingeben"}</button>{pin.length === 4 && <small>PIN ist für Vorschau und Speichern bereit.</small>}</div>
         <div className="personal-avatar-actions">
           <button type="button" onClick={() => void generate()} disabled={busy || !photo || !consent || (isChild && !guardianConsent) || pin.length !== 4}>
             <Sparkles size={16} /> {busy ? "Avatar wird erstellt …" : "Vorschau erstellen"}
@@ -261,7 +272,7 @@ export function PersonalAvatarEditor({
         <div className="confirm-modal-card personal-avatar-pin-card" role="dialog" aria-modal="true" aria-labelledby="personal-avatar-pin-title" onClick={(event) => event.stopPropagation()}>
           <h3 id="personal-avatar-pin-title">Eltern-PIN eingeben</h3>
           <p>Tippe deine vierstellige PIN auf dem Ziffernblock ein.</p>
-          <TouchPinpad value={pin} onChange={setPin} />
+          <TouchPinpad value={pin} onChange={(value) => { setPin(value); setError(""); }} />
           <div className="confirm-modal-actions">
             <button type="button" className="confirm-cancel-btn" onClick={() => setPinModalOpen(false)}>Abbrechen</button>
             <button type="button" className="confirm-submit-btn primary" disabled={pin.length !== 4} onClick={() => setPinModalOpen(false)}>Weiter</button>

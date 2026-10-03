@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { isAllowedVideoUrl } from "@/lib/exercise-video";
-import { verifyAdminPin } from "@/lib/security";
+import { verifyAdminPinOrReject } from "@/lib/security";
 
 const createSchema = z.object({
   pin: z.string().regex(/^\d{4}$/),
@@ -39,7 +39,8 @@ export async function POST(request: Request) {
   const parsed = createSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Bitte Name, Trainingsart, Gerät und eine vollständige Anleitung samt Sicherheitshinweisen angeben." }, { status: 400 });
   if (!isAllowedVideoUrl(parsed.data.videoUrl ?? null)) return NextResponse.json({ error: "Bitte einen gültigen HTTPS-Link zu YouTube angeben." }, { status: 400 });
-  if (!(await verifyAdminPin(parsed.data.pin))) return NextResponse.json({ error: "Eltern-PIN ist nicht richtig." }, { status: 401 });
+  const pinError = await verifyAdminPinOrReject(parsed.data.pin);
+  if (pinError) return pinError;
 
   const client = await db();
   const equipment = await client.execute({

@@ -3,7 +3,7 @@ import path from "node:path";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getBackupConfiguredPath } from "@/lib/backup";
-import { verifyAdminPin } from "@/lib/security";
+import { verifyAdminPinOrReject } from "@/lib/security";
 
 const schema = z.object({ pin: z.string().regex(/^\d{4}$/) });
 
@@ -18,9 +18,9 @@ async function volumeInfo(targetPath: string) {
 
 export async function POST(request: Request) {
   const body = schema.safeParse(await request.json().catch(() => null));
-  if (!body.success || !(await verifyAdminPin(body.data.pin))) {
-    return NextResponse.json({ error: "Eltern-PIN ist nicht richtig." }, { status: 401 });
-  }
+  if (!body.success) return NextResponse.json({ error: "Ungültige Anfrage." }, { status: 400 });
+  const pinError = await verifyAdminPinOrReject(body.data.pin);
+  if (pinError) return pinError;
 
   const databaseUrl = process.env.DATABASE_URL ?? "file:./data/fitfamily.db";
   const isLocalFile = databaseUrl.startsWith("file:");

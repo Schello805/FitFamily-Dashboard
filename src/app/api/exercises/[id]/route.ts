@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { isAllowedVideoUrl } from "@/lib/exercise-video";
-import { verifyAdminPin } from "@/lib/security";
+import { verifyAdminPinOrReject } from "@/lib/security";
 import { getExerciseGuide, getExerciseGuideFromRecord } from "@/lib/exercise-guides";
 
 const schema = z.object({
@@ -56,7 +56,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (parsed.data.videoUrl !== undefined && !isAllowedVideoUrl(parsed.data.videoUrl)) {
     return NextResponse.json({ error: "Bitte einen gültigen HTTPS-Link zu YouTube oder einen leeren Eintrag angeben." }, { status: 400 });
   }
-  if (!(await verifyAdminPin(parsed.data.pin))) return NextResponse.json({ error: "Eltern-PIN ist nicht richtig." }, { status: 401 });
+  const pinError = await verifyAdminPinOrReject(parsed.data.pin);
+  if (pinError) return pinError;
 
   const client = await db();
   const currentResult = await client.execute({ sql: "SELECT name, type, equipment, instructions, safety_notes, video_url, active FROM exercises WHERE id = ?", args: [id] });
@@ -94,7 +95,8 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
   const { id } = await params;
   const body = await request.json().catch(() => null) as { pin?: unknown } | null;
   if (typeof body?.pin !== "string" || !/^\d{4}$/.test(body.pin)) return NextResponse.json({ error: "Bitte die vierstellige Eltern-PIN eingeben." }, { status: 400 });
-  if (!(await verifyAdminPin(body.pin))) return NextResponse.json({ error: "Eltern-PIN ist nicht richtig." }, { status: 401 });
+  const pinError = await verifyAdminPinOrReject(body.pin);
+  if (pinError) return pinError;
   const client = await db();
   const result = await client.execute({ sql: "UPDATE exercises SET active = 0 WHERE id = ? AND active = 1", args: [id] });
   if (!result.rowsAffected) return NextResponse.json({ error: "Aktive Übung nicht gefunden." }, { status: 404 });

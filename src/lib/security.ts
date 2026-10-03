@@ -34,6 +34,14 @@ export async function verifyAdminPin(pin: string) {
   return typeof hash === "string" && await bcrypt.compare(pin, hash);
 }
 
+export function adminPinRejectedResponse() {
+  return Response.json({ error: "Eltern-PIN ist nicht richtig." }, { status: 401 });
+}
+
+export async function verifyAdminPinOrReject(pin: string): Promise<Response | null> {
+  return await verifyAdminPin(pin) ? null : adminPinRejectedResponse();
+}
+
 export async function pairDevice(profileId: string, label: string | null) {
   const client = await db();
   const token = createToken();

@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { AVATAR_DESIGN_IDS, getStartingFitnessStages, GOALS } from "@/lib/domain";
-import { verifyAdminPin } from "@/lib/security";
+import { verifyAdminPinOrReject } from "@/lib/security";
 
 const schema = z.object({
   name: z.string().trim().min(1).max(30),
@@ -28,7 +28,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ pr
   if (body.data.startingFitness > getStartingFitnessStages(profileId, body.data.birthDate).length) {
     return NextResponse.json({ error: "Die gewählte Startstufe passt nicht zum Alter des Profils." }, { status: 400 });
   }
-  if (!(await verifyAdminPin(body.data.pin))) return NextResponse.json({ error: "Eltern-PIN ist nicht richtig." }, { status: 401 });
+  const pinError = await verifyAdminPinOrReject(body.data.pin);
+  if (pinError) return pinError;
 
   await client.batch([
     { sql: "UPDATE profiles SET name = ?, email = ?, birth_date = ?, avatar = ?, starting_fitness = ?, starting_fitness_stage = ?, goal = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", args: [body.data.name, body.data.email, body.data.birthDate, body.data.avatar, Math.min(body.data.startingFitness, 5), body.data.startingFitness, body.data.goal, profileId] },

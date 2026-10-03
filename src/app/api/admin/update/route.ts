@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { verifyAdminPin } from "@/lib/security";
+import { verifyAdminPinOrReject } from "@/lib/security";
 
 import { getAppRevision } from "@/lib/version";
 import { writeAdminLog } from "@/lib/admin-log";
@@ -34,9 +34,8 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const pin = searchParams.get("pin");
 
-  if (!pin || !(await verifyAdminPin(pin))) {
-    return NextResponse.json({ error: "Eltern-PIN ist nicht richtig" }, { status: 401 });
-  }
+  const pinError = await verifyAdminPinOrReject(pin ?? "");
+  if (pinError) return pinError;
 
   const cwd = process.cwd();
   let currentCommit = getGitCommit("rev-parse --short HEAD");
@@ -110,9 +109,9 @@ const postSchema = z.object({ pin: z.string().regex(/^\d{4}$/) });
 
 export async function POST(request: Request) {
   const body = postSchema.safeParse(await request.json());
-  if (!body.success || !(await verifyAdminPin(body.data.pin))) {
-    return NextResponse.json({ error: "Eltern-PIN ist nicht richtig" }, { status: 401 });
-  }
+  if (!body.success) return NextResponse.json({ error: "Ungültige Anfrage." }, { status: 400 });
+  const pinError = await verifyAdminPinOrReject(body.data.pin);
+  if (pinError) return pinError;
 
   await writeAdminLog("admin.update.started", "info", "Updateinstallation gestartet.").catch(() => undefined);
 
