@@ -373,10 +373,8 @@ export function ProfileView({
     }
   }
 
-  async function saveProfile(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  async function saveProfile(form: FormData, pin: string): Promise<boolean> {
     setBusy(true); setProfileNotice("");
-    const form = new FormData(event.currentTarget);
     try {
       await requestJson(`/api/profiles/${profile.id}`, "Profil konnte nicht gespeichert werden.", {
         method: "PATCH", headers: { "Content-Type": "application/json" },
@@ -387,7 +385,7 @@ export function ProfileView({
           avatar: editAvatar,
           startingFitness: Number(editStartingFitness),
           goal: form.get("goal"),
-          pin: editPin
+          pin
         })
       });
       setEditingProfile(false);
@@ -397,37 +395,40 @@ export function ProfileView({
         message: `Angaben für ${profile.name} wurden gespeichert.`
       });
       await refresh(true);
+      return true;
     } catch (error) {
       const err = error instanceof ApiRequestError
         ? error.message
         : "Keine Verbindung. Bitte prüfe das Heimnetz und versuche es erneut.";
       setProfileNotice(err);
       showToast({ type: "error", title: "Verbindungsfehler", message: err });
+      return false;
     } finally {
       setBusy(false);
     }
   }
 
-  async function resetProfileScore() {
-    if (editPin.length !== 4) {
+  async function resetProfileScore(pin: string): Promise<boolean> {
+    if (pin.length !== 4) {
       setProfileNotice("Bitte zuerst die 4-stellige Eltern-PIN eingeben.");
-      return;
+      return false;
     }
-    if (!window.confirm(`Punktestand von ${profile.name} wirklich auf 0 setzen? Der Trainingsverlauf bleibt erhalten.`)) return;
     setResettingScore(true);
     setProfileNotice("");
     try {
       await requestJson("/api/admin/reset-score", "Punktestand konnte nicht zurückgesetzt werden.", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pin: editPin, profileId: profile.id })
+        body: JSON.stringify({ pin, profileId: profile.id })
       });
       showToast({ type: "success", title: "Punktestand zurückgesetzt", message: "Der Trainingsverlauf bleibt erhalten." });
       await refresh(true);
+      return true;
     } catch (error) {
       const message = error instanceof Error ? error.message : "Punktestand konnte nicht zurückgesetzt werden.";
       setProfileNotice(message);
       showToast({ type: "error", title: "Zurücksetzen fehlgeschlagen", message });
+      return false;
     } finally {
       setResettingScore(false);
     }
@@ -889,7 +890,7 @@ Keine rückwirkenden 30-Tage-Summen, Etagen oder Trainingsobjekte einbauen. Gib 
         notice={profileNotice}
         onClose={() => setEditingProfile(false)}
         onResetIdleTimer={resetTimer}
-        onResetScore={() => void resetProfileScore()}
+        onResetScore={resetProfileScore}
         onSubmit={saveProfile}
         onAvatarSaved={(saved) => { setProfile((current) => ({ ...current, customAvatar: saved })); void refresh(true); }}
       />}

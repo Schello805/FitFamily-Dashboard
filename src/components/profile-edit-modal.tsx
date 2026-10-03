@@ -1,13 +1,14 @@
 "use client";
 
-import type { FormEventHandler } from "react";
+import { useState } from "react";
 import { Avatar } from "@/components/avatar";
-import { AvatarPicker } from "@/components/avatar-picker";
+import { avatarNames } from "@/components/avatar-picker";
 import { PersonalAvatarEditor } from "@/components/personal-avatar-editor";
 import { Modal } from "@/components/modal";
 import { TouchPinpad } from "@/components/touch-pinpad";
 import {
   GOALS,
+  AVATAR_DESIGN_IDS,
   getAvatarProgress,
   getFitnessStageCount,
   getStartingFitnessStages,
@@ -33,8 +34,8 @@ type ProfileEditModalProps = {
   resettingScore: boolean;
   onClose: () => void;
   onResetIdleTimer: () => void;
-  onResetScore: () => void;
-  onSubmit: FormEventHandler<HTMLFormElement>;
+  onResetScore: (pin: string) => Promise<boolean>;
+  onSubmit: (form: FormData, pin: string) => Promise<boolean>;
   onAvatarSaved: (saved: boolean) => void;
 };
 
@@ -59,13 +60,35 @@ export function ProfileEditModal({
   onSubmit,
   onAvatarSaved
 }: ProfileEditModalProps) {
+  const [pinAction, setPinAction] = useState<"save" | "reset" | null>(null);
+  const [pendingForm, setPendingForm] = useState<FormData | null>(null);
+  const locked = busy || resettingScore;
+
+  function closePin() {
+    if (locked) return;
+    setPinAction(null);
+    setPendingForm(null);
+    onPinChange("");
+  }
+
+  async function confirmPin() {
+    if (locked || pin.length !== 4) return;
+    const success = pinAction === "reset" ? await onResetScore(pin)
+      : pendingForm ? await onSubmit(pendingForm, pin) : false;
+    if (success) closePin();
+  }
   const stageCount = getFitnessStageCount(profile.id, birthDate || null);
   const preview = getAvatarProgress(startingFitness, profile.strengthMinutes, profile.enduranceMinutes, stageCount);
 
   return (
-    <Modal onClose={onClose} closeDisabled={busy}>
-      <form className="profile-edit-modal" role="dialog" aria-modal="true" aria-labelledby="profile-edit-title" onSubmit={onSubmit} onClick={(event) => event.stopPropagation()}>
-        <button type="button" className="modal-close" disabled={busy} onClick={onClose} aria-label="Profilbearbeitung schließen">×</button>
+    <Modal onClose={onClose} closeDisabled={locked}>
+      <form className="profile-edit-modal" role="dialog" aria-modal="true" aria-labelledby="profile-edit-title" onSubmit={(event) => {
+        event.preventDefault();
+        setPendingForm(new FormData(event.currentTarget));
+        onPinChange("");
+        setPinAction("save");
+      }} onClick={(event) => event.stopPropagation()}>
+        <button type="button" className="modal-close" disabled={locked} onClick={onClose} aria-label="Profilbearbeitung schließen">×</button>
         <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
           <span className="setup-badge">Profil bearbeiten</span>
           {!isMobile && (
@@ -109,15 +132,11 @@ export function ProfileEditModal({
           </label>
           <label>Trainingsziel<select name="goal" defaultValue={profile.goal}>{GOALS.map((goal) => <option key={goal}>{goal}</option>)}</select></label>
         </div>
-        <div className="avatar-choice">
-          <span>Figur im Dashboard</span>
-          <AvatarPicker value={avatar} onChange={onAvatarChange} />
-        </div>
-        <div className="profile-edit-pin-field">
-          <span>Eltern-PIN · 4 Ziffern</span>
-          <TouchPinpad value={pin} disabled={busy || resettingScore} onChange={onPinChange} />
-          <input name="pin" type="hidden" value={pin} required />
-        </div>
+        <label>Figur im Dashboard
+          <select name="avatar" value={avatar} onChange={(event) => onAvatarChange(event.target.value as AvatarDesignId)}>
+            {AVATAR_DESIGN_IDS.map((id) => <option key={id} value={id}>{avatarNames[id]}</option>)}
+          </select>
+        </label>
         <PersonalAvatarEditor
           profileId={profile.id}
           profileName={profile.name}
@@ -131,10 +150,23 @@ export function ProfileEditModal({
           onSaved={onAvatarSaved}
         />
         {notice && <p className="form-error" role="alert">{notice}</p>}
-        <button className="primary-submit" disabled={busy}>{busy ? "Wird gespeichert …" : "Änderungen speichern"}</button>
-        <button type="button" className="profile-reset-score-button" disabled={busy || resettingScore} onClick={onResetScore}>
+        <button className="primary-submit" disabled={locked}>{busy ? "Wird gespeichert …" : "Änderungen speichern"}</button>
+        <button type="button" className="profile-reset-score-button" disabled={locked} onClick={() => { onPinChange(""); setPinAction("reset"); }}>
           {resettingScore ? "Punkte werden zurückgesetzt …" : "Punktestand auf 0 setzen"}
         </button>
+        {pinAction && <Modal className="personal-avatar-pin-backdrop" onClose={closePin} closeDisabled={locked}>
+          <div className="confirm-modal-card personal-avatar-pin-card" role="dialog" aria-modal="true" aria-labelledby="profile-pin-title">
+            <button type="button" className="modal-close" aria-label="PIN-Eingabe schließen" disabled={locked} onClick={closePin}>×</button>
+            <h3 id="profile-pin-title">Eltern-PIN eingeben</h3>
+            <p>{pinAction === "reset" ? `Punktestand von ${profile.name} auf 0 setzen? Der Trainingsverlauf bleibt erhalten.` : "Bestätige das Speichern deiner Profiländerungen."}</p>
+            <TouchPinpad value={pin} onChange={onPinChange} disabled={locked} />
+            {notice && <p className="form-error" role="alert">{notice}</p>}
+            <div className="confirm-modal-actions">
+              <button type="button" className="confirm-cancel-btn" disabled={locked} onClick={closePin}>Abbrechen</button>
+              <button type="button" className="confirm-submit-btn primary" disabled={locked || pin.length !== 4} onClick={() => void confirmPin()}>{locked ? "Wird verarbeitet …" : pinAction === "reset" ? "Auf 0 setzen" : "Speichern"}</button>
+            </div>
+          </div>
+        </Modal>}
       </form>
     </Modal>
   );

@@ -8,6 +8,7 @@ import { renderToString } from "react-dom/server";
 import { hydrateRoot } from "react-dom/client";
 import { Dashboard } from "@/components/dashboard";
 import { ProfileView } from "@/components/profile-view";
+import { ProfileEditModal } from "@/components/profile-edit-modal";
 import { ActivityTrendChart } from "@/components/activity-trend-chart";
 import { Modal } from "@/components/modal";
 import ErrorPage from "@/app/error";
@@ -43,6 +44,27 @@ afterEach(() => {
 });
 
 describe("dashboard interactions and freshness", () => {
+  it("asks for a PIN only when saving profile changes and retains the draft on cancel", async () => {
+    const save = vi.fn(async (form: FormData, pin: string) => Boolean(form && pin));
+    function Editor() {
+      const [pin, setPin] = useState("");
+      return <ProfileEditModal profile={profile} avatar="papa" onAvatarChange={() => {}} birthDate={profile.birthDate ?? ""} onBirthDateChange={() => {}} startingFitness={1} onStartingFitnessChange={() => {}} pin={pin} onPinChange={setPin} secondsLeft={0} isMobile busy={false} resettingScore={false} notice="" onClose={() => {}} onResetIdleTimer={() => {}} onResetScore={async () => true} onSubmit={save} onAvatarSaved={() => {}} />;
+    }
+    render(<Editor />);
+    expect(screen.queryByRole("group", { name: "PIN-Tastenfeld" })).not.toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Figur im Dashboard" })).toHaveValue("papa");
+    fireEvent.change(screen.getByLabelText("E-Mail-Adresse"), { target: { value: "test@example.com" } });
+    fireEvent.click(screen.getByRole("button", { name: "Änderungen speichern" }));
+    expect(save).not.toHaveBeenCalled();
+    expect(screen.getByRole("group", { name: "PIN-Tastenfeld" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Abbrechen" }));
+    expect(screen.getByLabelText("E-Mail-Adresse")).toHaveValue("test@example.com");
+    fireEvent.click(screen.getByRole("button", { name: "Änderungen speichern" }));
+    for (const digit of ["2", "4", "6", "8"]) fireEvent.click(screen.getByRole("button", { name: digit }));
+    fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
+    await waitFor(() => expect(save).toHaveBeenCalled());
+    expect(save.mock.calls[0]?.[1]).toBe("2468");
+  });
   it("hydrates chart tooltips with real activity data without rebuilding the page", async () => {
     const chart = <ActivityTrendChart points={[{
       date: "2026-10-03", label: "03.10.", resolution: "Tag", activityMinutes: 42,

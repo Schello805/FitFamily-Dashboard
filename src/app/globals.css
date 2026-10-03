@@ -1382,8 +1382,9 @@ body::before {
 .profile-edit-intro { margin: -7px 0 14px; color: var(--muted); font-size: 12px; line-height: 1.45; }
 .profile-edit-basics, .profile-edit-goals { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .profile-edit-basics > label { min-width: 0; margin-top: 0; }
-.profile-edit-goals { gap: 0 16px; }
+.profile-edit-goals { gap: 0 16px; align-items: start; }
 .profile-edit-goals > label { min-width: 0; }
+.profile-edit-goals > label { grid-template-rows: auto 49px auto; align-content: start; }
 .profile-field-hint { display: block; margin-top: 3px; color: var(--muted); font-size: 10px; font-weight: 500; line-height: 1.4; }
 .profile-edit-preview-row { display: flex; align-items: center; gap: 16px; padding: 12px 14px; border-radius: 16px; background: var(--subtle-bg); border: 1px solid var(--line); margin: 6px 0 14px; }
 .profile-edit-preview-row .avatar-generated { width: 76px; height: 104px; }

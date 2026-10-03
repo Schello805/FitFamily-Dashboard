@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { AVATAR_DESIGN_IDS, type AvatarDesignId } from "@/lib/domain";
 
-const avatarNames: Record<AvatarDesignId, string> = {
+export const avatarNames: Record<AvatarDesignId, string> = {
   mama: "Mama",
   papa: "Papa",
   fabian: "Fabian",
