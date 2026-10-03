@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { DELETE, GET, POST } from "./route";
-import { POST as readSyncLogs } from "./log/route";
+import { POST as readAdminLogs } from "@/app/api/admin/logs/route";
 import { DELETE as deleteTrainingEntry } from "@/app/api/manual-training/route";
 import { db } from "@/lib/db";
 import { hashToken, setAdminPin } from "@/lib/security";
@@ -98,17 +98,17 @@ describe("Apple Health sync endpoint", () => {
     }));
     expect(loggedCheck.status).toBe(200);
 
-    const unauthorized = await readSyncLogs(new Request("http://localhost/api/sync/apple-health/log", {
+    const unauthorized = await readAdminLogs(new Request("http://localhost/api/admin/logs", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ profileId, pin: "0000" })
+      body: JSON.stringify({ pin: "0000", filter: "health" })
     }));
     expect(unauthorized.status).toBe(401);
 
-    const response = await readSyncLogs(new Request("http://localhost/api/sync/apple-health/log", {
+    const response = await readAdminLogs(new Request("http://localhost/api/admin/logs", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ profileId, pin: "2468" })
+      body: JSON.stringify({ pin: "2468", filter: "health" })
     }));
     const result = await response.json();
     expect(response.status).toBe(200);
@@ -123,10 +123,10 @@ describe("Apple Health sync endpoint", () => {
     }));
     expect(invalid.status).toBe(400);
 
-    const response = await readSyncLogs(new Request("http://localhost/api/sync/apple-health/log", {
+    const response = await readAdminLogs(new Request("http://localhost/api/admin/logs", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ profileId, pin: "2468" })
+      body: JSON.stringify({ pin: "2468", filter: "health" })
     }));
     const result = await response.json();
     const validationLog = result.logs.find((entry: { id: string; action: string; details: { reason?: string; message?: string } }) =>
@@ -287,10 +287,26 @@ describe("Apple Health sync endpoint", () => {
         body: JSON.stringify(payload)
       }));
       const first = await send();
+      const firstBody = await first.json();
       const second = await send();
       expect(first.status).toBe(200);
+      expect(firstBody.activityDays).toEqual([
+        { date: dates[0], fields: ["exerciseMinutes", "stepCount", "cyclingDistanceKm"] },
+        { date: dates[1], fields: ["exerciseMinutes", "stepCount", "cyclingDistanceKm"] }
+      ]);
       expect(second.status).toBe(200);
       expect((await second.json()).activityDaysSynced).toBe(2);
+
+      const syncLogResponse = await readAdminLogs(new Request("http://localhost/api/admin/logs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pin: "2468", filter: "health" })
+      }));
+      const syncLogBody = await syncLogResponse.json();
+      expect(syncLogResponse.status).toBe(200);
+      expect(syncLogBody.logs.some((entry: { details: { activityDays?: { fields?: string[] }[] } }) =>
+        entry.details.activityDays?.some((day) => day.fields?.includes("cyclingDistanceKm"))
+      )).toBe(true);
 
       const saved = await client.execute({
         sql: "SELECT date, exercise_minutes, step_count, cycling_distance_km FROM apple_health_daily WHERE profile_id = ? AND date IN (?, ?) ORDER BY date",

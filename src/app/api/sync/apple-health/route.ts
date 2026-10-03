@@ -346,6 +346,7 @@ export async function POST(request: Request) {
   const oldestAllowedTimestamp = todayTimestamp - 29 * 24 * 60 * 60 * 1000;
   let activityDaysSynced = 0;
   let hasActivityData = false;
+  const syncedActivityDays: { date: string; fields: string[] }[] = [];
 
   for (const day of dailyActivity) {
     const dayTimestamp = dateTimestamp(day.date);
@@ -376,6 +377,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Der Sync-Schlüssel wurde während des Imports getrennt. Es wurden keine Aktivitätswerte übernommen." }, { status: 401 });
     }
     activityDaysSynced++;
+    syncedActivityDays.push({ date: day.date, fields: providedFields.map(({ key }) => key) });
   }
 
   const message = importedCount > 0
@@ -392,6 +394,7 @@ export async function POST(request: Request) {
     imported: importedCount,
     skipped: skippedCount,
     activityDaysSynced,
+    activityDays: syncedActivityDays,
     pointsEarned: totalPointsEarned,
     message
   });
@@ -401,6 +404,7 @@ export async function POST(request: Request) {
     imported: importedCount,
     skipped: skippedCount,
     activityDaysSynced,
+    activityDays: syncedActivityDays,
     pointsEarned: totalPointsEarned,
     profileId,
     profileName,

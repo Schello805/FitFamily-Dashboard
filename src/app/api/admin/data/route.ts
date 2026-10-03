@@ -2,24 +2,10 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { verifyAdminPin } from "@/lib/security";
 import { writeAdminLog } from "@/lib/admin-log";
+import { DATA_IMPORT_ORDER, DATA_TABLE_SPECS, DATA_TRANSFER_TABLES, isPortableSetting } from "@/lib/data-transfer-schema";
 
 type Cell = string | number | boolean | null;
 type Row = Record<string, Cell>;
-type Spec = { columns: string[]; keys: string[]; required: string[] };
-
-const specs: Record<string, Spec> = {
-  profiles: { columns: ["id", "name", "email", "color", "avatar", "starting_fitness", "birth_date", "score_baseline", "score_reset_at", "target_reset_at", "goal", "created_at", "updated_at"], keys: ["id"], required: ["id", "name", "color", "avatar"] },
-  exercises: { columns: ["id", "name", "type", "equipment", "instructions", "safety_notes", "video_url", "active"], keys: ["id"], required: ["id", "name", "type", "equipment"] },
-  equipment_inventory: { columns: ["id", "name", "quantity", "available", "active", "created_at", "updated_at", "video_url", "instructions"], keys: ["id"], required: ["id", "name"] },
-  training_sessions: { columns: ["id", "profile_id", "started_at", "ended_at", "status", "source", "external_id", "health_title", "health_calories", "health_distance_km", "edited", "created_at"], keys: ["id"], required: ["id", "profile_id", "started_at", "status"] },
-  training_segments: { columns: ["id", "session_id", "type", "exercise_id", "started_at", "ended_at"], keys: ["id"], required: ["id", "session_id", "type", "started_at"] },
-  training_plans: { columns: ["id", "profile_id", "title", "goal", "target_date", "status", "plan_json", "created_at", "updated_at"], keys: ["id"], required: ["id", "profile_id", "title", "goal", "plan_json"] },
-  apple_health_daily: { columns: ["profile_id", "date", "move_calories", "move_goal", "exercise_minutes", "exercise_goal", "stand_hours", "stand_goal", "step_count", "walking_running_distance_km", "flights_climbed", "updated_at"], keys: ["profile_id", "date"], required: ["profile_id", "date"] },
-  apple_health_ignored_workouts: { columns: ["profile_id", "external_id", "deleted_at"], keys: ["profile_id", "external_id"], required: ["profile_id", "external_id"] },
-  settings: { columns: ["key", "value", "updated_at"], keys: ["key"], required: ["key", "value"] }
-};
-const blockedSettings = new Set(["admin_pin_hash", "nas_backup_key", "nas_backup_path"]);
-
 function normalize(value: unknown) {
   const errors: string[] = [];
   const rows: Record<string, Row[]> = {};
@@ -32,7 +18,8 @@ function normalize(value: unknown) {
   if (!data || typeof data !== "object" || Array.isArray(data)) return { errors: [...errors, "Der Datenbereich fehlt oder ist ungültig."], rows, counts };
   const source = data as Record<string, unknown>;
 
-  for (const [table, spec] of Object.entries(specs)) {
+  for (const table of DATA_TRANSFER_TABLES) {
+    const spec: { columns: readonly string[]; keys: readonly string[]; required: readonly string[] } = DATA_TABLE_SPECS[table];
     const list = source[table];
     if (list === undefined && table !== "profiles") {
       rows[table] = [];
@@ -52,7 +39,7 @@ function normalize(value: unknown) {
         continue;
       }
       const sourceRow = item as Record<string, unknown>;
-      if (table === "settings" && typeof sourceRow.key === "string" && (blockedSettings.has(sourceRow.key) || sourceRow.key.startsWith("ai_key_"))) continue;
+      if (table === "settings" && typeof sourceRow.key === "string" && !isPortableSetting(sourceRow.key)) continue;
       for (const field of spec.required) {
         if (!(field in sourceRow) || sourceRow[field] === null || sourceRow[field] === "") errors.push(`${table}, Zeile ${index + 1}: Pflichtfeld „${field}“ fehlt.`);
       }
@@ -102,10 +89,9 @@ async function checkReferences(rows: Record<string, Row[]>) {
 
 async function mergeData(rows: Record<string, Row[]>) {
   const client = await db();
-  const order = ["profiles", "exercises", "equipment_inventory", "training_sessions", "training_plans", "training_segments", "apple_health_daily", "apple_health_ignored_workouts", "settings"];
   const statements: { sql: string; args: (string | number | null)[] }[] = [];
-  for (const table of order) {
-    const spec = specs[table];
+  for (const table of DATA_IMPORT_ORDER) {
+    const spec: { columns: readonly string[]; keys: readonly string[]; required: readonly string[] } = DATA_TABLE_SPECS[table];
     for (const row of rows[table]) {
       const columns = spec.columns.filter((column) => column in row);
       const keys = spec.keys.filter((key) => columns.includes(key));

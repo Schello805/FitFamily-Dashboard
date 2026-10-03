@@ -3,6 +3,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { verifyAdminPinOrReject } from "@/lib/security";
 import { writeAdminLog } from "@/lib/admin-log";
+import { DATA_TABLE_SPECS, DATA_TRANSFER_TABLES, isPortableSetting } from "@/lib/data-transfer-schema";
 
 const schema = z.object({ pin: z.string().regex(/^\d{4}$/) });
 
@@ -13,17 +14,19 @@ export async function POST(request: Request) {
   if (pinError) return pinError;
   try {
     const client = await db();
-    const tableNames = [
-      "profiles", "exercises", "equipment_inventory", "training_sessions",
-      "training_segments", "training_plans", "apple_health_daily", "apple_health_ignored_workouts"
-    ] as const;
     const data: Record<string, unknown> = {};
-    for (const table of tableNames) data[table] = (await client.execute(`SELECT * FROM ${table}`)).rows;
-    const settings = await client.execute(`SELECT key, value, updated_at FROM settings
-      WHERE key NOT IN ('admin_pin_hash', 'nas_backup_key', 'nas_backup_path')
-        AND key NOT LIKE 'ai_key_%'`);
-    data.settings = settings.rows;
-    data.excluded = { auditLogs: "separat in der geschützten Protokollansicht", secrets: "PIN-, KI- und Backup-Schlüssel werden nicht exportiert" };
+    for (const table of DATA_TRANSFER_TABLES) {
+      const columns = DATA_TABLE_SPECS[table].columns.join(", ");
+      const rows = (await client.execute(`SELECT ${columns} FROM ${table}`)).rows;
+      data[table] = table === "settings"
+        ? rows.filter((row) => isPortableSetting(String(row.key)))
+        : rows;
+    }
+    data.excluded = {
+      auditLogs: "separat in der geschützten Protokollansicht",
+      credentials: "PIN-, KI- und Backup-Schlüssel sowie Apple-Health-Tokens werden nicht exportiert",
+      deviceLinks: "gekoppelte Geräte und Einmal-Übergabetokens werden nicht exportiert"
+    };
     const date = new Date().toISOString().slice(0, 10);
     const exportedAt = new Date().toISOString();
     await writeAdminLog("admin.export.success", "info", "JSON-Datenexport erstellt", { exportedAt });

@@ -32,13 +32,55 @@ type BackupStatus = {
   backupCount: number;
   lastBackup: BackupInfo | null;
 };
-type AdminLogFilter = "all" | "errors" | "updates" | "backups";
+type AdminLogFilter = "all" | "errors" | "updates" | "backups" | "health";
 type AdminLogEntry = { id: string; action: string; createdAt: string; details: Record<string, unknown> };
 type SystemStatus = {
   database: { kind: "local" | "remote"; location: string; sizeBytes: number | null; error: string | null };
   applicationVolume: { availableBytes: number | null; totalBytes: number | null; error: string | null };
-  backupVolume: { availableBytes: number | null; totalBytes: number | null; error: string | null } | null;
 };
+
+const HEALTH_ACTIVITY_FIELD_LABELS: Record<string, string> = {
+  moveCalories: "Aktivitätsenergie",
+  moveGoal: "Bewegen-Ziel",
+  exerciseMinutes: "Trainingsminuten",
+  exerciseGoal: "Trainingsziel",
+  standHours: "Stehstunden",
+  standGoal: "Stehziel",
+  stepCount: "Schritte",
+  walkingRunningDistanceKm: "Geh-/Laufstrecke",
+  cyclingDistanceKm: "Radstrecke",
+  flightsClimbed: "Etagen"
+};
+
+function summarizeAdminLog(entry: AdminLogEntry) {
+  if (!entry.action.startsWith("health.apple_sync.")) {
+    return typeof entry.details.message === "string" ? entry.details.message : entry.action;
+  }
+
+  const parts: string[] = [];
+  if (entry.details.received !== undefined) parts.push(`${entry.details.received} Trainingseinheiten empfangen`);
+  if (entry.details.imported !== undefined) parts.push(`${entry.details.imported} Trainingseinheiten importiert`);
+  if (entry.details.skipped !== undefined) parts.push(`${entry.details.skipped} Trainingseinheiten übersprungen`);
+  if (entry.details.activityDaysSynced !== undefined) {
+    const count = Number(entry.details.activityDaysSynced);
+    parts.push(`${count} ${count === 1 ? "Tagesdatensatz gespeichert" : "Tagesdatensätze gespeichert"}`);
+  }
+
+  const activityDays = Array.isArray(entry.details.activityDays)
+    ? entry.details.activityDays.flatMap((value) => {
+        if (!value || typeof value !== "object") return [];
+        const day = value as { date?: unknown; fields?: unknown };
+        if (typeof day.date !== "string" || !Array.isArray(day.fields)) return [];
+        const fields = day.fields.filter((field): field is string => typeof field === "string")
+          .map((field) => HEALTH_ACTIVITY_FIELD_LABELS[field] ?? field);
+        return fields.length ? [`${day.date}: ${fields.join(", ")}`] : [];
+      })
+    : [];
+  if (activityDays.length) parts.push(`Tageswerte – ${activityDays.join("; ")}`);
+  if (typeof entry.details.message === "string") parts.push(entry.details.message);
+  if (!parts.length) parts.push(entry.action.endsWith(".failed") ? "Apple-Health-Sync fehlgeschlagen." : "Apple-Health-Sync eingegangen.");
+  return `Apple Health · ${parts.join(" · ")}`;
+}
 
 type ConfirmModalConfig = {
   title: string;
@@ -646,7 +688,7 @@ export function AdminView({
     const text = adminLogs.map((entry) => {
       const timestamp = formatGermanLogTimestamp(entry.createdAt);
       const level = entry.details.level === "error" ? "FEHLER" : entry.details.level === "warning" ? "WARNUNG" : "INFO";
-      const message = typeof entry.details.message === "string" ? entry.details.message : entry.action;
+      const message = summarizeAdminLog(entry);
       return `[${timestamp}] ${level} · ${message}`;
     }).join("\n");
     if (!text) {
@@ -1282,7 +1324,7 @@ export function AdminView({
           <HardDrive className={runningBackup || testingNas ? "spin" : ""} />
           <div>
             <h2>NAS-Datensicherung</h2>
-            <p>Automatisches und manuelles Backup der Datenbank auf deine Netzwerkfreigabe</p>
+            <p>Verschlüsselter vollständiger Datenbank-Snapshot auf deiner Netzwerkfreigabe</p>
           </div>
         </div>
 
@@ -1456,7 +1498,7 @@ export function AdminView({
         )}
 
         <p className="data-text" style={{ marginTop: "14px" }}>
-          Sichert den vollständigen Datenbestand verschlüsselt ab. Alte Stände werden automatisch nach 7 Tagen, 4 Wochen und 12 Monaten rotiert.
+          Der NAS-Snapshot enthält den vollständigen Datenbestand. Eine Wiederherstellung aus diesem Snapshot ist derzeit nicht in der App verfügbar. Alte Stände werden automatisch nach 7 Tagen, 4 Wochen und 12 Monaten rotiert.
         </p>
       </article>
       </>}
@@ -1492,26 +1534,25 @@ export function AdminView({
           {updateCountdown !== null && <div className="update-countdown-alert">Dienst wurde neu gestartet. Das Dashboard lädt neu in <b>{updateCountdown}</b> Sekunden …</div>}
         </article>
         <article className="wide">
-          <div className="admin-title"><HardDrive /><div><h2>Speicherstatus</h2><p>Datenbankdatei und freier Speicher auf dem Server</p></div></div>
+          <div className="admin-title"><HardDrive /><div><h2>Speicherstatus</h2><p>Datenbankdatei und freier Speicher auf dem App-Server</p></div></div>
           <div className="update-status-grid data-status-grid">
             <div className="update-meta-box"><span>Datenbank</span><b>{systemStatus ? (systemStatus.database.sizeBytes == null ? "Größe nicht ermittelbar" : formatStorage(systemStatus.database.sizeBytes)) : "Noch nicht geladen"}</b><small>{systemStatus?.database.kind === "remote" ? "Externe Datenbank" : systemStatus?.database.location ?? ""}{systemStatus?.database.error ? ` · ${systemStatus.database.error}` : ""}</small></div>
             <div className="update-meta-box"><span>Freier Speicher · App-Server</span><b>{systemStatus ? formatStorage(systemStatus.applicationVolume.availableBytes) : "Noch nicht geladen"}</b><small>{systemStatus?.applicationVolume.totalBytes != null ? `von ${formatStorage(systemStatus.applicationVolume.totalBytes)} gesamt` : systemStatus?.applicationVolume.error ?? ""}</small></div>
-            {systemStatus?.backupVolume && <div className="update-meta-box"><span>Freier Speicher · NAS</span><b>{formatStorage(systemStatus.backupVolume.availableBytes)}</b><small>{systemStatus.backupVolume.totalBytes != null ? `von ${formatStorage(systemStatus.backupVolume.totalBytes)} gesamt` : systemStatus.backupVolume.error ?? ""}</small></div>}
           </div>
           <div className="data-tools-row">
-            <span>{systemStatus ? "Standort und Größe werden lokal ermittelt; bei externer Datenbank kann die DB-Größe nicht ausgelesen werden." : "Speicherwerte werden nach dem Laden angezeigt."}</span>
+            <span>{systemStatus ? "NAS-Kapazität wird nicht angezeigt, da ein nicht eingebundener Backup-Pfad sonst die Serverwerte liefern kann. Erreichbarkeit und Schreibrechte prüfst du unter Datensicherung." : "Speicherwerte werden nach dem Laden angezeigt."}</span>
             <button type="button" className="update-secondary-btn" disabled={loadingSystemStatus} onClick={() => void refreshSystemStatus()}><RefreshCw className={loadingSystemStatus ? "spin" : ""} /> {loadingSystemStatus ? "Wird aktualisiert …" : "Speicherstatus aktualisieren"}</button>
           </div>
         </article>
 
         <article>
-          <div className="admin-title"><Download /><div><h2>Daten exportieren</h2><p>JSON-Datei als zusätzliche Sicherung herunterladen</p></div></div>
+          <div className="admin-title"><Download /><div><h2>Daten exportieren</h2><p>Portable Daten zum Übertragen oder Zusammenführen herunterladen</p></div></div>
           <ul><li><CheckCircle2 /> Profile, Geräte, Übungen und Pläne</li><li><CheckCircle2 /> Trainings- und Apple-Health-Daten</li><li><CheckCircle2 /> Keine PIN-, KI- oder Backup-Schlüssel</li></ul>
           <button type="button" onClick={() => void download()}><Download /> JSON herunterladen</button>
         </article>
 
         <article>
-          <div className="admin-title"><Upload /><div><h2>Daten importieren</h2><p>FitFamily-JSON vor dem Übernehmen prüfen</p></div></div>
+          <div className="admin-title"><Upload /><div><h2>JSON-Daten zusammenführen</h2><p>Datei prüfen und portable Daten ergänzen oder aktualisieren</p></div></div>
           <label className="data-import-file">JSON-Datei auswählen<input type="file" accept=".json,application/json" onChange={(event) => { setImportFile(event.target.files?.[0] ?? null); setImportPayload(null); setImportValidation(null); }} /></label>
           <div className="data-import-actions">
             <button type="button" className="update-secondary-btn" disabled={!importFile || validatingImport} onClick={() => void validateImportFile()}>{validatingImport ? "Prüfe Datei …" : "Datei prüfen"}</button>
@@ -1521,25 +1562,26 @@ export function AdminView({
             <b>{importValidation.valid ? `Datei gültig · ${importValidation.total} Datensätze` : "Datei konnte nicht freigegeben werden"}</b>
             {importValidation.valid && <p>{Object.entries(importValidation.counts).filter(([, count]) => count > 0).map(([name, count]) => `${name.replaceAll("_", " ")}: ${count}`).join(" · ")}</p>}
             {importValidation.errors.map((message, index) => <p key={`${index}-${message}`}>{message}</p>)}
-            {importValidation.valid && <small>Der Import ergänzt oder aktualisiert gleiche IDs. Nicht enthaltene lokale Datensätze bleiben erhalten. Zugangsschlüssel werden nicht importiert.</small>}
+            {importValidation.valid && <small>Der JSON-Import ist eine Zusammenführung, keine vollständige Wiederherstellung: gleiche IDs werden aktualisiert, nicht enthaltene lokale Datensätze bleiben erhalten. Zugangsschlüssel werden nicht importiert.</small>}
           </div>}
         </article>
       </>}
       {activeAdminSection === "protokolle" && <>
         <article className="wide admin-logs-card">
-          <div className="admin-title"><ClipboardList /><div><h2>Betriebsprotokoll</h2><p>App-Fehler sowie Update-, Export-/Import- und Backup-Ereignisse. Apple-Health-Syncs bleiben separat im Profil und PIN-geschützt.</p></div></div>
+          <div className="admin-title"><ClipboardList /><div><h2>Betriebsprotokoll</h2><p>App-Fehler, Updates, Daten- und Backup-Ereignisse sowie Apple-Health-Synchronisierungen.</p></div></div>
           <div className="admin-log-toolbar">
             <div className="admin-log-filters" role="group" aria-label="Protokoll filtern">
-              {([{ id: "all", label: "Alle" }, { id: "errors", label: "Fehler" }, { id: "updates", label: "Updates" }, { id: "backups", label: "Backups & Daten" }] as const).map(({ id, label }) => <button key={id} type="button" className={logFilter === id ? "active" : ""} onClick={() => { setLogFilter(id); void loadAdminLogs(id); }}>{label}</button>)}
+              {([{ id: "all", label: "Alle" }, { id: "errors", label: "Fehler" }, { id: "updates", label: "Updates" }, { id: "backups", label: "Backups & Daten" }, { id: "health", label: "Apple Health" }] as const).map(({ id, label }) => <button key={id} type="button" className={logFilter === id ? "active" : ""} onClick={() => { setLogFilter(id); void loadAdminLogs(id); }}>{label}</button>)}
             </div>
             <div><button type="button" className="update-secondary-btn" disabled={loadingLogs} onClick={() => void loadAdminLogs()}><RefreshCw className={loadingLogs ? "spin" : ""} /> Aktualisieren</button><button type="button" className="update-secondary-btn" disabled={!adminLogs.length || copyingLogs} onClick={() => void copyAdminLogs()}><Copy /> {copyingLogs ? "Kopiere …" : "Einträge kopieren"}</button></div>
           </div>
-          <p className="data-text admin-log-privacy">Bis zu 500 Einträge. Protokolle enthalten keine Health-Sync-Ereignisse und werden nur nach PIN-Freigabe geladen.</p>
+          <p className="data-text admin-log-privacy">Bis zu 500 Einträge. Apple-Health-Ereignisse zeigen empfangene Trainingseinheiten und gespeicherte Tagesfelder, aber keine einzelnen Gesundheitswerte. Laden nur nach PIN-Freigabe.</p>
           {loadingLogs ? <p className="data-text">Protokolle werden geladen …</p> : adminLogs.length ? <ol className="admin-log-list">
             {adminLogs.map((entry) => {
+              const isHealth = entry.action.startsWith("health.apple_sync.");
               const isError = entry.details.level === "error" || entry.action.endsWith(".error") || entry.action.endsWith(".failed");
               const timestamp = new Date(entry.createdAt.replace(" ", "T") + (entry.createdAt.endsWith("Z") ? "" : "Z"));
-              return <li key={entry.id} className={isError ? "error" : ""}><div><span className="admin-log-level">{isError ? "FEHLER" : entry.details.level === "warning" ? "WARNUNG" : "INFO"}</span><time>{timestamp.toLocaleString("de-DE")}</time></div><b>{typeof entry.details.message === "string" ? entry.details.message : entry.action}</b><small>{entry.action}</small></li>;
+              return <li key={entry.id} className={isError ? "error" : ""}><div><span className="admin-log-level">{isError ? "FEHLER" : isHealth ? "APPLE HEALTH" : entry.details.level === "warning" ? "WARNUNG" : "INFO"}</span><time>{timestamp.toLocaleString("de-DE")}</time></div><b>{summarizeAdminLog(entry)}</b><small>{entry.action}</small></li>;
             })}
           </ol> : <div className="admin-log-empty"><CheckCircle2 /><span>{logFilter === "errors" ? "Keine protokollierten Fehler gefunden." : "Für diesen Filter gibt es noch keine Einträge."}</span></div>}
         </article>

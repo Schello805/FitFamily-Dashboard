@@ -2,7 +2,6 @@ import { stat, statfs } from "node:fs/promises";
 import path from "node:path";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { getBackupConfiguredPath } from "@/lib/backup";
 import { verifyAdminPinOrReject } from "@/lib/security";
 
 const schema = z.object({ pin: z.string().regex(/^\d{4}$/) });
@@ -46,8 +45,5 @@ export async function POST(request: Request) {
     applicationVolume = await volumeInfo(process.cwd());
   }
 
-  const backupPath = await getBackupConfiguredPath();
-  const backupVolume = backupPath ? await volumeInfo(backupPath) : null;
-
-  return NextResponse.json({ database, applicationVolume, backupVolume }, { headers: { "Cache-Control": "no-store" } });
+  return NextResponse.json({ database, applicationVolume }, { headers: { "Cache-Control": "no-store" } });
 }

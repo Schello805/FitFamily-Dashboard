@@ -25,10 +25,8 @@ import { showToast } from "@/components/toast";
 import { AppleActivityRings } from "@/components/apple-activity-rings";
 import { TouchPinpad } from "@/components/touch-pinpad";
 import { ApiRequestError, requestJson } from "@/lib/api-client";
-import { formatGermanLogTimestamp } from "@/lib/date-format";
 
 type Exercise = { id: string; name: string; type: string; equipment: string };
-type AppleHealthSyncLog = { id: string; action: string; createdAt: string; details: Record<string, unknown> };
 
 async function copyTextToClipboard(text: string): Promise<boolean> {
   if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
@@ -78,11 +76,10 @@ export function ProfileView({
   const [editingProfile, setEditingProfile] = useState(false);
   const [healthModal, setHealthModal] = useState(false);
   const [testingHealth, setTestingHealth] = useState(false);
-  const [healthPinAction, setHealthPinAction] = useState<"create" | "revoke" | "delete" | "logs">();
+  const [healthPinAction, setHealthPinAction] = useState<"create" | "revoke" | "delete">();
   const [healthPin, setHealthPin] = useState("");
   const [healthPinError, setHealthPinError] = useState("");
   const [healthPinBusy, setHealthPinBusy] = useState(false);
-  const [healthSyncLogs, setHealthSyncLogs] = useState<AppleHealthSyncLog[] | null>(null);
   const [healthSyncToken, setHealthSyncToken] = useState("");
   const [healthTokenConfigured, setHealthTokenConfigured] = useState(false);
   const [showHealthSyncToken, setShowHealthSyncToken] = useState(false);
@@ -413,26 +410,6 @@ export function ProfileView({
     return typeof window !== "undefined" ? `${window.location.origin}/api/sync/apple-health` : "";
   }
 
-  const [copiedPayload, setCopiedPayload] = useState(false);
-
-  async function copySamplePayload() {
-    const now = new Date();
-    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-    const payload = JSON.stringify({
-      profileId: profile.id,
-      secret: healthSyncToken || "HIER_DEN_SYNC_SCHLUESSEL_EINFUEGEN",
-      dailyActivity: [{ date: today, moveCalories: 420, exerciseMinutes: 32, stepCount: 7350, walkingRunningDistanceKm: 5.2, cyclingDistanceKm: 8.4 }],
-      workouts: []
-    }, null, 2);
-    if (await copyTextToClipboard(payload)) {
-      setCopiedPayload(true);
-      showToast({ type: "info", title: "JSON kopiert", message: "JSON-Muster in Zwischenablage kopiert." });
-      setTimeout(() => setCopiedPayload(false), 2000);
-    } else {
-      showToast({ type: "info", title: "JSON-Muster", message: payload });
-    }
-  }
-
   async function copyShortcutPrompt() {
     const prompt = `Erstelle einen iPhone-Kurzbefehl „FitFamily Health Sync“ ausschließlich mit den eingebauten Apple-Kurzbefehle- und Health-Aktionen. Keine KI-, Cloud-Modell- oder Drittanbieter-Aktion im fertigen Kurzbefehl. Gesundheitsdaten dürfen nur an diesen FitFamily-Server gesendet werden: ${getWebhookUrl()}.
 
@@ -449,14 +426,14 @@ Der POST-Body enthält profileId = „${profile.id}“, secret = „HIER_DEN_SYN
 Falls Kurzbefehle eine Health-Art oder einen Schritt nicht unterstützt, erfinde keine andere Datenstruktur, sondern erkläre genau, welche Aktion ich stattdessen antippen muss. iPhone und FitFamily-Server müssen im selben WLAN sein oder über VPN erreichbar sein.`;
     if (await copyTextToClipboard(prompt)) {
       setCopiedShortcutPrompt(true);
-      showToast({ type: "success", title: "Erstellungsauftrag kopiert", message: "Füge ihn in deine KI ein. Wichtig: keine KI-Aktion im fertigen Kurzbefehl und den Sync-Schlüssel erst in der persönlichen Kopie eintragen." });
+      showToast({ type: "success", title: "Einrichtung kopiert", message: "Füge den Text in deine KI ein. Deinen Schlüssel setzt du anschließend nur in deinem persönlichen Kurzbefehl ein." });
       setTimeout(() => setCopiedShortcutPrompt(false), 2500);
     } else {
       showToast({ type: "error", title: "Kopieren nicht möglich", message: prompt });
     }
   }
 
-  function requestHealthPin(action: "create" | "revoke" | "delete" | "logs") {
+  function requestHealthPin(action: "create" | "revoke" | "delete") {
     setHealthPin("");
     setHealthPinError("");
     setHealthPinAction(action);
@@ -496,7 +473,7 @@ Falls Kurzbefehle eine Health-Art oder einen Schritt nicht unterstützt, erfinde
 
   async function copyHealthToken() {
     if (await copyTextToClipboard(healthSyncToken)) {
-      showToast({ type: "info", title: "Schlüssel kopiert", message: "Jetzt im Kurzbefehle-Wörterbuch als secret einfügen." });
+      showToast({ type: "info", title: "Schlüssel kopiert", message: "Füge ihn in deinen persönlichen Kurzbefehl ein." });
     } else {
       showToast({ type: "error", title: "Kopieren nicht möglich", message: "Markiere den Schlüssel im Eingabefeld und kopiere ihn manuell." });
     }
@@ -570,15 +547,7 @@ Falls Kurzbefehle eine Health-Art oder einen Schritt nicht unterstützt, erfinde
     setHealthPinError("");
     try {
       let succeeded: boolean;
-      if (healthPinAction === "logs") {
-        const data = await requestJson<{ logs?: AppleHealthSyncLog[] }>("/api/sync/apple-health/log", "Protokoll konnte nicht geladen werden.", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ profileId: profile.id, pin: healthPin })
-        });
-        setHealthSyncLogs(Array.isArray(data.logs) ? data.logs : []);
-        succeeded = true;
-      } else if (healthPinAction === "delete") {
+      if (healthPinAction === "delete") {
         succeeded = await performHealthReset(healthPin);
       } else {
         succeeded = await manageHealthToken(healthPinAction, healthPin);
@@ -793,12 +762,12 @@ Falls Kurzbefehle eine Health-Art oder einen Schritt nicht unterstützt, erfinde
         <button
           type="button"
           onClick={() => setHealthModal(true)}
-          title="Apple Health Kurzbefehl, Webhook und Synchronisation verwalten"
+          title="Apple Health verbinden und synchronisieren"
         >
           <Apple size={20} />
           <div className="profile-nav-text">
             <b>Apple Health</b>
-            <small>Sync &amp; Kurzbefehl</small>
+            <small>Tagesdaten verbinden</small>
           </div>
         </button>
         <button
@@ -885,23 +854,16 @@ Falls Kurzbefehle eine Health-Art oder einen Schritt nicht unterstützt, erfinde
             <div className="health-modal-header">
               <div className="health-apple-circle"><Apple size={30} /></div>
               <div>
-                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
-                  <span className="setup-badge">iOS Kurzbefehle</span>
-                  {!isMobile && (
-                    <span className="modal-idle-badge" onClick={resetTimer} title="Automatische Rückkehr zum Dashboard bei Inaktivität (Tippen zum Verlängern)">
-                      Dashboard in {secondsLeft}s
-                    </span>
-                  )}
-                </div>
                 <h2>Apple Health für {profile.name}</h2>
+                <span className="health-connection-status">{healthTokenConfigured ? "Schlüssel eingerichtet" : "Noch nicht eingerichtet"}</span>
               </div>
             </div>
 
-            <p className="health-modal-desc">Einmal einrichten, dann den Kurzbefehl auf dem iPhone starten:</p>
+            <p className="health-modal-desc">Einmal verbinden, danach deine Tagesdaten mit dem iPhone synchronisieren.</p>
 
             <section className="health-workflow-step">
-              <h3><span>1</span> Schlüssel erzeugen</h3>
-              <p>Eltern-PIN eingeben. Der Schlüssel bleibt hier sichtbar. Nach dem Erstellen des Kurzbefehls kannst du ihn über das Kopiersymbol übernehmen.</p>
+              <h3><span>1</span> Verbindung vorbereiten</h3>
+              <p>Erstelle deinen persönlichen Schlüssel für die sichere Verbindung.</p>
               <div className="health-url-input-wrap health-key-input">
                 <input
                   aria-label="Apple-Health-Sync-Schlüssel"
@@ -916,97 +878,48 @@ Falls Kurzbefehle eine Health-Art oder einen Schritt nicht unterstützt, erfinde
               </div>
               <div className="health-workflow-actions">
                 <button type="button" className="health-primary-btn" onClick={() => requestHealthPin("create")}>
-                  <Zap size={16} /> {healthTokenConfigured ? "Schlüssel neu erstellen" : "Schlüssel erstellen"}
+                  <Zap size={16} /> {healthTokenConfigured ? "Neuen Schlüssel erstellen" : "Schlüssel erstellen"}
                 </button>
-                {healthTokenConfigured && <button type="button" className="health-ghost-btn" onClick={() => requestHealthPin("revoke")}>Widerrufen</button>}
-                <small>{healthSyncToken ? "Nach Schritt 2 hier erneut kopieren und in Schritt 3 bei secret einsetzen." : healthTokenConfigured ? "Der bisherige Schlüssel ist nicht erneut abrufbar. Erzeuge hier einen neuen; der alte wird ungültig." : "Der Schlüssel wird einmal angezeigt. Nach Schritt 2 hier kopieren und in Schritt 3 einsetzen."}</small>
+                {healthTokenConfigured && <small>{healthSyncToken ? "Kopiere den Schlüssel und füge ihn im Kurzbefehl ein." : "Der Schlüssel ist aus Sicherheitsgründen verborgen. Erstelle einen neuen, um ihn erneut zu kopieren."}</small>}
               </div>
             </section>
 
             <section className="health-workflow-step">
-              <h3><span>2</span> Kurzbefehl erstellen lassen</h3>
-              <p>Der Erstellungsauftrag umfasst Workouts sowie bis zu 30 einzelne Tageswerte: Bewegungsenergie, Trainingsminuten, Stehstunden, Schritte, Geh-/Laufstrecke und Etagen. Die Tageswerte werden nach Datum zusammengeführt, nicht als Monatssumme gesendet. Er enthält Zieladresse und Profil, aber keinen echten Schlüssel. Den bisherigen iCloud-Kurzbefehl bitte nicht verwenden.</p>
-              <small className="health-webhook-note"><b>Zieladresse (automatisch enthalten):</b> {getWebhookUrl()}</small>
-              <div className="health-workflow-actions">
-                <button
-                  type="button"
-                  className="health-copy-btn"
-                  onClick={copyShortcutPrompt}
-                >
-                  {copiedShortcutPrompt ? <Check size={15} /> : <Copy size={15} />}
-                  <span>{copiedShortcutPrompt ? "Kopiert" : "Erstellungsauftrag kopieren"}</span>
-                </button>
-                <button
-                  type="button"
-                  className="health-copy-btn"
-                  onClick={copySamplePayload}
-                >
-                  {copiedPayload ? <Check size={14} /> : <Copy size={14} />}
-                  <span>{copiedPayload ? "Kopiert" : "JSON-Beispiel"}</span>
-                </button>
-              </div>
-            </section>
-
-            <section className="health-workflow-step">
-              <h3><span>3</span> Schlüssel privat einsetzen</h3>
-              <p>Den von der KI erstellten Kurzbefehl in Apples „Kurzbefehle“ hinzufügen und öffnen. Im JSON-Feld <code>secret</code> den Platzhalter <code>HIER_DEN_SYNC_SCHLUESSEL_EINFUEGEN</code> durch deinen persönlichen Schlüssel ersetzen. Zieladresse und Profil sind schon eingetragen. Speichern; den Schlüssel nicht öffentlich teilen.</p>
-              {healthSyncToken && <button type="button" className="health-copy-btn" onClick={() => void copyHealthToken()}><Copy size={16} /> Schlüssel kopieren</button>}
-              <button type="button" className="health-secondary-btn" disabled={testingHealth || resettingHealth || !healthSyncToken} onClick={testHealthSync}>
-                <Zap size={16} /> {testingHealth ? "Prüfe Schlüssel …" : "Schlüssel prüfen (ohne Import)"}
+              <h3><span>2</span> Kurzbefehl einrichten</h3>
+              <p>Kopiere die Einrichtung und erstelle damit deinen iPhone-Kurzbefehl. Der Schlüssel wird nicht mitkopiert.</p>
+              <button type="button" className="health-primary-btn" onClick={copyShortcutPrompt}>
+                {copiedShortcutPrompt ? <Check size={16} /> : <Copy size={16} />}
+                {copiedShortcutPrompt ? "Einrichtung kopiert" : "Einrichtung kopieren"}
               </button>
-              <small>Nur eine folgenlose Prüfung. Für den echten Import den Kurzbefehl in Schritt 4 auf dem iPhone ausführen.</small>
             </section>
 
             <section className="health-workflow-step">
-              <h3><span>4</span> Kurzbefehl auf dem iPhone ausführen</h3>
-              <p>Jetzt in Apples „Kurzbefehle“-App den Kurzbefehl öffnen und auf ▶︎ tippen. Beim ersten Lauf Health-Zugriff erlauben. Die angezeigte Antwort bestätigt Importanzahl oder Fehler.</p>
+              <h3><span>3</span> Synchronisieren</h3>
+              <p>Füge den Schlüssel im Kurzbefehl ein. Öffne ihn danach auf dem iPhone und tippe auf ▶︎.</p>
+              <button type="button" className="health-secondary-btn" disabled={testingHealth || resettingHealth || !healthSyncToken} onClick={testHealthSync}>
+                <Zap size={16} /> {testingHealth ? "Wird geprüft …" : "Verbindung prüfen"}
+              </button>
+              <small>Prüft die Verbindung, ohne Daten zu importieren.</small>
               {profile.appleHealthRings && <div className="health-ring-preview"><AppleActivityRings rings={profile.appleHealthRings} compact /></div>}
             </section>
 
-            <section className="health-danger-zone">
-              <button type="button" disabled={testingHealth || resettingHealth} onClick={() => requestHealthPin("logs")}>
-                <History size={14} /> Sync-Protokoll anzeigen
-              </button>
-              {confirmResetHealth ? (
-                <>
-                  <strong>Apple-Health-Daten dieses Profils unwiderruflich löschen und Verbindung trennen?</strong>
-                  <button type="button" disabled={resettingHealth} onClick={() => requestHealthPin("delete")}>{resettingHealth ? "Löscht …" : "Weiter zur PIN-Eingabe"}</button>
-                  <button type="button" onClick={() => setConfirmResetHealth(false)}>Abbrechen</button>
-                </>
-              ) : (
-                <button type="button" disabled={testingHealth || resettingHealth} onClick={() => setConfirmResetHealth(true)}>
-                  <RotateCcw size={14} /> Daten löschen &amp; Verbindung trennen
-                </button>
-              )}
-            </section>
-            {healthSyncLogs && (
-              <section className="health-sync-log" aria-label="Apple-Health-Sync-Protokoll">
-                <div className="health-sync-log-heading">
-                  <strong>Letzte Sync-Aufrufe</strong>
-                  <button type="button" onClick={() => setHealthSyncLogs(null)} aria-label="Protokoll schließen"><X size={16} /></button>
-                </div>
-                {healthSyncLogs.length === 0 ? (
-                  <p>Noch kein gültiger Sync-Aufruf beim Dashboard angekommen. Wenn der Kurzbefehl vorher hängen bleibt, wird hier kein Eintrag erscheinen.</p>
+            <details className="health-advanced-actions">
+              <summary>Verbindung verwalten</summary>
+              <div className="health-danger-zone">
+                {healthTokenConfigured && <button type="button" disabled={testingHealth || resettingHealth} onClick={() => requestHealthPin("revoke")}>Schlüssel widerrufen</button>}
+                {confirmResetHealth ? (
+                  <>
+                    <strong>Alle Apple-Health-Daten dieses Profils und die Verbindung löschen?</strong>
+                    <button type="button" disabled={resettingHealth} onClick={() => requestHealthPin("delete")}>{resettingHealth ? "Wird gelöscht …" : "Löschen bestätigen"}</button>
+                    <button type="button" onClick={() => setConfirmResetHealth(false)}>Abbrechen</button>
+                  </>
                 ) : (
-                  <ol>
-                    {healthSyncLogs.map((entry) => {
-                      const status = String(entry.details.status ?? (entry.action.endsWith("failed") ? "failed" : "received"));
-                      const label = status === "completed" ? "Abgeschlossen" : status === "checked" ? "Schlüssel geprüft · kein Import" : status === "failed" ? "Fehler" : "Angekommen · keine Abschlussmeldung";
-                      const counts = [
-                        entry.details.received !== undefined ? `${entry.details.received} empfangen` : null,
-                        entry.details.imported !== undefined ? `${entry.details.imported} importiert` : null,
-                        entry.details.skipped !== undefined ? `${entry.details.skipped} übersprungen` : null
-                      ].filter(Boolean).join(" · ");
-                      return <li key={entry.id} className={`health-sync-log-entry ${status}`}>
-                        <div><b>{label}</b><time>{formatGermanLogTimestamp(entry.createdAt)}</time></div>
-                        {counts && <span>{counts}</span>}
-                        {typeof entry.details.message === "string" && <small>{entry.details.message}</small>}
-                      </li>;
-                    })}
-                  </ol>
+                  <button type="button" disabled={testingHealth || resettingHealth} onClick={() => setConfirmResetHealth(true)}>
+                    <RotateCcw size={14} /> Apple-Health-Daten löschen
+                  </button>
                 )}
-              </section>
-            )}
+              </div>
+            </details>
           </div>
         </div>
       )}
@@ -1021,9 +934,9 @@ Falls Kurzbefehle eine Health-Art oder einen Schritt nicht unterstützt, erfinde
               </div>
             </div>
             <h3 id="health-pin-title">
-              {healthPinAction === "delete" ? "Health-Daten löschen" : healthPinAction === "create" ? "Sync-Schlüssel erstellen" : healthPinAction === "revoke" ? "Sync-Schlüssel widerrufen" : "Sync-Protokoll anzeigen"}
+              {healthPinAction === "delete" ? "Health-Daten löschen" : healthPinAction === "create" ? "Sync-Schlüssel erstellen" : "Sync-Schlüssel widerrufen"}
             </h3>
-            <p>{healthPinAction === "delete" ? "Apple-Health-Daten dieses Profils und die Verbindung werden unwiderruflich gelöscht. Zur Bestätigung Eltern-PIN eingeben." : healthPinAction === "logs" ? "Das Protokoll enthält Zeitpunkte, importierte und übersprungene Einheiten sowie Serverfehler. Zur Freigabe Eltern-PIN eingeben." : "Zur Bestätigung bitte die vierstellige Eltern-PIN eingeben."}</p>
+            <p>{healthPinAction === "delete" ? "Apple-Health-Daten dieses Profils und die Verbindung werden unwiderruflich gelöscht. Zur Bestätigung Eltern-PIN eingeben." : "Zur Bestätigung bitte die vierstellige Eltern-PIN eingeben."}</p>
             <div className="confirm-pin-section">
               <b>Eltern-PIN</b>
               <TouchPinpad value={healthPin} disabled={healthPinBusy} onChange={(value) => { setHealthPin(value); setHealthPinError(""); }} />
@@ -1032,7 +945,7 @@ Falls Kurzbefehle eine Health-Art oder einen Schritt nicht unterstützt, erfinde
             <div className="confirm-modal-actions">
               <button type="button" className="confirm-cancel-btn" disabled={healthPinBusy} onClick={() => setHealthPinAction(undefined)}>Abbrechen</button>
               <button type="button" className={`confirm-submit-btn ${healthPinAction === "delete" ? "danger" : "primary"}`} disabled={healthPinBusy || healthPin.length !== 4} onClick={() => void submitHealthPin()}>
-                {healthPinBusy ? "Wird verarbeitet …" : healthPinAction === "delete" ? "Löschen & trennen" : healthPinAction === "logs" ? "Protokoll öffnen" : "Bestätigen"}
+                {healthPinBusy ? "Wird verarbeitet …" : healthPinAction === "delete" ? "Löschen & trennen" : "Bestätigen"}
               </button>
             </div>
           </div>

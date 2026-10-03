@@ -5,7 +5,7 @@ import { verifyAdminPinOrReject } from "@/lib/security";
 
 const schema = z.object({
   pin: z.string().regex(/^\d{4}$/),
-  filter: z.enum(["all", "errors", "updates", "backups"]).default("all")
+  filter: z.enum(["all", "errors", "updates", "backups", "health"]).default("all")
 });
 
 export async function POST(request: Request) {
@@ -17,7 +17,7 @@ export async function POST(request: Request) {
   const client = await db();
   const result = await client.execute({
     sql: `SELECT id, action, details, created_at FROM audit_log
-      WHERE action LIKE 'admin.%' OR action LIKE 'app.%'
+      WHERE action LIKE 'admin.%' OR action LIKE 'app.%' OR action LIKE 'health.apple_sync.%'
       ORDER BY created_at DESC LIMIT 500`
   });
   const parsed = result.rows.map((row) => {
@@ -36,6 +36,7 @@ export async function POST(request: Request) {
     if (filter === "errors") return entry.details.level === "error" || entry.action.endsWith(".error") || entry.action.endsWith(".failed");
     if (filter === "updates") return entry.action.includes(".update.");
     if (filter === "backups") return entry.action.includes(".backup.") || entry.action.includes(".export.") || entry.action.includes(".import.");
+    if (filter === "health") return entry.action.startsWith("health.apple_sync.");
     return true;
   });
 
