@@ -804,8 +804,8 @@ Falls Kurzbefehle eine Health-Art oder einen Schritt nicht unterstützt, erfinde
         >
           <Settings2 />
           <div className="profile-nav-text">
-            <b>Profil bearbeiten</b>
-            <small>Avatar, Ziel &amp; PIN</small>
+            <b>Profil &amp; Familie</b>
+            <small>Daten, Avatar &amp; Punktestand</small>
           </div>
         </button>
       </nav>

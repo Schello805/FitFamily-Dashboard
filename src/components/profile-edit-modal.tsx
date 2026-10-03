@@ -73,7 +73,8 @@ export function ProfileEditModal({
             </button>
           )}
         </div>
-        <h2 id="profile-edit-title">Angaben für {profile.name}</h2>
+        <h2 id="profile-edit-title">Profil &amp; Familie für {profile.name}</h2>
+        <p className="profile-edit-intro">Hier änderst du persönliche Daten, Geburtsdatum und E-Mail-Adresse. Unten kannst du den Punktestand zurücksetzen; der Trainingsverlauf bleibt erhalten.</p>
         <div className="profile-edit-preview-row">
           <Avatar
             id={profile.id}

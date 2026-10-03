@@ -1379,6 +1379,7 @@ body::before {
 .qr-modal img, .modal-qr-img { width: min(100%, 300px); height: auto; border-radius: 18px; display: block; margin: 16px auto; box-shadow: 0 10px 30px rgba(0,0,0,.15); background: #ffffff; padding: 8px; }
 .profile-edit-modal { width: min(640px, 100%); max-height: min(94dvh, 980px); overflow-y: auto; overscroll-behavior: contain; position: relative; padding: 26px; border-radius: 26px; background: var(--modal-bg); border: 1px solid var(--line-strong); box-shadow: var(--card-shadow); }
 .profile-edit-modal h2 { margin: 12px 0 15px; font-size: 26px; }
+.profile-edit-intro { margin: -7px 0 14px; color: var(--muted); font-size: 12px; line-height: 1.45; }
 .profile-edit-basics, .profile-edit-goals { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .profile-edit-basics > label { min-width: 0; margin-top: 0; }
 .profile-edit-goals { gap: 0 16px; }
