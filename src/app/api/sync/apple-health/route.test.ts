@@ -305,6 +305,10 @@ describe("Apple Health sync endpoint", () => {
       }));
       const syncLogBody = await syncLogResponse.json();
       expect(syncLogResponse.status).toBe(200);
+      const diagnostic = syncLogBody.logs.find((entry: { details: { receivedActivity?: { dailyActivity?: unknown[] } } }) => entry.details.receivedActivity?.dailyActivity?.length === 2);
+      expect(diagnostic.details.receivedActivity.dailyActivity).toEqual(payload.dailyActivity);
+      expect(diagnostic.details.savedActivity).toEqual(expect.arrayContaining([expect.objectContaining({ date: dates[0], exerciseMinutes: 31, stepCount: 7000, cyclingDistanceKm: 3.2 })]));
+      expect(JSON.stringify(diagnostic.details)).not.toContain(secret);
       expect(syncLogBody.logs.some((entry: { details: { activityDays?: { fields?: string[] }[] } }) =>
         entry.details.activityDays?.some((day) => day.fields?.includes("cyclingDistanceKm"))
       )).toBe(true);

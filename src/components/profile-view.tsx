@@ -447,10 +447,9 @@ Der Kurzbefehl überträgt zunächst ausschließlich die echten Tageswerte von H
 - Aktive Energie / Active Energy: kcal -> moveCalories (Zahl)
 - Trainingsminuten / Exercise Time: Minuten -> exerciseMinutes (Zahl)
 - Schritte / Steps: Summe als ganze Zahl -> stepCount (ganze Zahl)
-- Stehzeit / Stand Time: Minuten -> standMinutes (Zahl; der Server rechnet automatisch in standHours um)
 - Geh- und Laufdistanz / Walking + Running Distance: Kilometer -> walkingRunningDistanceKm (Zahl)
 - Strecke (Fahrrad) / Cycling Distance: Kilometer -> cyclingDistanceKm (Zahl)
-Keine Etagen übertragen. Zahlen müssen numerische JSON-Zahlen ohne Einheitstext bleiben. „Stand Time“ ist die verfügbare Stehzeit-Schnittstelle; der Stehen-Ring („Stand Hours“) ist ein anderer Apple-Health-Wert.
+Keine Etagen oder Stehminuten übertragen. Für den Stehen-Ring wird standHours benötigt: Anzahl erfüllter Stehstunden von heute. Wenn Kurzbefehle diesen Datentyp nicht anbietet, das Feld weglassen; Stand Time darf nicht durch 60 geteilt werden. Optional die tatsächlichen Ringziele als moveGoal (kcal), exerciseGoal (Minuten), standGoal (Stunden) übertragen. Zahlen müssen numerische JSON-Zahlen ohne Einheitstext bleiben.
 
 Der POST-Body enthält profileId = „${profile.id}“, secret = „HIER_DEN_SYNC_SCHLUESSEL_EINFUEGEN“ und dailyActivity mit genau einem Tageswörterbuch. Dieses hat date im Format YYYY-MM-DD (heutiges lokales Datum) und die oben genannten Felder. Führe genau eine Aktion „Inhalte von URL abrufen“ aus: POST an ${getWebhookUrl()}, Haupttext JSON. Den Secret-Platzhalter unverändert lassen; ich ersetze ihn selbst durch meinen privaten FitFamily-Schlüssel. Kein echter Schlüssel in einen geteilten Kurzbefehl. Zeige die Antwort des Servers an.
 

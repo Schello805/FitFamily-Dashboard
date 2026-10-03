@@ -79,13 +79,15 @@ export function AdminLogsPanel({ entries, filter, loading, copying, onFilterChan
           <button type="button" className="update-secondary-btn" disabled={!entries.length || copying} onClick={onCopy}><Copy /> {copying ? "Kopiere …" : "Einträge kopieren"}</button>
         </div>
       </div>
-      <p className="data-text admin-log-privacy">Bis zu 500 Einträge. Apple-Health-Ereignisse zeigen empfangene Trainingseinheiten und gespeicherte Tagesfelder, aber keine einzelnen Gesundheitswerte. Laden nur nach PIN-Freigabe.</p>
+      <p className="data-text admin-log-privacy">Bis zu 500 Einträge. Neue Apple-Health-Importe zeigen empfangene und gespeicherte Tageswerte. Zugangsschlüssel werden nicht protokolliert. Laden nur nach PIN-Freigabe.</p>
       {loading ? <p className="data-text">Protokolle werden geladen …</p> : entries.length ? <ol className="admin-log-list">
         {entries.map((entry) => {
           const isHealth = entry.action.startsWith("health.apple_sync.");
           const isError = entry.details.level === "error" || entry.action.endsWith(".error") || entry.action.endsWith(".failed");
           const timestamp = new Date(entry.createdAt.replace(" ", "T") + (entry.createdAt.endsWith("Z") ? "" : "Z"));
-          return <li key={entry.id} className={isError ? "error" : ""}><div><span className="admin-log-level">{isError ? "FEHLER" : isHealth ? "APPLE HEALTH" : entry.details.level === "warning" ? "WARNUNG" : "INFO"}</span><time>{timestamp.toLocaleString("de-DE")}</time></div><b>{summarizeAdminLog(entry)}</b><small>{entry.action}</small></li>;
+          return <li key={entry.id} className={isError ? "error" : ""}><div><span className="admin-log-level">{isError ? "FEHLER" : isHealth ? "APPLE HEALTH" : entry.details.level === "warning" ? "WARNUNG" : "INFO"}</span><time>{timestamp.toLocaleString("de-DE")}</time></div><b>{summarizeAdminLog(entry)}</b><small>{entry.action}</small>
+            {isHealth && entry.details.receivedActivity != null && <details><summary>Empfangene und gespeicherte Werte{typeof entry.details.profileName === "string" ? ` · ${entry.details.profileName}` : ""}</summary><pre style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere", userSelect: "text" }}>{JSON.stringify({ empfangen: entry.details.receivedActivity, gespeichert: entry.details.savedActivity, hinweise: entry.details.warnings }, null, 2)}</pre></details>}
+          </li>;
         })}
       </ol> : <div className="admin-log-empty"><CheckCircle2 /><span>{filter === "errors" ? "Keine protokollierten Fehler gefunden." : "Für diesen Filter gibt es noch keine Einträge."}</span></div>}
     </article>

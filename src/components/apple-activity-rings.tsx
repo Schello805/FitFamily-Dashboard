@@ -154,7 +154,7 @@ export function AppleActivityRings({
             <span>Apple Health</span>
           </span>
           {rings.lastSyncedAt ? (
-            <span className="rings-status live" title="Zuletzt mit Apple Health synchronisiert">Live</span>
+            <span className="rings-status live" title={`Letzter Import: ${rings.lastSyncedAt}`}>Import {new Date(rings.lastSyncedAt!).toLocaleTimeString("de-DE", { timeZone: "Europe/Berlin", hour: "2-digit", minute: "2-digit" })}</span>
           ) : (
             <span className="rings-status auto" title="Aus heutigen Trainingseinheiten berechnet">Heute</span>
           )}

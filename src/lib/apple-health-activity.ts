@@ -28,18 +28,10 @@ export const appleHealthActivitySchema = z.object(appleHealthActivityShape);
 const appleHealthDailyPayloadSchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   ...appleHealthActivityShape,
-  // Shortcuts returns Apple Stand Time in minutes. It is normalized to the
-  // dashboard's canonical standHours value below.
+  // Stand Time is distinct from completed Stand Hours; never convert it into the ring.
   standMinutes: optionalNumber(1440)
 });
-export const appleHealthDailySchema = z.preprocess((value) => {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return value;
-  const payload = value as Record<string, unknown>;
-  if (payload.standHours == null && typeof payload.standMinutes === "number") {
-    return { ...payload, standHours: payload.standMinutes / 60 };
-  }
-  return payload;
-}, appleHealthDailyPayloadSchema).refine((entry) => APPLE_HEALTH_ACTIVITY_FIELDS.some(({ key }) => entry[key] != null), {
+export const appleHealthDailySchema = appleHealthDailyPayloadSchema.refine((entry) => APPLE_HEALTH_ACTIVITY_FIELDS.some(({ key }) => entry[key] != null), {
   message: "Jeder Tag braucht mindestens einen Aktivitätswert."
 });
 

@@ -60,6 +60,15 @@ const bodySchema = z.object({
   ...appleHealthActivityShape
 });
 
+function diagnosticActivityPayload(value: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  const source = value as Record<string, unknown>;
+  // Explicit allowlist: credentials and arbitrary payload text never enter the log.
+  return Object.fromEntries(["date", ...APPLE_HEALTH_ACTIVITY_FIELDS.map(({ key }) => key), "standMinutes"].flatMap((key) =>
+    typeof source[key] === "number" || (key === "date" && typeof source[key] === "string") ? [[key, source[key]]] : []
+  ));
+}
+
 export async function POST(request: Request) {
   let json: unknown;
   try {
@@ -307,6 +316,19 @@ export async function POST(request: Request) {
     skipped: skippedCount,
     activityDaysSynced,
     activityDays: syncedActivityDays,
+    profileName,
+    receivedActivity: {
+      ...diagnosticActivityPayload(json),
+      dailyActivity: Array.isArray((json as Record<string, unknown>).dailyActivity)
+        ? ((json as Record<string, unknown>).dailyActivity as unknown[]).map(diagnosticActivityPayload) : []
+    },
+    savedActivity: await Promise.all(dailyActivity.map(async (day) => {
+      const stored = await client.execute({ sql: "SELECT * FROM apple_health_daily WHERE profile_id = ? AND date = ?", args: [profileId, day.date] });
+      const row = stored.rows[0];
+      return { date: day.date, ...Object.fromEntries(APPLE_HEALTH_ACTIVITY_FIELDS.map(({ key, column }) => [key, Number(row?.[column] ?? 0)])) };
+    })),
+    warnings: dailyActivity.some((day) => day.standMinutes != null) || (json as Record<string, unknown>).standMinutes != null
+      ? ["standMinutes ist Stehzeit, nicht erfüllte Stehstunden. Für den Stehen-Ring wird standHours benötigt; Stehminuten werden dafür nicht übernommen."] : [],
     pointsEarned: totalPointsEarned,
     message
   }).catch(() => undefined);
