@@ -1,0 +1,60 @@
+# Fertige iPhone-Testvorlage
+
+Erzeugen und auf einem Mac signieren:
+
+```sh
+node scripts/generate-health-shortcut.mjs --sign
+```
+
+Die signierte Datei liegt unter `artifacts/FitFamily-Health-Sync.signed.shortcut`.
+Sie wird nur bei erfolgreicher Signierung erzeugt. Beim ersten Erstellen am
+3. Oktober 2026 schlug Apples Signierungsaufruf mit Zeitüberschreitung und zuletzt
+`NSURLErrorDomain error 502` fehl. Die eingecheckte `.unsigned.shortcut` ist deshalb
+**noch nicht als iPhone-importierbar bestätigt**. Den obigen Befehl später erneut
+auf einem Mac ausführen; die unsignierte Datei alleine ersetzt die Signierung nicht.
+Sie enthält nur einen Schlüssel-Platzhalter, keine echten Zugangsdaten.
+Apple erhält bei der Signierung eine Kopie dieser Vorlage. Keine personalisierte
+Datei mit echtem Schlüssel signieren oder öffentlich teilen.
+
+Optional: `--profile papa --server http://192.168.1.253:3000 --output /tmp/FitFamily.unsigned.shortcut`.
+Es gibt bewusst keine Option zum Einbetten eines echten Schlüssels.
+
+## Auf dem iPhone
+
+1. Signierte Datei per AirDrop oder Dateien-App öffnen und den Kurzbefehl hinzufügen.
+2. Im ersten Textfeld den Platzhalter durch den Schlüssel aus deinem Profil ersetzen.
+3. Profil-ID und Serveradresse in der letzten URL-Aktion kontrollieren.
+4. Beim ersten Ausführen Health-Leserechte und Zugriff auf den eigenen Server erlauben.
+5. Serverantwort mit Import-ID unter Verwaltung → Betriebsprotokoll → Apple Health vergleichen.
+
+Die Vorlage liest fünf Arten separat mit Startdatum heute, prüft die Einheit pro
+Messung und summiert ausschließlich numerische Werte. Distanz wird nach km,
+Energie nach kcal und Training nach Minuten normalisiert. Schritte werden gerundet.
+Ein leerer Fahrradtag erzeugt keinen Fehler; sein Ergebnis ist 0. Unbekannte Einheiten
+brechen die Übertragung ab. Nur eine POST-Anfrage; keine Health-Schreibaktionen,
+Cloud-KI oder Drittanbieter-Aktionen.
+
+## Grenzen und notwendiger Test
+
+Diese programmgenerierte Vorlage ist erst nach Import **und Ausführung auf dem
+iPhone** funktional bestätigt. Signierung bestätigt nicht die Health-Parameter.
+Die Health-Typbezeichnungen sind aus dokumentierten iPhone-Exporten übernommen;
+OS-Versionen können andere Picker-Bezeichnungen oder Einheiten liefern.
+
+Ein leeres Health-Ergebnis lässt sich nicht zuverlässig von verweigerten Leserechten
+unterscheiden. Außerdem kann die Summe der Rohmessungen verschiedener Quellen
+(z. B. Watch und iPhone) von Apples priorisierten Fitness-Tageswerten abweichen.
+Vor automatischem Betrieb alle fünf Werte mit Apple Health/Fitness abgleichen.
+Bei Abweichung nicht pauschal Faktoren ändern: zuerst Einheit, Quellen und
+empfangene Werte im Protokoll prüfen. Stehminuten werden nicht übertragen, weil
+sie keine erfüllten Stehstunden ergeben. Ringziele werden nicht ausgelesen.
+
+## Schemaquellen
+
+- [Apple: Kurzbefehle signieren](https://support.apple.com/guide/shortcuts-mac/apd455c82f02/mac)
+- [Dokumentierte iPhone-Health-Exporte](https://github.com/viticci/shortcuts-playground-plugin/blob/main/codex/skills/shortcuts-playground/HEALTHKIT.md)
+- [Parameter und numerische Variablen](https://github.com/viticci/shortcuts-playground-plugin/blob/main/codex/skills/shortcuts-playground/PARAMETER_TYPES.md)
+
+Die Referenzen dienen als Syntaxevidenz; der Generator benötigt keine externen
+Pakete oder Downloads. Im fertigen Kurzbefehl bleiben alle Health-Daten auf dem
+iPhone, bis sie an die konfigurierte FitFamily-Adresse gesendet werden.

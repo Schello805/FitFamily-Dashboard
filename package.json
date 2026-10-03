@@ -1,6 +1,6 @@
 {
   "name": "fitfamily-dashboard",
-  "version": "0.2.120",
+  "version": "0.2.121",
   "private": true,
   "license": "LicenseRef-PolyForm-Noncommercial-1.0.0",
   "scripts": {
@@ -10,7 +10,8 @@
     "start": "next start -H 0.0.0.0 -p 3000",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run",
+    "test": "vitest run && node --test scripts/generate-health-shortcut.test.mjs",
+    "health:shortcut": "node scripts/generate-health-shortcut.mjs",
     "backup": "node --env-file-if-exists=.env.local scripts/backup.mjs",
     "update": "bash scripts/update.sh",
     "repair": "bash scripts/repair.sh",
