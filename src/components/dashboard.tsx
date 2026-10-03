@@ -19,6 +19,8 @@ import { UserHelp } from "@/components/user-help";
 import { DEFAULT_DISPLAY_SETTINGS, type DisplaySettings } from "@/lib/display-settings-shared";
 import { requestJson } from "@/lib/api-client";
 import { formatGermanDate, formatGermanTime } from "@/lib/date-format";
+import { cacheDisplaySettings } from "@/lib/theme";
+import { isWithinNightWindow } from "@/lib/display-time";
 import { Modal } from "@/components/modal";
 import { ConnectionStatus } from "@/components/connection-status";
 import { useDashboardConnection } from "@/components/use-dashboard-connection";
@@ -48,16 +50,6 @@ function useClock() {
   return date;
 }
 
-
-function isWithinNightWindow(clock: Date, startTimeStr?: string, endTimeStr?: string): boolean {
-  const [startH, startM] = (startTimeStr || "22:30").split(":").map(Number);
-  const [endH, endM] = (endTimeStr || "06:30").split(":").map(Number);
-  const current = clock.getHours() * 60 + clock.getMinutes();
-  const start = (Number.isFinite(startH) ? startH : 22) * 60 + (Number.isFinite(startM) ? startM : 30);
-  const end = (Number.isFinite(endH) ? endH : 6) * 60 + (Number.isFinite(endM) ? endM : 30);
-  if (start > end) return current >= start || current < end;
-  return current >= start && current < end;
-}
 
 function GoalRing({ value, color, targetMinutes, targetPeriod }: { value: number; color: string; targetMinutes: number; targetPeriod: "Tag" | "Woche" }) {
   return (
@@ -214,7 +206,7 @@ export function Dashboard({
     setProfiles(data.profiles);
     if (data.displaySettings) {
       setDisplaySettings(data.displaySettings);
-      try { localStorage.setItem("fitfamily_display_settings", JSON.stringify(data.displaySettings)); } catch { /* Storage is optional. */ }
+      cacheDisplaySettings(data.displaySettings);
     }
   });
 
@@ -250,7 +242,7 @@ export function Dashboard({
       .catch(() => undefined);
   }, []);
 
-  const dateText = useMemo(() => formatGermanDate(clock, { weekday: "long", day: "2-digit", month: "long", year: undefined }), [clock]);
+  const dateText = useMemo(() => formatGermanDate(clock, { timeZone: displaySettings.timeZone, weekday: "long", day: "2-digit", month: "long", year: undefined }), [clock, displaySettings.timeZone]);
 
   const hasActiveTraining = profiles.some((profile) => profile.activeTraining);
   const idleMinutes = (clock.getTime() - lastActivity) / 60000;
@@ -258,7 +250,7 @@ export function Dashboard({
   // Ruhemodus aktiviert sich, wenn kein aktives Training läuft:
   // 1. Manuell per Klick auf die Uhr
   // 2. Automatisch nach Inaktivität basierend auf Tages- oder Nacht-Timeout
-  const isNight = displaySettings.nightModeEnabled && isWithinNightWindow(clock, displaySettings.nightStartTime, displaySettings.nightEndTime);
+  const isNight = displaySettings.nightModeEnabled && isWithinNightWindow(clock, displaySettings.nightStartTime, displaySettings.nightEndTime, displaySettings.timeZone);
   const effectiveTimeout = isNight ? displaySettings.nightIdleTimeoutMinutes : displaySettings.idleTimeoutMinutes;
   const isTimeoutReached = effectiveTimeout > 0 && idleMinutes >= effectiveTimeout;
   const quietActive = !hasActiveTraining && !quietDismissed && (manualQuietActive || isTimeoutReached);
@@ -334,7 +326,7 @@ export function Dashboard({
             tabIndex={0}
             onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); enterQuietMode(); } }}
           >
-            <time>{formatGermanTime(clock)}</time>
+            <time>{formatGermanTime(clock, displaySettings.timeZone)}</time>
             <span>{dateText}</span>
           </div>
         </section>
@@ -360,7 +352,7 @@ export function Dashboard({
             className="quiet-content-wrap"
             style={{ transform: `translate3d(${pixelShift.x}px, ${pixelShift.y}px, 0)` }}
           >
-            <span className="quiet-time">{formatGermanTime(clock)}</span>
+            <span className="quiet-time">{formatGermanTime(clock, displaySettings.timeZone)}</span>
             <span className="quiet-date">{dateText}</span>
             {weather && (
               <div className="quiet-weather">

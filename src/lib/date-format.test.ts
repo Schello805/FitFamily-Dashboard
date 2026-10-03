@@ -11,12 +11,15 @@ describe("German date formatting", () => {
     expect(formatGermanWeekday("2026-10-02")).toBe("Freitag");
   });
 
-  it("formats a local date and time consistently", () => {
-    expect(formatGermanDateTime(new Date(2026, 9, 2, 8, 5))).toBe("02.10.2026, 08:05");
-    expect(formatGermanTime(new Date(2026, 9, 2, 8, 5))).toBe("08:05");
+  it("uses Berlin independent of the host timezone, and supports an explicit zone", () => {
+    const utc = new Date("2026-10-02T06:05:00Z");
+    expect(formatGermanDateTime(utc)).toBe("02.10.2026, 08:05");
+    expect(formatGermanTime(utc)).toBe("08:05");
+    expect(formatGermanTime(utc, "America/New_York")).toBe("02:05");
+    expect(formatGermanDate("1980-05-31", { timeZone: "Pacific/Kiritimati" })).toBe("31.05.1980");
   });
 
   it("interprets timezone-free server log dates as UTC", () => {
-    expect(formatGermanLogTimestamp("2026-10-02 06:05:00")).toContain("02.10.2026");
+    expect(formatGermanLogTimestamp("2026-10-02 06:05:00")).toBe("02.10.2026, 08:05");
   });
 });

@@ -1,8 +1,13 @@
 import type { Metadata, Viewport } from "next";
+import { connection } from "next/server";
 import "./globals.css";
 import { ServiceWorker } from "@/components/service-worker";
 import { PersistentMusicPlayer } from "@/components/persistent-music-player";
 import { ToastContainer } from "@/components/toast";
+import { TouchKeyboard } from "@/components/touch-keyboard";
+import { getDisplaySettings } from "@/lib/display-settings";
+import { automaticTheme } from "@/lib/theme";
+import { isWithinNightWindow } from "@/lib/display-time";
 
 export const metadata: Metadata = {
   title: "FitFamily Dashboard",
@@ -25,17 +30,19 @@ export const viewport: Viewport = {
   viewportFit: "cover"
 };
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  await connection();
+  const settings = await getDisplaySettings();
   return (
-    <html lang="de" suppressHydrationWarning>
+    <html lang="de" data-theme={automaticTheme(new Date(), settings)} suppressHydrationWarning>
       <head>
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var s=localStorage.getItem('fitfamily-theme')||'system';var d=s==='system'?(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches):s==='dark';document.documentElement.setAttribute('data-theme',d?'dark':'light');document.documentElement.setAttribute('data-theme-setting',s);}catch(e){}})();`
+            __html: `(function(){try{var settings=${JSON.stringify(settings)};localStorage.setItem('fitfamily_display_settings',JSON.stringify(settings));var s=localStorage.getItem('fitfamily-theme')||'system';var night=${isWithinNightWindow.toString()};var d=s==='system'?night(new Date(),settings.nightStartTime,settings.nightEndTime,settings.timeZone):s==='dark';document.documentElement.setAttribute('data-theme',d?'dark':'light');document.documentElement.setAttribute('data-theme-setting',s);}catch(e){}})();`
           }}
         />
       </head>
-      <body><ServiceWorker /><PersistentMusicPlayer /><ToastContainer />{children}</body>
+      <body><ServiceWorker /><PersistentMusicPlayer /><ToastContainer />{children}<TouchKeyboard /></body>
     </html>
   );
 }

@@ -2,6 +2,14 @@ import { describe, expect, it } from "vitest";
 import { getDisplaySettings, setDisplaySettings, DEFAULT_DISPLAY_SETTINGS } from "./display-settings";
 
 describe("display-settings", () => {
+  it("defaults to Berlin and saves only valid IANA zones", async () => {
+    await setDisplaySettings({ timeZone: "Europe/Berlin" });
+    expect((await getDisplaySettings()).timeZone).toBe("Europe/Berlin");
+    await setDisplaySettings({ timeZone: "America/New_York" });
+    expect((await getDisplaySettings()).timeZone).toBe("America/New_York");
+    await expect(setDisplaySettings({ timeZone: "Invalid/Zone" })).rejects.toThrow("Zeitzone");
+    await setDisplaySettings({ timeZone: "Europe/Berlin" });
+  });
   it("returns default display settings initially or on fallback", async () => {
     const settings = await getDisplaySettings();
     expect(typeof settings.idleTimeoutMinutes).toBe("number");

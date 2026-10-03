@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getDisplaySettings, setDisplaySettings } from "@/lib/display-settings";
 import { adminPinSchema, verifyAdminPinOrReject } from "@/lib/security";
+import { CLOCK_TIME_PATTERN, validTimeZone } from "@/lib/display-time";
 
 export const dynamic = "force-dynamic";
 
@@ -12,15 +13,16 @@ export async function GET() {
 
 const postSchema = z.object({
   pin: adminPinSchema,
+  timeZone: z.string().refine(validTimeZone).optional(),
   idleTimeoutMinutes: z.number().int().min(0).max(180).optional(),
   nightModeEnabled: z.boolean().optional(),
   nightIdleTimeoutMinutes: z.number().int().min(0).max(120).optional(),
-  nightStartTime: z.string().regex(/^\d{2}:\d{2}$/).optional(),
-  nightEndTime: z.string().regex(/^\d{2}:\d{2}$/).optional()
+  nightStartTime: z.string().regex(CLOCK_TIME_PATTERN).optional(),
+  nightEndTime: z.string().regex(CLOCK_TIME_PATTERN).optional()
 });
 
 export async function POST(request: Request) {
-  const body = postSchema.safeParse(await request.json());
+  const body = postSchema.safeParse(await request.json().catch(() => null));
   if (!body.success) {
     return NextResponse.json({ error: "Ungültige Eingabedaten." }, { status: 400 });
   }
@@ -29,6 +31,7 @@ export async function POST(request: Request) {
   if (pinError) return pinError;
 
   const updated = await setDisplaySettings({
+    timeZone: body.data.timeZone,
     idleTimeoutMinutes: body.data.idleTimeoutMinutes,
     nightModeEnabled: body.data.nightModeEnabled,
     nightIdleTimeoutMinutes: body.data.nightIdleTimeoutMinutes,

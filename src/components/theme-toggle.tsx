@@ -35,13 +35,13 @@ export function ThemeToggle({ className, showLabel = false }: { className?: stri
     applyTheme(next);
   }
 
-  const label = setting === "system" ? "System" : setting === "light" ? "Hell" : "Dunkel";
+  const label = setting === "system" ? "Auto" : setting === "light" ? "Hell" : "Dunkel";
   const title =
     setting === "system"
-      ? `Design: System (${resolved === "dark" ? "Dunkel" : "Hell"}) – Klicken für Hell`
+      ? `Design: Auto Tag/Nacht (${resolved === "dark" ? "Dunkel" : "Hell"}) – Klicken für Hell`
       : setting === "light"
         ? "Design: Hell – Klicken für Dunkel"
-        : "Design: Dunkel – Klicken für System (automatisch)";
+        : "Design: Dunkel – Klicken für Auto Tag/Nacht";
 
   return (
     <button

@@ -20,7 +20,13 @@ Die root-eigenen Helfer liegen unter `/usr/local/libexec/`. Die Web-App darf aus
 
 Touchgeräte erhalten unabhängig von der Auflösung mindestens 48px hohe Schaltflächen und ein größeres PIN-Tastenfeld. Dialoge haben sichtbare Schließen-/Abbrechen-Tasten; Ruhemodus lässt sich durch Berühren beenden. Auf kurzen Bildschirmen bleibt vertikales Scrollen möglich, statt Daten abzuschneiden.
 
-Die Ubuntu-GNOME-Kiosk-Einrichtung aktiviert die Bildschirmtastatur. Bei einer schon bestehenden Installation einmal `sudo bash /opt/fitfamily/scripts/setup-kiosk-autostart.sh` ausführen und die Texteingabe vor Ort prüfen. Unter anderen Desktop-Umgebungen oder wenn GNOME-Einstellungen nicht erreichbar sind, muss deren Bildschirmtastatur separat aktiviert werden. Browser-Tests auf dem Entwicklungsrechner ersetzen keinen Test des echten Touchpanels.
+Die App öffnet auf großen Touch-Bildschirmen eine eigene Bildschirmtastatur für Text, E-Mail, Zahlen, Datum und Uhrzeit. Falls das Gerät Touch nicht korrekt meldet, das Eingabefeld auswählen und die sichtbare Taste **Tastatur** drücken. Änderungen erst mit **Übernehmen** bestätigen; **Abbrechen** lässt das Feld unverändert. Das Alter wird weiterhin aus dem Geburtsdatum berechnet; **Geburtsdatum ändern** führt zur Datumseingabe. Auf Handys bleibt die native Tastatur erhalten.
+
+Die Ubuntu-GNOME-Kiosk-Einrichtung aktiviert zusätzlich die System-Bildschirmtastatur. Bei einer schon bestehenden Installation kann dafür einmal `sudo bash /opt/fitfamily/scripts/setup-kiosk-autostart.sh` ausgeführt werden. Die App-Tastatur benötigt diese Einrichtung nicht. Browser-Tests auf dem Entwicklungsrechner ersetzen keinen Test des echten Touchpanels.
+
+## Zeitzone und automatisches Design
+
+Unter **Verwaltung → Allgemein** ist **Europe/Berlin** voreingestellt und im Dropdown änderbar. Die Dashboard-Uhr, das Nachtruhe-Zeitfenster und **Auto (Tag/Nacht)** verwenden diese Zeitzone einschließlich Sommer-/Winterzeit. Auto zeigt während des eingestellten Nacht-Zeitfensters das dunkle Design, sonst das helle. Die ausdrücklich gewählten Designs **Hell** und **Dunkel** bleiben unabhängig von der Uhrzeit bestehen. Die Zeitzone ist auch im Datenexport und Backup enthalten.
 
 ## HTTPS für iPhones
 

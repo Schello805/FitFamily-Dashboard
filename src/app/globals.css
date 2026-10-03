@@ -2187,9 +2187,16 @@ body::before {
 .admin-edit-fields textarea { resize: vertical; }
 .admin-edit-fields .wide-field { grid-column: 1 / -1; }
 .admin-field-label { display: block; margin-bottom: 8px; color: var(--muted); font-size: 11px; font-weight: 750; }
-.family-fitness-stage-field { min-width: 0; display: grid; grid-template-columns: minmax(0,1fr) 58px; align-items: end; gap: 10px; }
-.family-fitness-stage-field > label { min-width: 0; display: grid; gap: 6px; color: var(--muted); font-size: 11px; font-weight: 750; }
-.family-fitness-stage-field .avatar { justify-self: center; }
+.family-avatar-preview { display: flex; align-items: center; gap: 16px; margin: 0 0 18px; padding: 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--subtle-bg); }
+.family-avatar-preview .avatar-generated { position: relative; width: 76px; height: 104px; flex: 0 0 76px; }
+.family-avatar-preview > span { color: var(--muted); font-size: 13px; }
+.family-edit-modal fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
+.family-age-field { display: grid; gap: 6px; color: var(--muted); font-size: 11px; font-weight: 750; }
+.family-age-field output { color: var(--text); font-size: 16px; }
+.family-age-field button { min-height: 44px; padding: 6px; border: 1px solid var(--line); border-radius: 10px; background: var(--subtle-bg); color: var(--text); cursor: pointer; }
+.display-time-zone { display: grid; gap: 7px; margin-top: 18px; font-size: 13px; font-weight: 750; }
+.display-time-zone select { min-height: 48px; width: min(420px, 100%); padding: 8px; border: 1px solid var(--line); border-radius: 10px; background: var(--input-bg); color: var(--text); }
+.display-time-zone small { color: var(--muted); font-weight: 500; }
 .admin-edit-modal .exercise-admin-actions { margin-top: 16px; }
 .dashboard-apple-rings { margin: 0 20px 12px; padding-top: 10px; border-top: 1px solid var(--line); }
 .dashboard-apple-rings .apple-rings-widget { padding: 5px 8px; border: 0; border-radius: 12px; background: transparent; box-shadow: none; backdrop-filter: none; }
@@ -4178,6 +4185,23 @@ body::before {
   .dashboard-apple-rings .health-activity-stats strong { font-size: 13px; }
 }
 
+.touch-keyboard-launch { position: fixed; z-index: 900; left: 18px; bottom: 16px; min-height: 52px; padding: 10px 16px; display: flex; align-items: center; gap: 8px; border: 1px solid var(--brand); border-radius: 14px; background: var(--panel); color: var(--text); box-shadow: var(--card-shadow); cursor: pointer; touch-action: manipulation; }
+.touch-keyboard-backdrop { z-index: 2000; }
+.touch-keyboard { width: min(780px, 100%); max-height: 94dvh; overflow: auto; padding: 18px; border: 1px solid var(--line); border-radius: 20px; background: var(--panel); color: var(--text); box-shadow: var(--card-shadow); }
+.touch-keyboard.numeric { width: min(480px, 100%); }
+.touch-keyboard header { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+.touch-keyboard h2 { margin: 0; font-size: 18px; }
+.touch-keyboard button { min-width: 0; min-height: 52px; padding: 8px; display: inline-grid; place-items: center; border: 1px solid var(--line); border-radius: 10px; background: var(--subtle-bg); color: var(--text); cursor: pointer; touch-action: manipulation; font-size: 18px; font-weight: 750; }
+.touch-keyboard header button { flex: none; width: 52px; }
+.touch-keyboard-value { display: block; margin: 12px 0; min-height: 60px; max-height: 120px; overflow: auto; padding: 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--input-bg); font-size: 21px; overflow-wrap: anywhere; white-space: pre-wrap; }
+.touch-keyboard-row { display: flex; gap: 7px; margin-top: 8px; }
+.touch-keyboard-row button { flex: 1 1 0; }
+.touch-keyboard-row .space { flex-grow: 3; }
+.touch-keyboard footer { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+.touch-keyboard footer button { flex: 1; font-size: 15px; }
+.touch-keyboard footer .primary-submit { background: var(--brand); color: #06201d; }
+.touch-keyboard p[role="alert"] { color: var(--danger); }
+@media (max-width: 620px) { .touch-keyboard { padding: 12px 8px; } .touch-keyboard-row { gap: 3px; } .touch-keyboard-row button { padding: 4px; min-height: 48px; font-size: 15px; } }
 .connection-status { display: inline-flex; align-items: flex-start; gap: 7px; color: var(--muted); font-size: 11px; }
 .connection-status > i { flex: none; width: 7px; height: 7px; margin-top: 3px; border-radius: 50%; background: var(--muted); }
 .connection-status.is-connected > i { background: #22c55e; }

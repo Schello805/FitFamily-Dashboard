@@ -1,15 +1,27 @@
+import { DEFAULT_DISPLAY_SETTINGS, type DisplaySettings } from "./display-settings-shared";
+import { isWithinNightWindow } from "./display-time";
+
 export type ThemeSetting = "system" | "light" | "dark";
 export type ResolvedTheme = "light" | "dark";
-
 export const THEME_STORAGE_KEY = "fitfamily-theme";
 
+export function automaticTheme(clock: Date, settings = DEFAULT_DISPLAY_SETTINGS): ResolvedTheme {
+  return isWithinNightWindow(clock, settings.nightStartTime, settings.nightEndTime, settings.timeZone) ? "dark" : "light";
+}
+
+function cachedDisplaySettings(): DisplaySettings {
+  try { return { ...DEFAULT_DISPLAY_SETTINGS, ...JSON.parse(localStorage.getItem("fitfamily_display_settings") || "{}") }; }
+  catch { return DEFAULT_DISPLAY_SETTINGS; }
+}
+
+export function cacheDisplaySettings(settings: DisplaySettings) {
+  try { localStorage.setItem("fitfamily_display_settings", JSON.stringify(settings)); } catch {}
+  applyTheme(getStoredThemeSetting());
+}
+
 export function getSystemPreference(): ResolvedTheme {
-  if (typeof window === "undefined" || !window.matchMedia) return "light";
-  try {
-    return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-  } catch {
-    return "light";
-  }
+  if (typeof window === "undefined") return automaticTheme(new Date());
+  try { return automaticTheme(new Date(), cachedDisplaySettings()); } catch { return automaticTheme(new Date()); }
 }
 
 export function getStoredThemeSetting(): ThemeSetting {
@@ -69,40 +81,18 @@ export function subscribeTheme(callback: () => void): () => void {
   window.addEventListener("fitfamily-theme-change", handleCustom);
   window.addEventListener("storage", handleStorage);
 
-  let mediaQuery: MediaQueryList | null = null;
-  const handleMedia = () => {
+  const refresh = () => {
     if (getStoredThemeSetting() === "system") {
       applyTheme("system");
       callback();
     }
   };
 
-  if (window.matchMedia) {
-    try {
-      mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
-      if (typeof mediaQuery.addEventListener === "function") {
-        mediaQuery.addEventListener("change", handleMedia);
-      } else if (typeof (mediaQuery as { addListener?: (fn: () => void) => void }).addListener === "function") {
-        (mediaQuery as { addListener: (fn: () => void) => void }).addListener(handleMedia);
-      }
-    } catch {
-      // ignore
-    }
-  }
+  const timer = window.setInterval(refresh, 30_000);
 
   return () => {
     window.removeEventListener("fitfamily-theme-change", handleCustom);
     window.removeEventListener("storage", handleStorage);
-    if (mediaQuery) {
-      try {
-        if (typeof mediaQuery.removeEventListener === "function") {
-          mediaQuery.removeEventListener("change", handleMedia);
-        } else if (typeof (mediaQuery as { removeListener?: (fn: () => void) => void }).removeListener === "function") {
-          (mediaQuery as { removeListener: (fn: () => void) => void }).removeListener(handleMedia);
-        }
-      } catch {
-        // ignore
-      }
-    }
+    window.clearInterval(timer);
   };
 }

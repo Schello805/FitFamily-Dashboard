@@ -10,11 +10,11 @@ import { AdminBackupPanel, type BackupStatus } from "@/components/admin-backup-p
 import { AdminUpdatePanel, type UpdateInfo, type UpdateSuccess } from "@/components/admin-update-panel";
 import { AdminDataTransferPanel, type ImportValidation } from "@/components/admin-data-transfer-panel";
 import { AdminSystemStatusPanel, type SystemStatus } from "@/components/admin-system-status-panel";
-import { AvatarPicker } from "@/components/avatar-picker";
-import { Avatar } from "@/components/avatar";
-import { avatarAssetForProfile, getFitnessStageCount, getStartingFitnessStages, GOALS, type AvatarDesignId, type ProfileAvatar } from "@/lib/domain";
+import { AdminFamilyEditModal } from "@/components/admin-family-edit-modal";
+import { getFitnessStageCount, getStartingFitnessStages, type ProfileAvatar } from "@/lib/domain";
 import { showToast } from "@/components/toast";
-import { applyTheme, getStoredThemeSetting, subscribeTheme, type ThemeSetting } from "@/lib/theme";
+import { applyTheme, cacheDisplaySettings, getStoredThemeSetting, subscribeTheme, type ThemeSetting } from "@/lib/theme";
+import { TIME_ZONE_OPTIONS } from "@/lib/display-time";
 import { DEFAULT_DISPLAY_SETTINGS, type DisplaySettings } from "@/lib/display-settings-shared";
 import { formatGermanDate, formatGermanLogTimestamp } from "@/lib/date-format";
 import { ApiRequestError, requestJson } from "@/lib/api-client";
@@ -347,6 +347,7 @@ export function AdminView({
       }
       if (result.displaySettings) {
         setDisplaySettings(result.displaySettings);
+        cacheDisplaySettings(result.displaySettings);
       }
       void checkUpdate();
     } catch (error) {
@@ -361,12 +362,7 @@ export function AdminView({
   }
 
   async function saveDisplaySettings(changes: Partial<DisplaySettings>) {
-    const updated = { ...displaySettings, ...changes };
-    setDisplaySettings(updated);
     setSavingDisplay(true);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("fitfamily_display_settings", JSON.stringify(updated));
-    }
     try {
       const data = await requestJson<{ settings: DisplaySettings }>("/api/admin/display-settings", "Einstellungen konnten nicht gespeichert werden.", {
         method: "POST",
@@ -374,6 +370,7 @@ export function AdminView({
         body: JSON.stringify({ pin, ...changes })
       });
       setDisplaySettings(data.settings);
+      cacheDisplaySettings(data.settings);
       showToast({ type: "success", title: "Gespeichert", message: "Ruhemodus-Einstellungen wurden aktualisiert." });
     } catch (error) {
       showToast({ type: "error", title: "Fehler", message: error instanceof ApiRequestError ? error.message : "Einstellungen konnten nicht gespeichert werden." });
@@ -1031,7 +1028,7 @@ export function AdminView({
           </label>
           <div className="timeout-pills">
             {[
-              { label: "System (Auto)", val: "system" as const, icon: <Monitor size={14} /> },
+              { label: "Auto (Tag/Nacht)", val: "system" as const, icon: <Monitor size={14} /> },
               { label: "Hell", val: "light" as const, icon: <Sun size={14} /> },
               { label: "Dunkel", val: "dark" as const, icon: <Moon size={14} /> }
             ].map(({ label, val, icon }) => (
@@ -1052,6 +1049,12 @@ export function AdminView({
           </div>
         </div>
 
+        <label className="display-time-zone">Zeitzone
+          <select value={displaySettings.timeZone} disabled={savingDisplay} onChange={event => void saveDisplaySettings({ timeZone: event.target.value })}>
+            {Array.from(new Set([displaySettings.timeZone, ...TIME_ZONE_OPTIONS])).map(zone => <option key={zone} value={zone}>{zone === "Europe/Berlin" ? "Berlin · Deutschland (Standard)" : zone}</option>)}
+          </select>
+          <small>Auto: tagsüber hell, im Nachtruhe-Zeitfenster dunkel. Sommer-/Winterzeit wird automatisch berücksichtigt.</small>
+        </label>
         <div style={{ marginTop: "14px" }}>
           <label style={{ display: "block", fontSize: "12px", fontWeight: 750, color: "var(--muted)", marginBottom: "6px" }}>
             ☀️ Tagsüber: Ruhemodus nach Inaktivität:
@@ -1348,7 +1351,7 @@ export function AdminView({
         </div>
       </div>
 
-      {familyModalId && familyDraft && <div className="modal-backdrop" onClick={() => { setFamilyModalId(null); setFamilyDraft(null); }}><form className="admin-edit-modal family-edit-modal" onClick={(event) => event.stopPropagation()} onSubmit={(event) => { event.preventDefault(); void saveFamilyProfile(); }}><button type="button" className="modal-close" onClick={() => { setFamilyModalId(null); setFamilyDraft(null); }} aria-label="Schließen"><X /></button><span className="setup-badge">Familie · Profil bearbeiten</span><h2>{familyDraft.name}</h2><div className="admin-edit-fields"><label>Name<input required maxLength={30} value={familyDraft.name} onChange={(event) => setFamilyDraft({ ...familyDraft, name: event.target.value })} /></label><label>E-Mail-Adresse<input type="email" maxLength={254} value={familyDraft.email ?? ""} onChange={(event) => setFamilyDraft({ ...familyDraft, email: event.target.value || null })} placeholder="name@example.com" /></label><label>Geburtsdatum<input type="date" value={familyDraft.birthDate ?? ""} onChange={(event) => { const birthDate = event.target.value || null; setFamilyDraft({ ...familyDraft, birthDate, startingFitness: Math.min(familyDraft.startingFitness, getStartingFitnessStages(familyDraft.id, birthDate).length) }); }} /></label><label>Alter (automatisch)<input readOnly value={familyDraft.birthDate ? `${calculateAge(familyDraft.birthDate) ?? "Ungültiges Datum"} Jahre` : "Geburtsdatum eintragen"} /></label><div className="family-fitness-stage-field"><label>Aktuelle Fitnessstufe<select value={familyDraft.startingFitness} onChange={(event) => setFamilyDraft({ ...familyDraft, startingFitness: Number(event.target.value) })}>{getStartingFitnessStages(familyDraft.id, familyDraft.birthDate).map((stage) => <option key={stage.stage} value={stage.stage}>{stage.label} ({stage.description})</option>)}</select></label><Avatar id={familyDraft.id} avatar={familyDraft.avatar} fitnessStage={familyDraft.startingFitness} physique="balanced" birthDate={familyDraft.birthDate} name={familyDraft.name} size="small" /></div><label>Trainingsziel<select value={familyDraft.goal} onChange={(event) => setFamilyDraft({ ...familyDraft, goal: event.target.value })}>{GOALS.map((goal) => <option key={goal}>{goal}</option>)}</select></label><div className="wide-field"><span className="admin-field-label">Avatar auswählen</span><AvatarPicker value={avatarAssetForProfile(familyDraft.id, familyDraft.avatar) as AvatarDesignId} onChange={(value) => setFamilyDraft({ ...familyDraft, avatar: value })} /></div></div><div className="exercise-admin-actions"><button type="button" className="confirm-cancel-btn" onClick={() => { setFamilyModalId(null); setFamilyDraft(null); }}>Abbrechen</button><button type="submit" disabled={savingFamily}>{savingFamily ? "Speichert …" : "Profil speichern"}</button></div></form></div>}
+      {familyModalId && familyDraft && <AdminFamilyEditModal draft={familyDraft} age={familyDraft.birthDate ? calculateAge(familyDraft.birthDate) : null} busy={savingFamily} onChange={setFamilyDraft} onSave={() => void saveFamilyProfile()} onClose={() => { setFamilyModalId(null); setFamilyDraft(null); }} />}
 
       {confirmModal && (
         <div className="modal-backdrop" onClick={() => { setConfirmModal(null); setConfirmPin(""); setConfirmPinError(""); }}>
