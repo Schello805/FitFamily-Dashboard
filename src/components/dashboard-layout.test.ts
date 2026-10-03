@@ -12,6 +12,7 @@ describe("dashboard layout constraints (real browser geometry is checked separat
     expect(shellRules.some((rule) => /(?:^|;)\s*height:\s*100dvh/.test(rule))).toBe(true);
     const compactRules = css.slice(css.indexOf("@media (min-width: 901px) and (max-height: 850px)"));
     expect(compactRules).toContain(".profile-card .profile-heading > .dashboard-history-chart { height: 100px; min-height: 100px; }");
+    expect(compactRules).toContain(".profile-card .profile-heading > .dashboard-history-chart { min-height: 112px; height: 112px; }");
   });
 
   it("keeps the chart above the stretched profile link hit area", () => {

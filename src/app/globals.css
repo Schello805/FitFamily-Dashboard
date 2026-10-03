@@ -3603,8 +3603,22 @@ body::before {
   .brand-tools .quiet-shortcut,
   .brand-tools .user-help-launch { width: 64px; min-width: 64px; }
   .header-qr-thumbnail { width: 48px; height: 48px; }
-  .profile-card .profile-heading > .dashboard-history-chart { min-height: 96px; height: 96px; }
+  /* Use the space freed by the retired health panel for a readable trend chart. */
+  .profile-card .profile-heading > .dashboard-history-chart { min-height: 112px; height: 112px; }
   .app-footer { min-height: 18px; }
+}
+
+/* Keep the two direct training choices and the AI-plan entry discoverable on touch phones. */
+@media (max-width: 680px) {
+  .training-hero { min-height: 0; margin: 14px 0 12px; padding: 18px 18px; gap: 14px; }
+  .profile-hero-left { gap: 10px; }
+  .training-copy h2 { font-size: clamp(26px, 8vw, 36px); }
+  .training-copy p { font-size: 13px; }
+  .training-button { min-height: 128px; padding: 16px; gap: 14px; }
+  .button-icon { min-width: 68px; width: 68px; height: 68px; }
+  .training-button strong { font-size: 27px; }
+  .training-plan-entry { min-height: 92px; padding: 16px; gap: 14px; }
+  .training-plan-entry strong { font-size: 21px; }
 }
 
 /* Equipment dialogs fit the short Lenovo kiosk viewport without an inner page scroll. */
