@@ -4091,7 +4091,7 @@ body::before {
   .avatar-generated.avatar-small { width: 88px; height: 122px; }
   .profile-identity { gap: 14px; }
   .profile-card .profile-heading { grid-template-columns: minmax(0, .72fr) minmax(0, 1.35fr) auto; }
-  .profile-card .profile-heading > .dashboard-history-chart { transform: translateX(-5px); }
+  .profile-card .profile-heading > .dashboard-history-chart { transform: translateX(-15px); }
   .profile-heading > .profile-identity { grid-template-columns: 88px minmax(0, 1fr); }
   .profile-heading .profile-name { min-width: 0; }
   .profile-heading .profile-name p { max-width: 130px; line-height: 1.2; }
@@ -4110,7 +4110,8 @@ body::before {
   .dashboard-history-chart-footer > span:nth-child(1),
   .dashboard-history-chart-footer > span:nth-child(2),
   .dashboard-history-chart-footer > span:nth-child(3) { font-size: 9px; }
-  .score-row { margin: 8px 0; }
+  .profile-card.has-health > .score-row { margin: 8px 0 16px; }
+  .profile-card.has-health > .dashboard-apple-rings { padding-top: 9px; }
   .score strong { font-size: clamp(32px, 2.2vw, 40px); }
   .score span, .today span { font-size: 11px; }
   .today strong { font-size: 24px; }
