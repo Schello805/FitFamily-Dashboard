@@ -77,10 +77,9 @@ function ProfileDashboardCard({ profile, clock }: { profile: DashboardProfile; c
           <Avatar profile={profile} />
           <div className="profile-name"><span>Profil</span><h2>{profile.name}</h2><p>{profile.goal}</p></div>
         </Link>
+        <ActivityTrendChart points={profile.activityTrend} color={profile.color} targetMinutes={profile.targetMinutes} targetPeriod={profile.targetPeriod} />
         <GoalRing value={profile.targetPercent} color={profile.color} targetMinutes={profile.targetMinutes} targetPeriod={profile.targetPeriod} />
       </div>
-
-      <ActivityTrendChart points={profile.activityTrend} color={profile.color} targetMinutes={profile.targetMinutes} targetPeriod={profile.targetPeriod} />
 
       <div className="score-row">
         <div className="score"><Trophy size={22} /><div><strong>{profile.score.toLocaleString("de-DE")}</strong><span>Gesamtpunkte</span></div></div>
