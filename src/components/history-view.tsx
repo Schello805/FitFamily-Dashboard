@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Activity, Apple, ArrowLeft, ArrowLeftRight, Dumbbell, Pencil, PencilLine, Plus, Trash2 } from "lucide-react";
+import { Activity, ArrowLeft, ArrowLeftRight, Dumbbell, Pencil, PencilLine, Plus, Trash2 } from "lucide-react";
 import type { DashboardProfile } from "@/lib/domain";
 import { TouchPinpad } from "@/components/touch-pinpad";
 import { showToast } from "@/components/toast";
@@ -18,9 +18,6 @@ type Session = {
   status: string;
   source: string;
   edited: boolean;
-  healthTitle?: string | null;
-  healthCalories?: number | null;
-  healthDistanceKm?: number | null;
   segments: Segment[];
 };
 
@@ -158,20 +155,6 @@ function SwipeableSessionRow({
             <em>
               <PencilLine size={13} /> Manuell
             </em>
-          )}
-          {session.source === "apple_health" && (
-            <>
-              <em className="apple-source">
-                <Apple size={13} /> Apple Health
-              </em>
-              {(session.healthDistanceKm != null || session.healthCalories != null) && (
-                <small className="apple-session-stats">
-                  {session.healthDistanceKm != null ? `${session.healthDistanceKm.toLocaleString("de-DE", { maximumFractionDigits: 2 })} km` : ""}
-                  {session.healthDistanceKm != null && session.healthCalories != null ? " · " : ""}
-                  {session.healthCalories != null ? `${Math.round(session.healthCalories)} kcal` : ""}
-                </small>
-              )}
-            </>
           )}
           {session.status === "active" && <em className="session-running-tag">Läuft</em>}
           <div className="session-desktop-actions">

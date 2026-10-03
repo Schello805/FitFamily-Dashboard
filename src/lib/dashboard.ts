@@ -16,7 +16,6 @@ export async function getDashboardData(): Promise<DashboardProfile[]> {
   await enforceSafetyPauses();
   const client = await db();
   const now = new Date();
-  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
   const recentDates = Array.from({ length: 30 }, (_, index) => {
     const date = new Date(todayStart);
@@ -31,36 +30,21 @@ export async function getDashboardData(): Promise<DashboardProfile[]> {
   weekStartDate.setDate(weekStartDate.getDate() - weekday + 1);
   const weekStart = weekStartDate.getTime();
 
-  const [profilesResult, segmentsResult, activeResult, plansResult, appleHealthResult, trendHealthResult] = await Promise.all([
+  const [profilesResult, segmentsResult, activeResult, plansResult] = await Promise.all([
     client.execute("SELECT * FROM profiles ORDER BY CASE id WHEN 'mama' THEN 1 WHEN 'papa' THEN 2 WHEN 'fabian' THEN 3 WHEN 'frieda' THEN 4 ELSE 5 END, name ASC"),
     client.execute(`SELECT ts.profile_id, sg.type, sg.started_at, sg.ended_at, p.target_reset_at, p.score_reset_at
       FROM training_segments sg JOIN training_sessions ts ON ts.id = sg.session_id
-      JOIN profiles p ON p.id = ts.profile_id`),
+      JOIN profiles p ON p.id = ts.profile_id
+      WHERE COALESCE(ts.source, '') <> 'apple_health'`),
     client.execute(`SELECT ts.profile_id, ts.id session_id, ts.started_at session_started_at,
       sg.id segment_id, sg.type, sg.exercise_id, sg.started_at segment_started_at, ex.name exercise_name
       FROM training_sessions ts
       JOIN training_segments sg ON sg.session_id = ts.id AND sg.ended_at IS NULL
       LEFT JOIN exercises ex ON ex.id = sg.exercise_id
-      WHERE ts.status = 'active'`),
+      WHERE ts.status = 'active' AND COALESCE(ts.source, '') <> 'apple_health'`),
     client.execute(`SELECT profile_id, title, target_date, plan_json FROM training_plans
-      WHERE status = 'active' ORDER BY COALESCE(target_date, '9999-12-31') ASC`),
-    client.execute({
-      sql: "SELECT profile_id, move_calories, move_goal, exercise_minutes, exercise_goal, stand_hours, stand_goal, step_count, walking_running_distance_km, cycling_distance_km, flights_climbed, updated_at FROM apple_health_daily WHERE date = ?",
-      args: [todayStr]
-    }).catch(() => ({ rows: [] })),
-    client.execute({
-      sql: "SELECT profile_id, date, exercise_minutes FROM apple_health_daily WHERE date <= ?",
-      args: [todayStr]
-    }).catch(() => ({ rows: [] }))
+      WHERE status = 'active' ORDER BY COALESCE(target_date, '9999-12-31') ASC`)
   ]);
-
-  const healthMinutesByProfile = new Map<string, Map<string, number>>();
-  for (const row of trendHealthResult.rows) {
-    const profileId = String(row.profile_id);
-    const dates = healthMinutesByProfile.get(profileId) ?? new Map<string, number>();
-    dates.set(String(row.date), Math.max(0, asNumber(row.exercise_minutes)));
-    healthMinutesByProfile.set(profileId, dates);
-  }
 
   const workoutMinutesByProfile = new Map<string, Map<string, number>>();
   for (const row of segmentsResult.rows) {
@@ -140,15 +124,8 @@ export async function getDashboardData(): Promise<DashboardProfile[]> {
       ? Math.floor((now.getTime() - birthTime) / (365.2425 * 24 * 60 * 60 * 1000))
       : (["fabian", "frieda"].includes(profile.id) ? 17 : 30);
     const target = movementTargetForAge(age);
-    const healthMinutes = healthMinutesByProfile.get(profileId);
-    const workoutMinutes = workoutMinutesByProfile.get(profileId);
     const dailyTarget = target.period === "Woche" ? target.minutes / 7 : target.minutes;
-    const dailyActivity = new Map<string, number>();
-    for (const date of new Set([...(healthMinutes?.keys() ?? []), ...(workoutMinutes?.keys() ?? [])])) {
-      const healthValue = healthMinutes?.get(date);
-      const workoutValue = workoutMinutes?.get(date);
-      dailyActivity.set(date, Math.max(healthValue ?? 0, workoutValue ?? 0));
-    }
+    const dailyActivity = workoutMinutesByProfile.get(profileId) ?? new Map<string, number>();
     const observedDates = [...dailyActivity.keys()].sort();
     const firstObservedDate = observedDates[0];
     const monthlyStartMonth = new Date(monthlyStartDate.getFullYear(), monthlyStartDate.getMonth(), 1);
@@ -241,25 +218,6 @@ export async function getDashboardData(): Promise<DashboardProfile[]> {
       }
     }
 
-    const storedRing = appleHealthResult.rows.find((r) => String(r.profile_id) === profileId);
-    let appleHealthRings: DashboardProfile["appleHealthRings"] = null;
-
-    if (storedRing) {
-      appleHealthRings = {
-        moveCalories: Math.round(Number(storedRing.move_calories)),
-        moveGoal: Math.round(Number(storedRing.move_goal) || (age < 18 ? 400 : 500)),
-        exerciseMinutes: Math.round(Number(storedRing.exercise_minutes)),
-        exerciseGoal: Math.round(Number(storedRing.exercise_goal) || (target.period === "Tag" ? target.minutes : 30)),
-        standHours: Math.min(24, Math.round(Number(storedRing.stand_hours))),
-        standGoal: Math.round(Number(storedRing.stand_goal) || 12),
-        stepCount: Math.max(0, Math.round(Number(storedRing.step_count) || 0)),
-        walkingRunningDistanceKm: Math.max(0, Number(storedRing.walking_running_distance_km) || 0),
-        cyclingDistanceKm: Math.max(0, Number(storedRing.cycling_distance_km) || 0),
-        flightsClimbed: Math.max(0, Math.round(Number(storedRing.flights_climbed) || 0)),
-        lastSyncedAt: String(storedRing.updated_at)
-      };
-    }
-
     return {
       ...profile,
       ...avatarProgress,
@@ -281,7 +239,6 @@ export async function getDashboardData(): Promise<DashboardProfile[]> {
             segmentStartedAt: String(active.segment_started_at)
           }
         : null,
-      appleHealthRings,
       activityTrend
     };
   });

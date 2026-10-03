@@ -23,24 +23,11 @@
 - [x] Migration und Standardwerte für bestehende Profile absichern; Setup, Profilbearbeitung, Avatar-Stufen und historische Trainingsdaten testen.
 - [x] Bildgenerierung bzw. benötigte Bildrechte und den Asset-Workflow festlegen (dokumentiert in [docs/KONTOMODELL_UND_AVATARE.md](docs/KONTOMODELL_UND_AVATARE.md)).
 
-## Offene Punkte – Apple-Health-Verlauf
+## Aktueller Fokus – KI-Trainingsplan
 
-- [x] Authentifizierte, aber ungültige Anfragen im PIN-geschützten Sync-Protokoll anzeigen (z. B. 30-Tage-Schritt-Summe im Tagesfeld), ohne Gesundheitswerte oder Schlüssel zu speichern.
-- [ ] Kurzbefehl für einen 30-Tage-Backfill so vereinfachen, dass jeder Tageswert mit Datum übertragen wird und Urlaubszeiten nachgetragen werden können.
-- [ ] Kompakte Dashboard-Sparkline: Soll (DOSB-Ziel) gegen Ist (Apple Health und FitFamily-Training), mit Detailmodal, Zeitbereich und sauberer Deduplizierung importierter Workouts.
-- [ ] Entscheiden und testen, ob die tägliche iPhone-Automation genügt oder eine sichere Verbindung von außerhalb des Heimnetzes bzw. Offline-Warteschlange für Urlaube nötig ist.
-
-## Version 2.0 – Apple Health
-
-Dieser Punkt ist bewusst festgehalten und darf nicht stillschweigend entfallen:
-
-- Native iPhone-Begleit-App mit HealthKit
-- Individuelle Freigabe pro Familienmitglied
-- Import von Workouts, Schritten, Distanz und aktiver Bewegungszeit
-- Erkennung doppelter Einheiten
-- Alltagsbewegung zählt zum Zielring, nicht automatisch zum Score
-- Optionales Fitnessalter für Erwachsene auf Basis geeigneter Cardiofitness-Daten
-- Kein biologisches Alter für Kinder; stattdessen altersgerechte Fitnessbereiche
+- Direkte Trainingsstarts über Kraft und Ausdauer sowie persönliche KI-Trainingspläne.
+- Trainingsqualität, verständliche Abläufe und zuverlässige lokale Fortschrittsberechnung.
+- Apple Health ist vorerst eingestellt; eine erneute Anbindung ist nicht Teil der aktuellen Arbeit.
 
 ## Später denkbar
 

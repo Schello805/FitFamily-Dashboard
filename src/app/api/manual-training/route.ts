@@ -71,7 +71,7 @@ export async function PUT(request: Request) {
 
   const client = await db();
   const existing = await client.execute({
-    sql: "SELECT id, started_at, ended_at FROM training_sessions WHERE id = ? AND profile_id = ?",
+    sql: "SELECT id, started_at, ended_at FROM training_sessions WHERE id = ? AND profile_id = ? AND COALESCE(source, '') <> 'apple_health'",
     args: [body.data.sessionId, body.data.profileId]
   });
   if (existing.rows.length === 0) {
@@ -128,7 +128,7 @@ export async function DELETE(request: Request) {
 
   const client = await db();
   const existing = await client.execute({
-    sql: "SELECT id FROM training_sessions WHERE id = ? AND profile_id = ?",
+    sql: "SELECT id FROM training_sessions WHERE id = ? AND profile_id = ? AND COALESCE(source, '') <> 'apple_health'",
     args: [body.data.sessionId, body.data.profileId]
   });
   if (existing.rows.length === 0) {
@@ -136,12 +136,6 @@ export async function DELETE(request: Request) {
   }
 
   await client.batch([
-    {
-      sql: `INSERT OR IGNORE INTO apple_health_ignored_workouts (profile_id, external_id)
-        SELECT profile_id, external_id FROM training_sessions
-        WHERE id = ? AND profile_id = ? AND source = 'apple_health' AND external_id IS NOT NULL`,
-      args: [body.data.sessionId, body.data.profileId]
-    },
     {
       sql: "DELETE FROM training_segments WHERE session_id = ?",
       args: [body.data.sessionId]

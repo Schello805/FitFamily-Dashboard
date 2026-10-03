@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Activity, Apple, ArrowLeft, CalendarRange, Check, CheckCircle2, Copy, Dumbbell, History, LockKeyhole, QrCode, RotateCcw, Settings2, Smartphone, Square, X, XCircle, Zap } from "lucide-react";
+import { Activity, ArrowLeft, CalendarRange, CheckCircle2, Dumbbell, History, QrCode, Settings2, Smartphone, Square, XCircle, Zap } from "lucide-react";
 import {
   avatarAssetForProfile,
   getFitnessStageCount,
@@ -19,8 +19,6 @@ import { ProfileEditModal } from "@/components/profile-edit-modal";
 import { Avatar } from "@/components/avatar";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { showToast } from "@/components/toast";
-import { AppleActivityRings } from "@/components/apple-activity-rings";
-import { TouchPinpad } from "@/components/touch-pinpad";
 import { ApiRequestError, requestJson } from "@/lib/api-client";
 import { Modal } from "@/components/modal";
 import { ConnectionStatus } from "@/components/connection-status";
@@ -28,52 +26,12 @@ import { useDashboardConnection } from "@/components/use-dashboard-connection";
 
 type Exercise = { id: string; name: string; type: string; equipment: string };
 
-async function copyTextToClipboard(text: string): Promise<boolean> {
-  if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
-    try {
-      await navigator.clipboard.writeText(text);
-      return true;
-    } catch {
-      // Fall through to the manual-selection-compatible browser API.
-    }
-  }
-
-  if (typeof document === "undefined" || typeof document.execCommand !== "function") return false;
-  const field = document.createElement("textarea");
-  field.value = text;
-  field.setAttribute("readonly", "");
-  field.style.position = "fixed";
-  field.style.left = "0";
-  field.style.top = "0";
-  field.style.opacity = "0";
-  // Modal makes its siblings inert; the fallback must stay inside the active dialog.
-  const dialogs = document.querySelectorAll<HTMLElement>('[role="dialog"]');
-  const host = dialogs.length ? dialogs[dialogs.length - 1] : document.body;
-  const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-  host.appendChild(field);
-  field.focus();
-  field.select();
-  field.setSelectionRange(0, field.value.length);
-  let copied = false;
-  try {
-    copied = document.execCommand("copy");
-  } catch {
-    copied = false;
-  } finally {
-    field.remove();
-    previousFocus?.focus({ preventScroll: true });
-  }
-  return copied;
-}
-
 export function ProfileView({
   initialProfile,
-  exercises,
-  serverBaseUrl
+  exercises
 }: {
   initialProfile: DashboardProfile;
   exercises: Exercise[];
-  serverBaseUrl?: string;
 }) {
   const [profile, setProfile] = useState(initialProfile);
   const [busy, setBusy] = useState(false);
@@ -82,19 +40,6 @@ export function ProfileView({
   const [handoffScanned, setHandoffScanned] = useState(false);
   const [longRunning, setLongRunning] = useState(false);
   const [editingProfile, setEditingProfile] = useState(false);
-  const [healthModal, setHealthModal] = useState(false);
-  const [testingHealth, setTestingHealth] = useState(false);
-  const [healthPinAction, setHealthPinAction] = useState<"create" | "revoke" | "delete">();
-  const [healthCheckResult, setHealthCheckResult] = useState<{ verified: boolean; message: string; importId?: string; checkedAt?: string; values?: Record<string, unknown> } | null>(null);
-  const [healthPin, setHealthPin] = useState("");
-  const [healthPinError, setHealthPinError] = useState("");
-  const [healthPinBusy, setHealthPinBusy] = useState(false);
-  const [healthSyncToken, setHealthSyncToken] = useState("");
-  const [healthTokenConfigured, setHealthTokenConfigured] = useState(false);
-  const [healthTokenStatus, setHealthTokenStatus] = useState<"loading" | "ready" | "error">("loading");
-  const [showHealthSyncToken, setShowHealthSyncToken] = useState(false);
-  const [copiedShortcutPrompt, setCopiedShortcutPrompt] = useState(false);
-  const [manualShortcutPrompt, setManualShortcutPrompt] = useState("");
   const [prepCountdown, setPrepCountdown] = useState<{
     type: TrainingType;
     exerciseId?: string | null;
@@ -155,19 +100,6 @@ export function ProfileView({
     }, 1200);
     return () => window.clearInterval(interval);
   }, [handoff?.token, handoffScanned, profile.name]);
-
-  useEffect(() => {
-    if (!healthModal) return;
-    requestJson<{ configured?: boolean }>(
-      `/api/sync/apple-health/token?profileId=${encodeURIComponent(profile.id)}`,
-      "Sync-Schlüsselstatus nicht verfügbar.", { cache: "no-store" }
-    )
-      .then((data) => {
-        setHealthTokenConfigured(Boolean(data?.configured));
-        setHealthTokenStatus("ready");
-      })
-      .catch(() => setHealthTokenStatus("error"));
-  }, [healthModal, profile.id]);
 
   const { refresh, connectionError, lastRefreshedAt } = useDashboardConnection((data) => {
     const current = data.profiles.find((item) => item.id === profile.id);
@@ -435,211 +367,6 @@ export function ProfileView({
     }
   }
 
-  function getWebhookUrl() {
-    if (serverBaseUrl && typeof window !== "undefined" && (window.location.origin.includes("localhost") || window.location.origin.includes("127.0.0.1"))) {
-      return `${serverBaseUrl.replace(/\/$/, "")}/api/sync/apple-health`;
-    }
-    return typeof window !== "undefined" ? `${window.location.origin}/api/sync/apple-health` : "";
-  }
-
-  async function copyShortcutPrompt() {
-    const prompt = `Hilf mir, den iPhone-Kurzbefehl „FitFamily Health Sync“ in Apple Kurzbefehle einzurichten. Gib eine nummerierte Anleitung für jede Aktion, jeden Filter, die Einheiten, Variablen und JSON-Feldtypen. Nutze ausschließlich eingebaute Kurzbefehle- und Health-Aktionen. Wenn eine Aktion oder Option in meiner iOS-Version fehlt, benenne die Einschränkung und frage nach dem sichtbaren Auswahlmenü, statt Funktionen zu erfinden. Der fertige Kurzbefehl enthält keine KI- oder Drittanbieter-Aktionen.
-
-1. Verbindung und Datum
-Ziel-URL: ${getWebhookUrl()}
-Profil-ID: ${profile.id}
-Sync-Schlüssel: HIER_DEN_SYNC_SCHLUESSEL_EINFUEGEN (ich ersetze diesen Platzhalter nur auf meinem iPhone).
-iPhone und Server müssen im selben WLAN oder per VPN erreichbar sein. Health-Leseberechtigungen für die verwendeten Arten erteilen. Fehlende Berechtigung ist kein Tageswert von 0.
-Am Anfang „Aktuelles Datum“ erfassen und als LaufDatum speichern. „Datum formatieren“: ISO 8601 wählen, „Einschließlich ISO 8601-Zeit“ AUS. Ergebnis als Tagesdatum speichern. Das ergibt YYYY-MM-DD, z.B. 2026-10-03. Alle Abfragen beziehen sich auf denselben heutigen lokalen Kalendertag. Wenn während des Laufs das Datum wechselt, abbrechen und neu starten.
-
-2. Tageszahlen getrennt ermitteln
-Für jede der folgenden fünf Arten einen eigenen Block anlegen:
-• Aktive Energie / Active Energy bzw. Active Calories: Einheit kcal; Ergebnisvariable TagesKalorien; JSON-Feld moveCalories.
-• Trainingsminuten / Exercise Time: Einheit Minuten; TagesTraining; exerciseMinutes.
-• Schritte / Steps: Anzahl, ganze Zahl; TagesSchritte; stepCount.
-• Strecke (Gehen und Laufen): Einheit km; TagesGehstrecke; walkingRunningDistanceKm.
-• Strecke (Fahrrad): Einheit km; TagesRadstrecke; cyclingDistanceKm.
-
-Jeder Block arbeitet so:
-a) „Health-Messungen suchen“: Alle Bedingungen, Typ = die jeweilige Art, Startdatum = heute. Gruppieren nach Tag, Beschränken AUS, keine zusätzliche Wert-Bedingung. Explizite Einheit einstellen; bei Schritten die angebotene Anzahl/Standardeinheit verwenden.
-b) Prüfen, ob die Abfrage ein Ergebnis hat. Bei erfolgreicher Abfrage ohne Messungen die Aktion „Zahl“ mit 0 verwenden, als Ergebnisvariable dieses Blocks speichern. Bei fehlender Radfahrt darf der Kurzbefehl deshalb nicht abbrechen. Bei fehlenden Leserechten abbrechen oder das Feld auslassen und eine verständliche Meldung zeigen.
-c) Bei vorhandenen Ergebnissen „Statistik berechnen“ mit Summe ausführen. Als Eingabe ausdrücklich den numerischen Wert der Ergebnisse dieser Health-Abfrage auswählen, bei Bedarf mit „Details von Health-Messungen abrufen“ → Wert. Bereits nach Tag zusammengefasste Werte nur einmal übernehmen; niemals sowohl Einzelmessungen als auch deren Tagessumme addieren.
-d) Das Ergebnis sofort mit „Variable festlegen“ unter dem oben genannten eindeutigen Namen speichern. Schritte als ganze Zahl runden. Die anderen Werte dürfen Dezimalzahlen sein. Keine formatierte Textzahl, keine Einheiten, kein Tausenderpunkt im JSON.
-e) In späteren Feldern genau diese benannte Variable auswählen. Nicht irgendeine der mehrfach vorkommenden Magic-Variablen „Summe“ und nicht „Health-Messungen“ verwenden.
-
-3. Stehen und Ringziele
-Stand Time / Stehminuten NICHT als Stehen-Ring verwenden. Auch Stehminuten geteilt durch 60 ist falsch: Der Ring zählt Stunden mit mindestens einer Minute Stehen und Bewegung. standMinutes deshalb ganz auslassen. standHours nur ergänzen, wenn Kurzbefehle tatsächlich erfüllte Stehstunden auslesen kann; sonst fehlt dieser Ringwert bewusst. Keine Stehstunden schätzen.
-Die Ziele werden nicht aus den Messsummen berechnet. Optional einmal separat die echten Ziele aus der Fitness-App als Zahl eingeben und in Variablen speichern: moveGoal = kcal-Ziel, exerciseGoal = Minuten-Ziel, standGoal = Stunden-Ziel. Nur echte Ziele übertragen. Wenn keine automatische Abfrage verfügbar ist, diese manuelle Eingabe klar erklären. Ohne diese Felder behält FitFamily vorhandene Ziele bzw. Standardwerte; dadurch kann z.B. 500 statt 800 kcal erscheinen.
-
-4. JSON in „Inhalte von URL abrufen“ aufbauen
-Methode POST, Haupttext JSON. Keine Health-Objekte an diese Aktion übergeben.
-Oberste Ebene:
-• profileId: Text, genau „${profile.id}“.
-• secret: Text, mein privater Sync-Schlüssel.
-• dailyActivity: Wörterbuch (ein einzelner Tag, keine Textdarstellung von JSON).
-Im Wörterbuch dailyActivity:
-• date: Text → Variable Tagesdatum.
-• moveCalories: Zahl → TagesKalorien.
-• exerciseMinutes: Zahl → TagesTraining.
-• stepCount: Zahl → TagesSchritte.
-• walkingRunningDistanceKm: Zahl → TagesGehstrecke.
-• cyclingDistanceKm: Zahl → TagesRadstrecke.
-Optionale echte Ziele und standHours ebenfalls als Zahl im selben Tageswörterbuch eintragen. Felder exakt schreiben. Fehlende Werte auslassen, nicht als leeren Text schicken.
-
-Nur Strukturbeispiel — Datum und alle Zahlen müssen beim Ausführen aus den Variablen kommen; diese Nullen sind KEINE Testdaten zum Senden:
-{
-  "profileId": "${profile.id}",
-  "secret": "HIER_DEN_SYNC_SCHLUESSEL_EINFUEGEN",
-  "dailyActivity": {
-    "date": "2026-10-03",
-    "moveCalories": 0,
-    "exerciseMinutes": 0,
-    "stepCount": 0,
-    "walkingRunningDistanceKm": 0,
-    "cyclingDistanceKm": 0
-  }
-}
-
-5. Test und Kontrolle
-Vor dem ersten Senden eine Vorschau nur des Tageswörterbuchs anzeigen, ohne secret. Jede Position muss eine einzelne Zahl oder das Datum enthalten, keine Messobjekte. Falls „363 Health-Objekte teilen“ o.ä. erscheint, die Variablenzuordnung korrigieren: Hier sollen nur fünf Tageszahlen übertragen werden. Diese Meldung nicht durch pauschale Freigabe großer Datenmengen umgehen.
-Mit den heutigen Zahlen der Fitness-/Health-App vergleichen. Daten von iPhone und Apple Watch können überlappen; bei Abweichungen Datenquellen und Tagesaggregation prüfen, nicht ungeprüft alle Quellen aufsummieren oder Gleichheit versprechen. Auch Synchronisationsverzögerungen zwischen Watch und iPhone berücksichtigen.
-Genau einen POST mit den echten Tageszahlen senden. Die Serverantwort mit der vorhandenen Aktion „Übersicht“/Quick Look oder einer passenden Ausgabeaktion anzeigen. Erfolg: ok = true und activityDaysSynced = 1. Fehlerantwort unverändert anzeigen, keine Erfolgsmeldung erfinden.
-Danach FitFamily → Verwaltung → Protokolle → Apple Health → „Empfangene und gespeicherte Werte“ öffnen. Profil, Datum, empfangene Zahlen und gespeicherte Zahlen vergleichen. Der Kurzbefehl überträgt Tageswerte, keine Trainingseinheiten; imported = 0 ist dabei normal.
-Keine rückwirkenden 30-Tage-Summen, Etagen oder Trainingsobjekte einbauen. Gib zum Schluss eine kurze Prüfliste für Feldtypen, Einheiten, leere Ergebnisse und den geheimen Schlüssel.`;
-    if (await copyTextToClipboard(prompt)) {
-      setCopiedShortcutPrompt(true);
-      showToast({ type: "success", title: "Einrichtung kopiert", message: "Füge den Text in deine KI ein. Deinen Schlüssel setzt du anschließend nur in deinem persönlichen Kurzbefehl ein." });
-      setTimeout(() => setCopiedShortcutPrompt(false), 2500);
-    } else {
-      setManualShortcutPrompt(prompt);
-    }
-  }
-
-  function requestHealthPin(action: "create" | "revoke" | "delete") {
-    setHealthCheckResult(null);
-    setHealthPin("");
-    setHealthPinError("");
-    setHealthPinAction(action);
-  }
-
-  async function manageHealthToken(action: "create" | "revoke", pin: string): Promise<boolean> {
-    try {
-      const data = await requestJson<{ token?: string }>("/api/sync/apple-health/token", "Sync-Schlüssel konnte nicht geändert werden.", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ profileId: profile.id, pin, action })
-      });
-      if (action === "create" && typeof data.token === "string") {
-        setHealthSyncToken(data.token);
-        setShowHealthSyncToken(true);
-        setHealthTokenConfigured(true);
-        setHealthTokenStatus("ready");
-        const copied = await copyTextToClipboard(data.token);
-        showToast({
-          type: "success",
-          title: "Sync-Schlüssel erstellt",
-          message: copied
-            ? "Schlüssel erstellt und angezeigt. Nach dem Erstellen des Kurzbefehls hier erneut auf Kopieren tippen und den Wert in deiner privaten Kopie bei secret einsetzen."
-            : "Schlüssel erstellt und wird im Feld angezeigt. Nach dem Erstellen des Kurzbefehls hier kopieren und in deiner privaten Kopie bei secret einsetzen."
-        });
-      } else {
-        setHealthSyncToken("");
-        setShowHealthSyncToken(false);
-        setHealthTokenConfigured(false);
-        setHealthTokenStatus("ready");
-        showToast({ type: "info", title: "Sync-Schlüssel widerrufen", message: "Apple-Health-Übertragungen dieses Profils sind jetzt gesperrt." });
-      }
-      return true;
-    } catch (error) {
-      setHealthPinError(error instanceof Error ? error.message : "Keine Verbindung zum Dashboard.");
-      return false;
-    }
-  }
-
-  async function copyHealthToken() {
-    if (await copyTextToClipboard(healthSyncToken)) {
-      showToast({ type: "info", title: "Schlüssel kopiert", message: "Füge ihn in deinen persönlichen Kurzbefehl ein." });
-    } else {
-      showToast({ type: "error", title: "Kopieren nicht möglich", message: "Markiere den Schlüssel im Eingabefeld und kopiere ihn manuell." });
-    }
-  }
-
-  async function testHealthSync(): Promise<boolean> {
-    setTestingHealth(true);
-    setHealthCheckResult(null);
-    try {
-      const data = await requestJson<NonNullable<typeof healthCheckResult>>("/api/sync/apple-health/token", "Übertragung konnte nicht geprüft werden.", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          profileId: profile.id,
-          action: "check"
-        })
-      });
-      setHealthCheckResult(data);
-      return true;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Übertragung konnte nicht geprüft werden.";
-      setHealthCheckResult({ verified: false, message });
-      return false;
-    } finally {
-      setTestingHealth(false);
-    }
-  }
-
-  const [resettingHealth, setResettingHealth] = useState(false);
-  const [confirmResetHealth, setConfirmResetHealth] = useState(false);
-
-  async function performHealthReset(pin: string): Promise<boolean> {
-    setResettingHealth(true);
-    try {
-      const data = await requestJson<{ message?: string }>(`/api/sync/apple-health?profileId=${encodeURIComponent(profile.id)}`, "Vorgang fehlgeschlagen.", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pin })
-      });
-      showToast({
-          type: "success",
-          title: "Apple Health getrennt & gelöscht",
-          message: data.message ?? "Daten wurden erfolgreich entfernt."
-      });
-      setConfirmResetHealth(false);
-      setHealthSyncToken("");
-      setHealthTokenConfigured(false);
-      setHealthTokenStatus("ready");
-      setProfile((prev) => ({ ...prev, appleHealthRings: null }));
-      await refresh(true);
-      return true;
-    } catch (error) {
-      setHealthPinError(error instanceof ApiRequestError ? error.message : "Konnte nicht mit dem Server kommunizieren.");
-      return false;
-    } finally {
-      setResettingHealth(false);
-    }
-  }
-
-  async function submitHealthPin() {
-    if (!healthPinAction || healthPin.length !== 4) return;
-    setHealthPinBusy(true);
-    setHealthPinError("");
-    try {
-      let succeeded: boolean;
-      if (healthPinAction === "delete") {
-        succeeded = await performHealthReset(healthPin);
-      } else {
-        succeeded = await manageHealthToken(healthPinAction, healthPin);
-      }
-      if (succeeded) {
-        setHealthPinAction(undefined);
-        setHealthPin("");
-      }
-    } catch (error) {
-      setHealthPinError(error instanceof Error ? error.message : "Die PIN konnte nicht geprüft werden.");
-    } finally {
-      setHealthPinBusy(false);
-    }
-  }
-
   function openProfileEditor() {
     setProfileNotice("");
     setEditAvatar(avatarAssetForProfile(profile.id, profile.avatar) as AvatarDesignId);
@@ -700,18 +427,6 @@ Keine rückwirkenden 30-Tage-Summen, Etagen oder Trainingsobjekte einbauen. Gib 
             <Smartphone size={16} />
             <span>Handy-Steuerung aktiv</span>
           </div>
-          <div className="mobile-health-card">
-            <div className="mobile-health-info">
-              <div className="health-badge-icon"><Apple size={22} /></div>
-              <div>
-                <strong>Apple Health Kurzbefehl</strong>
-                <p>Trainings von Apple Watch / iPhone übertragen</p>
-              </div>
-            </div>
-            <button type="button" className="health-connect-btn" onClick={() => setHealthModal(true)}>
-              Einrichten
-            </button>
-          </div>
         </>
       )}
       <ConnectionStatus className="profile-connection-status" connectionError={connectionError} lastRefreshedAt={lastRefreshedAt} />
@@ -740,16 +455,13 @@ Keine rückwirkenden 30-Tage-Summen, Etagen oder Trainingsobjekte einbauen. Gib 
               {longRunning && <em>Bitte prüfen: Läuft dieses Training noch?</em>}
             </div>
           )}
-          {profile.appleHealthRings && (
-            <AppleActivityRings
-              rings={profile.appleHealthRings}
-              onOpenSync={() => setHealthModal(true)}
-            />
-          )}
         </div>
       </section>
 
-      <section className="training-actions">
+      <section className="training-entry-grid" aria-label="Training starten">
+        <div className="training-direct-entry">
+          <span className="section-kicker">Direkt starten</span>
+      <section className={`training-actions ${profile.activeTraining ? "has-active-training" : ""}`}>
         <button
           disabled={busy}
           className={`training-button strength ${activeType === "strength" ? "selected" : ""}`}
@@ -776,7 +488,7 @@ Keine rückwirkenden 30-Tage-Summen, Etagen oder Trainingsobjekte einbauen. Gib 
             <em>2 Punkte je Minute</em>
           </span>
         </button>
-        <button
+        {profile.activeTraining && <button
           disabled={busy || !profile.activeTraining}
           className="training-button stop"
           onClick={() => action()}
@@ -787,7 +499,13 @@ Keine rückwirkenden 30-Tage-Summen, Etagen oder Trainingsobjekte einbauen. Gib 
             <small>Training</small>
             <strong>Stoppen</strong>
           </span>
-        </button>
+        </button>}
+      </section>
+        </div>
+        <Link className="training-plan-entry" href={`/profil/${profile.id}/plan`}>
+          <CalendarRange size={38} />
+          <span><small>Mit deinem Plan trainieren</small><strong>KI-Trainingsplan</strong><em>Plan erstellen oder fortsetzen</em></span>
+        </Link>
       </section>
 
       {activeType === "strength" && (
@@ -811,13 +529,6 @@ Keine rückwirkenden 30-Tage-Summen, Etagen oder Trainingsobjekte einbauen. Gib 
       )}
 
       <nav className={`profile-nav ${isMobile ? "mobile-nav" : ""}`}>
-        <Link href={`/profil/${profile.id}/plan`} title="Persönlichen Trainingsplan und Wochenetappen anzeigen">
-          <CalendarRange />
-          <div className="profile-nav-text">
-            <b>Trainingsplan</b>
-            <small>Wochen &amp; Etappen</small>
-          </div>
-        </Link>
         <Link href={`/profil/${profile.id}/verlauf`} title="Bisherige Trainingseinheiten und Zeiten ansehen">
           <History />
           <div className="profile-nav-text">
@@ -829,7 +540,7 @@ Keine rückwirkenden 30-Tage-Summen, Etagen oder Trainingsobjekte einbauen. Gib 
           <button
             type="button"
             onClick={openHandoff}
-            title="QR-Code anzeigen: Profil auf dem Smartphone öffnen für mobile Steuerung &amp; Apple Health"
+            title="QR-Code anzeigen: Profil auf dem Smartphone öffnen für mobile Trainingssteuerung"
           >
             <QrCode />
             <div className="profile-nav-text">
@@ -838,17 +549,6 @@ Keine rückwirkenden 30-Tage-Summen, Etagen oder Trainingsobjekte einbauen. Gib 
             </div>
           </button>
         )}
-        <button
-          type="button"
-          onClick={() => setHealthModal(true)}
-          title="Apple Health verbinden und synchronisieren"
-        >
-          <Apple size={20} />
-          <div className="profile-nav-text">
-            <b>Apple Health</b>
-            <small>Tagesdaten verbinden</small>
-          </div>
-        </button>
         <button
           type="button"
           onClick={openProfileEditor}
@@ -886,119 +586,6 @@ Keine rückwirkenden 30-Tage-Summen, Etagen oder Trainingsobjekte einbauen. Gib 
         onSubmit={saveProfile}
         onAvatarSaved={(saved) => { setProfile((current) => ({ ...current, customAvatar: saved })); void refresh(true); }}
       />}
-
-      {healthModal && (
-        <Modal onClose={() => setHealthModal(false)}>
-          <div className="health-modal" role="dialog" aria-modal="true" aria-labelledby="health-modal-title">
-            <button type="button" className="modal-close" onClick={() => setHealthModal(false)} aria-label="Apple Health schließen">×</button>
-            <div className="health-modal-header">
-              <div className="health-apple-circle"><Apple size={30} /></div>
-              <div>
-                <h2 id="health-modal-title">Apple Health für {profile.name}</h2>
-                <span className="health-connection-status" role="status">{healthTokenStatus === "error" ? "Schlüsselstatus konnte nicht geprüft werden" : healthTokenStatus === "loading" ? "Schlüsselstatus wird geprüft" : healthTokenConfigured ? "Schlüssel eingerichtet" : "Noch nicht eingerichtet"}</span>
-              </div>
-            </div>
-
-            <p className="health-modal-desc">Einmal verbinden, danach deine Tagesdaten mit dem iPhone synchronisieren.</p>
-
-            <section className="health-workflow-step">
-              <h3><span>1</span> Kurzbefehl einrichten</h3>
-              <p>Kopiere die Einrichtung und erstelle damit deinen iPhone-Kurzbefehl. Der Schlüssel wird nicht mitkopiert.</p>
-              <button type="button" className="health-primary-btn" onClick={copyShortcutPrompt}>
-                {copiedShortcutPrompt ? <Check size={16} /> : <Copy size={16} />}
-                {copiedShortcutPrompt ? "Einrichtung kopiert" : "Einrichtung kopieren"}
-              </button>
-              {manualShortcutPrompt && <div className="health-manual-copy">
-                <p>Automatisches Kopieren ist hier nicht verfügbar. Tippe auf „Text markieren“ und wähle anschließend „Kopieren“ im iPhone-Menü.</p>
-                <textarea id="health-shortcut-copy-text" aria-label="Einrichtung zum manuellen Kopieren" readOnly value={manualShortcutPrompt} />
-                <button type="button" className="health-secondary-btn" onClick={() => {
-                  const field = document.getElementById("health-shortcut-copy-text") as HTMLTextAreaElement | null;
-                  field?.focus();
-                  field?.select();
-                  field?.setSelectionRange(0, field.value.length);
-                }}>Text markieren</button>
-              </div>}
-            </section>
-
-            <section className="health-workflow-step">
-              <h3><span>2</span> Schlüssel erstellen und kopieren</h3>
-              <p>Erstelle den Schlüssel und ersetze damit den Platzhalter im Kurzbefehl.</p>
-              <div className="health-url-input-wrap health-key-input">
-                <input aria-label="Apple-Health-Sync-Schlüssel" type={showHealthSyncToken ? "text" : "password"} autoComplete="off" value={healthSyncToken} placeholder={healthTokenConfigured ? "Schlüssel bereits eingerichtet" : "Noch kein Schlüssel erstellt"} onChange={(event) => setHealthSyncToken(event.target.value)} />
-                {healthSyncToken && <button type="button" className="health-copy-btn" onClick={() => setShowHealthSyncToken((visible) => !visible)}>{showHealthSyncToken ? "Verbergen" : "Anzeigen"}</button>}
-                {healthSyncToken && <button type="button" className="health-copy-btn" onClick={() => void copyHealthToken()} aria-label="Sync-Schlüssel kopieren"><Copy size={16} /></button>}
-              </div>
-              <div className="health-workflow-actions">
-                <button type="button" className="health-primary-btn" onClick={() => requestHealthPin("create")}><Zap size={16} /> {healthTokenConfigured ? "Neuen Schlüssel erstellen" : "Schlüssel erstellen"}</button>
-                {healthTokenConfigured && !healthSyncToken && <small>Ein bereits gespeicherter Schlüssel bleibt gültig. Ein neuer Schlüssel ersetzt ihn und muss erneut im Kurzbefehl eingetragen werden.</small>}
-              </div>
-            </section>
-
-            <section className="health-workflow-step">
-              <h3><span>3</span> Verbindung prüfen</h3>
-              <p>Füge den Schlüssel im Kurzbefehl ein. Öffne ihn danach auf dem iPhone und tippe auf ▶︎.</p>
-              <button type="button" className="health-secondary-btn" disabled={testingHealth || resettingHealth} onClick={() => void testHealthSync()}>
-                <Zap size={16} /> {testingHealth ? "Wird geprüft …" : "Verbindung prüfen"}
-              </button>
-              <small>Prüft den letzten tatsächlich empfangenen Kurzbefehl-Aufruf.</small>
-              {healthCheckResult && <div className={healthCheckResult.verified ? "profile-notice" : "form-error"} role="status">
-                <strong>{healthCheckResult.verified ? "Tagesdaten erfolgreich übertragen" : "Übertragung nicht bestätigt"}</strong>
-                <p>{healthCheckResult.message}</p>
-                {healthCheckResult.importId && <p>Import-ID: <code>{healthCheckResult.importId}</code></p>}
-                {healthCheckResult.checkedAt && <small>Geprüfter Aufruf: {healthCheckResult.checkedAt}</small>}
-                {healthCheckResult.values && <dl className="health-check-values">{Object.entries({ date: "Tag", moveCalories: "Aktive Energie (kcal)", exerciseMinutes: "Training (Min.)", stepCount: "Schritte", standHours: "Stehen (Std.)", walkingRunningDistanceKm: "Geh-/Laufstrecke (km)", cyclingDistanceKm: "Radstrecke (km)" }).map(([key, label]) => <div key={key}><dt>{label}</dt><dd>{String(healthCheckResult.values?.[key] ?? "Nicht übertragen")}</dd></div>)}</dl>}
-              </div>}
-              {profile.appleHealthRings && <div className="health-ring-preview"><AppleActivityRings rings={profile.appleHealthRings} compact /></div>}
-            </section>
-
-            <details className="health-advanced-actions">
-              <summary>Verbindung verwalten</summary>
-              <div className="health-danger-zone">
-                {healthTokenConfigured && <button type="button" disabled={testingHealth || resettingHealth} onClick={() => requestHealthPin("revoke")}>Schlüssel widerrufen</button>}
-                {confirmResetHealth ? (
-                  <>
-                    <strong>Alle Apple-Health-Daten dieses Profils und die Verbindung löschen?</strong>
-                    <button type="button" disabled={resettingHealth} onClick={() => requestHealthPin("delete")}>{resettingHealth ? "Wird gelöscht …" : "Löschen bestätigen"}</button>
-                    <button type="button" onClick={() => setConfirmResetHealth(false)}>Abbrechen</button>
-                  </>
-                ) : (
-                  <button type="button" disabled={testingHealth || resettingHealth} onClick={() => setConfirmResetHealth(true)}>
-                    <RotateCcw size={14} /> Apple-Health-Daten löschen
-                  </button>
-                )}
-              </div>
-            </details>
-          </div>
-        </Modal>
-      )}
-
-      {healthPinAction && (
-        <Modal className="health-pin-backdrop" onClose={() => setHealthPinAction(undefined)} closeDisabled={healthPinBusy}>
-          <div className="confirm-modal-card health-pin-card" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="health-pin-title">
-            <button type="button" className="modal-close" disabled={healthPinBusy} onClick={() => setHealthPinAction(undefined)} aria-label="Schließen"><X size={20} /></button>
-            <div className="confirm-modal-top">
-              <div className={`confirm-modal-icon ${healthPinAction === "delete" ? "danger" : "primary"}`}>
-                {healthPinAction === "delete" ? <RotateCcw size={26} /> : <LockKeyhole size={26} />}
-              </div>
-            </div>
-            <h3 id="health-pin-title">
-              {healthPinAction === "delete" ? "Health-Daten löschen" : healthPinAction === "create" ? "Sync-Schlüssel erstellen" : "Sync-Schlüssel widerrufen"}
-            </h3>
-            <p>{healthPinAction === "delete" ? "Apple-Health-Daten dieses Profils und die Verbindung werden unwiderruflich gelöscht. Zur Bestätigung Eltern-PIN eingeben." : "Zur Bestätigung bitte die vierstellige Eltern-PIN eingeben."}</p>
-            <div className="confirm-pin-section">
-              <b>Eltern-PIN</b>
-              <TouchPinpad value={healthPin} disabled={healthPinBusy} onChange={(value) => { setHealthPin(value); setHealthPinError(""); }} />
-              {healthPinError && <p className="form-error" role="alert">{healthPinError}</p>}
-            </div>
-            <div className="confirm-modal-actions">
-              <button type="button" className="confirm-cancel-btn" disabled={healthPinBusy} onClick={() => setHealthPinAction(undefined)}>Abbrechen</button>
-              <button type="button" className={`confirm-submit-btn ${healthPinAction === "delete" ? "danger" : "primary"}`} disabled={healthPinBusy || healthPin.length !== 4} onClick={() => void submitHealthPin()}>
-                {healthPinBusy ? "Wird verarbeitet …" : healthPinAction === "delete" ? "Löschen & trennen" : "Bestätigen"}
-              </button>
-            </div>
-          </div>
-        </Modal>
-      )}
 
       {prepCountdown && (
         <Modal className="prep-countdown-overlay" onClose={cancelCountdown}>
@@ -1087,7 +674,7 @@ Keine rückwirkenden 30-Tage-Summen, Etagen oder Trainingsobjekte einbauen. Gib 
                 </div>
                 <h2 id="handoff-title">Profil auf dem Handy öffnen</h2>
                 <p style={{ maxWidth: "480px", margin: "6px auto 14px", lineHeight: "1.45", fontSize: "13px", color: "var(--muted)" }}>
-                  Scanne den QR-Code mit der iPhone- oder Android-Kamera. <b>{profile.name}</b> öffnet sich direkt auf deinem Smartphone zur mobilen Trainingssteuerung und Apple Health Synchronisation (10 Minuten gültig).
+                  Scanne den QR-Code mit der iPhone- oder Android-Kamera. <b>{profile.name}</b> öffnet sich direkt auf deinem Smartphone zur mobilen Trainingssteuerung (10 Minuten gültig).
                 </p>
                 <Image src={handoff.qr} alt="QR-Code zum Öffnen des Profils auf dem Handy" width={330} height={330} unoptimized />
                 {handoff.url && <p style={{ wordBreak: "break-all", fontSize: "12px", color: "var(--muted)", margin: "12px 0 0", textAlign: "center" }}><code>{handoff.url}</code></p>}

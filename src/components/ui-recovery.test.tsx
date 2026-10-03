@@ -152,7 +152,7 @@ describe("profile request recovery", () => {
     fireEvent.click(screen.getByRole("button", { name: /Training\s*Stoppen/ }));
     await screen.findByText("Lokal verbunden");
     await act(async () => { resolveInitial(Response.json({ profiles: [running] })); });
-    expect(screen.getByRole("button", { name: /Training\s*Stoppen/ })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: /Training\s*Stoppen/ })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Starten\s*Kraft/ })).toBeEnabled();
   });
 
@@ -212,28 +212,7 @@ describe("profile request recovery", () => {
     expect(fetchMock.mock.calls.every(([input]) => input !== "/api/training")).toBe(true);
   });
 
-  it("orders Health setup and shows the real check failure inline without asking for a PIN", async () => {
-    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-      if (String(input) === "/api/dashboard") return Response.json({ profiles: [profile] });
-      if (init?.method === "POST") return Response.json({ verified: false, message: "Im letzten Aufruf fehlen: Trainingsminuten." });
-      return Response.json({ configured: true });
-    });
-    vi.stubGlobal("fetch", fetchMock);
-    render(<ProfileView initialProfile={profile} exercises={[]} />);
-    await screen.findByText("Lokal verbunden");
-    fireEvent.click(screen.getByRole("button", { name: /Apple Health\s*Tagesdaten verbinden/ }));
-    const headings = screen.getAllByRole("heading", { level: 3 }).map((element) => element.textContent);
-    expect(headings).toEqual(expect.arrayContaining(["1 Kurzbefehl einrichten", "2 Schlüssel erstellen und kopieren", "3 Verbindung prüfen"]));
-    expect(headings.indexOf("1 Kurzbefehl einrichten")).toBeLessThan(headings.indexOf("2 Schlüssel erstellen und kopieren"));
-    expect(headings.indexOf("2 Schlüssel erstellen und kopieren")).toBeLessThan(headings.indexOf("3 Verbindung prüfen"));
-    fireEvent.click(screen.getByRole("button", { name: "Verbindung prüfen" }));
-    expect(screen.queryByRole("group", { name: "PIN-Tastenfeld" })).not.toBeInTheDocument();
-    await screen.findByText("Im letzten Aufruf fehlen: Trainingsminuten.");
-    expect(screen.getByText("Übertragung nicht bestätigt")).toBeInTheDocument();
-    expect(fetchMock).toHaveBeenCalledWith("/api/sync/apple-health/token", expect.objectContaining({ method: "POST", body: JSON.stringify({ profileId: "papa", action: "check" }) }));
-  });
-
-  it("reports handoff failures and an unknown Health key status", async () => {
+  it("reports handoff failures without exposing retired Health controls", async () => {
     vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
       if (String(input) === "/api/dashboard") return Response.json({ profiles: [profile] });
       throw new TypeError("Network unavailable");
@@ -242,10 +221,10 @@ describe("profile request recovery", () => {
     await screen.findByText("Lokal verbunden");
     fireEvent.click(screen.getByRole("button", { name: /Am Handy öffnen/ }));
     await waitFor(() => expect(toast).toHaveBeenCalledWith(expect.objectContaining({ title: "Handy-Verbindung fehlgeschlagen" })));
-    fireEvent.click(screen.getByRole("button", { name: /Apple Health\s*Tagesdaten verbinden/ }));
-    expect(screen.getByRole("dialog", { name: "Apple Health für Papa" })).toBeInTheDocument();
-    await screen.findByText("Schlüsselstatus konnte nicht geprüft werden");
-    expect(screen.queryByText("Noch nicht eingerichtet")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Apple Health/)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Starten\s*Kraft/ })).toBeEnabled();
+    expect(screen.getByRole("button", { name: /Starten\s*Ausdauer/ })).toBeEnabled();
+    expect(screen.getByRole("link", { name: /Trainingsplan/ })).toHaveAttribute("href", "/profil/papa/plan");
   });
 });
 

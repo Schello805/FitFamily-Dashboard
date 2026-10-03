@@ -112,20 +112,6 @@ export type ActiveTraining = {
   segmentStartedAt: string;
 };
 
-export type AppleHealthRings = {
-  moveCalories: number;
-  moveGoal: number;
-  exerciseMinutes: number;
-  exerciseGoal: number;
-  standHours: number;
-  standGoal: number;
-  stepCount: number;
-  walkingRunningDistanceKm: number;
-  cyclingDistanceKm: number;
-  flightsClimbed: number;
-  lastSyncedAt?: string | null;
-};
-
 export type ActivityTrendPoint = {
   date: string;
   label: string;
@@ -151,7 +137,6 @@ export type DashboardProfile = Profile & {
   targetPeriod: "Tag" | "Woche";
   nextTraining: string | null;
   activeTraining: ActiveTraining | null;
-  appleHealthRings?: AppleHealthRings | null;
   activityTrend: ActivityTrendPoint[];
 };
 

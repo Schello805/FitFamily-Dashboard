@@ -29,4 +29,4 @@ NAS-Backups sind mit AES-256-GCM verschlüsselt. Der Schlüssel bleibt auf dem R
 
 ## Apple Health
 
-HealthKit ist Teil der geplanten Version 2. Jede Person muss Datentypen auf ihrem iPhone einzeln freigeben. Die Web-App hat keinen direkten Zugriff auf HealthKit.
+Die Anbindung ist vorerst eingestellt. Es werden keine neuen Health-Daten angenommen und keine Sync-Schlüssel erstellt. Bereits gespeicherte Daten bleiben lokal erhalten und werden nicht angezeigt oder für Trainingsberechnungen verwendet. Bestehende Backups bleiben kompatibel; sie können archivierte Daten weiterhin enthalten.

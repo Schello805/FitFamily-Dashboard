@@ -6,7 +6,6 @@ import { writeAdminLog } from "@/lib/admin-log";
 import { MAX_DATA_IMPORT_BYTES, DATA_IMPORT_ORDER, DATA_TABLE_SPECS, DATA_TRANSFER_TABLES, isPortableSetting, type DataTransferTable } from "@/lib/data-transfer-schema";
 import { readBoundedJson } from "@/lib/request-body";
 import { AVATAR_DESIGN_IDS } from "@/lib/domain";
-import { APPLE_HEALTH_ACTIVITY_FIELDS } from "@/lib/apple-health-activity";
 import { isAllowedVideoUrl } from "@/lib/exercise-video";
 import { manualPdfDataSchema, manualPdfUrlSchema } from "@/lib/manual-pdf";
 import { equipmentManualUrl, isStoredManualUrl } from "@/lib/manual-pdf-shared";
@@ -29,7 +28,15 @@ const flag = z.union([z.literal(0), z.literal(1), z.boolean()]).transform(Number
 const metadata = { created_at: timestamp.optional(), updated_at: timestamp.optional() };
 const nullableText = text.nullable().optional();
 const videoUrl = z.string().max(500).refine((value) => isAllowedVideoUrl(value), "Video muss ein gültiger HTTPS-Link zu YouTube sein.").nullable().optional();
-const dailyFields = Object.fromEntries(APPLE_HEALTH_ACTIVITY_FIELDS.map(({ column, schema }) => [column, schema.unwrap().unwrap()]));
+// Compatibility only: retain archived data when restoring backups from older versions.
+// These fields are not read by the dashboard or used in training calculations.
+const dailyFields = {
+  move_calories: z.number().nonnegative().max(100_000), move_goal: z.number().positive().max(100_000),
+  exercise_minutes: z.number().nonnegative().max(1440), exercise_goal: z.number().positive().max(1440),
+  stand_hours: z.number().nonnegative().max(24), stand_goal: z.number().positive().max(24),
+  step_count: z.number().int().nonnegative().max(200_000), walking_running_distance_km: z.number().nonnegative().max(500),
+  cycling_distance_km: z.number().nonnegative().max(2000), flights_climbed: z.number().nonnegative().max(1000)
+};
 const rowSchemas: Record<DataTransferTable, z.ZodType> = {
   profiles: z.object({
     id: identifier, name: z.string().min(1).max(80), color: z.string().regex(/^#[0-9a-fA-F]{6}$/),

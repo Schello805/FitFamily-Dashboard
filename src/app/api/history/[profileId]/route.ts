@@ -8,13 +8,12 @@ export async function GET(_request: Request, { params }: { params: Promise<{ pro
   const client = await db();
   const result = await client.execute({
     sql: `SELECT ts.id, ts.started_at, ts.ended_at, ts.status, ts.source, ts.edited,
-      ts.health_title, ts.health_calories, ts.health_distance_km,
       sg.id segment_id, sg.type, sg.started_at segment_started_at, sg.ended_at segment_ended_at,
       ex.name exercise_name
       FROM training_sessions ts
       LEFT JOIN training_segments sg ON sg.session_id = ts.id
       LEFT JOIN exercises ex ON ex.id = sg.exercise_id
-      WHERE ts.profile_id = ? ORDER BY ts.started_at DESC, sg.started_at ASC LIMIT 500`,
+      WHERE ts.profile_id = ? AND COALESCE(ts.source, '') <> 'apple_health' ORDER BY ts.started_at DESC, sg.started_at ASC LIMIT 500`,
     args: [profileId]
   });
   const sessions = new Map<string, Record<string, unknown> & { segments: Record<string, unknown>[] }>();
@@ -22,11 +21,10 @@ export async function GET(_request: Request, { params }: { params: Promise<{ pro
     const id = String(row.id);
     if (!sessions.has(id)) sessions.set(id, {
       id, startedAt: row.started_at, endedAt: row.ended_at, status: row.status,
-      source: row.source, edited: Boolean(row.edited), healthTitle: row.health_title,
-      healthCalories: row.health_calories, healthDistanceKm: row.health_distance_km, segments: []
+      source: row.source, edited: Boolean(row.edited), segments: []
     });
     if (row.segment_id) sessions.get(id)?.segments.push({
-      id: row.segment_id, type: row.type, exerciseName: row.exercise_name ?? row.health_title,
+      id: row.segment_id, type: row.type, exerciseName: row.exercise_name,
       startedAt: row.segment_started_at, endedAt: row.segment_ended_at
     });
   }

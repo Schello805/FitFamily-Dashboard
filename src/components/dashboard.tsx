@@ -13,7 +13,6 @@ import {
 import type { DashboardProfile } from "@/lib/domain";
 import { LiveDuration } from "@/components/live-duration";
 import { Avatar } from "@/components/avatar";
-import { AppleActivityRings } from "@/components/apple-activity-rings";
 import { ActivityTrendChart } from "@/components/activity-trend-chart";
 import { UserHelp } from "@/components/user-help";
 import { DEFAULT_DISPLAY_SETTINGS, type DisplaySettings } from "@/lib/display-settings-shared";
@@ -65,7 +64,7 @@ function GoalRing({ value, color, targetMinutes, targetPeriod }: { value: number
 
 function ProfileDashboardCard({ profile, clock }: { profile: DashboardProfile; clock: Date }) {
   return (
-    <article className={`profile-card ${profile.activeTraining ? "is-active" : ""} ${profile.appleHealthRings ? "has-health" : ""}`} style={{ "--profile": profile.color } as React.CSSProperties}>
+    <article className={`profile-card ${profile.activeTraining ? "is-active" : ""}`} style={{ "--profile": profile.color } as React.CSSProperties}>
       <div className="card-accent" />
       <div className="profile-heading">
         <Link className="profile-identity profile-card-link" href={`/profil/${profile.id}`} aria-label={`${profile.name}: Profil öffnen`}>
@@ -81,7 +80,6 @@ function ProfileDashboardCard({ profile, clock }: { profile: DashboardProfile; c
         <div className="today"><strong>{profile.todayMinutes}</strong><span>Minuten heute</span></div>
       </div>
 
-      {profile.appleHealthRings && <div className="dashboard-apple-rings"><AppleActivityRings rings={profile.appleHealthRings} compact /></div>}
 
       {profile.activeTraining && (
         <div className="active-strip">
@@ -289,7 +287,7 @@ export function Dashboard({
                 type="button"
                 className="header-qr-button"
                 onClick={() => setShowQrModal(true)}
-                title="Am Smartphone öffnen: QR-Code vergrößern für mobile Nutzung & Apple Health"
+                title="Am Smartphone öffnen: QR-Code vergrößern für mobile Trainingssteuerung"
                 aria-label="QR-Code zum Öffnen auf dem Smartphone anzeigen"
               >
                 <Image

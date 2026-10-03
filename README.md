@@ -12,7 +12,6 @@ Das lokale Familien-Fitnessdashboard für den Touchmonitor im Sportraum. FitFami
 - Altersbezogener Bewegungsrichtwert: Kinder/Jugendliche 90 Minuten pro Tag, Erwachsene 150 Minuten pro Woche (DOSB-Orientierung)
 - Automatische Sicherheits-Pause nach vier Stunden
 - Handy-Übergabe über einmalige QR-Codes
-- Apple-Health-Workouts per selbst eingerichtetem iOS-Kurzbefehl mit profilspezifischem Sync-Schlüssel
 - NFC-Endpunkte pro Gerät oder Übung
 - Persönlicher Verlauf und geschütztes Nachtragen
 - Trainingspläne mit OpenAI, Gemini, lokaler Vorlage oder JSON-Import
@@ -59,9 +58,9 @@ Die Verwaltung erfasst ab Aktivierung die von KI-Plananfragen gemeldeten Token u
 
 Ein Tag verweist auf `/nfc/<uebungs-id>`. Ein unbekanntes Handy fragt einmalig nach Besitzer und Eltern-PIN. Danach startet oder wechselt ein Scan automatisch die passende Aktivität. Beispiele und Tagliste stehen in [docs/NFC.md](docs/NFC.md).
 
-## Apple Health
+## Training starten
 
-Da FitFamily lokal als Webapp läuft, liest Apples Kurzbefehle-App die Health-Trainingsdaten aus und überträgt sie nach Einrichtung eines profilspezifischen Sync-Schlüssels. FitFamily verteilt bewusst keine privat heruntergeladene `.shortcut`-Datei; Apples Warnung für nicht verifizierte Kurzbefehle lässt sich durch die Webapp nicht aufheben. Einrichtung und Einschränkungen: [docs/APPLE_HEALTH.md](docs/APPLE_HEALTH.md).
+Im Profil gibt es zwei Einstiege: direkt über „Kraft“ und „Ausdauer“ oder über den persönlichen KI-Trainingsplan. Punkte, Trainingsminuten, Fitnessstufe und Diagramme berücksichtigen ausschließlich FitFamily-Trainings (einschließlich manuell nachgetragener Einheiten).
 
 ## Musik
 

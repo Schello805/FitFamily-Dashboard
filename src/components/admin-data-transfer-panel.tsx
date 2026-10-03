@@ -21,7 +21,7 @@ export function AdminDataTransferPanel({ file, validation, canImport, validating
   return <>
     <article>
       <div className="admin-title"><Download /><div><h2>Daten exportieren</h2><p>Portable Daten zum Übertragen oder Zusammenführen herunterladen</p></div></div>
-      <ul><li><CheckCircle2 /> Profile, Geräte, Übungen und Pläne</li><li><CheckCircle2 /> Trainings- und Apple-Health-Daten</li><li><CheckCircle2 /> Keine PIN-, KI- oder Backup-Schlüssel</li></ul>
+      <ul><li><CheckCircle2 /> Profile, Geräte, Übungen und Pläne</li><li><CheckCircle2 /> Trainingsdaten und Einstellungen</li><li><CheckCircle2 /> Keine PIN-, KI- oder Backup-Schlüssel</li></ul>
       <button type="button" onClick={onDownload}><Download /> JSON herunterladen</button>
     </article>
 
