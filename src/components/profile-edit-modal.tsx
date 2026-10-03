@@ -5,6 +5,7 @@ import { Avatar } from "@/components/avatar";
 import { AvatarPicker } from "@/components/avatar-picker";
 import { PersonalAvatarEditor } from "@/components/personal-avatar-editor";
 import { Modal } from "@/components/modal";
+import { TouchPinpad } from "@/components/touch-pinpad";
 import {
   GOALS,
   getAvatarProgress,
@@ -112,7 +113,11 @@ export function ProfileEditModal({
           <span>Figur im Dashboard</span>
           <AvatarPicker value={avatar} onChange={onAvatarChange} />
         </div>
-        <label>Eltern-PIN · 4 Ziffern<input name="pin" type="password" inputMode="numeric" autoComplete="current-password" minLength={4} maxLength={4} pattern="[0-9]{4}" value={pin} onChange={(event) => onPinChange(event.target.value.replace(/\D/g, "").slice(0, 4))} required /></label>
+        <div className="profile-edit-pin-field">
+          <span>Eltern-PIN · 4 Ziffern</span>
+          <TouchPinpad value={pin} disabled={busy || resettingScore} onChange={onPinChange} />
+          <input name="pin" type="hidden" value={pin} required />
+        </div>
         <PersonalAvatarEditor
           profileId={profile.id}
           profileName={profile.name}
