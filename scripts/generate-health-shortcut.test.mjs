@@ -48,27 +48,41 @@ test("JSON carries typed numeric totals rather than raw Health objects", () => {
 
 test("conversion factors are number items (3), never dictionaries (1)", () => {
   const dictionaries = buildHealthShortcut().WFWorkflowActions.filter((action) => action.WFWorkflowActionIdentifier === "is.workflow.actions.dictionary");
-  assert.equal(dictionaries.length, 5);
+  assert.equal(dictionaries.length, 10);
   for (const [index, action] of dictionaries.entries()) {
     const fields = action.WFWorkflowActionParameters.WFItems.Value.WFDictionaryFieldValueItems;
     for (const field of fields) {
       assert.equal(field.WFItemType, 3);
       assert.equal(field.WFValue.WFSerializationType, "WFTextTokenString");
-      assert.equal(Number(field.WFValue.Value.string), METRICS[index].factors[field.WFKey.Value.string]);
+      const literal = field.WFValue.Value.string;
+      assert.match(literal, /^\d+$/);
+      assert.equal(Number(literal), METRICS[Math.floor(index / 2)].factors[field.WFKey.Value.string][index % 2]);
     }
   }
 });
 
 test("normalizes units with metric-specific factors and valid operators", () => {
-  assert.equal(METRICS[3].factors.m, 0.001);
-  assert.equal(METRICS[4].factors.mi, 1.609344);
-  assert.equal(METRICS[1].factors.sec, 1 / 60);
+  assert.deepEqual(METRICS[3].factors.m, [1, 1000]);
+  assert.deepEqual(METRICS[4].factors.mi, [1609344, 1000000]);
+  assert.deepEqual(METRICS[1].factors.sec, [1, 60]);
+  assert.equal(4184 * METRICS[0].factors.kJ[0] / METRICS[0].factors.kJ[1], 1000);
+  assert.equal(4660 * METRICS[3].factors.m[0] / METRICS[3].factors.m[1], 4.66);
   const actions = buildHealthShortcut().WFWorkflowActions;
   const math = actions.filter((action) => action.WFWorkflowActionIdentifier === "is.workflow.actions.math");
-  assert.equal(math.length, 10);
+  assert.equal(math.length, 15);
   assert.equal(math.filter((action) => action.WFWorkflowActionParameters.WFMathOperation === "×").length, 5);
+  assert.equal(math.filter((action) => action.WFWorkflowActionParameters.WFMathOperation === "÷").length, 5);
   assert.equal(math.filter((action) => !("WFMathOperation" in action.WFWorkflowActionParameters)).length, 5);
   assert.equal(actions.filter((action) => action.WFWorkflowActionIdentifier === "is.workflow.actions.exit").length, 5);
+});
+
+test("date formatting uses the actual source date and dedicated custom pattern parameter", () => {
+  const actions = buildHealthShortcut().WFWorkflowActions;
+  const date = actions.find((action) => action.WFWorkflowActionIdentifier === "is.workflow.actions.date");
+  const params = actions.find((action) => action.WFWorkflowActionIdentifier === "is.workflow.actions.format.date").WFWorkflowActionParameters;
+  assert.equal(params.WFDateFormat, "Custom");
+  assert.equal(params.WFDateFormatString, "yyyy-MM-dd");
+  assert.equal(params.WFDate.Value.attachmentsByRange["{0, 1}"].OutputUUID, date.WFWorkflowActionParameters.UUID);
 });
 
 test("If conditions use the iPhone variable wrapper instead of an empty imported condition", () => {

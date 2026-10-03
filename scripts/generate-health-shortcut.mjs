@@ -10,11 +10,11 @@ export const SECRET_PLACEHOLDER = "HIER_DEN_SYNC_SCHLUESSEL_EINFUEGEN";
 // Verified against Cherri's compiler/file-format: 1=dict, 3=number (not reversed).
 export const ITEM_TYPES = { text: 0, dictionary: 1, array: 2, number: 3, boolean: 4 };
 export const METRICS = [
-  { key: "moveCalories", label: "Active Calories", factors: { kcal: 1, Cal: 1, kJ: 1 / 4.184, J: 1 / 4184 } },
-  { key: "exerciseMinutes", label: "Exercise Minutes", factors: { min: 1, "min.": 1, minutes: 1, Minuten: 1, sec: 1 / 60, s: 1 / 60, hr: 60, h: 60 } },
-  { key: "stepCount", label: "Steps", factors: { count: 1, steps: 1, Schritte: 1, "": 1 } },
-  { key: "walkingRunningDistanceKm", label: "Walking + Running Distance", factors: { km: 1, m: 0.001, mi: 1.609344, ft: 0.0003048 } },
-  { key: "cyclingDistanceKm", label: "Cycling Distance", factors: { km: 1, m: 0.001, mi: 1.609344, ft: 0.0003048 } }
+  { key: "moveCalories", label: "Active Calories", factors: { kcal: [1, 1], Cal: [1, 1], kJ: [1000, 4184], J: [1, 4184] } },
+  { key: "exerciseMinutes", label: "Exercise Minutes", factors: { min: [1, 1], "min.": [1, 1], minutes: [1, 1], Minuten: [1, 1], sec: [1, 60], s: [1, 60], hr: [60, 1], h: [60, 1] } },
+  { key: "stepCount", label: "Steps", factors: { count: [1, 1], steps: [1, 1], Schritte: [1, 1], "": [1, 1] } },
+  { key: "walkingRunningDistanceKm", label: "Walking + Running Distance", factors: { km: [1, 1], m: [1, 1000], mi: [1609344, 1000000], ft: [3048, 10000000] } },
+  { key: "cyclingDistanceKm", label: "Cycling Distance", factors: { km: [1, 1], m: [1, 1000], mi: [1609344, 1000000], ft: [3048, 10000000] } }
 ];
 
 const state = (type, value) => ({ Value: value, WFSerializationType: type });
@@ -39,13 +39,15 @@ export function buildHealthShortcut({ profileId = "papa", server = "http://192.1
   action("comment", { WFCommentActionText: "FitFamily Health Sync – iPhone-Testvorlage. Ersetze den Schlüssel im folgenden Text. Nur HEUTE, keine Health-Schreibaktionen. Leere Abfragen können auch fehlende Leserechte bedeuten. Rohdaten verschiedener Quellen können von Apple Fitness abweichen: vor Automatisierung im Importprotokoll vergleichen. Stehminuten werden NICHT in erfüllte Stehstunden umgerechnet." });
   const secret = action("gettext", { WFTextActionText: SECRET_PLACEHOLDER });
   const now = action("date", { WFDateActionMode: "Current Date" });
-  const date = action("format.date", { WFInput: input(ref(now, "Date")), WFDateFormatStyle: "Custom", WFDateFormat: "yyyy-MM-dd", WFTimeFormatStyle: "None" });
+  const date = action("format.date", { WFDate: tokenText(ref(now, "Date")), WFInput: input(ref(now, "Date")), WFDateFormatStyle: "Custom", WFDateFormat: "Custom", WFDateFormatString: "yyyy-MM-dd", WFTimeFormatStyle: "None" });
 
   for (const metric of METRICS) {
     action("comment", { WFCommentActionText: `${metric.key}: heutige Messungen einzeln lesen, Einheit prüfen und nur Zahlen summieren. Ohne Treffer bleibt der Tageswert 0; Leserechte im iPhone prüfen.` });
     const zero = action("number", { WFNumberActionNumber: "0" });
     action("setvariable", { WFVariableName: metric.key, WFInput: input(ref(zero, "Number")) });
-    const factors = action("dictionary", { WFItems: dictionary(Object.entries(metric.factors).map(([unit, factor]) => item(unit, ITEM_TYPES.number, text(factor)))) });
+    // Integer ratios avoid locale-dependent parsing of decimal-point literals.
+    const factors = action("dictionary", { WFItems: dictionary(Object.entries(metric.factors).map(([unit, ratio]) => item(unit, ITEM_TYPES.number, text(ratio[0])))) });
+    const divisors = action("dictionary", { WFItems: dictionary(Object.entries(metric.factors).map(([unit, ratio]) => item(unit, ITEM_TYPES.number, text(ratio[1])))) });
     const samples = action("filter.health.quantity", {
       WFContentItemLimitEnabled: false,
       WFContentItemFilter: state("WFContentPredicateTableTemplate", {
@@ -69,7 +71,9 @@ export function buildHealthShortcut({ profileId = "papa", server = "http://192.1
     action("showresult", { Text: text(`Unbekannte Einheit für ${metric.key}. Übertragung abgebrochen. Bitte die Einheit im Kurzbefehl prüfen.`) });
     action("exit");
     action("conditional", { GroupingIdentifier: guard, WFControlFlowMode: 2 });
-    const normalized = action("math", { WFInput: input(ref(value, "Value")), WFMathOperation: "×", WFMathOperand: tokenText(ref(factor, "Dictionary Value")) });
+    const divisor = action("getvalueforkey", { WFGetDictionaryValueType: "Value", WFDictionaryKey: tokenText(ref(unit, "Unit")), WFInput: input(ref(divisors, "Dictionary")) });
+    const multiplied = action("math", { WFInput: input(ref(value, "Value")), WFMathOperation: "×", WFMathOperand: tokenText(ref(factor, "Dictionary Value")) });
+    const normalized = action("math", { WFInput: input(ref(multiplied, "Calculation Result")), WFMathOperation: "÷", WFMathOperand: tokenText(ref(divisor, "Dictionary Value")) });
     const sum = action("math", { WFInput: input(variable(metric.key)), WFMathOperand: tokenText(ref(normalized, "Calculation Result")) });
     action("setvariable", { WFVariableName: metric.key, WFInput: input(ref(sum, "Calculation Result")) });
     action("repeat.each", { GroupingIdentifier: loop, WFControlFlowMode: 2 });
@@ -124,7 +128,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
       options[key.slice(2)] = value;
     }
   }
-  const output = resolve(options.output ?? "artifacts/FitFamily-Health-Sync-v3.unsigned.shortcut");
+  const output = resolve(options.output ?? "artifacts/FitFamily-Health-Sync-v4.unsigned.shortcut");
   mkdirSync(dirname(output), { recursive: true });
   writeFileSync(output, `<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n<plist version="1.0">${plist(buildHealthShortcut({ profileId: options.profile, server: options.server }))}</plist>\n`);
   console.log(`Vorlage erzeugt: ${output}`);

@@ -6,7 +6,8 @@ Erzeugen und auf einem Mac signieren:
 node scripts/generate-health-shortcut.mjs --sign
 ```
 
-Die korrigierte signierte Datei liegt unter `artifacts/FitFamily-Health-Sync-v3.signed.shortcut`.
+Nach erfolgreicher Signierung liegt die korrigierte Datei unter `artifacts/FitFamily-Health-Sync-v4.signed.shortcut`.
+Vorlage v4 korrigiert die Quell- und Formatparameter der Datumsaktion und verwendet für Einheitenumrechnungen ausschließlich ganzzahlige Zähler/Nenner statt locale-abhängiger Dezimalliterale. Die Versionen v1–v3 nicht mehr verwenden. Die Strukturtests ersetzen keinen Lauf auf dem iPhone; Datum und Tageswerte nach dem Import mit Health und dem Serverprotokoll vergleichen.
 Version 3 korrigiert zusätzlich die vertauschten Zahlen-/Wörterbuchkennungen sowie
 die Hülle für das verschachtelte Tageswörterbuch. Version 1 und 2 nicht weiterverwenden.
 Version 2 korrigierte den auf dem iPhone bestätigten Importfehler der Wenn-Bedingung.
