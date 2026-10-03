@@ -87,6 +87,7 @@ export function AdminLogsPanel({ entries, filter, loading, copying, onFilterChan
           const timestamp = new Date(entry.createdAt.replace(" ", "T") + (entry.createdAt.endsWith("Z") ? "" : "Z"));
           return <li key={entry.id} className={isError ? "error" : ""}><div><span className="admin-log-level">{isError ? "FEHLER" : isHealth ? "APPLE HEALTH" : entry.details.level === "warning" ? "WARNUNG" : "INFO"}</span><time>{timestamp.toLocaleString("de-DE")}</time></div><b>{summarizeAdminLog(entry)}</b><small>{entry.action}</small>
             {isHealth && <small>Import-ID: {entry.id}</small>}
+            {isHealth && Array.isArray(entry.details.validationErrors) && <pre style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{entry.details.validationErrors.join("\n")}</pre>}
             {isHealth && entry.details.receivedActivity != null && <details><summary>Empfangene und gespeicherte Werte{typeof entry.details.profileName === "string" ? ` · ${entry.details.profileName}` : ""}</summary><pre style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere", userSelect: "text" }}>{JSON.stringify({ empfangen: entry.details.receivedActivity, gespeichert: entry.details.savedActivity, hinweise: entry.details.warnings }, null, 2)}</pre></details>}
           </li>;
         })}

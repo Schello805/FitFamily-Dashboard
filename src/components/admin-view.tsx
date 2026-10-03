@@ -602,7 +602,7 @@ export function AdminView({
       const level = entry.details.level === "error" ? "FEHLER" : entry.details.level === "warning" ? "WARNUNG" : "INFO";
       const message = summarizeAdminLog(entry);
       if (entry.action.startsWith("health.apple_sync.")) {
-        return `[${timestamp}] ${level} · ${message}\nImport-ID: ${entry.id}\n${JSON.stringify({ empfangen: entry.details.receivedActivity, gespeichert: entry.details.savedActivity, hinweise: entry.details.warnings }, null, 2)}`;
+        return `[${timestamp}] ${entry.action.endsWith(".failed") ? "FEHLER" : level} · ${message}\nImport-ID: ${entry.id}\n${JSON.stringify({ empfangen: entry.details.receivedActivity, gespeichert: entry.details.savedActivity, feldfehler: entry.details.validationErrors, hinweise: entry.details.warnings }, null, 2)}`;
       }
       return `[${timestamp}] ${level} · ${message}`;
     }).join("\n");

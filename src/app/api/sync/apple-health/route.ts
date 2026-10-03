@@ -69,6 +69,28 @@ function diagnosticActivityPayload(value: unknown) {
   ));
 }
 
+function rejectedActivityPayload(value: unknown): unknown {
+  if (Array.isArray(value)) return value.slice(0, 90).map(rejectedActivityPayload);
+  if (!value || typeof value !== "object") return { type: value === null ? "null" : typeof value };
+  const source = value as Record<string, unknown>;
+  return Object.fromEntries(["date", ...APPLE_HEALTH_ACTIVITY_FIELDS.map(({ key }) => key), "standMinutes"].filter((key) => key in source).map((key) => {
+    const field = source[key];
+    // Preserve malformed numeric/date strings, never arbitrary text or credentials.
+    const safe = typeof field === "number" || typeof field === "boolean" || field === null
+      || (typeof field === "string" && field.length <= 80 && /^[\d\s.,:+\-/TZ]*$/.test(field));
+    return [key, safe ? field : { type: Array.isArray(field) ? "array" : typeof field }];
+  }));
+}
+
+function validationDiagnostics(issues: readonly z.core.$ZodIssue[], prefix: PropertyKey[] = []): string[] {
+  return issues.flatMap((issue) => {
+    const path = [...prefix, ...issue.path];
+    if (issue.code === "invalid_union") return issue.errors.flatMap((branch) => validationDiagnostics(branch, path));
+    // Only schema field names/indices, not unknown client-supplied property names.
+    return [`${path.map(String).join(".") || "Anfrage"}: ${issue.message}`];
+  }).slice(0, 20);
+}
+
 export async function POST(request: Request) {
   const syncLogId = randomUUID();
   let json: unknown;
@@ -82,8 +104,8 @@ export async function POST(request: Request) {
   if (!parsed.success) {
     let validationLogged = false;
     // Record authenticated payload errors (for example an aggregated 30-day step
-    // total sent as a single-day field) without ever storing the health payload
-    // or the sync secret itself.
+    // total sent as a single-day field). Only allowlisted activity diagnostics
+    // are stored; credentials and arbitrary client text are excluded.
     try {
       const candidate = json && typeof json === "object" && !Array.isArray(json)
         ? json as Record<string, unknown>
@@ -97,15 +119,18 @@ export async function POST(request: Request) {
           args: [profileId]
         });
         if (typeof token.rows[0]?.token_hash === "string" && hashToken(secret) === token.rows[0].token_hash) {
-          const validationErrors = parsed.error.issues
-            .slice(0, 12)
-            .map((issue) => `${issue.path.map(String).join(".") || "Anfrage"}: ${issue.message}`);
+          const validationErrors = validationDiagnostics(parsed.error.issues);
           await client.execute({
             sql: "INSERT INTO audit_log (id, action, profile_id, details) VALUES (?, 'health.apple_sync.failed', ?, ?)",
             args: [syncLogId, profileId, JSON.stringify({
               status: "failed",
               received: 0,
               reason: "validation",
+              validationErrors,
+              receivedActivity: {
+                ...diagnosticActivityPayload(candidate),
+                dailyActivity: rejectedActivityPayload(candidate?.dailyActivity)
+              },
               message: `Ungültige Anfrage: ${validationErrors.join("; ")}`.slice(0, 500)
             })]
           });

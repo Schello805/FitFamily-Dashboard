@@ -117,11 +117,13 @@ describe("Apple Health sync endpoint", () => {
     expect(result.logs.some((entry: { action: string; details: { status?: string } }) => entry.action === "health.apple_sync.checked" && entry.details.status === "checked")).toBe(true);
   });
 
-  it("records authenticated payload validation errors without logging health values", async () => {
+  it("records authenticated validation errors and safe malformed daily values without credentials", async () => {
     const invalid = await POST(new Request("http://localhost/api/sync/apple-health", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ profileId, secret, stepCount: 200_001 })
+      body: JSON.stringify({ profileId, secret, stepCount: 200_001, dailyActivity: {
+        date: localIsoDate(new Date()), stepCount: "123", moveCalories: secret, secret, arbitrary: "private text"
+      } })
     }));
     expect(invalid.status).toBe(400);
 
@@ -136,6 +138,11 @@ describe("Apple Health sync endpoint", () => {
     );
     expect(validationLog).toBeTruthy();
     validationLogId = validationLog?.id ?? null;
+    expect(validationLog.details.receivedActivity.dailyActivity.stepCount).toBe("123");
+    expect(validationLog.details.receivedActivity.dailyActivity.moveCalories).toEqual({ type: "string" });
+    expect(validationLog.details.validationErrors.some((message: string) => message.includes("dailyActivity.stepCount"))).toBe(true);
+    expect(JSON.stringify(validationLog)).not.toContain(secret);
+    expect(JSON.stringify(validationLog)).not.toContain("private text");
   });
 
   it("finds Health logs even behind more than 500 unrelated events", async () => {
