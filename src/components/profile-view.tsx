@@ -46,15 +46,22 @@ async function copyTextToClipboard(text: string): Promise<boolean> {
   field.style.left = "0";
   field.style.top = "0";
   field.style.opacity = "0";
-  document.body.appendChild(field);
+  // Modal makes its siblings inert; the fallback must stay inside the active dialog.
+  const dialogs = document.querySelectorAll<HTMLElement>('[role="dialog"]');
+  const host = dialogs.length ? dialogs[dialogs.length - 1] : document.body;
+  const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+  host.appendChild(field);
   field.focus();
   field.select();
   field.setSelectionRange(0, field.value.length);
   let copied = false;
   try {
     copied = document.execCommand("copy");
+  } catch {
+    copied = false;
   } finally {
-    document.body.removeChild(field);
+    field.remove();
+    previousFocus?.focus({ preventScroll: true });
   }
   return copied;
 }
@@ -86,6 +93,7 @@ export function ProfileView({
   const [healthTokenStatus, setHealthTokenStatus] = useState<"loading" | "ready" | "error">("loading");
   const [showHealthSyncToken, setShowHealthSyncToken] = useState(false);
   const [copiedShortcutPrompt, setCopiedShortcutPrompt] = useState(false);
+  const [manualShortcutPrompt, setManualShortcutPrompt] = useState("");
   const [prepCountdown, setPrepCountdown] = useState<{
     type: TrainingType;
     exerciseId?: string | null;
@@ -452,7 +460,7 @@ Falls Kurzbefehle eine Health-Art oder einen Schritt nicht unterstützt, erfinde
       showToast({ type: "success", title: "Einrichtung kopiert", message: "Füge den Text in deine KI ein. Deinen Schlüssel setzt du anschließend nur in deinem persönlichen Kurzbefehl ein." });
       setTimeout(() => setCopiedShortcutPrompt(false), 2500);
     } else {
-      showToast({ type: "error", title: "Kopieren nicht möglich", message: prompt });
+      setManualShortcutPrompt(prompt);
     }
   }
 
@@ -880,6 +888,16 @@ Falls Kurzbefehle eine Health-Art oder einen Schritt nicht unterstützt, erfinde
                 {copiedShortcutPrompt ? <Check size={16} /> : <Copy size={16} />}
                 {copiedShortcutPrompt ? "Einrichtung kopiert" : "Einrichtung kopieren"}
               </button>
+              {manualShortcutPrompt && <div className="health-manual-copy">
+                <p>Automatisches Kopieren ist hier nicht verfügbar. Tippe auf „Text markieren“ und wähle anschließend „Kopieren“ im iPhone-Menü.</p>
+                <textarea id="health-shortcut-copy-text" aria-label="Einrichtung zum manuellen Kopieren" readOnly value={manualShortcutPrompt} />
+                <button type="button" className="health-secondary-btn" onClick={() => {
+                  const field = document.getElementById("health-shortcut-copy-text") as HTMLTextAreaElement | null;
+                  field?.focus();
+                  field?.select();
+                  field?.setSelectionRange(0, field.value.length);
+                }}>Text markieren</button>
+              </div>}
             </section>
 
             <section className="health-workflow-step">

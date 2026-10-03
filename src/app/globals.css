@@ -3561,6 +3561,7 @@ body::before {
   border-radius: 14px;
   background: var(--panel-soft);
 }
+.health-manual-copy textarea { width: 100%; min-width: 0; height: 200px; margin: 8px 0; padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--input-bg); color: var(--text); font-size: 16px; line-height: 1.45; user-select: text; -webkit-user-select: text; }
 .health-workflow-step h3 {
   display: flex;
   align-items: center;
