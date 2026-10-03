@@ -3563,6 +3563,22 @@ body::before {
   background: var(--panel-soft);
 }
 .health-manual-copy textarea { width: 100%; min-width: 0; height: 200px; margin: 8px 0; padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--input-bg); color: var(--text); font-size: 16px; line-height: 1.45; user-select: text; -webkit-user-select: text; }
+.health-check-values {
+  display: grid;
+  gap: 8px;
+  color: var(--text);
+}
+.health-check-values > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.health-check-values dd {
+  margin: 0;
+  font-weight: 700;
+}
+
 .health-workflow-step h3 {
   display: flex;
   align-items: center;

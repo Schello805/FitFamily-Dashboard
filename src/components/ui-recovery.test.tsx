@@ -200,6 +200,28 @@ describe("profile request recovery", () => {
     expect(fetchMock.mock.calls.every(([input]) => input !== "/api/training")).toBe(true);
   });
 
+  it("orders Health setup and shows the real check failure inline after PIN confirmation", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input) === "/api/dashboard") return Response.json({ profiles: [profile] });
+      if (init?.method === "POST") return Response.json({ verified: false, message: "Im letzten Aufruf fehlen: Trainingsminuten." });
+      return Response.json({ configured: true });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    render(<ProfileView initialProfile={profile} exercises={[]} />);
+    await screen.findByText("Lokal verbunden");
+    fireEvent.click(screen.getByRole("button", { name: /Apple Health\s*Tagesdaten verbinden/ }));
+    const headings = screen.getAllByRole("heading", { level: 3 }).map((element) => element.textContent);
+    expect(headings).toEqual(expect.arrayContaining(["1 Kurzbefehl einrichten", "2 Schlüssel erstellen und kopieren", "3 Verbindung prüfen"]));
+    expect(headings.indexOf("1 Kurzbefehl einrichten")).toBeLessThan(headings.indexOf("2 Schlüssel erstellen und kopieren"));
+    expect(headings.indexOf("2 Schlüssel erstellen und kopieren")).toBeLessThan(headings.indexOf("3 Verbindung prüfen"));
+    fireEvent.click(screen.getByRole("button", { name: "Verbindung prüfen" }));
+    for (const digit of ["2", "4", "6", "8"]) fireEvent.click(screen.getByRole("button", { name: digit }));
+    fireEvent.click(screen.getByRole("button", { name: "Bestätigen" }));
+    await screen.findByText("Im letzten Aufruf fehlen: Trainingsminuten.");
+    expect(screen.getByText("Übertragung nicht bestätigt")).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledWith("/api/sync/apple-health/token", expect.objectContaining({ method: "POST", body: JSON.stringify({ profileId: "papa", pin: "2468", action: "check" }) }));
+  });
+
   it("reports handoff failures and an unknown Health key status", async () => {
     vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
       if (String(input) === "/api/dashboard") return Response.json({ profiles: [profile] });

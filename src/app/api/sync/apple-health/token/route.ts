@@ -3,11 +3,12 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { createToken, hashToken, verifyAdminPinOrReject } from "@/lib/security";
+import { localIsoDate } from "@/lib/apple-health-activity";
 
 const schema = z.object({
   profileId: z.string().min(1),
   pin: z.string().regex(/^\d{4}$/),
-  action: z.enum(["create", "revoke"])
+  action: z.enum(["create", "revoke", "check"])
 });
 
 export async function GET(request: Request) {
@@ -27,6 +28,35 @@ export async function POST(request: Request) {
   const client = await db();
   const profile = await client.execute({ sql: "SELECT id FROM profiles WHERE id = ?", args: [parsed.data.profileId] });
   if (!profile.rows[0]) return NextResponse.json({ error: "Profil nicht gefunden." }, { status: 404 });
+
+  if (parsed.data.action === "check") {
+    const configured = await client.execute({ sql: "SELECT created_at FROM apple_health_tokens WHERE profile_id = ?", args: [parsed.data.profileId] });
+    if (!configured.rows[0]) return NextResponse.json({ verified: false, message: "Kein Sync-Schlüssel eingerichtet. Erstelle einen Schlüssel und füge ihn im Kurzbefehl ein." });
+    const result = await client.execute({
+      sql: "SELECT action, details, created_at FROM audit_log WHERE profile_id = ? AND action IN ('health.apple_sync.completed', 'health.apple_sync.failed') AND created_at >= ? ORDER BY created_at DESC, rowid DESC LIMIT 1",
+      args: [parsed.data.profileId, String(configured.rows[0].created_at)]
+    });
+    const log = result.rows[0];
+    if (!log) return NextResponse.json({ verified: false, message: "Noch keine Übertragung mit dieser Verbindung empfangen. Führe den Kurzbefehl auf dem iPhone aus und prüfe danach erneut." });
+    let details: Record<string, unknown> = {};
+    try {
+      const parsedDetails = JSON.parse(String(log.details ?? "{}"));
+      if (parsedDetails && typeof parsedDetails === "object" && !Array.isArray(parsedDetails)) details = parsedDetails;
+    } catch { /* Treat missing details as unverified. */ }
+    if (log.action === "health.apple_sync.failed") return NextResponse.json({ verified: false, checkedAt: log.created_at, message: typeof details.message === "string" ? details.message : "Der letzte Import ist fehlgeschlagen. Prüfe JSON-Felder, Zahlen und Sync-Schlüssel." });
+    const days = Array.isArray(details.savedActivity) ? details.savedActivity as Record<string, unknown>[] : [];
+    const today = days.find((day) => day.date === localIsoDate(new Date()));
+    if (!today) return NextResponse.json({ verified: false, checkedAt: log.created_at, message: "Der letzte Aufruf enthält keine prüfbaren Tageswerte für heute. Führe den eingerichteten Kurzbefehl erneut aus." });
+    const warnings = Array.isArray(details.warnings) ? details.warnings.filter((item): item is string => typeof item === "string") : [];
+    const received = details.receivedActivity as Record<string, unknown> | undefined;
+    const receivedDays = Array.isArray(received?.dailyActivity) ? received.dailyActivity as Record<string, unknown>[] : [];
+    const receivedToday = { ...(received?.date == null || received.date === today.date ? received : {}), ...receivedDays.find((day) => day.date === today.date) };
+    const requiredFields = { moveCalories: "Aktive Energie", exerciseMinutes: "Trainingsminuten", stepCount: "Schritte", walkingRunningDistanceKm: "Geh-/Laufstrecke" };
+    const missing = Object.entries(requiredFields).filter(([key]) => typeof receivedToday[key] !== "number").map(([, label]) => label);
+    if (missing.length) warnings.push(`Im letzten Aufruf fehlen: ${missing.join(", ")}. Prüfe diese Felder im Kurzbefehl.`);
+    const values = Object.fromEntries(Object.entries(today).filter(([key]) => key === "date" || typeof receivedToday[key] === "number"));
+    return NextResponse.json({ verified: warnings.length === 0, checkedAt: log.created_at, values, message: warnings.length ? warnings.join(" ") : "Der letzte Kurzbefehl-Aufruf wurde angenommen und Tageswerte für heute gespeichert. Vergleiche die Zahlen unten mit Apple Fitness; deren Herkunft kann der Server nicht überprüfen." });
+  }
 
   if (parsed.data.action === "revoke") {
     await client.execute({ sql: "DELETE FROM apple_health_tokens WHERE profile_id = ?", args: [parsed.data.profileId] });

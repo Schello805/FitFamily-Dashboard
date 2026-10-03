@@ -84,7 +84,8 @@ export function ProfileView({
   const [editingProfile, setEditingProfile] = useState(false);
   const [healthModal, setHealthModal] = useState(false);
   const [testingHealth, setTestingHealth] = useState(false);
-  const [healthPinAction, setHealthPinAction] = useState<"create" | "revoke" | "delete">();
+  const [healthPinAction, setHealthPinAction] = useState<"create" | "revoke" | "delete" | "check">();
+  const [healthCheckResult, setHealthCheckResult] = useState<{ verified: boolean; message: string; checkedAt?: string; values?: Record<string, unknown> } | null>(null);
   const [healthPin, setHealthPin] = useState("");
   const [healthPinError, setHealthPinError] = useState("");
   const [healthPinBusy, setHealthPinBusy] = useState(false);
@@ -514,7 +515,8 @@ Keine rückwirkenden 30-Tage-Summen, Etagen oder Trainingsobjekte einbauen. Gib 
     }
   }
 
-  function requestHealthPin(action: "create" | "revoke" | "delete") {
+  function requestHealthPin(action: "create" | "revoke" | "delete" | "check") {
+    setHealthCheckResult(null);
     setHealthPin("");
     setHealthPinError("");
     setHealthPinAction(action);
@@ -562,34 +564,26 @@ Keine rückwirkenden 30-Tage-Summen, Etagen oder Trainingsobjekte einbauen. Gib 
     }
   }
 
-  async function testHealthSync() {
+  async function testHealthSync(pin: string): Promise<boolean> {
     setTestingHealth(true);
+    setHealthCheckResult(null);
     try {
-      if (!healthSyncToken) {
-        const status = await requestJson<{ configured: boolean }>(`/api/sync/apple-health/token?profileId=${encodeURIComponent(profile.id)}`, "Server konnte nicht erreicht werden.", { cache: "no-store" });
-        showToast({ type: status.configured ? "success" : "info", title: "Server erreichbar", message: status.configured ? "Ein Sync-Schlüssel ist eingerichtet. Ob dein iPhone Daten überträgt, prüfst du durch Ausführen des Kurzbefehls und im Importprotokoll." : "Noch kein Sync-Schlüssel eingerichtet. Erstelle zuerst einen Schlüssel." });
-        return;
-      }
-      const data = await requestJson<{ message?: string }>("/api/sync/apple-health", "Der Schlüssel konnte nicht geprüft werden.", {
+      const data = await requestJson<NonNullable<typeof healthCheckResult>>("/api/sync/apple-health/token", "Übertragung konnte nicht geprüft werden.", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           profileId: profile.id,
-          secret: healthSyncToken,
-          dryRun: true
+          pin,
+          action: "check"
         })
       });
-      showToast({
-          type: "sparkles",
-          title: "Schlüsselprüfung erfolgreich",
-          message: data.message ?? "Der Sync-Schlüssel ist gültig. Es wurden keine Trainingsdaten gespeichert."
-      });
+      setHealthCheckResult(data);
+      return true;
     } catch (error) {
-      showToast({
-        type: "error",
-        title: "Sync-Fehler",
-        message: error instanceof Error ? error.message : "Konnte nicht mit dem Dashboard synchronisieren."
-      });
+      const message = error instanceof Error ? error.message : "Übertragung konnte nicht geprüft werden.";
+      setHealthCheckResult({ verified: false, message });
+      setHealthPinError(message);
+      return false;
     } finally {
       setTestingHealth(false);
     }
@@ -634,6 +628,8 @@ Keine rückwirkenden 30-Tage-Summen, Etagen oder Trainingsobjekte einbauen. Gib 
       let succeeded: boolean;
       if (healthPinAction === "delete") {
         succeeded = await performHealthReset(healthPin);
+      } else if (healthPinAction === "check") {
+        succeeded = await testHealthSync(healthPin);
       } else {
         succeeded = await manageHealthToken(healthPinAction, healthPin);
       }
@@ -910,30 +906,7 @@ Keine rückwirkenden 30-Tage-Summen, Etagen oder Trainingsobjekte einbauen. Gib 
             <p className="health-modal-desc">Einmal verbinden, danach deine Tagesdaten mit dem iPhone synchronisieren.</p>
 
             <section className="health-workflow-step">
-              <h3><span>1</span> Verbindung vorbereiten</h3>
-              <p>Erstelle deinen persönlichen Schlüssel für die sichere Verbindung.</p>
-              <div className="health-url-input-wrap health-key-input">
-                <input
-                  aria-label="Apple-Health-Sync-Schlüssel"
-                  type={showHealthSyncToken ? "text" : "password"}
-                  autoComplete="off"
-                  value={healthSyncToken}
-                  placeholder={healthTokenConfigured ? "Schlüssel eingerichtet · neu erstellen zum Anzeigen" : "Noch kein Schlüssel erstellt"}
-                  onChange={(event) => setHealthSyncToken(event.target.value)}
-                />
-                {healthSyncToken && <button type="button" className="health-copy-btn" onClick={() => setShowHealthSyncToken((visible) => !visible)}>{showHealthSyncToken ? "Verbergen" : "Anzeigen"}</button>}
-                {healthSyncToken && <button type="button" className="health-copy-btn" onClick={() => void copyHealthToken()} aria-label="Sync-Schlüssel kopieren"><Copy size={16} /></button>}
-              </div>
-              <div className="health-workflow-actions">
-                <button type="button" className="health-primary-btn" onClick={() => requestHealthPin("create")}>
-                  <Zap size={16} /> {healthTokenConfigured ? "Neuen Schlüssel erstellen" : "Schlüssel erstellen"}
-                </button>
-                {healthTokenConfigured && <small>{healthSyncToken ? "Kopiere den Schlüssel und füge ihn im Kurzbefehl ein." : "Der Schlüssel ist aus Sicherheitsgründen verborgen. Erstelle einen neuen, um ihn erneut zu kopieren."}</small>}
-              </div>
-            </section>
-
-            <section className="health-workflow-step">
-              <h3><span>2</span> Kurzbefehl einrichten</h3>
+              <h3><span>1</span> Kurzbefehl einrichten</h3>
               <p>Kopiere die Einrichtung und erstelle damit deinen iPhone-Kurzbefehl. Der Schlüssel wird nicht mitkopiert.</p>
               <button type="button" className="health-primary-btn" onClick={copyShortcutPrompt}>
                 {copiedShortcutPrompt ? <Check size={16} /> : <Copy size={16} />}
@@ -952,12 +925,32 @@ Keine rückwirkenden 30-Tage-Summen, Etagen oder Trainingsobjekte einbauen. Gib 
             </section>
 
             <section className="health-workflow-step">
-              <h3><span>3</span> Synchronisieren</h3>
+              <h3><span>2</span> Schlüssel erstellen und kopieren</h3>
+              <p>Erstelle den Schlüssel und ersetze damit den Platzhalter im Kurzbefehl.</p>
+              <div className="health-url-input-wrap health-key-input">
+                <input aria-label="Apple-Health-Sync-Schlüssel" type={showHealthSyncToken ? "text" : "password"} autoComplete="off" value={healthSyncToken} placeholder={healthTokenConfigured ? "Schlüssel bereits eingerichtet" : "Noch kein Schlüssel erstellt"} onChange={(event) => setHealthSyncToken(event.target.value)} />
+                {healthSyncToken && <button type="button" className="health-copy-btn" onClick={() => setShowHealthSyncToken((visible) => !visible)}>{showHealthSyncToken ? "Verbergen" : "Anzeigen"}</button>}
+                {healthSyncToken && <button type="button" className="health-copy-btn" onClick={() => void copyHealthToken()} aria-label="Sync-Schlüssel kopieren"><Copy size={16} /></button>}
+              </div>
+              <div className="health-workflow-actions">
+                <button type="button" className="health-primary-btn" onClick={() => requestHealthPin("create")}><Zap size={16} /> {healthTokenConfigured ? "Neuen Schlüssel erstellen" : "Schlüssel erstellen"}</button>
+                {healthTokenConfigured && !healthSyncToken && <small>Ein bereits gespeicherter Schlüssel bleibt gültig. Ein neuer Schlüssel ersetzt ihn und muss erneut im Kurzbefehl eingetragen werden.</small>}
+              </div>
+            </section>
+
+            <section className="health-workflow-step">
+              <h3><span>3</span> Verbindung prüfen</h3>
               <p>Füge den Schlüssel im Kurzbefehl ein. Öffne ihn danach auf dem iPhone und tippe auf ▶︎.</p>
-              <button type="button" className="health-secondary-btn" disabled={testingHealth || resettingHealth} onClick={testHealthSync}>
+              <button type="button" className="health-secondary-btn" disabled={testingHealth || resettingHealth} onClick={() => requestHealthPin("check")}>
                 <Zap size={16} /> {testingHealth ? "Wird geprüft …" : "Verbindung prüfen"}
               </button>
-              <small>Prüft die Verbindung, ohne Daten zu importieren.</small>
+              <small>Prüft den letzten tatsächlich empfangenen Kurzbefehl-Aufruf.</small>
+              {healthCheckResult && <div className={healthCheckResult.verified ? "profile-notice" : "form-error"} role="status">
+                <strong>{healthCheckResult.verified ? "Tagesdaten erfolgreich übertragen" : "Übertragung nicht bestätigt"}</strong>
+                <p>{healthCheckResult.message}</p>
+                {healthCheckResult.checkedAt && <small>Geprüfter Aufruf: {healthCheckResult.checkedAt}</small>}
+                {healthCheckResult.values && <dl className="health-check-values">{Object.entries({ date: "Tag", moveCalories: "Aktive Energie (kcal)", exerciseMinutes: "Training (Min.)", stepCount: "Schritte", standHours: "Stehen (Std.)", walkingRunningDistanceKm: "Geh-/Laufstrecke (km)", cyclingDistanceKm: "Radstrecke (km)" }).map(([key, label]) => <div key={key}><dt>{label}</dt><dd>{String(healthCheckResult.values?.[key] ?? "Nicht übertragen")}</dd></div>)}</dl>}
+              </div>}
               {profile.appleHealthRings && <div className="health-ring-preview"><AppleActivityRings rings={profile.appleHealthRings} compact /></div>}
             </section>
 
@@ -992,7 +985,7 @@ Keine rückwirkenden 30-Tage-Summen, Etagen oder Trainingsobjekte einbauen. Gib 
               </div>
             </div>
             <h3 id="health-pin-title">
-              {healthPinAction === "delete" ? "Health-Daten löschen" : healthPinAction === "create" ? "Sync-Schlüssel erstellen" : "Sync-Schlüssel widerrufen"}
+              {healthPinAction === "delete" ? "Health-Daten löschen" : healthPinAction === "check" ? "Übertragung prüfen" : healthPinAction === "create" ? "Sync-Schlüssel erstellen" : "Sync-Schlüssel widerrufen"}
             </h3>
             <p>{healthPinAction === "delete" ? "Apple-Health-Daten dieses Profils und die Verbindung werden unwiderruflich gelöscht. Zur Bestätigung Eltern-PIN eingeben." : "Zur Bestätigung bitte die vierstellige Eltern-PIN eingeben."}</p>
             <div className="confirm-pin-section">
