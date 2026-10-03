@@ -1,6 +1,13 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { buildHealthShortcut, METRICS, plist, SECRET_PLACEHOLDER } from "./generate-health-shortcut.mjs";
+
+test("rejects unknown signing modes before generating or signing a file", () => {
+  const result = spawnSync(process.execPath, ["scripts/generate-health-shortcut.mjs", "--sign-mode", "invalid"], { encoding: "utf8" });
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /Signierungsmodus muss/);
+});
 
 test("uses only built-in read actions and exactly one private-server POST", () => {
   const workflow = buildHealthShortcut();

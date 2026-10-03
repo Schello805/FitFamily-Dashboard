@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // Build a template, never embed a real sync credential. Only built-in actions.
 import { randomUUID } from "node:crypto";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { spawnSync } from "node:child_process";
@@ -116,7 +117,7 @@ export function plist(value) {
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
   const args = process.argv.slice(2);
-  const allowed = new Set(["--profile", "--server", "--output", "--sign"]);
+  const allowed = new Set(["--profile", "--server", "--output", "--sign", "--sign-mode"]);
   const options = {};
   for (let index = 0; index < args.length; index++) {
     if (!allowed.has(args[index])) throw new Error(`Unbekannte Option: ${args[index]}`);
@@ -128,17 +129,31 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
       options[key.slice(2)] = value;
     }
   }
+  const signMode = options["sign-mode"] ?? "anyone";
+  if (!["anyone", "people-who-know-me"].includes(signMode)) throw new Error("Signierungsmodus muss anyone oder people-who-know-me sein.");
   const output = resolve(options.output ?? "artifacts/FitFamily-Health-Sync-v4.unsigned.shortcut");
   mkdirSync(dirname(output), { recursive: true });
   writeFileSync(output, `<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n<plist version="1.0">${plist(buildHealthShortcut({ profileId: options.profile, server: options.server }))}</plist>\n`);
   console.log(`Vorlage erzeugt: ${output}`);
   if (options.sign) {
     if (process.platform !== "darwin") throw new Error("Signierung benötigt macOS. Die unsignierte Vorlage bleibt erhalten.");
-    const converted = spawnSync("/usr/bin/plutil", ["-convert", "binary1", output], { stdio: "inherit" });
-    if (converted.status !== 0) throw new Error("Plist-Konvertierung fehlgeschlagen.");
     const signed = output.replace(/(?:\.unsigned)?\.shortcut$/, "") + ".signed.shortcut";
-    const result = spawnSync("/usr/bin/shortcuts", ["sign", "--mode", "anyone", "--input", output, "--output", signed], { stdio: "inherit", timeout: 60000 });
-    if (result.status !== 0) throw new Error("Apple-Signierung fehlgeschlagen. Vorlage erhalten; nicht als importierbar bestätigt.");
+    if (signMode === "people-who-know-me") console.log("Hinweis: Apple fügt deine Kontaktinformationen zur Datei hinzu. Nur für Personen, die dich in ihren Kontakten haben.");
+    // Isolate Apple's signing process: preserve the unsigned source and don't
+    // leave a partial/stale output labelled as a successfully signed shortcut.
+    const staging = mkdtempSync(resolve(tmpdir(), "fitfamily-sign-"));
+    try {
+      const source = resolve(staging, "input.shortcut");
+      const target = resolve(staging, "signed.shortcut");
+      writeFileSync(source, readFileSync(output));
+      const converted = spawnSync("/usr/bin/plutil", ["-convert", "binary1", source], { stdio: "inherit" });
+      if (converted.status !== 0) throw new Error("Plist-Konvertierung fehlgeschlagen.");
+      const result = spawnSync("/usr/bin/shortcuts", ["sign", "--mode", signMode, "--input", source, "--output", target], { stdio: "inherit", timeout: 60000 });
+      if (result.status !== 0 || !existsSync(target)) throw new Error("Apple-Signierung fehlgeschlagen. Vorlage erhalten; keine neue signierte Datei erstellt. Bei Fehler 502 kann --sign-mode people-who-know-me für die persönliche Übertragung verwendet werden (enthält Kontaktinformationen).");
+      renameSync(target, signed);
+    } finally {
+      rmSync(staging, { recursive: true, force: true });
+    }
     console.log(`Signierte iPhone-Testdatei: ${signed}`);
   }
 }

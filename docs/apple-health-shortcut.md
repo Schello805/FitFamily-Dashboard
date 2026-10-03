@@ -7,6 +7,7 @@ node scripts/generate-health-shortcut.mjs --sign
 ```
 
 Nach erfolgreicher Signierung liegt die korrigierte Datei unter `artifacts/FitFamily-Health-Sync-v4.signed.shortcut`.
+Bei wiederholtem Fehler 502 im Modus `anyone` ist für die persönliche Übertragung alternativ `npm run health:shortcut -- --sign --sign-mode people-who-know-me` möglich. Dieser Apple-Modus fügt Kontaktinformationen des Erstellers hinzu und beschränkt die Nutzung auf Personen, die ihn in ihren Kontakten haben. Nur bewusst wählen; kein automatischer Fallback. Der Generator signiert in einem temporären Verzeichnis und übernimmt die Ausgabedatei ausschließlich nach erfolgreichem Abschluss.
 Vorlage v4 korrigiert die Quell- und Formatparameter der Datumsaktion und verwendet für Einheitenumrechnungen ausschließlich ganzzahlige Zähler/Nenner statt locale-abhängiger Dezimalliterale. Die Versionen v1–v3 nicht mehr verwenden. Die Strukturtests ersetzen keinen Lauf auf dem iPhone; Datum und Tageswerte nach dem Import mit Health und dem Serverprotokoll vergleichen.
 Version 3 korrigiert zusätzlich die vertauschten Zahlen-/Wörterbuchkennungen sowie
 die Hülle für das verschachtelte Tageswörterbuch. Version 1 und 2 nicht weiterverwenden.
