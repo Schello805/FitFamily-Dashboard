@@ -179,7 +179,7 @@ export function PersonalAvatarEditor({
         <Sparkles size={17} /> {hasSavedAvatar ? "Eigenen KI-Avatar ansehen oder ändern" : "Eigenen KI-Avatar erstellen"}
       </button>
       {expanded && <div className="personal-avatar-content">
-        <p>Wähle ein klares Frontalfoto. Die KI macht daraus einen Cartoon-Kopf im Stil der FitFamily-Figuren und setzt ihn auf den Körper. Das Originalfoto wird nur für die Umwandlung verwendet und nicht in FitFamily gespeichert. Der fertige Kopf bleibt in deinem Profil gespeichert.</p>
+        <p>Wähle ein klares Frontalfoto. Die KI macht daraus einen passend zugeschnittenen Cartoon-Kopf. Hals und Körper bleiben aus derselben FitFamily-Figur, damit sie bei allen Fitnessstufen zusammenpassen. Das Originalfoto wird nur zur Umwandlung verwendet und nicht in FitFamily gespeichert.</p>
         <label>Bild hochladen
           <input ref={fileRef} type="file" accept="image/*" onChange={(event) => selectPhoto(event.target.files?.[0] ?? null)} />
         </label>

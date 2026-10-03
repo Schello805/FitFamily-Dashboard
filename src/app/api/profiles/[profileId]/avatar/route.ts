@@ -16,8 +16,8 @@ const generationWindow = globalThis as typeof globalThis & {
   fitFamilyAvatarGenerations?: Map<string, number[]>;
 };
 
-const generationPrompt = `Erstelle aus dem ERSTEN Bild einen deutlich stilisierten, freundlichen 3D-COMIC-/Animationsfilm-Kopf derselben Person. Das Ergebnis muss sichtbar eine gezeichnete, hochwertige FitFamily-Cartoonfigur sein: glatte illustrative Oberflächen, leicht vereinfachte Formen und ausdrucksstarke, stilisierte Züge. KEIN Foto, KEINE fotorealistische Haut und kein fotorealistisches Gesicht. Verwende das ZWEITE Bild ausschließlich als Stil- und Größenreferenz für den FitFamily-Familienavatar. Die Person soll trotzdem klar wiedererkennbar bleiben; übernimm natürliche Gesichtsform, Hautton, Frisur und markante Merkmale, ohne sie zu verschönern oder zu verändern.
-Ausgabe: ausschließlich der vollständige Kopf mit Haaren und Ohren sowie einem klar sichtbaren, natürlich geformten Hals. Der Hals muss unter dem Kinn deutlich weiterlaufen und bis zum unteren Bildrand reichen, damit der Kopf später glaubwürdig auf dem vorhandenen Körper sitzt; nicht direkt am Kinn abschneiden. Gerade von vorn, neutral-freundlicher Ausdruck. Der Kopf soll groß sein und das Bild fast vollständig ausfüllen, einschließlich der gesamten Frisur und des Kinns; Hals und Kopf müssen gemeinsam vollständig sichtbar bleiben. Freigestellt auf vollständig transparentem Hintergrund. Falls deine Bildausgabe keine Transparenz unterstützt, verwende stattdessen einen vollkommen einfarbigen, nicht schattierten, reinen Magenta-Hintergrund (#FF00FF). Keine Schultern, kein Oberkörper, keine Schrift, kein Rahmen, kein Schatten außerhalb der Figur und keine leeren Ränder. Keine Verjüngung/Verälterung und keine zusätzlichen Personen. Kinderfotos nur als harmlose, altersgerechte Cartoon-Darstellung.`;
+const generationPrompt = `Erstelle aus dem ERSTEN Bild ausschließlich einen deutlich stilisierten, freundlichen 3D-COMIC-/Animationsfilm-KOPF derselben Person. Das Ergebnis muss sichtbar eine gezeichnete, hochwertige FitFamily-Cartoonfigur sein: glatte illustrative Oberflächen, leicht vereinfachte Formen und ausdrucksstarke, stilisierte Züge. KEIN Foto und KEINE fotorealistische Haut. Verwende das ZWEITE Bild ausschließlich als Stilreferenz für den FitFamily-Familienavatar. Die Person soll klar wiedererkennbar bleiben; übernimm natürliche Gesichtsform, Hautton, Frisur und markante Merkmale, ohne sie zu verschönern oder zu verändern.
+WICHTIG: Ausgabe nur Kopf mit kompletter Frisur, Ohren und Gesicht, gerade von vorn. Der Kopf endet exakt unter dem Kinn. KEIN Hals, KEINE Schultern und KEIN Oberkörper. Der Hals bleibt aus der vorhandenen FitFamily-Körpergrafik, damit Kopf und Hals bei allen Fitnessstufen exakt zusammenpassen. Einheitlicher Bildausschnitt: Kopf mittig, gesamte Frisur und beide Ohren sichtbar; vom höchsten Haar bis zum Kinn etwa 90 % der Bildhöhe, Kopfbreite etwa 80 % der Bildbreite. Neutral-freundlicher Ausdruck. Freigestellt auf vollständig transparentem Hintergrund. Falls Transparenz nicht unterstützt wird, verwende einen vollkommen einfarbigen, nicht schattierten, reinen Magenta-Hintergrund (#FF00FF). Keine Schrift, kein Rahmen, kein Schatten außerhalb des Kopfes, keine leeren Ränder, keine Verjüngung/Verälterung und keine zusätzlichen Personen. Kinderfotos nur als harmlose, altersgerechte Cartoon-Darstellung.`;
 
 function jsonError(message: string, status = 400) {
   return NextResponse.json({ error: message }, { status });
@@ -152,9 +152,10 @@ async function normalizePersonalHead(image: Buffer) {
   }
   if (right < left || bottom < top) throw new Error("Das erzeugte Avatarbild ist leer.");
 
-  // Remove transparent margins so the generated head can fully cover the built-in face.
-  const paddingX = Math.max(8, Math.round((right - left + 1) * 0.06));
-  const paddingY = Math.max(8, Math.round((bottom - top + 1) * 0.06));
+  // Normalize all heads into the same transparent frame so different hairstyles
+  // cannot change the apparent head size or where the chin meets the body's neck.
+  const paddingX = Math.max(4, Math.round((right - left + 1) * 0.025));
+  const paddingY = Math.max(4, Math.round((bottom - top + 1) * 0.025));
   left = Math.max(0, left - paddingX);
   top = Math.max(0, top - paddingY);
   right = Math.min(info.width - 1, right + paddingX);
@@ -162,7 +163,8 @@ async function normalizePersonalHead(image: Buffer) {
   return sharp(image, { limitInputPixels: 20_000_000 })
     .rotate()
     .extract({ left, top, width: right - left + 1, height: bottom - top + 1 })
-    .resize(512, 512, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
+    .resize(430, 480, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 }, position: "centre" })
+    .extend({ top: 16, bottom: 16, left: 41, right: 41, background: { r: 0, g: 0, b: 0, alpha: 0 } })
     .webp({ quality: 88, alphaQuality: 95 }).toBuffer();
 }
 
