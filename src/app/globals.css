@@ -4218,8 +4218,6 @@ body::before {
   .dashboard-apple-rings .apple-rings-widget.compact .apple-rings-graphic { width: 84px; height: 84px; }
   .profile-card > .dashboard-apple-rings { padding-top: 5px; }
   .app-footer { min-height: 18px; }
-  /* Reserve 50px below each of the two card rows for the kiosk footer. */
-  .profile-grid { align-content: start; grid-template-rows: repeat(2, minmax(0, calc((100% - 112px) / 2))); grid-auto-rows: minmax(0, calc((100% - 112px) / 2)); }
 }
 
 /* Equipment dialogs fit the short Lenovo kiosk viewport without an inner page scroll. */
