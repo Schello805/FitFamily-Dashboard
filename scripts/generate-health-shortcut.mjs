@@ -11,8 +11,10 @@ export const SECRET_PLACEHOLDER = "HIER_DEN_SYNC_SCHLUESSEL_EINFUEGEN";
 // Verified against Cherri's compiler/file-format: 1=dict, 3=number (not reversed).
 export const ITEM_TYPES = { text: 0, dictionary: 1, array: 2, number: 3, boolean: 4 };
 export const METRICS = [
-  { key: "exerciseMinutes", label: "Exercise Minutes", factors: { min: [1, 1], "min.": [1, 1], minutes: [1, 1], Minuten: [1, 1], sec: [1, 60], s: [1, 60], hr: [60, 1], h: [60, 1] } },
-  { key: "stepCount", label: "Steps" }
+  // Exercise Time was confirmed by an actual run on the user's iPhone.
+  { key: "exerciseMinutes", label: "Exercise Time", factors: { min: [1, 1], "min.": [1, 1], minutes: [1, 1], Minuten: [1, 1], sec: [1, 60], s: [1, 60], hr: [60, 1], h: [60, 1] } },
+  { key: "stepCount", label: "Steps" },
+  { key: "moveCalories", label: "Active Calories", factors: { kcal: [1, 1], Cal: [1, 1], kJ: [1000, 4184], J: [1, 4184] } }
 ];
 
 const state = (type, value) => ({ Value: value, WFSerializationType: type });
@@ -41,10 +43,11 @@ export function buildHealthShortcut({ profileId = "papa", server = "http://192.1
     action("exit");
     action("conditional", { GroupingIdentifier: guard, WFControlFlowMode: 2 });
   }
-  action("comment", { WFCommentActionText: "FitFamily Basistest: NUR heutige Schritte und Trainingsminuten. Schlüssel im folgenden Text ersetzen. Bei fehlenden Messungen wird NICHT gesendet (keine erfundenen Nullen). Rohsummen können wegen überlappender Quellen von Health abweichen: beide Werte vor Automatisierung vergleichen. Kein App-Wechsel nötig." });
+  action("comment", { WFCommentActionText: "FitFamily Vergleichstest: heutige Schritte, Trainingsminuten und aktive Energie (kcal). Schlüssel im folgenden Text ersetzen. Bei fehlenden Messungen wird NICHT gesendet. Rohsummen können wegen überlappender Quellen von Health abweichen: alle drei Werte zur selben Uhrzeit vergleichen. Schritt-Doppelzählung noch NICHT gelöst. Kein App-Wechsel nötig." });
   const secret = action("gettext", { WFTextActionText: SECRET_PLACEHOLDER });
   const now = action("date", { WFDateActionMode: "Current Date" });
-  const date = action("format.date", { WFDate: tokenText(ref(now, "Date")), WFInput: input(ref(now, "Date")), WFDateFormatStyle: "Custom", WFDateFormat: "Custom", WFDateFormatString: "yyyy-MM-dd", WFTimeFormatStyle: "None" });
+  // The iPhone editor/runtime uses WFDateFormat itself as the custom pattern.
+  const date = action("format.date", { WFDate: tokenText(ref(now, "Date")), WFInput: input(ref(now, "Date")), WFDateFormatStyle: "Custom", WFDateFormat: "yyyy-MM-dd", WFTimeFormatStyle: "None" });
   stopIfMissing(ref(date, "Formatted Date"), "Datum fehlt. Nichts übertragen. Bitte die Aktion Datum formatieren prüfen.");
 
   for (const metric of METRICS) {
@@ -67,7 +70,7 @@ export function buildHealthShortcut({ profileId = "papa", server = "http://192.1
       action("setvariable", { WFVariableName: metric.key, WFInput: input(ref(total, "Statistics")) });
       continue;
     }
-    // Exercise units are explicitly checked; integer ratios avoid decimal parsing.
+    // Exercise/energy units are explicitly checked; integer ratios avoid decimal parsing.
     const factors = action("dictionary", { WFItems: dictionary(Object.entries(metric.factors).map(([unit, ratio]) => item(unit, ITEM_TYPES.number, text(ratio[0])))) });
     const divisors = action("dictionary", { WFItems: dictionary(Object.entries(metric.factors).map(([unit, ratio]) => item(unit, ITEM_TYPES.number, text(ratio[1])))) });
     const loop = randomUUID().toUpperCase();
@@ -101,7 +104,7 @@ export function buildHealthShortcut({ profileId = "papa", server = "http://192.1
   });
   action("showresult", { Text: tokenText(ref(sent, "Contents of URL")) });
   return {
-    WFWorkflowName: "FitFamily Schritte und Training", WFWorkflowActions: actions,
+    WFWorkflowName: "FitFamily Health Vergleich", WFWorkflowActions: actions,
     WFWorkflowClientVersion: "2600.0.0", WFWorkflowMinimumClientVersion: 900,
     WFWorkflowMinimumClientVersionString: "900", WFWorkflowHasOutputFallback: false,
     WFWorkflowIcon: { WFWorkflowIconStartColor: 4282601983, WFWorkflowIconGlyphNumber: 59511 },
@@ -135,7 +138,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
   }
   const signMode = options["sign-mode"] ?? "anyone";
   if (!["anyone", "people-who-know-me"].includes(signMode)) throw new Error("Signierungsmodus muss anyone oder people-who-know-me sein.");
-  const output = resolve(options.output ?? "artifacts/FitFamily-Schritte-Training-v1.unsigned.shortcut");
+  const output = resolve(options.output ?? "artifacts/FitFamily-Health-Vergleich-v1.unsigned.shortcut");
   mkdirSync(dirname(output), { recursive: true });
   writeFileSync(output, `<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n<plist version="1.0">${plist(buildHealthShortcut({ profileId: options.profile, server: options.server }))}</plist>\n`);
   console.log(`Vorlage erzeugt: ${output}`);

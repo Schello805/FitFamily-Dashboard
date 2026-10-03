@@ -1,8 +1,11 @@
-# Basistest: Schritte und Trainingsminuten
+# Vergleichstest: Schritte, Trainingsminuten und aktive Energie
 
-Die aktuelle Vorlage liest ausschließlich heutige Schritte und Trainingsminuten.
-Sie heißt „FitFamily Schritte und Training“ und umfasst 43 statt 108 Aktionen.
-Alte Fünf-Werte-Vorlagen nicht parallel automatisieren.
+Die aktuelle Vorlage ergänzt aktive Energie (`moveCalories`, kcal) zum Basistest.
+Sie heißt „FitFamily Health Vergleich“. Schritte werden weiterhin als Rohsumme
+gelesen; die bekannte Abweichung ist noch nicht gelöst. Zweck: die drei Datenarten
+zum selben Zeitpunkt systematisch mit Fitness vergleichen. Keine Automatisierung.
+Die Trainingstyp-Auswahl „Exercise Time“ und das Datumsmuster direkt in
+`WFDateFormat` entsprechen den auf dem iPhone bestätigten manuellen Korrekturen.
 
 Erzeugen und auf einem Mac signieren:
 
@@ -10,9 +13,9 @@ Erzeugen und auf einem Mac signieren:
 node scripts/generate-health-shortcut.mjs --sign
 ```
 
-Nach erfolgreicher Signierung liegt die Testdatei unter `artifacts/FitFamily-Schritte-Training-v1.signed.shortcut`.
+Nach erfolgreicher Signierung liegt die Testdatei unter `artifacts/FitFamily-Health-Vergleich-v1.signed.shortcut`.
 Bei wiederholtem Fehler 502 im Modus `anyone` ist für die persönliche Übertragung alternativ `npm run health:shortcut -- --sign --sign-mode people-who-know-me` möglich. Dieser Apple-Modus fügt Kontaktinformationen des Erstellers hinzu und beschränkt die Nutzung auf Personen, die ihn in ihren Kontakten haben. Nur bewusst wählen; kein automatischer Fallback. Der Generator signiert in einem temporären Verzeichnis und übernimmt die Ausgabedatei ausschließlich nach erfolgreichem Abschluss.
-Die Strukturtests ersetzen keinen Lauf auf dem iPhone. Datum und beide Tageswerte
+Die Strukturtests ersetzen keinen Lauf auf dem iPhone. Datum und alle drei Tageswerte
 nach dem Import mit Health und dem Serverprotokoll vergleichen. Die alte Vorlage
 FitFamily Health Sync v1–v4 vorerst nicht weiterverwenden. Die unsignierte Vorlage
 enthält nur einen Schlüssel-Platzhalter und lässt sich nicht auf dem iPhone öffnen.
@@ -30,15 +33,16 @@ Es gibt bewusst keine Option zum Einbetten eines echten Schlüssels.
 4. Beim ersten Ausführen Health-Leserechte und Zugriff auf den eigenen Server erlauben.
 5. Einmal starten, ohne zwischen Apps zu wechseln. Serverantwort mit Import-ID
    unter Verwaltung → Betriebsprotokoll → Apple Health vergleichen. `stepCount`,
-   `exerciseMinutes` und Datum zusätzlich mit Health/Fitness zum selben Zeitpunkt prüfen.
+   `exerciseMinutes`, `moveCalories` und Datum zusätzlich mit Health/Fitness zum selben Zeitpunkt prüfen.
 
 Schritte: heutige Messungen → numerische Werte → einmal Summe. Training: heutige
-Messungen → Einheit prüfen/normalisieren → einmal Summe. Ganzzahlige Zähler/Nenner
+Messungen → Einheit prüfen/normalisieren → einmal Summe. Aktive Energie verwendet
+denselben Ablauf (kcal bleibt kcal, kJ wird mit 1000/4184 umgerechnet). Ganzzahlige Zähler/Nenner
 vermeiden Dezimal-Locale-Probleme. Schritte werden auf ganze Zahlen gerundet.
 Fehlt das Datum oder eine Art heutiger Messungen, stoppt der komplette Basistest
 ohne POST. Auch ein leerer Trainingstag wird deshalb nicht übertragen. Keine
 erfundenen Nullen. Unbekannte Trainingseinheiten stoppen ebenfalls vor dem POST.
-Genau eine POST-Anfrage mit zwei Werten; keine Health-Schreibaktionen, App-Wechsel,
+Genau eine POST-Anfrage mit drei Werten; keine Health-Schreibaktionen, App-Wechsel,
 Cloud-KI oder Drittanbieter-Aktionen.
 
 ## Grenzen und notwendiger Test
@@ -51,14 +55,14 @@ OS-Versionen können andere Picker-Bezeichnungen oder Einheiten liefern.
 Ein leeres Health-Ergebnis lässt sich nicht zuverlässig von verweigerten Leserechten
 unterscheiden. Außerdem kann die Summe der Rohmessungen verschiedener Quellen
 (z. B. Watch und iPhone) von Apples priorisierten Fitness-Tageswerten abweichen.
-Vor automatischem Betrieb beide Werte mit Apple Health/Fitness abgleichen.
+Vor automatischem Betrieb alle drei Werte mit Apple Health/Fitness abgleichen.
 Bei Abweichung nicht pauschal Faktoren ändern: zuerst Einheit, Quellen und
 empfangene Werte im Protokoll prüfen. Stehminuten werden nicht übertragen, weil
 sie keine erfüllten Stehstunden ergeben. Ringziele werden nicht ausgelesen.
 
 „Verbindung prüfen“ im Profil erwartet weiterhin alle vier Kernfelder des vollen
-Syncs und meldet bei diesem Teiltest fehlende Kalorien/Distanz. Maßgeblich für den
-Basistest sind der erfolgreiche Import und die zwei Zahlen im Protokoll. Der
+Syncs und meldet bei diesem Teiltest fehlende Geh-/Laufdistanz. Maßgeblich für den
+Vergleichstest sind der erfolgreiche Import und die drei Zahlen im Protokoll. Der
 Teiltest ist keine Bestätigung des vollständigen Syncs.
 
 ## Schemaquellen

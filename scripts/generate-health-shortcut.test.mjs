@@ -21,10 +21,11 @@ test("uses only built-in read actions and exactly one private-server POST", () =
   assert.ok(JSON.stringify(workflow).includes(SECRET_PLACEHOLDER));
 });
 
-test("only steps and exercise are locked to today without a sample limit", () => {
+test("only steps, exercise and active energy are locked to today without a sample limit", () => {
   const finds = buildHealthShortcut().WFWorkflowActions.filter((action) => action.WFWorkflowActionIdentifier === "is.workflow.actions.filter.health.quantity");
-  assert.equal(finds.length, 2);
-  assert.deepEqual(METRICS.map(({ key }) => key), ["exerciseMinutes", "stepCount"]);
+  assert.equal(finds.length, 3);
+  assert.deepEqual(METRICS.map(({ key }) => key), ["exerciseMinutes", "stepCount", "moveCalories"]);
+  assert.equal(METRICS[0].label, "Exercise Time");
   for (const [index, action] of finds.entries()) {
     const params = action.WFWorkflowActionParameters;
     assert.equal(params.WFContentItemLimitEnabled, false);
@@ -56,7 +57,7 @@ test("JSON carries typed numeric totals rather than raw Health objects", () => {
 
 test("conversion factors are number items (3), never dictionaries (1)", () => {
   const dictionaries = buildHealthShortcut().WFWorkflowActions.filter((action) => action.WFWorkflowActionIdentifier === "is.workflow.actions.dictionary");
-  assert.equal(dictionaries.length, 2);
+  assert.equal(dictionaries.length, 4);
   for (const [index, action] of dictionaries.entries()) {
     const fields = action.WFWorkflowActionParameters.WFItems.Value.WFDictionaryFieldValueItems;
     for (const field of fields) {
@@ -64,7 +65,8 @@ test("conversion factors are number items (3), never dictionaries (1)", () => {
       assert.equal(field.WFValue.WFSerializationType, "WFTextTokenString");
       const literal = field.WFValue.Value.string;
       assert.match(literal, /^\d+$/);
-      assert.equal(Number(literal), METRICS[0].factors[field.WFKey.Value.string][index]);
+      const metric = METRICS.filter(({ factors }) => factors)[Math.floor(index / 2)];
+      assert.equal(Number(literal), metric.factors[field.WFKey.Value.string][index % 2]);
     }
   }
 });
@@ -73,32 +75,35 @@ test("normalizes units with metric-specific factors and valid operators", () => 
   assert.deepEqual(METRICS[0].factors.sec, [1, 60]);
   assert.equal(480 * METRICS[0].factors.sec[0] / METRICS[0].factors.sec[1], 8);
   assert.equal(2 * METRICS[0].factors.hr[0] / METRICS[0].factors.hr[1], 120);
+  assert.equal(4184 * METRICS[2].factors.kJ[0] / METRICS[2].factors.kJ[1], 1000);
+  assert.deepEqual(METRICS[2].factors.kcal, [1, 1]);
   const actions = buildHealthShortcut().WFWorkflowActions;
   const math = actions.filter((action) => action.WFWorkflowActionIdentifier === "is.workflow.actions.math");
-  assert.equal(math.length, 2);
+  assert.equal(math.length, 4);
   assert.equal(math[0].WFWorkflowActionParameters.WFMathOperation, "×");
   assert.equal(math[1].WFWorkflowActionParameters.WFMathOperation, "÷");
   const sums = actions.filter((action) => action.WFWorkflowActionIdentifier === "is.workflow.actions.statistics");
-  assert.equal(sums.length, 2);
+  assert.equal(sums.length, 3);
   assert.ok(sums.every((action) => action.WFWorkflowActionParameters.WFStatisticsOperation === "Sum"));
   assert.equal(sums[0].WFWorkflowActionParameters.Input.Value.OutputName, "Repeat Results");
   assert.equal(sums[1].WFWorkflowActionParameters.Input.Value.OutputName, "Value");
-  assert.ok(actions.length < 55);
+  assert.equal(sums[2].WFWorkflowActionParameters.Input.Value.OutputName, "Repeat Results");
+  assert.ok(actions.length < 75);
 });
 
-test("date formatting uses the actual source date and dedicated custom pattern parameter", () => {
+test("date formatting matches the pattern confirmed in the iPhone editor", () => {
   const actions = buildHealthShortcut().WFWorkflowActions;
   const date = actions.find((action) => action.WFWorkflowActionIdentifier === "is.workflow.actions.date");
   const params = actions.find((action) => action.WFWorkflowActionIdentifier === "is.workflow.actions.format.date").WFWorkflowActionParameters;
-  assert.equal(params.WFDateFormat, "Custom");
-  assert.equal(params.WFDateFormatString, "yyyy-MM-dd");
+  assert.equal(params.WFDateFormat, "yyyy-MM-dd");
+  assert.ok(!("WFDateFormatString" in params));
   assert.equal(params.WFDate.Value.attachmentsByRange["{0, 1}"].OutputUUID, date.WFWorkflowActionParameters.UUID);
 });
 
 test("If conditions use the iPhone variable wrapper instead of an empty imported condition", () => {
   const actions = buildHealthShortcut().WFWorkflowActions;
   const guards = actions.filter((action) => action.WFWorkflowActionIdentifier === "is.workflow.actions.conditional" && action.WFWorkflowActionParameters.WFControlFlowMode === 0);
-  assert.equal(guards.length, 4);
+  assert.equal(guards.length, 6);
   for (const guard of guards) {
     const params = guard.WFWorkflowActionParameters;
     assert.equal(params.WFCondition, 101);
