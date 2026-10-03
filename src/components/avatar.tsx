@@ -91,7 +91,7 @@ export function Avatar({
           />
         )}
       </div>
-      {showChip && <div className="level-chip">Lvl {level}</div>}
+      {showChip && <div className="level-chip">Stufe {level}</div>}
     </div>
   );
 }

@@ -4,6 +4,23 @@ Alle wichtigen Änderungen werden hier nach dem Prinzip von Keep a Changelog dok
 
 ## [Unreleased]
 
+## [0.3.3] – 2026-10-03
+
+### Hinzugefügt
+
+- Geräte- und Übungslinks für NFC sowie druckbare QR-Etiketten in Verwaltung → Sportraum.
+- Änderbare Kraft-/Ausdauer-Zuordnung und Standardübung je Gerät, dauerhaft in Backup und Datenexport gespeichert.
+- Mobile Trainingsseite mit Geräte-Timer und zentralem Stopp; Gerätewechsel schließen den vorherigen Abschnitt ohne Zeitlücke ab.
+- Eigenständiger Trainingslevel mit Fortschrittsbalken und drei Abzeichen, unabhängig von Fitness-Selbsteinschätzung und Punkte-Reset.
+
+### Behoben
+
+- Gleichzeitige Scans desselben Profils erzeugen keine überlappenden Trainingsabschnitte mehr.
+- PIN-Eingabe beim Handy-Koppeln verwendet das Numpad; Timer starten ohne Server-/Browser-Darstellungsfehler.
+- Dashboard-Karten passen mit Fortschrittsanzeige auch bei 650 Pixeln Bildschirmhöhe in die Ansicht.
+
+## [0.3.0–0.3.2] – 2026-10-03
+
 ### Geändert
 
 - Apple Health vorerst eingestellt: Oberfläche, Ringe, Einrichtung und Generator entfernt; alte Sync-Endpunkte verweigern weitere Übertragungen mit HTTP 410.

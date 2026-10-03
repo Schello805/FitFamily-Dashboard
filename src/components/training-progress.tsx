@@ -1,0 +1,5 @@
+import type { TrainingProgress as Progress } from "@/lib/training-progress";
+export function TrainingProgress({ progress }: { progress?: Progress }) {
+  if (!progress) return null;
+  return <section className="training-progress" aria-label="Trainingslevel"><div><strong>Trainingslevel {progress.level}</strong><span>{progress.nextThreshold === null ? "Höchstes Level erreicht" : `${progress.remaining.toLocaleString("de-DE")} Min. bis Level ${progress.level + 1}`}</span></div><div role="progressbar" aria-label="Fortschritt zum nächsten Trainingslevel" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress.percent} className="training-progress-track"><i style={{ width: `${progress.percent}%` }} /></div>{progress.badges.length > 0 && <p>{progress.badges.map(badge => <span key={badge}>★ {badge}</span>)}</p>}</section>;
+}

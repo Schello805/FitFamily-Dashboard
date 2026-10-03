@@ -15,6 +15,7 @@ import {
   type TrainingType
 } from "@/lib/domain";
 import { LiveDuration } from "@/components/live-duration";
+import { TrainingProgress } from "@/components/training-progress";
 import { ProfileEditModal } from "@/components/profile-edit-modal";
 import { Avatar } from "@/components/avatar";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -431,6 +432,7 @@ export function ProfileView({
       )}
       <ConnectionStatus className="profile-connection-status" connectionError={connectionError} lastRefreshedAt={lastRefreshedAt} />
 
+      <TrainingProgress progress={profile.trainingProgress} />
       <section className="training-hero">
         <div className="profile-hero-left">
           <Avatar profile={profile} size="large" />
@@ -439,7 +441,7 @@ export function ProfileView({
             <h2>{profile.activeTraining ? "Dein Training läuft" : "Bereit, wenn du es bist."}</h2>
             <p>Starte direkt oder setze deinen persönlichen Trainingsplan fort.</p>
             <div className="avatar-meta-pills">
-              <span className="avatar-pill stage">Stufe {profile.fitnessStage} von {getFitnessStageCount(profile.id, profile.birthDate)}</span>
+              <span className="avatar-pill stage">Fitnessstufe {profile.fitnessStage} von {getFitnessStageCount(profile.id, profile.birthDate)}</span>
               <span className={`avatar-pill physique ${profile.physique}`}>{physiqueLabel(profile.physique)}</span>
               <span className="avatar-pill minutes">
                 {Math.round(profile.strengthMinutes)}m Kraft · {Math.round(profile.enduranceMinutes)}m Ausdauer
@@ -450,6 +452,7 @@ export function ProfileView({
         <div className="profile-hero-right">
           {profile.activeTraining && (
             <div className="running-clock">
+              {profile.activeTraining.equipmentName && <small>{profile.activeTraining.equipmentName}</small>}
               <span>{profile.activeTraining.exerciseName ?? (activeType === "strength" ? "Krafttraining" : "Ausdauertraining")}</span>
               <strong><LiveDuration since={profile.activeTraining.segmentStartedAt} /></strong>
               {longRunning && <em>Bitte prüfen: Läuft dieses Training noch?</em>}

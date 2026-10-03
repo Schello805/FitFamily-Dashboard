@@ -9,7 +9,23 @@ type StartInput = {
   source?: "touch" | "mobile" | "nfc" | "manual";
 };
 
-export async function startOrSwitchTraining(input: StartInput) {
+// Serialize updates for one profile so two quick scans cannot create overlapping segments.
+const pendingTraining = new Map<string, Promise<unknown>>();
+async function updateTraining<T>(profileId: string, action: () => Promise<T>): Promise<T> {
+  const previous = pendingTraining.get(profileId) ?? Promise.resolve();
+  const next = previous.catch(() => undefined).then(action);
+  pendingTraining.set(profileId, next);
+  try { return await next; }
+  finally { if (pendingTraining.get(profileId) === next) pendingTraining.delete(profileId); }
+}
+export function startOrSwitchTraining(input: StartInput) {
+  return updateTraining(input.profileId, () => startOrSwitch(input));
+}
+export function stopTraining(profileId: string) {
+  return updateTraining(profileId, () => stop(profileId));
+}
+
+async function startOrSwitch(input: StartInput) {
   await enforceSafetyPauses();
   const client = await db();
   const now = new Date().toISOString();
@@ -62,7 +78,7 @@ export async function startOrSwitchTraining(input: StartInput) {
   return { sessionId, segmentId, changed: true };
 }
 
-export async function stopTraining(profileId: string) {
+async function stop(profileId: string) {
   await enforceSafetyPauses();
   const client = await db();
   const now = new Date().toISOString();

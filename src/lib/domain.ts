@@ -111,6 +111,7 @@ export type ActiveTraining = {
   type: TrainingType;
   exerciseId: string | null;
   exerciseName: string | null;
+  equipmentName?: string | null;
   startedAt: string;
   segmentStartedAt: string;
 };
@@ -126,6 +127,7 @@ export type ActivityTrendPoint = {
 };
 
 export type DashboardProfile = Profile & {
+  trainingProgress?: import("@/lib/training-progress").TrainingProgress;
   strengthMinutes: number;
   enduranceMinutes: number;
   fitnessStage: number;

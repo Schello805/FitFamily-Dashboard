@@ -3661,15 +3661,59 @@ body::before {
 .profile-connection-status { display: flex; margin: 10px 0 16px; }
 .qr-modal { max-height: calc(100dvh - 40px); overflow-y: auto; }
 .prep-countdown-overlay { z-index: 1000; }
+.scan-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin: 20px 0; }
+.device-training { max-width: 560px; margin: 0 auto; padding: 20px 16px 100px; }
+.device-training header { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 16px; }
+.device-training-card { padding: 24px; text-align: center; border: 1px solid var(--line); border-radius: 24px; background: var(--panel); box-shadow: var(--card-shadow); }
+.device-training-card h1 { font-size: 32px; margin: 12px 0; overflow-wrap: anywhere; }
+.device-timer { display: block; font-size: clamp(42px, 12vw, 64px); color: var(--profile); font-variant-numeric: tabular-nums; margin: 20px 0 10px; }
+.device-training-card small { display: block; color: var(--muted); }
+.device-stop { width: 100%; min-height: 68px; margin-top: 24px; font-size: 22px; font-weight: 800; border: 0; border-radius: 16px; color: white; background: #dc2626; cursor: pointer; }
+.scan-settings label { display: grid; gap: 7px; font-weight: 700; }
+.scan-settings input, .scan-settings select { width: 100%; min-height: 48px; padding: 10px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); color: var(--text); }
+.scan-actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 16px 0; }
+.scan-actions button, .scan-actions a, .label-print { min-height: 48px; padding: 12px 16px; border: 1px solid var(--line); border-radius: 12px; color: var(--text); background: var(--panel); text-decoration: none; cursor: pointer; }
+.scan-settings details { margin-top: 16px; }
+.scan-label-page { max-width: 600px; margin: 24px auto; padding: 20px; text-align: center; }
+.scan-label { padding: 24px; border: 2px solid #142b30; border-radius: 20px; background: white; color: #142b30; }
+.scan-label h1 { font-size: 30px; }
+.scan-label img { max-width: 100%; height: auto; }
+.scan-label small { display: block; overflow-wrap: anywhere; }
+.training-progress { padding: 16px 20px; border: 1px solid var(--line); border-radius: 18px; background: var(--panel); margin: 14px 0; }
+.training-progress > div:first-child { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; }
+.training-progress span { font-size: 12px; color: var(--muted); }
+.training-progress-track, .dashboard-level > div { height: 8px; background: var(--line); border-radius: 8px; overflow: hidden; }
+.training-progress-track { margin-top: 12px; }
+.training-progress-track i, .dashboard-level i { display: block; height: 100%; border-radius: inherit; background: var(--profile, #14b8a6); transition: width .3s ease; }
+.training-progress p { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 0; }
+.training-progress p span { padding: 4px 10px; border-radius: 12px; background: var(--subtle-bg); }
+.dashboard-level { display: flex; align-items: center; gap: 10px; font-size: 11px; color: var(--muted); min-height: 24px; }
+.dashboard-level > div { flex: 1; min-width: 30px; }
+.dashboard-level small { font-size: 10px; }
+@media (max-width: 680px) { .scan-fields { grid-template-columns: 1fr; } .dashboard-level { flex-wrap: wrap; } }
+@media print {
+  body:has(.scan-label-page) { background: white; }
+  body:has(.scan-label-page) .persistent-radio, .label-print { display: none !important; }
+  .scan-label-page { width: 100mm; margin: 0; padding: 0; }
+  .scan-label { break-inside: avoid; }
+}
 
 /* Fill each wall-display card with its trend and anchor the score below it. */
 @media (min-width: 901px) and (min-height: 650px) {
   .profile-grid { grid-template-rows: repeat(2, minmax(0, 1fr)); grid-auto-rows: minmax(0, 1fr); }
-  .profile-card { grid-template-rows: minmax(112px, 1fr) auto auto; align-content: stretch; }
+  .profile-card { grid-template-rows: minmax(112px, 1fr) auto auto auto; align-content: stretch; }
   .profile-card .profile-heading { min-height: 0; }
   .profile-card .profile-heading > .dashboard-history-chart { height: 100%; min-height: 112px; transform: none; }
   .profile-card > .score-row { min-height: 72px; }
   .profile-card .score strong { font-size: clamp(34px, 2.5vw, 48px); }
   .profile-card .today strong { font-size: clamp(26px, 2vw, 36px); }
   .profile-card::after { width: 320px; height: 320px; opacity: .10; }
+}
+@media (min-width: 901px) and (min-height: 650px) and (max-height: 740px) {
+  .profile-card { gap: 4px; padding: 8px 12px; grid-template-rows: minmax(104px, 1fr) auto auto auto; }
+  .profile-card .profile-heading > .dashboard-history-chart { min-height: 104px; }
+  .profile-card > .score-row { min-height: 62px; padding: 8px 12px; }
+  .profile-card .score strong { font-size: 30px; line-height: 1.1; }
+  .profile-card .today strong { font-size: 24px; line-height: 1.1; }
+  .profile-card .active-strip { min-height: 32px; }
 }

@@ -18,6 +18,7 @@ import { TIME_ZONE_OPTIONS } from "@/lib/display-time";
 import { DEFAULT_DISPLAY_SETTINGS, type DisplaySettings } from "@/lib/display-settings-shared";
 import { formatGermanLogTimestamp } from "@/lib/date-format";
 import { ApiRequestError, requestJson } from "@/lib/api-client";
+import { EquipmentScanSettings } from "@/components/equipment-scan-settings";
 
 type AiUsage = { requests: number; inputTokens: number; outputTokens: number; estimateUsd: number; updatedAt: string | null };
 type Status = { openai: boolean; gemini: boolean; nas: boolean; models: { openai: string; gemini: string }; usage: { openai: AiUsage; gemini: AiUsage } };
@@ -1244,6 +1245,7 @@ export function AdminView({
         onCopy={() => void copyAdminLogs()}
       />}
       {activeAdminSection === "sportraum" && <>
+      <EquipmentScanSettings equipment={equipmentItems} pin={pin} />
       <article className="wide"><div className="sportraum-header"><div className="admin-title"><Database /><div><h2>Geräte im Sportraum</h2><p>Geräte, Verfügbarkeit und gerätebezogene Videos verwalten. Archivierte Einträge bleiben für die Historie erhalten.</p></div></div><button type="button" className="equipment-add-open" onClick={() => setShowEquipmentCreateModal(true)}><Plus size={17} /> Gerät hinzufügen</button></div>
         <div className="equipment-card-grid" aria-label="Geräte im Sportraum">
           {equipmentItems.map((item) => {
