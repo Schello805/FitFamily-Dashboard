@@ -6,8 +6,9 @@ import { Activity, Apple, ArrowLeft, ArrowLeftRight, Dumbbell, Pencil, PencilLin
 import type { DashboardProfile } from "@/lib/domain";
 import { TouchPinpad } from "@/components/touch-pinpad";
 import { showToast } from "@/components/toast";
-import { formatGermanDate, formatGermanWeekday } from "@/lib/date-format";
+import { formatGermanDate, formatGermanTime, formatGermanWeekday } from "@/lib/date-format";
 import { KioskIdleBar } from "@/components/kiosk-idle-bar";
+import { requestJson } from "@/lib/api-client";
 
 type Segment = { id: string; type: "strength" | "endurance"; exerciseName: string | null; startedAt: string; endedAt: string | null };
 type Session = {
@@ -145,7 +146,7 @@ function SwipeableSessionRow({
               <span>
                 <b>{segment.exerciseName ?? (segment.type === "strength" ? "Krafttraining" : "Ausdauertraining")}</b>
                 <small>
-                  {new Date(segment.startedAt).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })} ·{" "}
+                  {formatGermanTime(segment.startedAt)} ·{" "}
                   {minutes(segment.startedAt, segment.endedAt)} Minuten
                 </small>
               </span>
@@ -229,10 +230,9 @@ export function HistoryView({ profile }: { profile: DashboardProfile }) {
   const [deleteError, setDeleteError] = useState("");
   const [busyDelete, setBusyDelete] = useState(false);
 
-  const load = () =>
-    fetch(`/api/history/${profile.id}`)
-      .then((response) => response.json())
-      .then((data) => setSessions(data.sessions || []));
+  const load = () => requestJson<{ sessions?: Session[] }>(
+    `/api/history/${encodeURIComponent(profile.id)}`, "Trainingsverlauf konnte nicht geladen werden."
+  ).then((data) => setSessions(data.sessions ?? []));
 
   useEffect(() => {
     load();
@@ -282,21 +282,21 @@ export function HistoryView({ profile }: { profile: DashboardProfile }) {
     const end = String(data.get("end"));
     const pin = String(data.get("pin"));
 
-    const response = await fetch("/api/manual-training", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        pin,
-        profileId: profile.id,
-        type: data.get("type"),
-        startedAt: new Date(`${date}T${start}`).toISOString(),
-        endedAt: new Date(`${date}T${end}`).toISOString(),
-        exerciseId: null
-      })
-    });
-    const result = await response.json();
-    if (!response.ok) {
-      const msg = result.error ?? "Eintrag konnte nicht gespeichert werden";
+    try {
+      await requestJson("/api/manual-training", "Eintrag konnte nicht gespeichert werden", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          pin,
+          profileId: profile.id,
+          type: data.get("type"),
+          startedAt: new Date(`${date}T${start}`).toISOString(),
+          endedAt: new Date(`${date}T${end}`).toISOString(),
+          exerciseId: null
+        })
+      });
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : "Eintrag konnte nicht gespeichert werden";
       setManualError(msg);
       showToast({ type: "error", title: "Fehler beim Nachtragen", message: msg });
       return;
@@ -318,21 +318,14 @@ export function HistoryView({ profile }: { profile: DashboardProfile }) {
     const startedAt = new Date(`${editDate}T${editStart}`).toISOString();
     const endedAt = new Date(`${editEndDate}T${editEnd}`).toISOString();
 
-    const response = await fetch("/api/manual-training", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        pin: editPin,
-        sessionId: editingSession.id,
-        profileId: profile.id,
-        type: editType,
-        startedAt,
-        endedAt
-      })
-    });
-    const result = await response.json();
-    if (!response.ok) {
-      const msg = result.error ?? "Änderungen konnten nicht gespeichert werden";
+    try {
+      await requestJson("/api/manual-training", "Änderungen konnten nicht gespeichert werden", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pin: editPin, sessionId: editingSession.id, profileId: profile.id, type: editType, startedAt, endedAt })
+      });
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : "Änderungen konnten nicht gespeichert werden";
       setEditError(msg);
       showToast({ type: "error", title: "Fehler beim Bearbeiten", message: msg });
       return;
@@ -354,7 +347,7 @@ export function HistoryView({ profile }: { profile: DashboardProfile }) {
     setDeleteError("");
 
     try {
-      const response = await fetch("/api/manual-training", {
+      await requestJson("/api/manual-training", "Eintrag konnte nicht gelöscht werden", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -363,14 +356,6 @@ export function HistoryView({ profile }: { profile: DashboardProfile }) {
           profileId: profile.id
         })
       });
-      const result = await response.json();
-      if (!response.ok) {
-        const msg = result.error ?? "Eintrag konnte nicht gelöscht werden";
-        setDeleteError(msg);
-        showToast({ type: "error", title: "Fehler beim Löschen", message: msg });
-        setBusyDelete(false);
-        return;
-      }
       setDeletingSession(null);
       setDeletePin("");
       await load();
@@ -379,8 +364,8 @@ export function HistoryView({ profile }: { profile: DashboardProfile }) {
         title: "Einheit gelöscht",
         message: "Das Training wurde dauerhaft aus dem Verlauf entfernt."
       });
-    } catch {
-      setDeleteError("Verbindungsfehler beim Löschen");
+    } catch (error) {
+      setDeleteError(error instanceof Error ? error.message : "Verbindungsfehler beim Löschen");
     } finally {
       setBusyDelete(false);
     }
@@ -606,10 +591,7 @@ export function HistoryView({ profile }: { profile: DashboardProfile }) {
                 <b>
                   {formatGermanDate(deletingSession.startedAt, { weekday: "short" })}{" "}
                   um{" "}
-                  {new Date(deletingSession.startedAt).toLocaleTimeString("de-DE", {
-                    hour: "2-digit",
-                    minute: "2-digit"
-                  })}
+                  {formatGermanTime(deletingSession.startedAt)}
                 </b>
                 <br />
                 {minutes(deletingSession.startedAt, deletingSession.endedAt)} Minuten ·{" "}

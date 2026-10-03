@@ -128,8 +128,9 @@ export function ProfileView({
     if (!handoff?.token || handoffScanned) return;
     const interval = window.setInterval(async () => {
       try {
-        const response = await fetch(`/api/handoff?token=${encodeURIComponent(handoff.token!)}`);
-        const data = await response.json();
+        const data = await requestJson<{ scanned?: boolean }>(
+          `/api/handoff?token=${encodeURIComponent(handoff.token!)}`, "Verbindungsstatus nicht verfügbar."
+        );
         if (data.scanned) {
           setHandoffScanned(true);
           showToast({
@@ -149,8 +150,10 @@ export function ProfileView({
 
   useEffect(() => {
     if (!healthModal) return;
-    fetch(`/api/sync/apple-health/token?profileId=${encodeURIComponent(profile.id)}`, { cache: "no-store" })
-      .then((response) => response.ok ? response.json() : null)
+    requestJson<{ configured?: boolean }>(
+      `/api/sync/apple-health/token?profileId=${encodeURIComponent(profile.id)}`,
+      "Sync-Schlüsselstatus nicht verfügbar.", { cache: "no-store" }
+    )
       .then((data) => setHealthTokenConfigured(Boolean(data?.configured)))
       .catch(() => setHealthTokenConfigured(false));
   }, [healthModal, profile.id]);
@@ -163,9 +166,10 @@ export function ProfileView({
   );
 
   const refresh = useCallback(async () => {
-    const response = await fetch("/api/dashboard", { cache: "no-store" });
-    if (!response.ok) return;
-    const current = (await response.json()).profiles.find((item: DashboardProfile) => item.id === profile.id);
+    const data = await requestJson<{ profiles: DashboardProfile[] }>(
+      "/api/dashboard", "Dashboard-Daten konnten nicht aktualisiert werden.", { cache: "no-store" }
+    );
+    const current = data.profiles.find((item) => item.id === profile.id);
     if (current) setProfile(current);
   }, [profile.id]);
 
@@ -274,48 +278,39 @@ export function ProfileView({
   async function action(type?: TrainingType, exerciseId?: string) {
     setBusy(true);
     try {
-      const response = await fetch("/api/training", {
+      await requestJson("/api/training", "Training konnte nicht aktualisiert werden.", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(type
           ? { action: "start", profileId: profile.id, type, exerciseId: exerciseId ?? null, source: isMobile ? "mobile" : "touch" }
           : { action: "stop", profileId: profile.id })
       });
-      if (response.ok) {
-        playTone(type ? (type === "strength" ? 520 : 660) : 360);
-        if (type === "strength") {
+      playTone(type ? (type === "strength" ? 520 : 660) : 360);
+      if (type === "strength") {
           const ex = exerciseId ? exercises.find((e) => e.id === exerciseId) : null;
           showToast({
             type: "success",
             title: "💪 Krafttraining gestartet",
             message: ex ? `Übung: ${ex.name} (+1 Punkt/Minute)` : "Trainingszeit läuft (+1 Punkt je Minute)."
           });
-        } else if (type === "endurance") {
+      } else if (type === "endurance") {
           showToast({
             type: "success",
             title: "🏃 Ausdauertraining gestartet",
             message: "Trainingszeit läuft (+2 Punkte je Minute)."
           });
-        } else {
+      } else {
           showToast({
             type: "info",
             title: "✓ Training beendet & gespeichert",
             message: "Klasse Einsatz! Punkte und Trainingszeit wurden gutgeschrieben."
           });
-        }
-      } else {
-        const errData = await response.json().catch(() => null);
-        showToast({
-          type: "error",
-          title: "Fehler",
-          message: errData?.error ?? "Training konnte nicht aktualisiert werden."
-        });
       }
-    } catch {
+    } catch (error) {
       showToast({
         type: "error",
-        title: "Verbindungsfehler",
-        message: "Server konnte nicht erreicht werden."
+        title: "Training fehlgeschlagen",
+        message: error instanceof Error ? error.message : "Server konnte nicht erreicht werden."
       });
     }
     await refresh();
@@ -368,12 +363,12 @@ export function ProfileView({
     const clientOrigin = typeof window !== "undefined" && !window.location.origin.includes("0.0.0.0") && !window.location.origin.includes("localhost") && !window.location.origin.includes("127.0.0.1")
       ? window.location.origin
       : undefined;
-    const response = await fetch("/api/handoff", {
+    const result = await requestJson<typeof handoff>("/api/handoff", "Handy-Verbindung konnte nicht gestartet werden.", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ profileId: profile.id, clientOrigin })
     });
-    if (response.ok) setHandoff(await response.json());
+    setHandoff(result);
   }
 
   async function saveProfile(event: React.FormEvent<HTMLFormElement>) {
@@ -517,7 +512,7 @@ Wichtig für den Aufbau: Erstelle zuerst alle 6 Tageswert-Abfragen einzeln und f
     }
     setTestingHealth(true);
     try {
-      const response = await fetch("/api/sync/apple-health", {
+      const data = await requestJson<{ message?: string }>("/api/sync/apple-health", "Der Schlüssel konnte nicht geprüft werden.", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -526,25 +521,16 @@ Wichtig für den Aufbau: Erstelle zuerst alle 6 Tageswert-Abfragen einzeln und f
           dryRun: true
         })
       });
-      const data = await response.json();
-      if (response.ok) {
-        showToast({
+      showToast({
           type: "sparkles",
           title: "Schlüsselprüfung erfolgreich",
           message: data.message ?? "Der Sync-Schlüssel ist gültig. Es wurden keine Trainingsdaten gespeichert."
-        });
-      } else {
-        showToast({
-          type: "error",
-          title: "Sync-Fehler",
-          message: data.error ?? "Der Schlüssel konnte nicht geprüft werden."
-        });
-      }
-    } catch {
+      });
+    } catch (error) {
       showToast({
         type: "error",
-        title: "Verbindungsfehler",
-        message: "Konnte nicht mit dem Dashboard synchronisieren."
+        title: "Sync-Fehler",
+        message: error instanceof Error ? error.message : "Konnte nicht mit dem Dashboard synchronisieren."
       });
     } finally {
       setTestingHealth(false);
@@ -588,13 +574,11 @@ Wichtig für den Aufbau: Erstelle zuerst alle 6 Tageswert-Abfragen einzeln und f
     try {
       let succeeded: boolean;
       if (healthPinAction === "logs") {
-        const response = await fetch("/api/sync/apple-health/log", {
+        const data = await requestJson<{ logs?: AppleHealthSyncLog[] }>("/api/sync/apple-health/log", "Protokoll konnte nicht geladen werden.", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ profileId: profile.id, pin: healthPin })
         });
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error ?? "Protokoll konnte nicht geladen werden.");
         setHealthSyncLogs(Array.isArray(data.logs) ? data.logs : []);
         succeeded = true;
       } else if (healthPinAction === "delete") {

@@ -29,7 +29,9 @@ export async function POST(request: Request) {
 
   if (isLocalFile) {
     const dbLocation = databaseUrl.slice(5).split("?")[0];
-    const absoluteDatabasePath = path.resolve(process.cwd(), dbLocation);
+    // The database is persistent runtime data and DATABASE_URL may point outside the app tree.
+    // Keep Turbopack from tracing or bundling an arbitrary runtime database path.
+    const absoluteDatabasePath = path.resolve(/*turbopackIgnore: true*/ process.cwd(), dbLocation);
     try {
       const file = await stat(absoluteDatabasePath);
       const wal = await stat(`${absoluteDatabasePath}-wal`).catch(() => null);

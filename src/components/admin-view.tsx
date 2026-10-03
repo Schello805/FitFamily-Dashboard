@@ -799,28 +799,23 @@ export function AdminView({
   async function executeResetScore(profileId: string) {
     const prof = profiles.find((p) => p.id === profileId);
     try {
-      const response = await fetch("/api/admin/reset-score", {
+      await requestJson("/api/admin/reset-score", "Score konnte nicht zurückgesetzt werden.", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ pin, profileId })
       });
-      if (response.ok) {
-        setProfileScores((prev) => ({ ...prev, [profileId]: 0 }));
-        setNotice(`Score von ${prof?.name ?? "Profil"} wurde auf 0 gesetzt. Der Trainingsverlauf blieb erhalten.`);
-        showToast({
-          type: "success",
-          title: "Score zurückgesetzt",
-          message: `Punkte für ${prof?.name ?? "Profil"} wurden auf 0 gesetzt. Der Verlauf bleibt erhalten.`
-        });
-        router.refresh();
-      } else {
-        const data = await response.json().catch(() => null);
-        const msg = data?.error ?? "Score konnte nicht zurückgesetzt werden.";
-        setNotice(msg);
-        showToast({ type: "error", title: "Fehler beim Zurücksetzen", message: msg });
-      }
-    } catch {
-      showToast({ type: "error", title: "Verbindungsfehler", message: "Server konnte nicht erreicht werden." });
+      setProfileScores((prev) => ({ ...prev, [profileId]: 0 }));
+      setNotice(`Score von ${prof?.name ?? "Profil"} wurde auf 0 gesetzt. Der Trainingsverlauf blieb erhalten.`);
+      showToast({
+        type: "success",
+        title: "Score zurückgesetzt",
+        message: `Punkte für ${prof?.name ?? "Profil"} wurden auf 0 gesetzt. Der Verlauf bleibt erhalten.`
+      });
+      router.refresh();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Server konnte nicht erreicht werden.";
+      setNotice(message);
+      showToast({ type: "error", title: "Fehler beim Zurücksetzen", message });
     }
   }
 
@@ -828,26 +823,19 @@ export function AdminView({
     const exercise = { ...exerciseEdits[exerciseId], ...overrides };
     setSavingExercise(exerciseId); setNotice("");
     try {
-      const response = await fetch(`/api/exercises/${exerciseId}`, {
+      const result = await requestJson<{ exercise: ExerciseMedia }>(`/api/exercises/${encodeURIComponent(exerciseId)}`, "Übung konnte nicht gespeichert werden.", {
         method: "PATCH", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ pin, ...exercise, videoUrl: exercise.videoUrl?.trim() || null })
       });
-      const result = await response.json();
-      if (response.ok) {
-        setExerciseItems((items) => items.map((item) => item.id === exerciseId ? result.exercise : item));
-        setExerciseEdits((items) => ({ ...items, [exerciseId]: result.exercise }));
-        setNotice("Übung und Anleitung gespeichert.");
-        showToast({ type: "success", title: "Übung gespeichert", message: `${result.exercise.name} wurde aktualisiert.` });
-        return true;
-      } else {
-        const msg = result.error ?? "Übung konnte nicht gespeichert werden.";
-        setNotice(msg);
-        showToast({ type: "error", title: "Fehler beim Speichern", message: msg });
-        return false;
-      }
-    } catch {
-      setNotice("Keine Verbindung. Bitte Heimnetz prüfen und erneut versuchen.");
-      showToast({ type: "error", title: "Verbindungsfehler", message: "Keine Verbindung zum Dashboard." });
+      setExerciseItems((items) => items.map((item) => item.id === exerciseId ? result.exercise : item));
+      setExerciseEdits((items) => ({ ...items, [exerciseId]: result.exercise }));
+      setNotice("Übung und Anleitung gespeichert.");
+      showToast({ type: "success", title: "Übung gespeichert", message: `${result.exercise.name} wurde aktualisiert.` });
+      return true;
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : "Keine Verbindung. Bitte Heimnetz prüfen und erneut versuchen.";
+      setNotice(msg);
+      showToast({ type: "error", title: "Fehler beim Speichern", message: msg });
       return false;
     } finally {
       setSavingExercise(null);
@@ -857,25 +845,20 @@ export function AdminView({
   async function addExercise(event: React.FormEvent) {
     event.preventDefault(); setNotice("");
     try {
-      const response = await fetch("/api/exercises", {
+      const result = await requestJson<{ exercise: ExerciseMedia }>("/api/exercises", "Übung konnte nicht angelegt werden.", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ pin, ...newExercise, videoUrl: newExercise.videoUrl.trim() || null })
       });
-      const result = await response.json();
-      if (!response.ok) {
-        const message = result.error ?? "Übung konnte nicht angelegt werden.";
-        setNotice(message);
-        showToast({ type: "error", title: "Übung nicht angelegt", message });
-        return;
-      }
       setExerciseItems((items) => [...items, result.exercise].sort((a, b) => a.name.localeCompare(b.name, "de")));
       setExerciseEdits((items) => ({ ...items, [result.exercise.id]: result.exercise }));
       setNewExercise({ name: "", type: "strength", equipment: "", instructions: "", safetyNotes: "", videoUrl: "" });
       setNotice("Übung wurde angelegt.");
       showToast({ type: "success", title: "Übung angelegt", message: `${result.exercise.name} ist jetzt verfügbar.` });
       setShowExerciseCreateModal(false);
-    } catch {
-      showToast({ type: "error", title: "Verbindungsfehler", message: "Übung konnte nicht angelegt werden." });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Übung konnte nicht angelegt werden.";
+      setNotice(message);
+      showToast({ type: "error", title: "Übung nicht angelegt", message });
     }
   }
 
@@ -886,9 +869,7 @@ export function AdminView({
       icon: "key", confirmLabel: "Übung archivieren", confirmVariant: "danger", requiresPin: true,
       action: async (freshPin) => {
         try {
-          const response = await fetch(`/api/exercises/${encodeURIComponent(exercise.id)}`, { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pin: freshPin }) });
-          const result = await response.json();
-          if (!response.ok) throw new Error(result.error ?? "Übung konnte nicht archiviert werden.");
+          await requestJson(`/api/exercises/${encodeURIComponent(exercise.id)}`, "Übung konnte nicht archiviert werden.", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pin: freshPin }) });
           const updated = { ...exerciseEdits[exercise.id], active: false };
           setExerciseItems((items) => items.map((item) => item.id === exercise.id ? { ...item, active: false } : item));
           setExerciseEdits((items) => ({ ...items, [exercise.id]: updated }));
@@ -904,25 +885,19 @@ export function AdminView({
     const item = { ...equipmentEdits[id], ...overrides };
     setSavingEquipment(id); setNotice("");
     try {
-      const response = await fetch(`/api/equipment/${encodeURIComponent(id)}`, {
+      const result = await requestJson<{ equipment: EquipmentItem }>(`/api/equipment/${encodeURIComponent(id)}`, "Gerät konnte nicht gespeichert werden.", {
         method: "PATCH", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ pin, name: item.name, quantity: item.quantity, available: item.available, active: item.active, videoUrl: item.videoUrl?.trim() || null, manualPdfUrl: item.manualPdfUrl?.trim() || null, instructions: item.instructions?.trim() || null })
       });
-      const result = await response.json();
-      if (!response.ok) {
-        const msg = result.error ?? "Gerät konnte nicht gespeichert werden.";
-        setNotice(msg);
-        showToast({ type: "error", title: "Fehler", message: msg });
-        return;
-      }
       setEquipmentItems((items) => items.map((entry) => entry.id === id ? result.equipment : entry));
       setEquipmentEdits((values) => ({ ...values, [id]: result.equipment }));
       setNotice("Gerätebestand gespeichert.");
       showToast({ type: "success", title: "Gerätebestand gespeichert", message: `${item.name} aktualisiert.` });
       return true;
-    } catch {
-      setNotice("Keine Verbindung. Bitte Heimnetz prüfen und erneut versuchen.");
-      showToast({ type: "error", title: "Verbindungsfehler", message: "Keine Verbindung zum Dashboard." });
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : "Keine Verbindung. Bitte Heimnetz prüfen und erneut versuchen.";
+      setNotice(msg);
+      showToast({ type: "error", title: "Fehler", message: msg });
       return false;
     } finally {
       setSavingEquipment(null);
@@ -933,12 +908,10 @@ export function AdminView({
     if (!familyDraft) return;
     setSavingFamily(true);
     try {
-      const response = await fetch(`/api/profiles/${encodeURIComponent(familyDraft.id)}`, {
+      await requestJson(`/api/profiles/${encodeURIComponent(familyDraft.id)}`, "Profil konnte nicht gespeichert werden.", {
         method: "PATCH", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ pin, name: familyDraft.name, email: familyDraft.email?.trim() || null, birthDate: familyDraft.birthDate || null, avatar: familyDraft.avatar, startingFitness: familyDraft.startingFitness, goal: familyDraft.goal })
       });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error ?? "Profil konnte nicht gespeichert werden.");
       setFamilyItems((items) => items.map((item) => item.id === familyDraft.id ? familyDraft : item));
       showToast({ type: "success", title: "Profil gespeichert", message: `${familyDraft.name} wurde aktualisiert.` });
       setFamilyModalId(null);
@@ -954,26 +927,20 @@ export function AdminView({
   async function addEquipment(event: React.FormEvent) {
     event.preventDefault(); setNotice("");
     try {
-      const response = await fetch("/api/equipment", {
+      const result = await requestJson<{ equipment: EquipmentItem }>("/api/equipment", "Gerät konnte nicht ergänzt werden.", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ pin, name: newEquipmentName, quantity: newEquipmentQuantity, videoUrl: newEquipmentVideoUrl.trim() || null, manualPdfUrl: newEquipmentManualPdfUrl.trim() || null, instructions: newEquipmentInstructions.trim() || null })
       });
-      const result = await response.json();
-      if (!response.ok) {
-        const msg = result.error ?? "Gerät konnte nicht ergänzt werden.";
-        setNotice(msg);
-        showToast({ type: "error", title: "Fehler", message: msg });
-        return;
-      }
       setEquipmentItems((items) => [...items, result.equipment].sort((a, b) => a.name.localeCompare(b.name, "de")));
       setEquipmentEdits((values) => ({ ...values, [result.equipment.id]: result.equipment }));
       const addedName = newEquipmentName;
       setNewEquipmentName(""); setNewEquipmentQuantity(1); setNewEquipmentVideoUrl(""); setNewEquipmentManualPdfUrl(""); setNewEquipmentInstructions(""); setNotice("Gerät wurde ergänzt.");
       setShowEquipmentCreateModal(false);
       showToast({ type: "success", title: "Gerät hinzugefügt", message: `${addedName} ist nun verfügbar.` });
-    } catch {
-      setNotice("Keine Verbindung. Bitte Heimnetz prüfen und erneut versuchen.");
-      showToast({ type: "error", title: "Verbindungsfehler", message: "Keine Verbindung zum Dashboard." });
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : "Keine Verbindung. Bitte Heimnetz prüfen und erneut versuchen.";
+      setNotice(msg);
+      showToast({ type: "error", title: "Fehler", message: msg });
     }
   }
 
@@ -984,9 +951,7 @@ export function AdminView({
       icon: "key", confirmLabel: "Gerät archivieren", confirmVariant: "danger", requiresPin: true,
       action: async (freshPin) => {
         try {
-          const response = await fetch(`/api/equipment/${encodeURIComponent(item.id)}`, { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pin: freshPin }) });
-          const result = await response.json();
-          if (!response.ok) throw new Error(result.error ?? "Gerät konnte nicht archiviert werden.");
+          await requestJson(`/api/equipment/${encodeURIComponent(item.id)}`, "Gerät konnte nicht archiviert werden.", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pin: freshPin }) });
           setEquipmentItems((items) => items.map((entry) => entry.id === item.id ? { ...entry, active: false } : entry));
           setEquipmentEdits((items) => ({ ...items, [item.id]: { ...items[item.id], active: false } }));
           showToast({ type: "success", title: "Gerät archiviert", message: "Die Trainingshistorie bleibt erhalten." });
@@ -1676,18 +1641,13 @@ export function AdminView({
                     setVerifyingConfirmPin(true);
                     setConfirmPinError("");
                     try {
-                      const response = await fetch("/api/admin/verify", {
+                      await requestJson("/api/admin/verify", "Eltern-PIN ist nicht richtig.", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({ pin: confirmPin })
                       });
-                      const result = await response.json();
-                      if (!response.ok) {
-                        setConfirmPinError(result.error ?? "Eltern-PIN ist nicht richtig.");
-                        return;
-                      }
-                    } catch {
-                      setConfirmPinError("PIN konnte nicht geprüft werden. Bitte Verbindung prüfen.");
+                    } catch (error) {
+                      setConfirmPinError(error instanceof Error ? error.message : "PIN konnte nicht geprüft werden. Bitte Verbindung prüfen.");
                       return;
                     } finally {
                       setVerifyingConfirmPin(false);
