@@ -4218,6 +4218,21 @@ body::before {
   .dashboard-apple-rings .apple-rings-widget.compact .apple-rings-graphic { width: 84px; height: 84px; }
   .profile-card > .dashboard-apple-rings { padding-top: 5px; }
   .app-footer { min-height: 18px; }
+  /* Reserve 50px below each of the two card rows for the kiosk footer. */
+  .profile-grid { align-content: start; grid-template-rows: repeat(2, minmax(0, calc((100% - 112px) / 2))); grid-auto-rows: minmax(0, calc((100% - 112px) / 2)); }
+}
+
+/* Equipment dialogs fit the short Lenovo kiosk viewport without an inner page scroll. */
+@media (min-width: 901px) and (min-height: 650px) and (max-height: 850px) {
+  .modal-backdrop { padding: 10px; }
+  .admin-edit-modal:has(.manual-pdf-field) { max-height: calc(100dvh - 20px); padding: 16px 20px; overflow-y: hidden; }
+  .admin-edit-modal:has(.manual-pdf-field) h2 { margin: 7px 48px 10px 0; font-size: 21px; }
+  .admin-edit-modal:has(.manual-pdf-field) .admin-edit-fields { gap: 7px; }
+  .admin-edit-modal:has(.manual-pdf-field) .admin-edit-fields > label { gap: 4px; }
+  .admin-edit-modal:has(.manual-pdf-field) .admin-edit-fields textarea { height: 58px; min-height: 58px; }
+  .admin-edit-modal:has(.manual-pdf-field) .manual-pdf-field { gap: 6px; }
+  .admin-edit-modal:has(.manual-pdf-field) .manual-pdf-field small { font-size: 10px; }
+  .admin-edit-modal:has(.manual-pdf-field) .exercise-admin-actions { margin-top: 9px; }
 }
 
 .touch-keyboard-launch { position: fixed; z-index: 900; left: 18px; bottom: 16px; min-height: 52px; padding: 10px 16px; display: flex; align-items: center; gap: 8px; border: 1px solid var(--brand); border-radius: 14px; background: var(--panel); color: var(--text); box-shadow: var(--card-shadow); cursor: pointer; touch-action: manipulation; }

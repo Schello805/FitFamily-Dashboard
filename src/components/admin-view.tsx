@@ -165,6 +165,14 @@ export function AdminView({
   const currentInstalledVersion = updateInfo?.version ?? initialVersion;
   const currentInstalledCommit = updateInfo?.currentCommit ?? initialCommit;
 
+  useEffect(() => {
+    const modalOpen = Boolean(confirmModal || exerciseModalId || showExerciseCreateModal || showEquipmentCreateModal || equipmentModalId || familyModalId);
+    if (!modalOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = previousOverflow; };
+  }, [confirmModal, exerciseModalId, showExerciseCreateModal, showEquipmentCreateModal, equipmentModalId, familyModalId]);
+
   const currentTheme = useSyncExternalStore(
     subscribeTheme,
     () => {
