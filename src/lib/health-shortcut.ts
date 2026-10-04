@@ -57,15 +57,33 @@ export function buildEnergyShortcut(profileId: string, server: string) {
   const results = action("repeat.each", { GroupingIdentifier: loop, WFControlFlowMode: 2 });
   // Unlike most actions, Combine Text reads its input from lowercase `text`.
   const rows = action("text.combine", { text: input(ref(results, "Repeat Results")), WFTextSeparator: "New Lines" });
+  const stepSamples = action("filter.health.quantity", {
+    WFContentItemLimitEnabled: false,
+    WFContentItemFilter: state("WFContentPredicateTableTemplate", {
+      WFActionParameterFilterPrefix: 1, WFContentPredicateBoundedDate: false,
+      WFActionParameterFilterTemplates: [
+        { Bounded: true, Removable: false, Property: "Type", Operator: 4, Values: { Enumeration: state("WFStringSubstitutableState", "Steps") } },
+        { Bounded: true, Removable: false, Property: "Start Date", Operator: 1002, Values: { Number: "7", Unit: 16 } }
+      ]
+    })
+  });
+  const stepLoop = randomUUID().toUpperCase();
+  action("repeat.each", { GroupingIdentifier: stepLoop, WFControlFlowMode: 0, WFInput: input(ref(stepSamples, "Health Samples")) });
+  const stepValue = action("properties.health.quantity", { WFContentItemPropertyName: "Value", WFInput: input(repeatItem) });
+  const stepUnit = action("properties.health.quantity", { WFContentItemPropertyName: "Unit", WFInput: input(repeatItem) });
+  const stepSource = action("properties.health.quantity", { WFContentItemPropertyName: "Source", WFInput: input(repeatItem) });
+  action("gettext", { WFTextActionText: tokens([ref(stepValue, "Value"), "\t", ref(stepUnit, "Unit"), "\t", ref(stepSource, "Source")]) });
+  const stepResults = action("repeat.each", { GroupingIdentifier: stepLoop, WFControlFlowMode: 2 });
+  const stepRows = action("text.combine", { text: input(ref(stepResults, "Repeat Results")), WFTextSeparator: "New Lines" });
   const sent = action("downloadurl", {
     WFURL: text(`${url.origin}/api/sync/health-energy`), WFHTTPMethod: "POST", WFHTTPBodyType: "JSON",
     WFHTTPHeaders: dictionary([["Authorization", tokens(["Bearer ", ref(secret, "Text")])]]),
     WFJSONValues: dictionary([["profileId", text(profileId)], ["date", tokens([ref(date, "Formatted Date")])],
-      ["sourceName", tokens([ref(source, "Text")])], ["sampleRows", tokens([ref(rows, "Combined Text")])]])
+      ["sourceName", tokens([ref(source, "Text")])], ["sampleRows", tokens([ref(rows, "Combined Text")])], ["stepRows", tokens([ref(stepRows, "Combined Text")])]])
   });
   action("notification", { WFNotificationActionBody: tokens(["FitFamily Energie: ", ref(sent, "Contents of URL")]) });
   return {
-    WFWorkflowName: `FitFamily Energie · ${profileId}`, WFWorkflowActions: actions,
+    WFWorkflowName: `FitFamily Alltag · ${profileId}`, WFWorkflowActions: actions,
     WFWorkflowClientVersion: "2600.0.0", WFWorkflowMinimumClientVersion: 900,
     WFWorkflowMinimumClientVersionString: "900", WFWorkflowHasOutputFallback: false,
     WFWorkflowIcon: { WFWorkflowIconStartColor: 4282601983, WFWorkflowIconGlyphNumber: 59511 },

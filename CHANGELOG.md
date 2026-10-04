@@ -4,6 +4,14 @@ Alle wichtigen Änderungen werden hier nach dem Prinzip von Keep a Changelog dok
 
 ## [Unreleased]
 
+## [0.3.24] – 2026-10-04
+
+### Neu
+
+- Schritte als zweite tägliche Health-Kennzahl ohne Wertung. Erweiterter Mac-Kurzbefehl überträgt Messwert-Texte derselben ausgewählten Quelle; Schrittwerte werden ersetzt, nicht addiert.
+- Separater Health-Alltagsblock mit Energie, Schritten, Datum und klaren Leerzuständen; Trainingspunkte bleiben optisch getrennt.
+- Schrittwerte bleiben bei reinen Energie-Uploads erhalten und werden in Backups mitgesichert.
+
 ## [0.3.23] – 2026-10-04
 
 ### Neu

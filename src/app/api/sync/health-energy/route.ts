@@ -11,14 +11,15 @@ export function energyTranscript(body: unknown, key: string) {
   if (!body || typeof body !== "object" || Array.isArray(body)) return { format: "Kein JSON-Objekt" };
   const input = body as Record<string, unknown>;
   const received: Record<string, unknown> = {};
-  for (const field of ["profileId", "date", "sourceName", "sampleRows", "activeEnergyKcal", "unit"]) {
+  for (const field of ["profileId", "date", "sourceName", "sampleRows", "stepRows", "activeEnergyKcal", "stepCount", "unit"]) {
     const value = input[field];
-    if (typeof value === "string") received[field] = (key ? value.replaceAll(key, "[SCHLÜSSEL ENTFERNT]") : value).slice(0, field === "sampleRows" ? 12000 : 300);
+    if (typeof value === "string") received[field] = (key ? value.replaceAll(key, "[SCHLÜSSEL ENTFERNT]") : value).slice(0, field === "sampleRows" || field === "stepRows" ? 12000 : 300);
     else if (typeof value === "number" || value === null) received[field] = value;
     else if (value !== undefined) received[field] = "[Unerwarteter Datentyp]";
   }
   return { received, sampleRowsCharacters: typeof input.sampleRows === "string" ? input.sampleRows.length : 0,
-    transcriptTruncated: typeof input.sampleRows === "string" && input.sampleRows.length > 12000 };
+    stepRowsCharacters: typeof input.stepRows === "string" ? input.stepRows.length : 0,
+    transcriptTruncated: [input.sampleRows, input.stepRows].some(value => typeof value === "string" && value.length > 12000) };
 }
 
 export async function POST(request: Request) {
@@ -28,7 +29,7 @@ export async function POST(request: Request) {
     await writeAdminLog("health.energy.failed", "error", "Energie-Übertragung: Familienschlüssel fehlt oder ist ungültig. Inhalt aus Sicherheitsgründen nicht protokolliert.", { importId, status: 401 });
     return NextResponse.json({ error: "Familienschlüssel fehlt oder ist ungültig.", importId }, { status: 401 });
   }
-  const body = await readBoundedJson(request, 65536, "Energiedaten sind zu groß.");
+  const body = await readBoundedJson(request, 131072, "Health-Tagesdaten sind zu groß.");
   if (body instanceof Response) {
     await writeAdminLog("health.energy.failed", "error", "Energie-Übertragung zu groß; nichts gespeichert.", { importId, status: body.status });
     return body;

@@ -5,7 +5,7 @@ import { requestJson } from "@/lib/api-client";
 type TestStatus = { configured: boolean; profiles: { id: string; name: string }[]; latest: { at: string; importId: string; profileName: string; mode?: "test" | "book"; saved: number; alreadyReceived: number; conflicts?: number; workouts: { startedAt: string; durationSeconds: number; sourceName: string; minutes: number; testPoints?: number; points?: number; duplicate: boolean; conflict?: boolean; error?: string }[] } | null };
 export function AdminHealthTrainingTest() {
   const [status, setStatus] = useState<(TestStatus & {
-    energyDaily?: { profile_id: string; profile_name: string; date: string; active_energy_kcal: number; updated_at: string }[];
+    energyDaily?: { profile_id: string; profile_name: string; date: string; active_energy_kcal: number; step_count?: number | null; updated_at: string }[];
     energyAttempt?: { level: string; message: string; importId: string; errors?: string[] } | null;
     latestError?: { importId: string; message: string; errors: string[] } | null;
   }) | null>(null);
@@ -78,7 +78,7 @@ export function AdminHealthTrainingTest() {
         <p>Diese Version überträgt Werte, Einheiten und Quellennamen als Text. Die App summiert nur die ausgewählte Quelle; kein „mal 1“ und keine lokale Zahlenumwandlung. Der Wert kann von Apples bereinigter Gesamtanzeige abweichen. Import/Health-Lauf noch auf deinem iPhone testen. Die tägliche Automation wird einmal auf dem iPhone eingerichtet.</p>
       </section>
       {status?.energyAttempt && <p role={status.energyAttempt.level === "error" ? "alert" : "status"}>{status.energyAttempt.message} {status.energyAttempt.errors?.join(" · ")} · Import-ID {status.energyAttempt.importId}</p>}
-      {status?.energyDaily?.length ? <div className="health-test-table"><table><thead><tr><th>Profil</th><th>Tag</th><th>Aktive kcal</th><th>Empfangen</th></tr></thead><tbody>{status.energyDaily.map(day => <tr key={`${day.profile_id}:${day.date}`}><td>{day.profile_name}</td><td>{day.date}</td><td>{day.active_energy_kcal.toLocaleString("de-DE", { maximumFractionDigits: 1 })}</td><td>{new Date(day.updated_at.replace(" ", "T") + "Z").toLocaleString("de-DE", { timeZone: "Europe/Berlin" })}</td></tr>)}</tbody></table></div> : <p>Noch keine aktive Energie empfangen.</p>}
+      {status?.energyDaily?.length ? <div className="health-test-table"><table><thead><tr><th>Profil</th><th>Tag</th><th>Aktive kcal</th><th>Schritte</th><th>Empfangen</th></tr></thead><tbody>{status.energyDaily.map(day => <tr key={`${day.profile_id}:${day.date}`}><td>{day.profile_name}</td><td>{day.date}</td><td>{day.active_energy_kcal.toLocaleString("de-DE", { maximumFractionDigits: 1 })}</td><td>{day.step_count == null ? "—" : day.step_count.toLocaleString("de-DE")}</td><td>{new Date(day.updated_at.replace(" ", "T") + "Z").toLocaleString("de-DE", { timeZone: "Europe/Berlin" })}</td></tr>)}</tbody></table></div> : <p>Noch keine aktive Energie empfangen.</p>}
       <details><summary>Alternative: manuell einrichten und täglich ausführen</summary>
         <ol>
           <li>„Aktuelles Datum“ → „Datum formatieren“: eigenes Format <code>yyyy-MM-dd</code>. Dieser Tag gehört zum gesuchten Health-Zeitraum (Europe/Berlin).</li>

@@ -58,7 +58,7 @@ export const DATA_TABLE_SPECS = {
     required: ["profile_id", "external_id", "started_at", "ended_at", "duration_seconds", "source_name", "activity_type"]
   },
   health_energy_daily: {
-    columns: ["profile_id", "date", "active_energy_kcal", "updated_at"],
+    columns: ["profile_id", "date", "active_energy_kcal", "step_count", "updated_at"],
     keys: ["profile_id", "date"],
     required: ["profile_id", "date", "active_energy_kcal"]
   }

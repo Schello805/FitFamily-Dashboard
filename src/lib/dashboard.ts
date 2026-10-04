@@ -237,7 +237,7 @@ export async function getDashboardData(): Promise<DashboardProfile[]> {
 
     return {
       ...profile,
-      healthEnergy: energy ? { date: String(energy.date), activeEnergyKcal: Number(energy.active_energy_kcal), updatedAt: String(energy.updated_at), goalKcal: energyGoal(energyGoals.get(energyGoalKey(String(row.id)))), goalPercent: energyGoalPercent(Number(energy.active_energy_kcal), energyGoal(energyGoals.get(energyGoalKey(String(row.id))))) } : null,
+      healthEnergy: energy ? { date: String(energy.date), activeEnergyKcal: Number(energy.active_energy_kcal), stepCount: energy.step_count == null ? null : Number(energy.step_count), updatedAt: String(energy.updated_at), goalKcal: energyGoal(energyGoals.get(energyGoalKey(String(row.id)))), goalPercent: energyGoalPercent(Number(energy.active_energy_kcal), energyGoal(energyGoals.get(energyGoalKey(String(row.id))))) } : null,
       ...avatarProgress,
       trainingProgress: trainingProgress(completedSeconds / 60, completedSessions.size),
       score: Math.floor(profile.scoreBaseline + points + 1e-9),

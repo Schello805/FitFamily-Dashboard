@@ -32,12 +32,14 @@ const dailyIdentity = {
 const dayValueSchema = z.object({
   ...dailyIdentity,
   activeEnergyKcal: energyKcalSchema,
-  unit: z.literal("kcal")
+  unit: z.literal("kcal"),
+  stepCount: z.number().int().min(0).max(200000).optional()
 }).strict();
 const sampleTextSchema = z.object({
   ...dailyIdentity,
   sourceName: z.string().trim().min(1).max(200).regex(/^[^\r\n\t]+$/),
-  sampleRows: z.string().min(1).max(60000)
+  sampleRows: z.string().min(1).max(60000),
+  stepRows: z.string().max(60000).optional()
 }).strict().transform((input, context) => {
   const rows = input.sampleRows.trim().split(/\r?\n/);
   if (rows.length > 2000) { context.addIssue({ code: "custom", message: "Zu viele Energie-Messungen; maximal 2000 pro Tag." }); return z.NEVER; }
@@ -55,7 +57,22 @@ const sampleTextSchema = z.object({
   }
   if (!selected) { context.addIssue({ code: "custom", message: `Keine Messungen für diese Quelle. Empfangene Quellen: ${[...sources].slice(0, 8).join(" · ")}` }); return z.NEVER; }
   if (!Number.isFinite(total) || total > 20000) { context.addIssue({ code: "custom", message: "Energie-Tagessumme ist unplausibel (maximal 20000 kcal)." }); return z.NEVER; }
-  return { profileId: input.profileId, date: input.date, activeEnergyKcal: total, unit: "kcal" as const, sourceName: input.sourceName, sampleCount: selected };
+  let steps = 0, stepSamples = 0;
+  if (input.stepRows?.trim()) {
+    const stepRows = input.stepRows.trim().split(/\r?\n/);
+    if (stepRows.length > 2000) { context.addIssue({ code: "custom", message: "Zu viele Schritt-Messungen; maximal 2000 pro Tag." }); return z.NEVER; }
+    for (const row of stepRows) {
+      const fields = row.split("\t");
+      if (fields.length !== 3) { context.addIssue({ code: "custom", message: "Schritt-Messzeile benötigt Wert, Einheit und Quelle." }); return z.NEVER; }
+      const [value, unit, source] = fields.map(field => field.trim());
+      if (source !== input.sourceName) continue;
+      const parsed = energyKcalSchema.safeParse(value);
+      if (!parsed.success || !Number.isInteger(parsed.data) || !["count", "steps", "Schritte"].includes(unit)) { context.addIssue({ code: "custom", message: "Schritte benötigen ganze Zahlen und eine Zähleinheit." }); return z.NEVER; }
+      steps += parsed.data; stepSamples++;
+    }
+    if (steps > 200000) { context.addIssue({ code: "custom", message: "Schrittsumme ist unplausibel (maximal 200000)." }); return z.NEVER; }
+  }
+  return { profileId: input.profileId, date: input.date, activeEnergyKcal: total, unit: "kcal" as const, sourceName: input.sourceName, sampleCount: selected, ...(stepSamples ? { stepCount: steps } : {}) };
 });
 export const healthEnergySchema = z.union([dayValueSchema, sampleTextSchema]);
 
@@ -64,11 +81,12 @@ export async function storeHealthEnergy(input: z.infer<typeof healthEnergySchema
   const profiles = await client.execute({ sql: "SELECT name FROM profiles WHERE id=?", args: [input.profileId] });
   if (!profiles.rows.length) return null;
   await client.execute({
-    sql: `INSERT INTO health_energy_daily (profile_id,date,active_energy_kcal) VALUES (?,?,?)
-      ON CONFLICT(profile_id,date) DO UPDATE SET active_energy_kcal=excluded.active_energy_kcal, updated_at=CURRENT_TIMESTAMP`,
-    args: [input.profileId, input.date, input.activeEnergyKcal]
+    sql: `INSERT INTO health_energy_daily (profile_id,date,active_energy_kcal,step_count) VALUES (?,?,?,?)
+      ON CONFLICT(profile_id,date) DO UPDATE SET active_energy_kcal=excluded.active_energy_kcal, step_count=COALESCE(excluded.step_count,health_energy_daily.step_count), updated_at=CURRENT_TIMESTAMP`,
+    args: [input.profileId, input.date, input.activeEnergyKcal, input.stepCount ?? null]
   });
   return { profileId: input.profileId, profileName: String(profiles.rows[0].name), date: input.date, activeEnergyKcal: input.activeEnergyKcal,
     ...("sourceName" in input ? { sourceName: input.sourceName, sampleCount: input.sampleCount } : {}),
-    unit: "kcal", message: "Aktive Energie gespeichert. Tageswert ersetzt, nicht addiert. Keine Trainingsminuten, Punkte oder Level geändert." };
+    ...(input.stepCount !== undefined ? { stepCount: input.stepCount } : {}),
+    unit: "kcal", message: `${input.stepCount !== undefined ? "Aktive Energie und Schritte" : "Aktive Energie"} gespeichert. Tageswert ersetzt, nicht addiert. Keine Trainingsminuten, Punkte oder Level geändert.` };
 }

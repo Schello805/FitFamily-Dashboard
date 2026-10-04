@@ -92,7 +92,7 @@ it("authenticates, logs successful normalized kcal and never echoes the secret",
 it("rejects huge, malformed and unknown-profile payloads without writing daily energy", async () => {
   expect((await POST(request({ ...input, activeEnergyKcal: "343391100000182000" }))).status).toBe(400);
   expect((await POST(request({ ...input, profileId: "nonexistent-energy-profile" }))).status).toBe(404);
-  expect((await POST(request({ ...input, extra: "x".repeat(70000) }))).status).toBe(413);
+  expect((await POST(request({ ...input, extra: "x".repeat(140000) }))).status).toBe(413);
   expect((await POST(new Request("http://localhost", { method: "POST", headers: { Authorization: "Bearer test-key" }, body: "not JSON" }))).status).toBe(400);
   expect((await (await db()).execute({ sql: "SELECT * FROM health_energy_daily WHERE profile_id=?", args: [profileId] })).rows).toHaveLength(0);
 });
@@ -108,4 +108,19 @@ it("sums decimal sample texts from one source only, replacing daily energy witho
     expect((await POST(request({ ...payload, sampleRows }))).status).toBe(400);
   }
   expect((await (await db()).execute({ sql: "SELECT active_energy_kcal FROM health_energy_daily WHERE profile_id=?", args: [profileId] })).rows[0].active_energy_kcal).toBe(5);
+});
+it("stores steps separately without scoring, replacing rather than adding and preserving them on old energy uploads", async () => {
+  const before = (await getDashboardData()).find(p => p.id === profileId)!;
+  const payload = { profileId, date: input.date, sourceName: "Watch", sampleRows: "12\tkcal\tWatch", stepRows: "100\tcount\tWatch\n150\tcount\tWatch\n300\tcount\tiPhone" };
+  expect((await POST(request(payload))).status).toBe(200);
+  let after = (await getDashboardData()).find(p => p.id === profileId)!;
+  expect(after.healthEnergy?.stepCount).toBe(250);
+  for (const field of ["score", "todayMinutes", "totalMinutes", "trainingProgress"] as const) expect(after[field]).toEqual(before[field]);
+  expect((await POST(request({ ...payload, stepRows: "0\tcount\tWatch" }))).status).toBe(200);
+  await POST(request(input));
+  after = (await getDashboardData()).find(p => p.id === profileId)!;
+  expect(after.healthEnergy?.stepCount).toBe(0);
+  for (const stepRows of ["1.5\tcount\tWatch", "2\tkcal\tWatch", "broken"]) expect((await POST(request({ ...payload, stepRows }))).status).toBe(400);
+  await POST(request({ ...payload, stepRows: "" }));
+  expect((await getDashboardData()).find(p => p.id === profileId)?.healthEnergy?.stepCount).toBe(0);
 });

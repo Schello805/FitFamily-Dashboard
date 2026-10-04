@@ -25,6 +25,9 @@ it("builds a complete text-only energy workflow without the looping import dialo
   expect(JSON.stringify(shortcut)).toContain("Bearer ");
   expect(JSON.stringify(shortcut)).not.toContain("exerciseMinutes");
   expect(JSON.stringify(shortcut)).not.toContain("stepCount");
+  expect(JSON.stringify(shortcut)).toContain("stepRows");
+  expect(JSON.stringify(shortcut)).toContain('"Value":"Steps"');
+  expect(actions.filter(action => action.WFWorkflowActionIdentifier === "is.workflow.actions.text.combine")).toHaveLength(2);
   expect(plist("<&\"")).toBe("<string>&lt;&amp;&quot;</string>");
 });
 it("rejects injection and builds a self-contained Mac installer with no real secret", () => {

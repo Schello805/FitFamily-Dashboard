@@ -1,8 +1,14 @@
-# Apple Health: tägliche aktive Energie per iPhone-Kurzbefehl
+# Apple Health: tägliche aktive Energie und Schritte per iPhone-Kurzbefehl
 
 Aktive Energie ist ein kcal-Tageswert, einschließlich Alltagsbewegung. **Keine Punkte,
 Trainingsminuten, Ziele, Gerätezeiten oder Level werden daraus berechnet.** Echte
 Workouts aus dem Export bleiben separat; ihre bisherige Wertung bleibt erhalten.
+Ab Version 0.3.24 liest der neu heruntergeladene Kurzbefehl zusätzlich Schritte.
+Beide Werte werden aus derselben gewählten Datenquelle summiert, nicht aus allen
+Quellen zusammen. Schritte haben keine Wertung. Fehlen Schritt-Messungen, bleibt
+die Anzeige unbekannt statt 0; reine kcal-Uploads löschen vorhandene Schritte nicht.
+Beim ersten iPhone-Lauf Schritte-Leserechte erlauben und Protokoll mit Health
+vergleichen. Die neue Schritte-Abfrage ist noch auf dem iPhone zu bestätigen.
 Alte Kurzbefehle für Schritte/Trainingsringe nicht wieder aktivieren. Wer nur kcal
 synchronisiert, wählt beim Trainingsstart **„Nein · App-Trainingszeit werten“**, damit der
 App-Timer Punkte erhält. „Ja“ bleibt nur für tatsächlich importierte Workouts.

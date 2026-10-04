@@ -213,6 +213,10 @@ async function createSchema(client: Client) {
     await client.execute("ALTER TABLE apple_health_daily ADD COLUMN flights_climbed REAL NOT NULL DEFAULT 0");
   }
   const profileColumns = await client.execute("PRAGMA table_info(profiles)");
+  const energyColumns = await client.execute("PRAGMA table_info(health_energy_daily)");
+  if (!energyColumns.rows.some(row => String(row.name) === "step_count")) {
+    await client.execute("ALTER TABLE health_energy_daily ADD COLUMN step_count INTEGER CHECK(step_count >= 0 AND step_count <= 200000)");
+  }
   if (!profileColumns.rows.some((row) => String(row.name) === "email")) {
     await client.execute("ALTER TABLE profiles ADD COLUMN email TEXT");
   }
