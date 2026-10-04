@@ -4,6 +4,13 @@ Alle wichtigen Änderungen werden hier nach dem Prinzip von Keep a Changelog dok
 
 ## [Unreleased]
 
+## [0.3.13] – 2026-10-04
+
+### Geändert
+
+- Apple Health / Gymondo hat einen eigenen Verwaltungs-Menüpunkt, getrennt von Software-Updates und Speicherverwaltung.
+- Verwaltungskopfzeile bleibt in allen Bereichen beim Scrollen sichtbar; die Desktop-Seitenleiste hält passenden Abstand darunter. Mobile Kopfzeile bleibt kompakt.
+
 ## [0.3.12] – 2026-10-04
 
 ### Behoben

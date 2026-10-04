@@ -40,11 +40,12 @@ type ConfirmModalConfig = {
 
 const ADMIN_SESSION_STORAGE_KEY = "fitfamily_admin_session";
 
-type AdminSection = "allgemein" | "ki" | "sicherung" | "daten" | "protokolle" | "sportraum";
+type AdminSection = "allgemein" | "ki" | "health" | "sicherung" | "daten" | "protokolle" | "sportraum";
 
 const ADMIN_SECTIONS: { id: AdminSection; label: string; detail: string; icon: typeof Monitor }[] = [
   { id: "allgemein", label: "Allgemein", detail: "Design & Ruhemodus", icon: Monitor },
   { id: "ki", label: "KI-Integrationen", detail: "Schlüssel & Kosten", icon: Bot },
+  { id: "health", label: "Apple Health / Gymondo", detail: "Trainingszeiten & Empfangstest", icon: CheckCircle2 },
   { id: "sicherung", label: "Datensicherung", detail: "NAS & Speicherorte", icon: HardDrive },
   { id: "daten", label: "System, Daten & Speicher", detail: "Updates, Export & Speicher", icon: Database },
   { id: "protokolle", label: "Protokolle", detail: "Fehler & Backup-Ereignisse", icon: ClipboardList },
@@ -1237,8 +1238,8 @@ export function AdminView({
         onStartBackup={requestNasBackup}
         onMountShare={() => void mountNasShare()}
       />}
+      {activeAdminSection === "health" && <AdminHealthTrainingTest />}
       {activeAdminSection === "daten" && <>
-        <AdminHealthTrainingTest />
         <AdminUpdatePanel
           info={updateInfo}
           installedVersion={currentInstalledVersion}

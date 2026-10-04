@@ -6,7 +6,7 @@ Gymondo muss das Training tatsächlich als Workout in Apple Health hinterlegt ha
 
 ## Schritt für Schritt
 
-1. App auf den neuen Stand aktualisieren. Unter **Verwaltung → System, Daten & Speicher → Apple Health / Gymondo · Trainingstest** den Familienschlüssel erstellen und einmal kopieren. Derselbe Schlüssel gilt für alle Profile; die dort angezeigte Profil-ID bestimmt die Zuordnung. Wer den Schlüssel kennt, kann für jedes Familienprofil Testdaten senden. Er ist daher privat zu halten. Erneutes Erstellen ersetzt den alten Schlüssel für alle Geräte.
+1. App auf den neuen Stand aktualisieren. Unter **Verwaltung → Apple Health / Gymondo** den Familienschlüssel erstellen und einmal kopieren. Derselbe Schlüssel gilt für alle Profile; die dort angezeigte Profil-ID bestimmt die Zuordnung. Wer den Schlüssel kennt, kann für jedes Familienprofil Testdaten senden. Er ist daher privat zu halten. Erneutes Erstellen ersetzt den alten Schlüssel für alle Geräte.
 2. Auf dem iPhone in Health auf das Profilbild und **Alle Gesundheitsdaten exportieren** tippen. Die ZIP-Datei per AirDrop auf den Mac übertragen, beispielsweise nach Downloads. Der Export enthält sensible Gesundheitsdaten: nicht in GitHub oder einen Chat hochladen. Das Skript liest ihn lokal und sendet nicht die Datei.
 3. Im Terminal auf dem Mac zunächst nur die lokale Vorschau starten:
 
