@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { POST } from "./route";
 import { getDashboardData } from "@/lib/dashboard";
 import { db } from "@/lib/db";
@@ -10,8 +10,10 @@ const segmentId = "reset-target-test-segment";
 const pin = "8642";
 let previousPinHash: string | null = null;
 
-describe("score and target progress reset", () => {
+describe("score reset preserves period target progress", () => {
   beforeAll(async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-04T12:00:00Z"));
     const client = await db();
     const existingPin = await client.execute({ sql: "SELECT value FROM settings WHERE key = 'admin_pin_hash'" });
     previousPinHash = existingPin.rows[0] ? String(existingPin.rows[0].value) : null;
@@ -33,6 +35,7 @@ describe("score and target progress reset", () => {
   });
 
   afterAll(async () => {
+    vi.useRealTimers();
     const client = await db();
     await client.execute({ sql: "DELETE FROM training_segments WHERE session_id = ?", args: [sessionId] });
     await client.execute({ sql: "DELETE FROM training_sessions WHERE id = ?", args: [sessionId] });
@@ -47,7 +50,9 @@ describe("score and target progress reset", () => {
     }
   });
 
-  it("resets the score and target ring while preserving the training history", async () => {
+  it("resets only the score while preserving the weekly ring and training history", async () => {
+    const before = (await getDashboardData()).find(entry => entry.id === profileId);
+    expect(before).toMatchObject({ score: 40, targetPercent: 13, totalMinutes: 20 });
     const response = await POST(new Request("http://localhost/api/admin/reset-score", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -56,15 +61,15 @@ describe("score and target progress reset", () => {
     const result = await response.json();
     expect(response.status).toBe(200);
     expect(result.newScore).toBe(0);
-    expect(result.targetPercent).toBe(0);
+    expect(result).not.toHaveProperty("targetPercent");
 
     const client = await db();
     const [profile, session] = await Promise.all([
       client.execute({ sql: "SELECT target_reset_at FROM profiles WHERE id = ?", args: [profileId] }),
       client.execute({ sql: "SELECT id FROM training_sessions WHERE id = ?", args: [sessionId] })
     ]);
-    expect(profile.rows[0]?.target_reset_at).toBe(result.resetAt);
+    expect(profile.rows[0]?.target_reset_at).toBeNull();
     expect(session.rows).toHaveLength(1);
-    expect((await getDashboardData()).find((entry) => entry.id === profileId)?.targetPercent).toBe(0);
+    expect((await getDashboardData()).find((entry) => entry.id === profileId)).toMatchObject({ score: 0, targetPercent: 13, totalMinutes: 20 });
   });
 });
