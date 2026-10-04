@@ -4,6 +4,10 @@ Alle wichtigen Änderungen werden hier nach dem Prinzip von Keep a Changelog dok
 
 ## [Unreleased]
 
+## [0.3.32] – 2026-10-04
+
+- Trainingsdauer im Verlauf groß angezeigt. Karten füllen sich bis 60 Minuten mit einem Verlauf von Weiß über Grün bei 30 Minuten zu Orange bei 60 Minuten; längere Trainings bleiben voll und zeigen ihre tatsächliche Dauer.
+
 ## [0.3.31] – 2026-10-04
 
 - Verlaufskarten mit kompakten Stift- und Papierkorb-Icons statt beschrifteter Aktionsbuttons; verständliche Tooltips und zugängliche Beschriftungen bleiben erhalten.

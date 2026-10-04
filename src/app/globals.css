@@ -1418,6 +1418,8 @@ body::before {
 
 .swipeable-session-card {
   position: relative;
+  isolation: isolate;
+  overflow: hidden;
   z-index: 2;
   background: var(--panel);
   border: 1px solid var(--line);
@@ -1431,6 +1433,17 @@ body::before {
   user-select: none;
   touch-action: pan-y;
 }
+.session-duration-fill {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: linear-gradient(90deg, #fff 0%, #22c55e 50%, #f97316 100%);
+  clip-path: inset(0 calc(100% - var(--session-fill, 0%)) 0 0);
+  opacity: .28;
+}
+.session-duration { display: flex; align-items: baseline; gap: 6px; font-size: clamp(26px, 2.4vw, 34px); font-weight: 850; line-height: 1.1; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.session-duration small { font-size: 11px; font-weight: 650; color: var(--muted); }
 
 .swipeable-session-card:active {
   cursor: grabbing;

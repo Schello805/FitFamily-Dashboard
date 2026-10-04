@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
+import type { CSSProperties } from "react";
 import { Activity, ArrowLeft, ArrowLeftRight, Dumbbell, Pencil, PencilLine, Plus, Trash2 } from "lucide-react";
 import type { DashboardProfile } from "@/lib/domain";
 import { TouchPinpad } from "@/components/touch-pinpad";
@@ -41,6 +42,8 @@ function SwipeableSessionRow({
 }) {
   const [offset, setOffset] = useState(0);
   const [swiping, setSwiping] = useState(false);
+  const minutes = session.segments.reduce((sum, segment) => sum + elapsedMinutes(segment.startedAt, segment.endedAt, session.recordingMode === "health" ? undefined : segment.durationSeconds), 0);
+  const fillPercent = Math.min(100, Math.max(0, Number.isFinite(minutes) ? minutes / 60 * 100 : 0));
   const startRef = useRef<{ x: number; y: number; isHorizontal: boolean | null }>({ x: 0, y: 0, isHorizontal: null });
 
   function handleStart(clientX: number, clientY: number) {
@@ -125,9 +128,10 @@ function SwipeableSessionRow({
       <article
         className="swipeable-session-card"
         style={{
+          "--session-fill": `${fillPercent}%`,
           transform: `translateX(${offset}px)`,
           transition: swiping ? "none" : "transform 0.28s cubic-bezier(0.2, 0.8, 0.2, 1)"
-        }}
+        } as CSSProperties}
         onTouchStart={(e) => handleStart(e.touches[0].clientX, e.touches[0].clientY)}
         onTouchMove={(e) => handleMove(e.touches[0].clientX, e.touches[0].clientY, e)}
         onTouchEnd={handleEnd}
@@ -140,6 +144,7 @@ function SwipeableSessionRow({
         onPointerUp={handleEnd}
         onPointerCancel={handleEnd}
       >
+        <div className="session-duration-fill" aria-hidden="true" />
         <div className="session-date">
           <strong>{formatGermanDate(session.startedAt)}</strong>
           <span>{formatGermanWeekday(session.startedAt)}</span>
@@ -159,6 +164,9 @@ function SwipeableSessionRow({
           ))}
         </div>
         <div className="session-card-right">
+          <strong className="session-duration" aria-label={`${minutes.toLocaleString("de-DE", { maximumFractionDigits: 2 })} Minuten Trainingsdauer`}>
+            {minutes.toLocaleString("de-DE", { maximumFractionDigits: 2 })}<small>Minuten</small>
+          </strong>
           {session.source === "health_import" && <span>Apple Health · 1,5 Punkte/Minute · importierte aktive Zeit</span>}
           {session.recordingMode === "health" && <span>App-Timer ohne Wertung · nur Health-Import zählt</span>}
           {(session.edited || session.source === "manual") && (
@@ -427,7 +435,7 @@ export function HistoryView({ profile }: { profile: DashboardProfile }) {
       {sessions.length > 0 && (
         <div className="swipe-hint">
           <ArrowLeftRight size={14} />
-          <span>Stift zum Bearbeiten · Papierkorb zum Löschen · alternativ wischen.</span>
+          <span>Balken: 30 Min. = Mitte · 60 Min. = voll. Stift zum Bearbeiten · Papierkorb zum Löschen.</span>
         </div>
       )}
 
