@@ -441,7 +441,7 @@ export function ProfileView({
             <h2>{profile.activeTraining ? "Dein Training läuft" : "Bereit, wenn du es bist."}</h2>
             <p>Starte direkt oder setze deinen persönlichen Trainingsplan fort.</p>
             <div className="avatar-meta-pills">
-              <span className="avatar-pill stage">Fitnessstufe {profile.fitnessStage} von {getFitnessStageCount(profile.id, profile.birthDate)}</span>
+              <span className="avatar-pill stage">Fitness-Selbsteinschätzung: {profile.fitnessStage} von {getFitnessStageCount(profile.id, profile.birthDate)} · manuell</span>
               <span className={`avatar-pill physique ${profile.physique}`}>{physiqueLabel(profile.physique)}</span>
               <span className="avatar-pill minutes">
                 {Math.round(profile.strengthMinutes)}m Kraft · {Math.round(profile.enduranceMinutes)}m Ausdauer

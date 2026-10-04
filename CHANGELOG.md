@@ -4,6 +4,13 @@ Alle wichtigen Änderungen werden hier nach dem Prinzip von Keep a Changelog dok
 
 ## [Unreleased]
 
+## [0.3.5] – 2026-10-04
+
+### Geändert
+
+- Automatischer Trainingslevel deutlich hervorgehoben, auch als Level-Abzeichen an der Figur; Fortschrittsanzeige erläutert die verbleibenden Minuten und gleiche Wertung von Kraft und Ausdauer.
+- Manuelle Fitness-Selbsteinschätzung klar separat beschriftet. Sie steuert weiterhin die Figur, nicht den automatischen Trainingslevel.
+
 ## [0.3.4] – 2026-10-03
 
 ### Hinzugefügt

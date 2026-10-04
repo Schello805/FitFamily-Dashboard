@@ -8,6 +8,7 @@ type AvatarProps = {
     customAvatar?: boolean;
     color?: string;
     fitnessStage: number;
+    trainingProgress?: { level: number };
     physique: AvatarPhysique;
     name?: string;
     birthDate?: string | null;
@@ -53,8 +54,9 @@ export function Avatar({
   const avatarAsset = avatarProgressAssetForProfile(id, avatar, fitnessStage, physique, stageCount);
   const sizeClass = size === "small" ? "avatar-small" : size === "large" ? "avatar-large" : "";
   const accessibleName = name
-    ? `Avatar von ${name}: Fitnessstufe ${level} von ${stageCount}, ${label}`
-    : `Avatar: Fitnessstufe ${level} von ${stageCount}, ${label}`;
+    ? `Avatar von ${name}: Fitness-Selbsteinschätzung ${level} von ${stageCount}, ${label}`
+    : `Avatar: Fitness-Selbsteinschätzung ${level} von ${stageCount}, ${label}`;
+  const trainingLevel = profile?.trainingProgress?.level;
 
   return (
     <div
@@ -62,7 +64,7 @@ export function Avatar({
       style={{ "--profile": color } as React.CSSProperties}
       data-fitness-stage={fitnessStage}
       aria-label={accessibleName}
-      title={`Fitnessstufe ${level} von ${stageCount} · ${label}`}
+      title={`${trainingLevel ? `Trainingslevel ${trainingLevel} · automatischer Aufstieg. ` : ""}Figur: Fitness-Selbsteinschätzung ${level} von ${stageCount} · ${label}`}
     >
       <div className={`avatar-canvas ${customAvatar ? "has-personal-head" : ""}`}>
         <Image
@@ -91,7 +93,7 @@ export function Avatar({
           />
         )}
       </div>
-      {showChip && <div className="level-chip">Stufe {level}</div>}
+      {showChip && <div className="level-chip" aria-label={trainingLevel ? `Trainingslevel ${trainingLevel}, automatischer Aufstieg` : `Fitness-Selbsteinschätzung ${level}, manuell gewählt`}>{trainingLevel ? `★ Level ${trainingLevel}` : `Fitness ${level}`}</div>}
     </div>
   );
 }

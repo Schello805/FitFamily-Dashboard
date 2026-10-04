@@ -79,7 +79,7 @@ function ProfileDashboardCard({ profile, clock }: { profile: DashboardProfile; c
         <div className="score"><Trophy size={22} /><div><strong>{profile.score.toLocaleString("de-DE")}</strong><span>Gesamtpunkte</span></div></div>
         <div className="today"><strong>{profile.todayMinutes}</strong><span>Minuten heute</span></div>
       </div>
-      {profile.trainingProgress && <div className="dashboard-level" aria-label={`Trainingslevel ${profile.trainingProgress.level}, ${profile.trainingProgress.remaining} Minuten bis zum nächsten Level`}><span>★ Trainingslevel {profile.trainingProgress.level}</span><div role="progressbar" aria-label="Trainingslevel-Fortschritt" aria-valuemin={0} aria-valuemax={100} aria-valuenow={profile.trainingProgress.percent}><i style={{ width: `${profile.trainingProgress.percent}%` }} /></div><small>{profile.trainingProgress.nextThreshold === null ? "Maximum" : `${profile.trainingProgress.remaining} Min. bis zum Aufstieg`}</small></div>}
+      {profile.trainingProgress && <div className="dashboard-level" aria-label={`Trainingslevel ${profile.trainingProgress.level}, automatischer Aufstieg`}><span>★ Trainingslevel {profile.trainingProgress.level}</span><div role="progressbar" aria-label="Trainingslevel-Fortschritt" aria-valuemin={0} aria-valuemax={100} aria-valuenow={profile.trainingProgress.percent}><i style={{ width: `${profile.trainingProgress.percent}%` }} /></div><small>{profile.trainingProgress.nextThreshold === null ? "Maximum erreicht" : `Automatisch in ${profile.trainingProgress.remaining} Min.`}</small></div>}
       {profile.activeTraining && (
         <div className="active-strip">
           <div className="pulse-dot" />

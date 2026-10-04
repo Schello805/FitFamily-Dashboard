@@ -128,7 +128,7 @@ export function ProfileEditModal({
                 <option key={stage.stage} value={stage.stage}>{stage.label} ({stage.description})</option>
               ))}
             </select>
-            <small className="profile-field-hint">Erwachsene: 7 Stufen, Kinder: 3. Wähle deine aktuelle Stufe selbst; Trainingszeiten ändern sie nicht automatisch.</small>
+            <small className="profile-field-hint">Manuelle Einschätzung deiner Fitness und Darstellung der Figur. Nicht dein Trainingslevel – dieser steigt durch abgeschlossene Trainings automatisch.</small>
           </label>
           <label>Trainingsziel<select name="goal" defaultValue={profile.goal}>{GOALS.map((goal) => <option key={goal}>{goal}</option>)}</select></label>
         </div>
