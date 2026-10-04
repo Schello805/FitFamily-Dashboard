@@ -4,6 +4,10 @@ Alle wichtigen Änderungen werden hier nach dem Prinzip von Keep a Changelog dok
 
 ## [Unreleased]
 
+## [0.3.33] – 2026-10-04
+
+- Ausgewähltes Design und Ruhemodus-Zeiten in der Verwaltung mit kräftigem Türkis, weißer Schrift, farbigem Rahmen und Häkchen hervorgehoben. Allgemeine Button-Stile überschreiben die Auswahlfarbe nicht mehr.
+
 ## [0.3.32] – 2026-10-04
 
 - Trainingsdauer im Verlauf groß angezeigt. Karten füllen sich bis 60 Minuten mit einem Verlauf von Weiß über Grün bei 30 Minuten zu Orange bei 60 Minuten; längere Trainings bleiben voll und zeigen ihre tatsächliche Dauer.

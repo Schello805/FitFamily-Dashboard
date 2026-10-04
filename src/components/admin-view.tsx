@@ -993,6 +993,7 @@ export function AdminView({
                 key={val}
                 type="button"
                 className={`timeout-pill ${currentTheme === val ? "active" : ""}`}
+                aria-pressed={currentTheme === val}
                 style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
                 onClick={() => {
                   applyTheme(val);
@@ -1033,6 +1034,7 @@ export function AdminView({
                 key={val}
                 type="button"
                 className={`timeout-pill ${displaySettings.idleTimeoutMinutes === val ? "active" : ""}`}
+                aria-pressed={displaySettings.idleTimeoutMinutes === val}
                 disabled={savingDisplay}
                 onClick={() => void saveDisplaySettings({ idleTimeoutMinutes: val })}
               >
@@ -1082,6 +1084,7 @@ export function AdminView({
                       key={val}
                       type="button"
                       className={`timeout-pill ${displaySettings.nightIdleTimeoutMinutes === val ? "active" : ""}`}
+                      aria-pressed={displaySettings.nightIdleTimeoutMinutes === val}
                       disabled={savingDisplay}
                       onClick={() => void saveDisplaySettings({ nightIdleTimeoutMinutes: val })}
                     >
