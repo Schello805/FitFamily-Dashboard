@@ -3787,3 +3787,23 @@ body::before {
 .profile-card.is-active .avatar-generated img { animation: dashboard-avatar-breathe 4s ease-in-out infinite; }
 @keyframes dashboard-value-arrive { from { opacity: .4; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes dashboard-avatar-breathe { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+
+/* One radio anchor on every route; keep station and song visible on touch screens too. */
+.persistent-radio { top: auto; right: max(18px, env(safe-area-inset-right)); bottom: max(18px, env(safe-area-inset-bottom)); display: flex; align-items: center; gap: 10px; }
+.persistent-radio .music-launch { width: 304px; min-width: 304px; max-width: 304px; height: 64px; min-height: 64px; flex-direction: row; justify-content: flex-start; padding: 12px 16px; gap: 12px; }
+.persistent-radio .music-launch > svg { flex-shrink: 0; }
+.persistent-radio .music-launch > span { display: flex; align-items: flex-start; flex: 1; min-width: 0; overflow: hidden; text-align: left; }
+.persistent-radio .music-launch b { font-size: 14px; max-width: 100%; }
+.persistent-radio .music-launch small { display: block; font-size: 12px; max-width: 100%; line-height: 1.4; }
+.persistent-radio .music-launch > i { flex-shrink: 0; }
+.persistent-radio .radio-theme-toggle { width: 64px; min-width: 64px; height: 64px; min-height: 64px; }
+.persistent-radio .music-panel { top: auto; right: max(18px, env(safe-area-inset-right)); bottom: calc(max(18px, env(safe-area-inset-bottom)) + 76px); max-height: calc(100dvh - 112px - env(safe-area-inset-bottom)); }
+body:has([role="dialog"][aria-modal="true"]) .persistent-radio { visibility: hidden; pointer-events: none; }
+.dashboard-shell, .profile-shell, .subpage { padding-bottom: calc(98px + env(safe-area-inset-bottom)); }
+@media (max-width: 600px) {
+  .persistent-radio { right: max(12px, env(safe-area-inset-right)); bottom: max(12px, env(safe-area-inset-bottom)); gap: 8px; }
+  .persistent-radio .music-launch { width: min(304px, calc(100vw - 84px)); min-width: 0; max-width: none; height: 56px; min-height: 56px; padding: 10px 12px; gap: 9px; }
+  .persistent-radio .radio-theme-toggle { width: 48px; min-width: 48px; height: 56px; min-height: 56px; }
+  .persistent-radio .radio-theme-toggle .tool-label { display: none; }
+  .persistent-radio .music-panel { right: max(12px, env(safe-area-inset-right)); bottom: calc(max(12px, env(safe-area-inset-bottom)) + 68px); max-height: calc(100dvh - 100px - env(safe-area-inset-bottom)); }
+}

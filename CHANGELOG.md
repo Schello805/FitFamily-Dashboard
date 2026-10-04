@@ -4,6 +4,13 @@ Alle wichtigen Änderungen werden hier nach dem Prinzip von Keep a Changelog dok
 
 ## [Unreleased]
 
+## [0.3.17] – 2026-10-04
+
+### Behoben
+
+- Radio-Steuerung auf allen Seiten fest unten rechts: vierfach breite Desktop-Anzeige, sichtbarer Sender und Liedtitel auch mobil, vollständiger Titel als Tooltip. Bei geöffneten Modalen ausgeblendet; Wiedergabe bleibt bestehen.
+- Seiten reservieren Platz für die Radioanzeige, damit sie keine unteren Inhalte verdeckt.
+
 ## [0.3.16] – 2026-10-04
 
 ### Neu

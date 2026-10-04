@@ -7,13 +7,11 @@ import { ThemeToggle } from "@/components/theme-toggle";
 export function PersistentMusicPlayer() {
   const pathname = usePathname();
   const isDashboard = pathname === "/";
-  const placement = isDashboard ? "dashboard-radio" : "subpage-radio";
 
   return (
-    <div className={`persistent-radio ${placement}`}>
+    <div className="persistent-radio">
       {isDashboard && <ThemeToggle showLabel={true} className="radio-theme-toggle" />}
       <MusicPlayer />
     </div>
   );
 }
-
