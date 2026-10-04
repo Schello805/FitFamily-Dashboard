@@ -114,6 +114,7 @@ export type ActiveTraining = {
   equipmentName?: string | null;
   startedAt: string;
   segmentStartedAt: string;
+  recordingMode?: import("./recording-mode").RecordingMode;
 };
 
 export type ActivityTrendPoint = {

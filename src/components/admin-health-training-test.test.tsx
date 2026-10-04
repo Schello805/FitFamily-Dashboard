@@ -20,7 +20,7 @@ it("creates one family key and visibly refreshes the real test receipt", async (
   expect(request.mock.calls[1][2]).toMatchObject({ method: "POST" });
   request.mockResolvedValueOnce({ ...status, configured: true, latest: { profileName: "Papa", importId: "test-import", saved: 1, alreadyReceived: 0,
     workouts: [{ startedAt: "2026-01-01T11:00:00Z", sourceName: "Gymondo", minutes: 20, testPoints: 30, duplicate: false }] } });
-  fireEvent.click(screen.getByRole("button", { name: "Testempfang prüfen" }));
+  fireEvent.click(screen.getByRole("button", { name: "Empfang prüfen" }));
   await waitFor(() => expect(screen.getByText(/Import-ID test-import/)).toBeInTheDocument());
   expect(screen.getByRole("cell", { name: "Gymondo" })).toBeInTheDocument();
   expect(screen.getByRole("cell", { name: "30" })).toBeInTheDocument();
@@ -32,7 +32,7 @@ it("shows a refresh failure instead of claiming successful reception", async () 
   render(<AdminHealthTrainingTest />);
   await waitFor(() => expect(screen.getByText("Profil-IDs: Papa: papa")).toBeInTheDocument());
   request.mockRejectedValueOnce(new Error("Server nicht erreichbar"));
-  fireEvent.click(screen.getByRole("button", { name: "Testempfang prüfen" }));
+  fireEvent.click(screen.getByRole("button", { name: "Empfang prüfen" }));
   await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("Server nicht erreichbar"));
   expect(screen.getByText("Noch kein Trainingstest empfangen.")).toBeInTheDocument();
 });

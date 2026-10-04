@@ -20,6 +20,12 @@ except ValueError: pass
 try: module.endpoint('http://192.168.1.253:3000',False); raise AssertionError('HTTP accepted without consent')
 except ValueError: pass
 assert module.endpoint('http://192.168.1.253:3000',True).endswith('/api/sync/health-training-test')
+assert module.endpoint('http://192.168.1.253:3000',True,True).endswith('/api/sync/health-training')
+assert module.training_type('HKWorkoutActivityTypeCycling')=='endurance'
+assert module.training_type('HKWorkoutActivityTypeFunctionalStrengthTraining')=='strength'
+assert module.training_type('HKWorkoutActivityTypeOther','strength')=='strength'
+try: module.training_type('HKWorkoutActivityTypeOther'); raise AssertionError('unknown workout guessed')
+except ValueError: pass
 try: module.read_workouts(io.BytesIO(b'<!DOCTYPE x [<!ENTITY x "bad">]><HealthData/>'),datetime.date(2026,1,1),ZoneInfo('Europe/Berlin')); raise AssertionError('entities accepted')
 except ValueError: pass`;
   const result = spawnSync("python3", ["-B", "-c", code, script]);

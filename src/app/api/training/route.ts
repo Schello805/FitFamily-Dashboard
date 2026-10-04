@@ -8,6 +8,7 @@ const requestSchema = z.discriminatedUnion("action", [
     action: z.literal("start"),
     profileId: z.string().min(1),
     type: z.enum(["strength", "endurance"]),
+    recordingMode: z.enum(["app", "health"]).optional(),
     exerciseId: z.string().nullable().optional(),
     source: z.enum(["touch", "mobile", "nfc", "manual"]).optional()
   }),

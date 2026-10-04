@@ -18,7 +18,7 @@ export const DATA_TABLE_SPECS = {
     required: ["id", "name"]
   },
   training_sessions: {
-    columns: ["id", "profile_id", "started_at", "ended_at", "status", "source", "external_id", "health_title", "health_calories", "health_distance_km", "edited", "created_at"],
+    columns: ["id", "profile_id", "started_at", "ended_at", "status", "source", "recording_mode", "external_id", "health_title", "health_calories", "health_distance_km", "edited", "created_at"],
     keys: ["id"],
     required: ["id", "profile_id", "started_at", "status"]
   },
@@ -47,6 +47,11 @@ export const DATA_TABLE_SPECS = {
     keys: ["key"],
     required: ["key", "value"]
   },
+  health_workouts: {
+    columns: ["profile_id", "external_id", "started_at", "ended_at", "duration_seconds", "source_name", "activity_type", "training_type", "created_at"],
+    keys: ["profile_id", "external_id"],
+    required: ["profile_id", "external_id", "started_at", "ended_at", "duration_seconds", "source_name", "activity_type", "training_type"]
+  },
   health_training_tests: {
     columns: ["profile_id", "external_id", "started_at", "ended_at", "duration_seconds", "source_name", "activity_type", "created_at"],
     keys: ["profile_id", "external_id"],
@@ -56,7 +61,7 @@ export const DATA_TABLE_SPECS = {
 
 export type DataTransferTable = keyof typeof DATA_TABLE_SPECS;
 export const DATA_TRANSFER_TABLES = Object.keys(DATA_TABLE_SPECS) as DataTransferTable[];
-export const DATA_IMPORT_ORDER: DataTransferTable[] = ["profiles", "exercises", "equipment_inventory", "training_sessions", "training_plans", "training_segments", "apple_health_daily", "apple_health_ignored_workouts", "health_training_tests", "settings"];
+export const DATA_IMPORT_ORDER: DataTransferTable[] = ["profiles", "exercises", "equipment_inventory", "training_sessions", "training_plans", "training_segments", "apple_health_daily", "apple_health_ignored_workouts", "health_training_tests", "health_workouts", "settings"];
 
 const PRIVATE_SETTING_KEYS = new Set(["admin_pin_hash", "nas_backup_key", "nas_backup_path", "health_training_family_key_hash"]);
 

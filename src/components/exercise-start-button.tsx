@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Play } from "lucide-react";
 import { showToast } from "@/components/toast";
 import { requestJson } from "@/lib/api-client";
+import { useRecordingChoice } from "./recording-choice";
 
 export function ExerciseStartButton({
   profileId,
@@ -21,6 +22,7 @@ export function ExerciseStartButton({
 }) {
   const router = useRouter();
   const [starting, setStarting] = useState(false);
+  const recording = useRecordingChoice();
 
   if (!profileId) return null;
 
@@ -28,6 +30,8 @@ export function ExerciseStartButton({
     setStarting(true);
     const targetUrl = returnUrl || `/profil/${profileId}`;
     try {
+      const recordingMode = await recording.ask();
+      if (!recordingMode) return;
       await requestJson("/api/training", "Das Training konnte nicht gestartet werden.", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -36,13 +40,14 @@ export function ExerciseStartButton({
           profileId,
           type,
           exerciseId,
+          recordingMode,
           source: "touch"
         })
       });
       showToast({
           type: "success",
           title: `Training gestartet: ${exerciseName}`,
-          message: `${type === "strength" ? "Krafttraining (+1 Pkt./Min.)" : "Ausdauertraining (+2 Pkt./Min.)"} läuft.`
+          message: recordingMode === "health" ? "App-Timer ohne Wertung. Der Health-Import zählt mit 1,5 Punkten/Minute." : `${type === "strength" ? "Krafttraining (+1 Pkt./Min.)" : "Ausdauertraining (+2 Pkt./Min.)"} läuft.`
       });
       router.push(targetUrl);
     } catch (error) {
@@ -57,6 +62,7 @@ export function ExerciseStartButton({
   }
 
   return (
+    <>{recording.dialog}
     <button
       type="button"
       className="guide-start-btn"
@@ -68,6 +74,6 @@ export function ExerciseStartButton({
         <Play size={18} fill="currentColor" />
       </span>
       <span>{starting ? "Startet …" : "Übung jetzt starten"}</span>
-    </button>
+    </button></>
   );
 }

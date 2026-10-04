@@ -102,7 +102,7 @@ class NoRedirects(urllib.request.HTTPRedirectHandler):
         return None
 
 
-def endpoint(server, allow_http):
+def endpoint(server, allow_http, book=False):
     parsed = urllib.parse.urlsplit(server)
     if parsed.scheme not in ("http", "https") or not parsed.hostname or parsed.username or parsed.password or parsed.query or parsed.fragment or parsed.path not in ("", "/"):
         raise ValueError("Server als reine Basisadresse angeben, ohne Zugangsdaten oder Pfad.")
@@ -114,7 +114,18 @@ def endpoint(server, allow_http):
             local = parsed.hostname == "localhost"
         if not allow_http or not local:
             raise ValueError("HTTP nur für lokale Server mit --allow-http. Dabei sind Schlüssel und Trainingszeiten im Netzwerk unverschlüsselt; HTTPS ist vorzuziehen.")
-    return server.rstrip("/") + "/api/sync/health-training-test"
+    return server.rstrip("/") + ("/api/sync/health-training" if book else "/api/sync/health-training-test")
+
+
+def training_type(activity, explicit=None):
+    if explicit:
+        return explicit
+    name = activity.removeprefix("HKWorkoutActivityType")
+    if name in {"TraditionalStrengthTraining", "FunctionalStrengthTraining"}:
+        return "strength"
+    if name in {"Cycling", "Running", "Walking", "Swimming", "Rowing", "Elliptical", "StairClimbing", "Hiking", "HandCycling"}:
+        return "endurance"
+    raise ValueError("Trainingsart nicht eindeutig: " + activity + ". Bitte ausdrücklich --type strength oder --type endurance angeben.")
 
 
 def main(argv=None):
@@ -126,6 +137,8 @@ def main(argv=None):
     parser.add_argument("--time-zone", default="Europe/Berlin")
     parser.add_argument("--limit", type=int, default=3, help="Neueste Trainings dieses Tages, maximal 25")
     parser.add_argument("--send", action="store_true", help="Explizit nur diese Trainingszeiten übertragen")
+    parser.add_argument("--book", action="store_true", help="Echte Wertung statt Testempfang; Netzwerk weiterhin nur mit --send")
+    parser.add_argument("--type", choices=("strength", "endurance"), help="Explizite Zuordnung für unbekannte/gemischte Trainingsarten")
     parser.add_argument("--allow-http", action="store_true")
     options = parser.parse_args(argv)
     if not 1 <= options.limit <= 25 or not re.fullmatch(r"[\w-]{1,80}", options.profile):
@@ -136,19 +149,22 @@ def main(argv=None):
     if not records:
         print("Keine aufgezeichneten Trainings an diesem Tag. Nichts gesendet. Trainingsring-Minuten sind keine Workout-Datensätze.")
         return 0
+    if options.book:
+        for record in records:
+            record["trainingType"] = training_type(record["activityType"], options.type)
     body = {"profileId": options.profile, "workouts": records}
     print(json.dumps(body, indent=2, ensure_ascii=False, allow_nan=False))
     for record in records:
         minutes = record["durationSeconds"] / 60
-        print(f'{record["sourceName"]}: {minutes:.2f} aktive Minuten = {minutes * 1.5:.2f} Testpunkte')
+        print(f'{record["sourceName"]}: {minutes:.2f} aktive Minuten = {minutes * 1.5:.2f} ' + ("Punkte (Buchungsvorschau)" if options.book else "Testpunkte"))
     for index, first in enumerate(records):
         for second in records[index + 1:]:
             if first["startedAt"] < second["endedAt"] and second["startedAt"] < first["endedAt"]:
-                print("WARNUNG: Trainingszeiträume überlappen. Möglicherweise dasselbe Training von Watch und Gymondo; noch keine Punkte buchen.")
+                print("WARNUNG: Trainingszeiträume überlappen. Der Server blockiert zusätzliche Buchungen für überlappende Trainings.")
     if not options.send:
         print("Nur lokale Vorschau. Kein Netzwerkzugriff. Zum Testempfang denselben Befehl mit --send ausführen.")
         return 0
-    url = endpoint(options.server, options.allow_http)
+    url = endpoint(options.server, options.allow_http, options.book)
     if options.allow_http and url.startswith("http:"):
         print("ACHTUNG: Übertragung im lokalen Netzwerk ist unverschlüsselt.")
     secret = getpass.getpass("Gemeinsamen Familienschlüssel einfügen (Eingabe unsichtbar): ").strip()
@@ -162,7 +178,7 @@ def main(argv=None):
     except urllib.error.HTTPError as error:
         result = error.read(65536).decode(errors="replace")
         raise ValueError(f"Server meldet HTTP {error.code}: {result}") from None
-    print("Serverantwort (keine Buchung auf dem Dashboard):\n" + result)
+    print(("Serverantwort (echte Wertung, Konflikte prüfen):\n" if options.book else "Serverantwort (keine Buchung auf dem Dashboard):\n") + result)
     return 0
 
 

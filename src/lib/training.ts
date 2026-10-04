@@ -7,6 +7,7 @@ type StartInput = {
   type: TrainingType;
   exerciseId?: string | null;
   source?: "touch" | "mobile" | "nfc" | "manual";
+  recordingMode?: "app" | "health";
 };
 
 // Serialize updates for one profile so two quick scans cannot create overlapping segments.
@@ -30,7 +31,7 @@ async function startOrSwitch(input: StartInput) {
   const client = await db();
   const now = new Date().toISOString();
   const active = await client.execute({
-    sql: `SELECT ts.id session_id, sg.id segment_id, sg.type, sg.exercise_id
+    sql: `SELECT ts.id session_id, ts.recording_mode, sg.id segment_id, sg.type, sg.exercise_id
       FROM training_sessions ts
       JOIN training_segments sg ON sg.session_id = ts.id AND sg.ended_at IS NULL
       WHERE ts.profile_id = ? AND ts.status = 'active' LIMIT 1`,
@@ -38,6 +39,11 @@ async function startOrSwitch(input: StartInput) {
   });
 
   const current = active.rows[0];
+  const mode = input.recordingMode ?? (current?.recording_mode === "health" ? "health" : "app");
+  if (current && String(current.recording_mode) !== mode) {
+    await stop(input.profileId);
+    return startOrSwitch(input);
+  }
   const wantedExercise = input.exerciseId ?? null;
   if (
     current &&
@@ -58,9 +64,9 @@ async function startOrSwitch(input: StartInput) {
     });
   } else {
     statements.push({
-      sql: `INSERT INTO training_sessions (id, profile_id, started_at, status, source)
-        VALUES (?, ?, ?, 'active', ?)`,
-      args: [sessionId, input.profileId, now, input.source ?? "touch"]
+      sql: `INSERT INTO training_sessions (id, profile_id, started_at, status, source, recording_mode)
+        VALUES (?, ?, ?, 'active', ?, ?)`,
+      args: [sessionId, input.profileId, now, input.source ?? "touch", mode]
     });
   }
 

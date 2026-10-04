@@ -56,6 +56,7 @@ const rowSchemas: Record<DataTransferTable, z.ZodType> = {
   training_sessions: z.object({ id: identifier, profile_id: identifier, started_at: trainingTimestamp, ended_at: trainingTimestamp.nullable().optional(),
     status: z.enum(["active", "paused", "completed"]), source: z.enum(["touch", "mobile", "nfc", "manual", "apple_health"]).optional(),
     external_id: identifier.nullable().optional(), health_title: nullableText,
+    recording_mode: z.enum(["app", "health"]).optional(),
     health_calories: z.number().nonnegative().max(100_000).nullable().optional(), health_distance_km: z.number().nonnegative().max(2_000).nullable().optional(),
     edited: flag.optional(), created_at: timestamp.optional() }),
   training_segments: z.object({ id: identifier, session_id: identifier, type: z.enum(["strength", "endurance"]), exercise_id: identifier.nullable().optional(),
@@ -66,6 +67,10 @@ const rowSchemas: Record<DataTransferTable, z.ZodType> = {
     }, "Trainingsplan muss ein JSON-Objekt enthalten."), ...metadata }),
   apple_health_daily: z.object({ profile_id: identifier, date, ...dailyFields, updated_at: timestamp.optional() }).partial().required({ profile_id: true, date: true }),
   apple_health_ignored_workouts: z.object({ profile_id: identifier, external_id: identifier, deleted_at: timestamp.optional() }),
+  health_workouts: z.object({ profile_id: identifier, external_id: z.string().regex(/^[a-f0-9]{64}$/),
+    started_at: trainingTimestamp, ended_at: trainingTimestamp, duration_seconds: z.number().finite().min(1).max(14400),
+    source_name: z.string().min(1).max(120), activity_type: z.string().min(1).max(100), training_type: z.enum(["strength", "endurance"]), created_at: timestamp.optional() })
+    .refine(row => Date.parse(row.ended_at) > Date.parse(row.started_at) && row.duration_seconds <= (Date.parse(row.ended_at) - Date.parse(row.started_at)) / 1000 + 1 && Date.parse(row.ended_at) <= Date.now()+60000, "Ungültige aktive Trainingsdauer."),
   health_training_tests: z.object({ profile_id: identifier, external_id: z.string().regex(/^[a-f0-9]{64}$/),
     started_at: timestamp, ended_at: timestamp, duration_seconds: z.number().finite().min(1).max(14400),
     source_name: z.string().min(1).max(120), activity_type: z.string().min(1).max(100), created_at: timestamp.optional() })
@@ -141,7 +146,7 @@ async function checkReferences(rows: Record<string, Row[]>) {
   const sessionIds = new Set([...sessions.rows.map((row) => String(row.id)), ...rows.training_sessions.map((row) => String(row.id))]);
   const exerciseIds = new Set([...exercises.rows.map((row) => String(row.id)), ...rows.exercises.map((row) => String(row.id))]);
   const errors: string[] = [];
-  for (const table of ["training_sessions", "training_plans", "apple_health_daily", "apple_health_ignored_workouts", "health_training_tests"]) {
+  for (const table of ["training_sessions", "training_plans", "apple_health_daily", "apple_health_ignored_workouts", "health_training_tests", "health_workouts"]) {
     for (const [index, row] of rows[table].entries()) {
       if (typeof row.profile_id === "string" && !profileIds.has(row.profile_id)) errors.push(`${table}, Zeile ${index + 1}: zugehöriges Profil fehlt.`);
     }
@@ -219,6 +224,19 @@ async function checkReferences(rows: Record<string, Row[]>) {
     const session = effectiveSessions.get(String(row.id));
     if (session?.source === "apple_health" && session.external_id != null && (externalIds.get(JSON.stringify([session.profile_id, session.external_id])) ?? 0) > 1) {
       errors.push(`training_sessions, ${row.id}: Apple-Health-Workout ist für dieses Profil bereits vorhanden.`);
+    }
+  }
+  const existingHealth=await client.execute("SELECT * FROM health_workouts");
+  const health=new Map(existingHealth.rows.map(r=>[`${r.profile_id}:${r.external_id}`,r as unknown as Row]));
+  for (const h of rows.health_workouts) health.set(`${h.profile_id}:${h.external_id}`,h);
+  const workouts=[...health.values()];
+  const overlaps=(a:Row,b:Row)=>parseTime(a.started_at)<parseTime(b.ended_at) && parseTime(b.started_at)<parseTime(a.ended_at);
+  for (let i=0;i<workouts.length;i++) {
+    const h=workouts[i];
+    if(workouts.slice(i+1).some(other=>other.profile_id===h.profile_id && overlaps(h,other))) errors.push("Health-Trainings überschneiden sich; Doppelwertung wird verhindert.");
+    for(const s of effectiveSessions.values()) {
+      if(s.profile_id!==h.profile_id || s.recording_mode==='health' || s.source==='apple_health') continue;
+      if((segmentsBySession.get(String(s.id))??[]).some(sg=>overlaps(h,{...sg,ended_at:sg.ended_at??new Date().toISOString()}))) errors.push("Health-Training überschneidet sich mit gezähltem App-Training.");
     }
   }
   return errors;

@@ -29,4 +29,8 @@ NAS-Backups sind mit AES-256-GCM verschlüsselt. Der Schlüssel bleibt auf dem R
 
 ## Apple Health
 
-Die Anbindung ist vorerst eingestellt. Es werden keine neuen Health-Daten angenommen und keine Sync-Schlüssel erstellt. Bereits gespeicherte Daten bleiben lokal erhalten und werden nicht angezeigt oder für Trainingsberechnungen verwendet. Bestehende Backups bleiben kompatibel; sie können archivierte Daten weiterhin enthalten.
+Optional lassen sich aufgezeichnete Trainingszeiten aus einem Apple-Health-XML/ZIP-Export über ein lokales Mac-Skript an den eigenen FitFamily-Server senden. Der vollständige Export bleibt auf dem Mac. Übertragen werden nur ausgewählte Workout-IDs, Start/Ende, aktive Dauer, Quellenname, Trainingsart, deren Kraft-/Ausdauer-Zuordnung und Profil-ID. Keine Schritte, Kalorien, Ringe oder anderen Health-Messungen. Trainingsdaten werden nicht an KI-Anbieter übertragen. Es gibt noch keine automatische iPhone-Synchronisierung.
+
+Ein gemeinsamer Familienschlüssel gilt für alle Profile. Auf dem Server wird nur sein Hash gespeichert. Wer den Schlüssel kennt, kann für alle Familienprofile Trainings senden; deshalb privat halten. Ersetzen invalidiert ihn für alle Geräte. Die Eingabe erfolgt verdeckt im Terminal. HTTP im lokalen Netzwerk ist unverschlüsselt und benötigt ausdrückliche Freigabe; HTTPS ist vorzuziehen.
+
+Testempfang verändert keine Wertung. Erst eine ausdrücklich gesendete Buchung (`--book --send`) berücksichtigt aktive Trainingsminuten mit 1,5 Punkten pro Minute für Ziele, Level und Verlauf. App-Timer im gewählten Health-Modus werden nicht zusätzlich gewertet. Duplikate/Überschneidungen werden blockiert. Test- und Buchungsdaten sowie Empfangsprotokolle werden lokal gespeichert und sind Bestandteil der Datensicherung; der Schlüsselhash ist aus portablen JSON-Exporten ausgeschlossen. Alte archivierte Health-Ringdaten/alte Workout-Importe bleiben unberücksichtigt. Details: [Trainingsimport](docs/HEALTH_TRAINING_TEST.md).

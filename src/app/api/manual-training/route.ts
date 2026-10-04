@@ -41,6 +41,8 @@ export async function POST(request: Request) {
   if (pinError) return pinError;
   const sessionId = randomUUID();
   const client = await db();
+  const conflict = await client.execute({sql:"SELECT 1 FROM health_workouts WHERE profile_id=? AND julianday(started_at)<julianday(?) AND julianday(ended_at)>julianday(?) LIMIT 1",args:[body.data.profileId,body.data.endedAt,body.data.startedAt]});
+  if(conflict.rows.length) return NextResponse.json({error:"Diese Zeit wurde bereits durch Apple Health gewertet. Keine zusätzliche App-Buchung."},{status:409});
   await client.batch([
     {
       sql: `INSERT INTO training_sessions (id, profile_id, started_at, ended_at, status, source, edited)
@@ -71,12 +73,15 @@ export async function PUT(request: Request) {
 
   const client = await db();
   const existing = await client.execute({
-    sql: "SELECT id, started_at, ended_at FROM training_sessions WHERE id = ? AND profile_id = ? AND COALESCE(source, '') <> 'apple_health'",
+    sql: "SELECT id, started_at, ended_at, recording_mode FROM training_sessions WHERE id = ? AND profile_id = ? AND COALESCE(source, '') <> 'apple_health'",
     args: [body.data.sessionId, body.data.profileId]
   });
   if (existing.rows.length === 0) {
     return NextResponse.json({ error: "Trainingseinheit nicht gefunden" }, { status: 404 });
   }
+  if(existing.rows[0].recording_mode === "health") return NextResponse.json({error:"Health-App-Timer hat keine Wertung und kann nicht als App-Training bearbeitet werden."},{status:409});
+  const conflict = await client.execute({sql:"SELECT 1 FROM health_workouts WHERE profile_id=? AND julianday(started_at)<julianday(?) AND julianday(ended_at)>julianday(?) LIMIT 1",args:[body.data.profileId,body.data.endedAt,body.data.startedAt]});
+  if(conflict.rows.length) return NextResponse.json({error:"Diese Zeit wurde bereits durch Apple Health gewertet. Keine zusätzliche App-Buchung."},{status:409});
 
   const segmentResult = await client.execute({
     sql: "SELECT id, type, started_at, ended_at FROM training_segments WHERE session_id = ? ORDER BY started_at ASC",

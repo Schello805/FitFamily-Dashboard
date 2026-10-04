@@ -12,18 +12,20 @@ import { requestJson } from "@/lib/api-client";
 import { EquipmentStats } from "@/components/equipment-stats";
 import type { EquipmentStats as DeviceStats } from "@/lib/equipment-stats";
 
-type Segment = { id: string; type: "strength" | "endurance"; exerciseName: string | null; equipmentName?: string | null; startedAt: string; endedAt: string | null };
+type Segment = { id: string; type: "strength" | "endurance"; exerciseName: string | null; equipmentName?: string | null; startedAt: string; endedAt: string | null; durationSeconds?: number };
 type Session = {
   id: string;
   startedAt: string;
   endedAt: string | null;
   status: string;
   source: string;
+  recordingMode?: "app" | "health";
   edited: boolean;
   segments: Segment[];
 };
 
-function elapsedMinutes(start: string, end: string | null) {
+function elapsedMinutes(start: string, end: string | null, seconds?: number) {
+  if (seconds !== undefined) return seconds / 60;
   return Math.max(0, (new Date(end ?? Date.now()).getTime() - new Date(start).getTime()) / 60000);
 }
 
@@ -41,6 +43,7 @@ function SwipeableSessionRow({
   const startRef = useRef<{ x: number; y: number; isHorizontal: boolean | null }>({ x: 0, y: 0, isHorizontal: null });
 
   function handleStart(clientX: number, clientY: number) {
+    if (session.source === "health_import" || session.recordingMode === "health") return;
     startRef.current = { x: clientX, y: clientY, isHorizontal: null };
     setSwiping(true);
   }
@@ -91,6 +94,7 @@ function SwipeableSessionRow({
         <button
           type="button"
           className="swipe-action-left"
+          disabled={session.source === "health_import" || session.recordingMode === "health"}
           onClick={() => onEdit(session)}
           aria-label="Einheit bearbeiten"
           style={{
@@ -104,6 +108,7 @@ function SwipeableSessionRow({
         <button
           type="button"
           className="swipe-action-right"
+          disabled={session.source === "health_import" || session.recordingMode === "health"}
           onClick={() => onDelete(session)}
           aria-label="Einheit löschen"
           style={{
@@ -146,13 +151,15 @@ function SwipeableSessionRow({
                 <b>{segment.exerciseName ?? (segment.type === "strength" ? "Krafttraining" : "Ausdauertraining")}</b>
                 <small>
                   {segment.equipmentName && `${segment.equipmentName} · `}{formatGermanTime(segment.startedAt)} ·{" "}
-                  {elapsedMinutes(segment.startedAt, segment.endedAt) < 1 ? "< 1" : Math.floor(elapsedMinutes(segment.startedAt, segment.endedAt))} Minuten
+                  {elapsedMinutes(segment.startedAt, segment.endedAt, segment.durationSeconds).toLocaleString("de-DE", { maximumFractionDigits: 2 })} Minuten
                 </small>
               </span>
             </div>
           ))}
         </div>
         <div className="session-card-right">
+          {session.source === "health_import" && <span>Apple Health · 1,5 Punkte/Minute · importierte aktive Zeit</span>}
+          {session.recordingMode === "health" && <span>App-Timer ohne Wertung · nur Health-Import zählt</span>}
           {(session.edited || session.source === "manual") && (
             <em>
               <PencilLine size={13} /> Manuell
@@ -163,6 +170,7 @@ function SwipeableSessionRow({
             <button
               type="button"
               className="session-action-icon edit-icon"
+              disabled={session.source === "health_import" || session.recordingMode === "health"}
               title="Trainingseinheit bearbeiten"
               aria-label="Trainingseinheit bearbeiten"
               onClick={(e) => {
@@ -175,6 +183,7 @@ function SwipeableSessionRow({
             <button
               type="button"
               className="session-action-icon delete-icon"
+              disabled={session.source === "health_import" || session.recordingMode === "health"}
               title="Trainingseinheit löschen"
               aria-label="Trainingseinheit löschen"
               onClick={(e) => {
@@ -229,7 +238,7 @@ export function HistoryView({ profile }: { profile: DashboardProfile }) {
     () =>
       Math.floor(sessions.reduce(
         (sum, session) =>
-          sum + session.segments.reduce((segmentSum, segment) => segmentSum + elapsedMinutes(segment.startedAt, segment.endedAt), 0),
+          sum + session.segments.reduce((segmentSum, segment) => segmentSum + elapsedMinutes(segment.startedAt, segment.endedAt, segment.durationSeconds), 0),
         0
       )),
     [sessions]

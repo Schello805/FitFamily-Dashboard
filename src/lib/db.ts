@@ -72,6 +72,7 @@ async function createSchema(client: Client) {
       ended_at TEXT,
       status TEXT NOT NULL CHECK(status IN ('active','paused','completed')),
       source TEXT NOT NULL DEFAULT 'touch',
+      recording_mode TEXT NOT NULL DEFAULT 'app' CHECK(recording_mode IN ('app','health')),
       external_id TEXT,
       health_title TEXT,
       health_calories REAL,
@@ -111,6 +112,18 @@ async function createSchema(client: Client) {
       duration_seconds REAL NOT NULL,
       source_name TEXT NOT NULL,
       activity_type TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY(profile_id, external_id)
+    )`,
+    `CREATE TABLE IF NOT EXISTS health_workouts (
+      profile_id TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+      external_id TEXT NOT NULL,
+      started_at TEXT NOT NULL,
+      ended_at TEXT NOT NULL,
+      duration_seconds REAL NOT NULL,
+      source_name TEXT NOT NULL,
+      activity_type TEXT NOT NULL,
+      training_type TEXT NOT NULL CHECK(training_type IN ('strength','endurance')),
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
       PRIMARY KEY(profile_id, external_id)
     )`,
@@ -225,6 +238,9 @@ async function createSchema(client: Client) {
   }
 
   const sessionColumns = await client.execute("PRAGMA table_info(training_sessions)");
+  if (!sessionColumns.rows.some(row => String(row.name) === "recording_mode")) {
+    await client.execute("ALTER TABLE training_sessions ADD COLUMN recording_mode TEXT NOT NULL DEFAULT 'app' CHECK(recording_mode IN ('app','health'))");
+  }
   if (!sessionColumns.rows.some((row) => String(row.name) === "external_id")) {
     await client.execute("ALTER TABLE training_sessions ADD COLUMN external_id TEXT");
   }
@@ -239,6 +255,29 @@ async function createSchema(client: Client) {
   }
   await client.execute(`CREATE UNIQUE INDEX IF NOT EXISTS training_sessions_health_external_id
     ON training_sessions(profile_id, external_id) WHERE source = 'apple_health' AND external_id IS NOT NULL`);
+
+  // Database guards also cover manual edits/restores and simultaneous imports.
+  for (const event of ["INSERT", "UPDATE"] as const) {
+    await client.execute(`CREATE TRIGGER IF NOT EXISTS health_no_overlap_${event.toLowerCase()} BEFORE ${event} ON health_workouts
+      WHEN EXISTS (SELECT 1 FROM health_workouts h WHERE h.profile_id=NEW.profile_id
+        AND NOT (h.profile_id=NEW.profile_id AND h.external_id=NEW.external_id)
+        AND julianday(h.started_at)<julianday(NEW.ended_at) AND julianday(h.ended_at)>julianday(NEW.started_at))
+      OR EXISTS (SELECT 1 FROM training_segments sg JOIN training_sessions ts ON ts.id=sg.session_id
+        WHERE ts.profile_id=NEW.profile_id AND ts.recording_mode='app' AND COALESCE(ts.source,'')<>'apple_health'
+        AND julianday(sg.started_at)<julianday(NEW.ended_at) AND julianday(COALESCE(sg.ended_at,strftime('%Y-%m-%dT%H:%M:%fZ','now')))>julianday(NEW.started_at))
+      BEGIN SELECT RAISE(ABORT,'Health-Training überschneidet sich mit bereits gewertetem Training.'); END`);
+    await client.execute(`CREATE TRIGGER IF NOT EXISTS app_no_health_overlap_${event.toLowerCase()} BEFORE ${event} ON training_segments
+      WHEN EXISTS (SELECT 1 FROM training_sessions ts JOIN health_workouts h ON h.profile_id=ts.profile_id
+        WHERE ts.id=NEW.session_id AND ts.recording_mode='app' AND COALESCE(ts.source,'')<>'apple_health'
+        AND julianday(NEW.started_at)<julianday(h.ended_at) AND julianday(COALESCE(NEW.ended_at,'9999-12-31'))>julianday(h.started_at))
+      BEGIN SELECT RAISE(ABORT,'App-Training überschneidet sich mit gebuchtem Health-Training.'); END`);
+  }
+  await client.execute(`CREATE TRIGGER IF NOT EXISTS session_no_health_overlap BEFORE UPDATE OF recording_mode, profile_id, source ON training_sessions
+    WHEN NEW.recording_mode='app' AND COALESCE(NEW.source,'')<>'apple_health' AND EXISTS (
+      SELECT 1 FROM training_segments sg JOIN health_workouts h ON h.profile_id=NEW.profile_id
+      WHERE sg.session_id=NEW.id AND julianday(sg.started_at)<julianday(h.ended_at)
+      AND julianday(COALESCE(sg.ended_at,'9999-12-31'))>julianday(h.started_at))
+    BEGIN SELECT RAISE(ABORT,'Aufzeichnungsmodus würde Training doppelt werten.'); END`);
 
   const equipmentColumns = await client.execute("PRAGMA table_info(equipment_inventory)");
   if (!equipmentColumns.rows.some((row) => String(row.name) === "video_url")) {

@@ -86,6 +86,7 @@ function ProfileDashboardCard({ profile, clock }: { profile: DashboardProfile; c
         <div className="active-strip">
           <div className="pulse-dot" />
           <span className="active-training-kind">{profile.activeTraining.type === "strength" ? "Krafttraining" : "Ausdauertraining"}</span>
+          {profile.activeTraining.recordingMode === "health" && <small>Health zählt · App-Timer ohne Wertung</small>}
           <div>
             <div className="active-strip-title">
               <span>{profile.activeTraining.exerciseName ?? (profile.activeTraining.type === "strength" ? "Krafttraining" : "Ausdauertraining")}</span>

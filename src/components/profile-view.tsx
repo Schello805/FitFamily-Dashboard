@@ -24,6 +24,8 @@ import { ApiRequestError, requestJson } from "@/lib/api-client";
 import { Modal } from "@/components/modal";
 import { ConnectionStatus } from "@/components/connection-status";
 import { useDashboardConnection } from "@/components/use-dashboard-connection";
+import { useRecordingChoice } from "@/components/recording-choice";
+import type { RecordingMode } from "@/lib/recording-mode";
 
 type Exercise = { id: string; name: string; type: string; equipment: string };
 
@@ -35,6 +37,7 @@ export function ProfileView({
   exercises: Exercise[];
 }) {
   const [profile, setProfile] = useState(initialProfile);
+  const recording = useRecordingChoice();
   const [busy, setBusy] = useState(false);
   const [resettingScore, setResettingScore] = useState(false);
   const [handoff, setHandoff] = useState<{ qr: string; url?: string; expiresAt: string; token?: string } | null>(null);
@@ -43,6 +46,7 @@ export function ProfileView({
   const [editingProfile, setEditingProfile] = useState(false);
   const [prepCountdown, setPrepCountdown] = useState<{
     type: TrainingType;
+    recordingMode: RecordingMode;
     exerciseId?: string | null;
     secondsLeft: number;
   } | null>(null);
@@ -137,7 +141,7 @@ export function ProfileView({
     events.forEach((event) => window.addEventListener(event, handleActivity, { passive: true }));
 
     const interval = window.setInterval(() => {
-      if (!deadlineRef.current || prepCountdown !== null) return;
+      if (!deadlineRef.current || prepCountdown !== null || recording.open) return;
       const remainingMs = Math.max(0, deadlineRef.current - Date.now());
       const remainingSec = Math.ceil(remainingMs / 1000);
       setSecondsLeft(remainingSec);
@@ -153,7 +157,7 @@ export function ProfileView({
       window.clearInterval(interval);
       events.forEach((event) => window.removeEventListener(event, handleActivity));
     };
-  }, [resetTimer, router, isMobile, prepCountdown, totalIdleSeconds]);
+  }, [resetTimer, router, isMobile, prepCountdown, totalIdleSeconds, recording.open]);
 
   useEffect(() => {
     const update = () => setLongRunning(Boolean(profile.activeTraining && Date.now() - new Date(profile.activeTraining.startedAt).getTime() > 2 * 60 * 60 * 1000));
@@ -184,10 +188,10 @@ export function ProfileView({
     if (!prepCountdown) return;
 
     if (prepCountdown.secondsLeft <= 0) {
-      const { type, exerciseId } = prepCountdown;
+      const { type, exerciseId, recordingMode } = prepCountdown;
       const timeout = window.setTimeout(() => {
         setPrepCountdown(null);
-        void action(type, exerciseId ?? undefined);
+        void action(type, exerciseId ?? undefined, recordingMode);
       }, 450);
       return () => window.clearTimeout(timeout);
     }
@@ -204,14 +208,14 @@ export function ProfileView({
     return () => window.clearTimeout(timer);
   }, [prepCountdown]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  async function action(type?: TrainingType, exerciseId?: string) {
+  async function action(type?: TrainingType, exerciseId?: string, recordingMode?: RecordingMode) {
     setBusy(true);
     try {
       await requestJson("/api/training", "Training konnte nicht aktualisiert werden.", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(type
-          ? { action: "start", profileId: profile.id, type, exerciseId: exerciseId ?? null, source: isMobile ? "mobile" : "touch" }
+          ? { action: "start", profileId: profile.id, type, exerciseId: exerciseId ?? null, recordingMode, source: isMobile ? "mobile" : "touch" }
           : { action: "stop", profileId: profile.id })
       });
       playTone(type ? (type === "strength" ? 520 : 660) : 360);
@@ -220,20 +224,20 @@ export function ProfileView({
           showToast({
             type: "success",
             title: "💪 Krafttraining gestartet",
-            message: ex ? `Übung: ${ex.name} (+1 Punkt/Minute)` : "Trainingszeit läuft (+1 Punkt je Minute)."
+            message: recordingMode === "health" ? "App-Timer nur zur Orientierung. Der Health-Import zählt mit 1,5 Punkten/Minute." : ex ? `Übung: ${ex.name} (+1 Punkt/Minute)` : "Trainingszeit läuft (+1 Punkt je Minute)."
           });
       } else if (type === "endurance") {
           showToast({
             type: "success",
             title: "🏃 Ausdauertraining gestartet",
-            message: "Trainingszeit läuft (+2 Punkte je Minute)."
+            message: recordingMode === "health" ? "App-Timer nur zur Orientierung. Der Health-Import zählt mit 1,5 Punkten/Minute." : "Trainingszeit läuft (+2 Punkte je Minute)."
           });
       } else {
           setProfile((current) => ({ ...current, activeTraining: null }));
           showToast({
             type: "info",
             title: "✓ Training beendet & gespeichert",
-            message: "Klasse Einsatz! Punkte und Trainingszeit wurden gutgeschrieben."
+            message: profile.activeTraining?.recordingMode === "health" ? "App-Timer beendet. Punkte und Minuten folgen erst mit dem Health-Import." : "Klasse Einsatz! Punkte und Trainingszeit wurden gutgeschrieben."
           });
       }
       await refresh(true);
@@ -249,14 +253,17 @@ export function ProfileView({
     }
   }
 
-  function requestTrainingStart(type: TrainingType, exerciseId?: string) {
+  async function requestTrainingStart(type: TrainingType, exerciseId?: string) {
     if (busy) return;
     if (activeType === type && (!exerciseId || profile.activeTraining?.exerciseId === exerciseId)) {
       return;
     }
+    const recordingMode = await recording.ask();
+    if (!recordingMode) return;
     playTone(520);
     setPrepCountdown({
       type,
+      recordingMode,
       exerciseId: exerciseId ?? null,
       secondsLeft: 10
     });
@@ -273,9 +280,9 @@ export function ProfileView({
 
   function instantStart() {
     if (!prepCountdown) return;
-    const { type, exerciseId } = prepCountdown;
+    const { type, exerciseId, recordingMode } = prepCountdown;
     setPrepCountdown(null);
-    void action(type, exerciseId ?? undefined);
+    void action(type, exerciseId ?? undefined, recordingMode);
   }
 
   function playTone(frequency: number) {
@@ -380,6 +387,7 @@ export function ProfileView({
   const activeType = profile.activeTraining?.type;
   return (
     <main className="profile-shell" style={{ "--profile": profile.color } as React.CSSProperties}>
+      {recording.dialog}
       <header className="profile-topbar">
         <Link href="/" className="icon-link" title="Zurück zum Hauptdashboard">
           <ArrowLeft size={isMobile ? 20 : 26} />
@@ -458,6 +466,7 @@ export function ProfileView({
               {profile.activeTraining.equipmentName && <small>{profile.activeTraining.equipmentName}</small>}
               <span>{profile.activeTraining.exerciseName ?? (activeType === "strength" ? "Krafttraining" : "Ausdauertraining")}</span>
               <strong><LiveDuration since={profile.activeTraining.segmentStartedAt} /></strong>
+              {profile.activeTraining.recordingMode === "health" && <small>Health zählt · App-Timer ohne Wertung · Import noch nötig</small>}
               {longRunning && <em>Bitte prüfen: Läuft dieses Training noch?</em>}
             </div>
           )}
@@ -479,7 +488,7 @@ export function ProfileView({
           <span>
             <small>{activeType === "strength" ? "Läuft gerade" : "Starten"}</small>
             <strong>Kraft</strong>
-            <em>1 Punkt je Minute</em>
+            <em>{activeType === "strength" && profile.activeTraining?.recordingMode === "health" ? "Health: 1,5 Punkte/Min. per Import" : "1 Punkt je Minute"}</em>
           </span>
         </button>
         <button
@@ -492,14 +501,14 @@ export function ProfileView({
           <span>
             <small>{activeType === "endurance" ? "Läuft gerade" : "Starten"}</small>
             <strong>Ausdauer</strong>
-            <em>2 Punkte je Minute</em>
+            <em>{activeType === "endurance" && profile.activeTraining?.recordingMode === "health" ? "Health: 1,5 Punkte/Min. per Import" : "2 Punkte je Minute"}</em>
           </span>
         </button>
         {profile.activeTraining && <button
           disabled={busy || !profile.activeTraining}
           className="training-button stop"
           onClick={() => action()}
-          title="Laufendes Training beenden und Punkte verbuchen"
+          title={profile.activeTraining.recordingMode === "health" ? "App-Timer beenden. Wertung folgt per Health-Import." : "Laufendes Training beenden und Punkte verbuchen"}
         >
           <Square size={38} fill="currentColor" />
           <span>
@@ -596,7 +605,7 @@ export function ProfileView({
               {prepCountdown.secondsLeft === 0 ? "LOS GEHT'S!" : "Bereitmachen!"}
             </h2>
             <p className="prep-countdown-subtitle">
-              {prepCountdown.exerciseId
+              {prepCountdown.recordingMode === "health" ? "App-Timer startet ohne Wertung. Erst der Health-Import zählt mit 1,5 Punkten/Min." : prepCountdown.exerciseId
                 ? exercises.find((e) => e.id === prepCountdown.exerciseId)?.name ?? "Übung startet gleich"
                 : prepCountdown.type === "strength"
                   ? "Trainingszeit startet in wenigen Sekunden (+1 Punkt/Min.)"

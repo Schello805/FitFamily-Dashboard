@@ -9,11 +9,12 @@ export async function GET(request: Request) {
   if (error) return error;
   const client = await db();
   const profiles = await client.execute("SELECT id, name FROM profiles ORDER BY name");
-  const latest = await client.execute("SELECT created_at, details FROM audit_log WHERE action = 'health.training.test.received' ORDER BY created_at DESC, rowid DESC LIMIT 1");
-  const attempt = await client.execute("SELECT details FROM audit_log WHERE action IN ('health.training.test.received', 'health.training.test.failed') ORDER BY created_at DESC, rowid DESC LIMIT 1");
+  const latest = await client.execute("SELECT created_at, details FROM audit_log WHERE action IN ('health.training.test.received','health.training.received') ORDER BY created_at DESC, rowid DESC LIMIT 1");
+  const attempt = await client.execute("SELECT details FROM audit_log WHERE action IN ('health.training.test.received', 'health.training.test.failed','health.training.received','health.training.failed') ORDER BY created_at DESC, rowid DESC LIMIT 1");
   const lastAttempt = attempt.rows[0] ? JSON.parse(String(attempt.rows[0].details)) : null;
   return NextResponse.json({ configured: Boolean(await getSetting(FAMILY_HEALTH_KEY)), profiles: profiles.rows,
-    latestError: lastAttempt?.level === "error" ? { importId: lastAttempt.importId, message: lastAttempt.message, errors: lastAttempt.errors } : null,
+    latestError: lastAttempt?.level === "error" ? { importId: lastAttempt.importId, message: lastAttempt.message,
+      errors: lastAttempt.errors ?? lastAttempt.workouts?.filter((w: { conflict?: boolean }) => w.conflict).map((w: { error?: string }) => w.error) ?? [] } : null,
     latest: latest.rows[0] ? { at: latest.rows[0].created_at, ...JSON.parse(String(latest.rows[0].details)) } : null }, { headers: { "Cache-Control": "no-store" } });
 }
 export async function POST(request: Request) {

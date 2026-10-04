@@ -19,5 +19,5 @@ it("explains the automatic thresholds and difference between score reset and lev
   expect(await screen.findByText("Trainingslevel: dein langfristiger Fortschritt.")).toBeTruthy();
   expect(screen.getByText(/Level 2 erreichst du ab insgesamt 150 Minuten/)).toBeTruthy();
   expect(screen.getByText(/Ein Punkte-Reset setzt den Level nicht zurück/)).toBeTruthy();
-  expect(screen.getByText(/Pro Trainingsminute erhältst du 2 Punkte/)).toBeTruthy();
+  expect(screen.getByText(/Pro App-Trainingsminute erhältst du 1 Punkt für Kraft oder 2 Punkte für Ausdauer/)).toBeTruthy();
 });

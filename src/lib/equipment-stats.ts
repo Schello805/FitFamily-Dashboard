@@ -21,6 +21,7 @@ export async function getEquipmentStats(profileId: string): Promise<EquipmentSta
         LEFT JOIN exercises ex ON ex.id = sg.exercise_id
         LEFT JOIN equipment_inventory inventory ON inventory.name = ex.equipment COLLATE NOCASE
         WHERE ts.profile_id = ? AND COALESCE(ts.source, '') <> 'apple_health'
+          AND ts.recording_mode = 'app'
           AND ts.status IN ('completed', 'paused') AND sg.ended_at IS NOT NULL`,
       args: [profileId]
     })

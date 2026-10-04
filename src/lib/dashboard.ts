@@ -36,8 +36,10 @@ export async function getDashboardData(): Promise<DashboardProfile[]> {
     client.execute(`SELECT ts.profile_id, ts.id session_id, ts.status, sg.type, sg.started_at, sg.ended_at, p.target_reset_at, p.score_reset_at
       FROM training_segments sg JOIN training_sessions ts ON ts.id = sg.session_id
       JOIN profiles p ON p.id = ts.profile_id
-      WHERE COALESCE(ts.source, '') <> 'apple_health'`),
-    client.execute(`SELECT ts.profile_id, ts.id session_id, ts.started_at session_started_at,
+      WHERE COALESCE(ts.source, '') <> 'apple_health' AND ts.recording_mode='app'
+      UNION ALL SELECT h.profile_id, 'health:' || h.profile_id || ':' || h.external_id, 'completed', h.training_type, h.started_at, h.ended_at,
+        p.target_reset_at, p.score_reset_at FROM health_workouts h JOIN profiles p ON p.id=h.profile_id`),
+    client.execute(`SELECT ts.profile_id, ts.id session_id, ts.started_at session_started_at, ts.recording_mode,
       sg.id segment_id, sg.type, sg.exercise_id, sg.started_at segment_started_at, ex.name exercise_name, ex.equipment equipment_name
       FROM training_sessions ts
       JOIN training_segments sg ON sg.session_id = ts.id AND sg.ended_at IS NULL
@@ -46,6 +48,11 @@ export async function getDashboardData(): Promise<DashboardProfile[]> {
     client.execute(`SELECT profile_id, title, target_date, plan_json FROM training_plans
       WHERE status = 'active' ORDER BY COALESCE(target_date, '9999-12-31') ASC`)
   ]);
+
+  const healthRows = await client.execute("SELECT profile_id, external_id, duration_seconds, started_at, ended_at FROM health_workouts");
+  const healthFactors = new Map(healthRows.rows.map(h => [`health:${h.profile_id}:${h.external_id}`, Number(h.duration_seconds) / durationSeconds(String(h.started_at), String(h.ended_at))]));
+  const healthActiveSeconds = new Map(healthRows.rows.map(h => [`health:${h.profile_id}:${h.external_id}`, Number(h.duration_seconds)]));
+  const factorFor = (id: unknown) => healthFactors.get(String(id)) ?? 1;
 
   const workoutMinutesByProfile = new Map<string, Map<string, number>>();
   for (const row of segmentsResult.rows) {
@@ -62,7 +69,7 @@ export async function getDashboardData(): Promise<DashboardProfile[]> {
       const overlap = Math.max(0, Math.min(end.getTime(), nextDay.getTime()) - Math.max(start.getTime(), day.getTime()));
       if (overlap > 0) {
         const dateKey = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, "0")}-${String(day.getDate()).padStart(2, "0")}`;
-        dates.set(dateKey, (dates.get(dateKey) ?? 0) + overlap / 60000);
+        dates.set(dateKey, (dates.get(dateKey) ?? 0) + overlap / 60000 * factorFor(row.session_id));
       }
       day.setTime(nextDay.getTime());
     }
@@ -79,35 +86,36 @@ export async function getDashboardData(): Promise<DashboardProfile[]> {
     let targetWeekSeconds = 0;
     let strengthMinutes = 0;
     let enduranceMinutes = 0;
-    let completedMinutes = 0;
+    let completedSeconds = 0;
     const completedSessions = new Set<string>();
 
     for (const segment of profileSegments) {
       const start = String(segment.started_at);
       const end = asString(segment.ended_at);
-      const seconds = durationSeconds(start, end);
+      const factor = factorFor(segment.session_id);
+      const seconds = healthActiveSeconds.get(String(segment.session_id)) ?? durationSeconds(start, end);
       const type = String(segment.type) as TrainingType;
       const startTime = new Date(start).getTime();
       const endTime = new Date(end ?? Date.now()).getTime();
       const scoreResetAt = segment.score_reset_at ? new Date(String(segment.score_reset_at)).getTime() : Number.NEGATIVE_INFINITY;
-      const scoredSeconds = Math.max(0, (endTime - Math.max(startTime, scoreResetAt)) / 1000);
+      const scoredSeconds = Math.max(0, (endTime - Math.max(startTime, scoreResetAt)) / 1000) * factor;
       totalSeconds += seconds;
       if (end && String(segment.status) !== "active") {
-        completedMinutes += seconds / 60;
+        completedSeconds += seconds;
         if (String(segment.status) === "completed" && seconds > 0) completedSessions.add(String(segment.session_id));
       }
       if (type === "strength") strengthMinutes += seconds / 60;
       else enduranceMinutes += seconds / 60;
-      points += (scoredSeconds / 60) * SCORE_MULTIPLIER[type];
+      points += (scoredSeconds / 60) * (String(segment.session_id).startsWith("health:") ? 1.5 : SCORE_MULTIPLIER[type]);
       if (endTime >= todayStart) {
-        const segSec = Math.max(0, (endTime - Math.max(startTime, todayStart)) / 1000);
+        const segSec = Math.max(0, (endTime - Math.max(startTime, todayStart)) / 1000) * factor;
         todaySeconds += segSec;
         const resetAt = row.target_reset_at ? new Date(String(row.target_reset_at)).getTime() : Number.NEGATIVE_INFINITY;
-        targetTodaySeconds += Math.max(0, (endTime - Math.max(startTime, todayStart, resetAt)) / 1000);
+        targetTodaySeconds += Math.max(0, (endTime - Math.max(startTime, todayStart, resetAt)) / 1000) * factor;
       }
       if (endTime >= weekStart) {
         const resetAt = row.target_reset_at ? new Date(String(row.target_reset_at)).getTime() : Number.NEGATIVE_INFINITY;
-        targetWeekSeconds += Math.max(0, (endTime - Math.max(startTime, weekStart, resetAt)) / 1000);
+        targetWeekSeconds += Math.max(0, (endTime - Math.max(startTime, weekStart, resetAt)) / 1000) * factor;
       }
     }
 
@@ -225,10 +233,10 @@ export async function getDashboardData(): Promise<DashboardProfile[]> {
     return {
       ...profile,
       ...avatarProgress,
-      trainingProgress: trainingProgress(completedMinutes, completedSessions.size),
-      score: Math.floor(profile.scoreBaseline + points),
-      totalMinutes: Math.floor(totalSeconds / 60),
-      todayMinutes: Math.floor(todaySeconds / 60),
+      trainingProgress: trainingProgress(completedSeconds / 60, completedSessions.size),
+      score: Math.floor(profile.scoreBaseline + points + 1e-9),
+      totalMinutes: Math.floor(totalSeconds / 60 + 1e-9),
+      todayMinutes: Math.floor(todaySeconds / 60 + 1e-9),
       targetPercent: Math.round((targetActualMinutes / target.minutes) * 100),
       targetMinutes: target.minutes,
       targetPeriod: target.period,
@@ -236,6 +244,7 @@ export async function getDashboardData(): Promise<DashboardProfile[]> {
       activeTraining: active
         ? {
             sessionId: String(active.session_id),
+            recordingMode: active.recording_mode === "health" ? "health" : "app",
             segmentId: String(active.segment_id),
             type: String(active.type) as TrainingType,
             exerciseId: asString(active.exercise_id),

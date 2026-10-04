@@ -14,6 +14,8 @@ import { LiveDuration } from "@/components/live-duration";
 import { formatGermanDate } from "@/lib/date-format";
 import { YoutubePlayer } from "@/components/youtube-player";
 import { requestJson } from "@/lib/api-client";
+import { useRecordingChoice } from "./recording-choice";
+import type { RecordingMode } from "@/lib/recording-mode";
 
 type Plan = {
   id: string;
@@ -64,7 +66,8 @@ export function PlanView({ profile, goals }: { profile: DashboardProfile; goals:
   const [notice, setNotice] = useState("");
   const [startingSession, setStartingSession] = useState(false);
   const [stoppingSession, setStoppingSession] = useState(false);
-  const [unitDialog, setUnitDialog] = useState<{ session: NormalizedSession; startedAt: string } | null>(null);
+  const [unitDialog, setUnitDialog] = useState<{ session: NormalizedSession; startedAt: string; recordingMode: RecordingMode } | null>(null);
+  const recording = useRecordingChoice();
   const [remainingSeconds, setRemainingSeconds] = useState(0);
   const [idleCloseSeconds, setIdleCloseSeconds] = useState(30);
   const [selectedExercise, setSelectedExercise] = useState<SessionExercise | null>(null);
@@ -156,28 +159,30 @@ export function PlanView({ profile, goals }: { profile: DashboardProfile; goals:
     return () => window.clearInterval(interval);
   }, [unitDialog]);
 
-  function openUnitView(session: NormalizedSession, startedAt: string) {
+  function openUnitView(session: NormalizedSession, startedAt: string, recordingMode: RecordingMode = "app") {
     setSelectedExercise(null);
     lastBeep.current = null;
     setIdleCloseSeconds(30);
     if (!audioContext.current && typeof window !== "undefined") {
       try { audioContext.current = new window.AudioContext(); void audioContext.current.resume(); } catch { /* Browser ohne AudioContext */ }
     }
-    setUnitDialog({ session, startedAt });
+    setUnitDialog({ session, startedAt, recordingMode });
   }
 
   async function startUnit(session: NormalizedSession) {
     const sessionKey = `${profile.id}:${session.date ?? ""}:${session.title}`;
     try {
-      const saved = JSON.parse(localStorage.getItem("fitfamily_running_plan_unit") ?? "null") as { key?: string; startedAt?: string } | null;
+      const saved = JSON.parse(localStorage.getItem("fitfamily_running_plan_unit") ?? "null") as { key?: string; startedAt?: string; recordingMode?: RecordingMode } | null;
       if (saved?.key === sessionKey && saved.startedAt) {
         setRunningUnitKey(sessionKey);
-        openUnitView(session, saved.startedAt);
+        openUnitView(session, saved.startedAt, saved.recordingMode);
         return;
       }
     } catch { /* Ein defekter lokaler Eintrag wird beim nächsten Start ersetzt. */ }
     setStartingSession(true);
     try {
+      const recordingMode = await recording.ask();
+      if (!recordingMode) return;
       await requestJson("/api/training", "Training konnte nicht gestartet werden.", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -185,17 +190,18 @@ export function PlanView({ profile, goals }: { profile: DashboardProfile; goals:
           action: "start",
           profileId: profile.id,
           type: session.type,
+          recordingMode,
           source: "touch"
         })
       });
       const startedAt = new Date().toISOString();
-      localStorage.setItem("fitfamily_running_plan_unit", JSON.stringify({ key: sessionKey, startedAt }));
+      localStorage.setItem("fitfamily_running_plan_unit", JSON.stringify({ key: sessionKey, startedAt, recordingMode }));
       setRunningUnitKey(sessionKey);
-      openUnitView(session, startedAt);
+      openUnitView(session, startedAt, recordingMode);
       showToast({
         type: "success",
         title: `Einheit gestartet: ${session.title}`,
-        message: `${session.type === "strength" ? "Krafttraining (+1 Pkt./Min.)" : "Ausdauertraining (+2 Pkt./Min.)"} läuft.`
+        message: recordingMode === "health" ? "App-Timer ohne Wertung. Der Health-Import zählt mit 1,5 Punkten/Minute." : `${session.type === "strength" ? "Krafttraining (+1 Pkt./Min.)" : "Ausdauertraining (+2 Pkt./Min.)"} läuft.`
       });
     } catch {
       showToast({
@@ -239,7 +245,7 @@ export function PlanView({ profile, goals }: { profile: DashboardProfile; goals:
       setRunningUnitKey(null);
       setUnitDialog(null);
       setSelectedExercise(null);
-      showToast({ type: "success", title: "Einheit beendet", message: "Die Trainingszeit wurde gespeichert." });
+      showToast({ type: "success", title: "Einheit beendet", message: unitDialog?.recordingMode === "health" ? "App-Timer beendet. Minuten und Punkte folgen erst mit dem Health-Import." : "Die Trainingszeit wurde gespeichert." });
     } catch (error) {
       showToast({ type: "error", title: "Stoppen fehlgeschlagen", message: error instanceof Error ? error.message : "Bitte Verbindung prüfen." });
     } finally {
@@ -337,7 +343,8 @@ export function PlanView({ profile, goals }: { profile: DashboardProfile; goals:
 
   return (
     <main className="subpage" style={{ "--profile": profile.color } as React.CSSProperties}>
-      <KioskIdleBar redirectUrl="/" seconds={120} color={profile.color} title={`Trainingsplan von ${profile.name}`} paused={isVideoPlaying} />
+      {recording.dialog}
+      <KioskIdleBar redirectUrl="/" seconds={120} color={profile.color} title={`Trainingsplan von ${profile.name}`} paused={isVideoPlaying || recording.open} />
       <header>
         <Link href={`/profil/${profile.id}`} title={`Zurück zur Profilseite von ${profile.name}`}>
           <ArrowLeft /> Zurück
@@ -443,6 +450,7 @@ export function PlanView({ profile, goals }: { profile: DashboardProfile; goals:
           <div className={`plan-unit-heading ${remainingSeconds <= 30 && remainingSeconds > 0 ? "is-countdown-warning" : ""} ${remainingSeconds === 0 ? "is-countdown-finished" : ""}`}>
             <div className="plan-unit-title-block"><span className="setup-badge">Einheit läuft · {unitDialog.session.type === "endurance" ? "Ausdauer" : "Kraft"}</span>
               <h2 id="plan-unit-title">{unitDialog.session.title}</h2>
+              {unitDialog.recordingMode === "health" && <p>Health zählt · App-Timer ohne Wertung · Import noch nötig</p>}
               <p>{unitDialog.session.date ? `${formatGermanDate(unitDialog.session.date)} · ` : ""}{unitDialog.session.minutes} Min.{unitDialog.session.distanceKm ? ` · ${unitDialog.session.distanceKm} km` : ""}</p>
             </div>
             <div className="plan-unit-live"><span>{remainingSeconds === 0 ? "ZEIT ERREICHT" : "EINHEIT · GESAMT"}</span><strong className={remainingSeconds <= 5 && remainingSeconds > 0 ? "countdown-last-five" : ""}>{formatCountdown(remainingSeconds)}</strong><small>Trainingszeit <LiveDuration since={unitDialog.startedAt} /></small></div>

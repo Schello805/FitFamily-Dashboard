@@ -101,9 +101,9 @@ it("installs updates using the existing session without another PIN or PIN paylo
   render(<AdminView equipment={[]} exercises={[]} />);
   await waitFor(() => expect(screen.getByRole("button", { name: /Sperren/ })).toBeInTheDocument());
   fireEvent.click(screen.getByRole("button", { name: /System, Daten & Speicher/ }));
-  expect(screen.queryByText("Apple Health / Gymondo · Trainingstest")).not.toBeInTheDocument();
+  expect(screen.queryByText("Apple Health / Gymondo · Trainingszeiten")).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: /Apple Health \/ Gymondo/ }));
-  await waitFor(() => expect(screen.getByText("Apple Health / Gymondo · Trainingstest")).toBeInTheDocument());
+  await waitFor(() => expect(screen.getByText("Apple Health / Gymondo · Trainingszeiten")).toBeInTheDocument());
   fireEvent.click(screen.getByRole("button", { name: /System, Daten & Speicher/ }));
   fireEvent.click(screen.getByRole("button", { name: "Nach Updates suchen" }));
   await waitFor(() => expect(screen.getByRole("button", { name: "Update installieren" })).toBeInTheDocument());

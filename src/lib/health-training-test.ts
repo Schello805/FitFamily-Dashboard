@@ -4,7 +4,7 @@ import { db, getSetting } from "./db";
 import { createToken, hashToken } from "./security";
 
 export const FAMILY_HEALTH_KEY = "health_training_family_key_hash";
-export const HEALTH_RECORDING_QUESTION = "Zeichnest du dieses Training über Apple Health auf – mit der Apple Watch oder Gymondo?";
+export { HEALTH_RECORDING_QUESTION } from "./recording-mode";
 export const healthTrainingTestSchema = z.object({
   profileId: z.string().min(1).max(80),
   workouts: z.array(z.object({

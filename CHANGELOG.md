@@ -4,6 +4,18 @@ Alle wichtigen Änderungen werden hier nach dem Prinzip von Keep a Changelog dok
 
 ## [Unreleased]
 
+## [0.3.16] – 2026-10-04
+
+### Neu
+
+- Aufzeichnungsfrage bei Direktstart, Übung, KI-Plan und NFC/QR: Watch/Gymondo via Apple Health oder App-Timer. Health-Modus zählt keine App-Minuten, Punkte oder Level; Modus wird gespeichert und angezeigt.
+- Echte Health-Trainingsbuchung mit `--book --send`: 1,5 Punkte pro aktiver Minute, Ziel-/Levelfortschritt und schreibgeschützter Verlauf. Testempfang bleibt unverändert ohne Wertung.
+- Duplikat- und Überschneidungsschutz zwischen Health-Quellen, App-Zeiten, manuellen Nachträgen und Datenimport. Empfang zeigt Buchungen und Konflikte; keine automatische Gerätezuordnung.
+
+### Behoben
+
+- Hilfe nennt die tatsächlich geltende App-Wertung: Kraft 1, Ausdauer 2 Punkte/Minute.
+
 ## [0.3.15] – 2026-10-04
 
 ### Behoben

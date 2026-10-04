@@ -50,7 +50,7 @@ GEMINI_API_KEY=
 GEMINI_MODEL=gemini-2.5-flash
 ```
 
-An Anbieter werden nur anonymisierte Planparameter übermittelt. Namen, Geburtstage und Apple-Health-Daten verlassen das Gerät nicht. Mehr dazu in [DATENSCHUTZ.md](DATENSCHUTZ.md).
+An KI-Anbieter werden nur anonymisierte Planparameter übermittelt, keine Namen, Geburtstage oder Apple-Health-Daten. Der optionale Health-Trainingsimport sendet ausgewählte Trainingszeiten vom Mac ausschließlich an deinen FitFamily-Server. Testempfang bleibt ohne Wertung; echte Buchung erfolgt explizit mit `--book --send`. Anleitung: [Apple Health / Gymondo](docs/HEALTH_TRAINING_TEST.md). Mehr dazu in [DATENSCHUTZ.md](DATENSCHUTZ.md).
 
 Die Verwaltung erfasst ab Aktivierung die von KI-Plananfragen gemeldeten Token und berechnet daraus eine ungefähre Summe in US-Dollar. Das ist keine Anbieterabrechnung; frühere Nutzung und mögliche Gratis-Kontingente werden nicht berücksichtigt. Aktuelle Berechnungsgrundlage: [OpenAI-Preise](https://developers.openai.com/api/docs/pricing) und [Gemini-Preise](https://ai.google.dev/gemini-api/docs/pricing).
 

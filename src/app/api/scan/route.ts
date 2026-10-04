@@ -4,7 +4,7 @@ import { getPairedProfile, isSameOriginRequest } from "@/lib/security";
 import { scanTarget } from "@/lib/equipment-scan";
 import { startOrSwitchTraining } from "@/lib/training";
 
-const schema = z.object({ kind: z.enum(["geraet", "uebung"]), id: z.string().min(1).max(150) });
+const schema = z.object({ kind: z.enum(["geraet", "uebung"]), id: z.string().min(1).max(150), recordingMode: z.enum(["app", "health"]).optional() });
 export async function POST(request: NextRequest) {
   if (!isSameOriginRequest(request)) return Response.json({ error: "Bitte den Geräte-Link in FitFamily öffnen." }, { status: 403 });
   const profileId = await getPairedProfile(request.cookies.get("ff_device")?.value);
@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
   if (!input.success) return Response.json({ error: "Ungültiger Geräte-Link." }, { status: 400 });
   try {
     const target = await scanTarget(input.data.kind, input.data.id);
-    const result = await startOrSwitchTraining({ profileId, type: target.type, exerciseId: target.exerciseId, source: "nfc" });
+    const result = await startOrSwitchTraining({ profileId, type: target.type, exerciseId: target.exerciseId, source: "nfc", recordingMode: input.data.recordingMode });
     return Response.json({ ...result, profileId, name: target.name });
   } catch (error) {
     return Response.json({ error: error instanceof Error ? error.message : "Training konnte nicht gestartet werden." }, { status: 409 });
