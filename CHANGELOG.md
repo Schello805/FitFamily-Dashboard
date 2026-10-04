@@ -4,6 +4,12 @@ Alle wichtigen Änderungen werden hier nach dem Prinzip von Keep a Changelog dok
 
 ## [Unreleased]
 
+## [0.3.23] – 2026-10-04
+
+### Neu
+
+- Manuelles kcal-Tagesziel, zunächst 500 pro Profil. Dashboard zeigt Ist/Ziel und Prozentwert ohne Wertung; Ziele sind im Health-Menü einstellbar und werden in den gesicherten Einstellungen gespeichert.
+
 ## [0.3.22] – 2026-10-04
 
 ### Korrigiert

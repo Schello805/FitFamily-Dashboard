@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { db } from "./db";
-import { energyDate, energyKcalSchema, healthEnergySchema, storeHealthEnergy } from "./health-energy";
+import { energyDate, energyKcalSchema, healthEnergySchema, storeHealthEnergy, energyGoal, energyGoalPercent, energyGoalKey } from "./health-energy";
 import { getDashboardData } from "./dashboard";
 import { POST, energyTranscript } from "@/app/api/sync/health-energy/route";
 import { DATA_TABLE_SPECS, DATA_IMPORT_ORDER } from "./data-transfer-schema";
@@ -44,6 +44,16 @@ it("reads dot and comma decimals without removing separators or multiplying", ()
   for (const bad of ["", "1.234,56", "1,234.56", "343 kcal", "1e3", "NaN", "Infinity", -1, 20001, "343391100000182000", null, {}, []]) {
     expect(energyKcalSchema.safeParse(bad).success, String(bad)).toBe(false);
   }
+});
+it("compares energy against a persistent manual goal, without changing training", async () => {
+  expect(energyGoal(null)).toBe(500);
+  expect(energyGoalPercent(250, 500)).toBe(50);
+  expect(energyGoalPercent(750, 500)).toBe(150);
+  await storeHealthEnergy({ ...input, activeEnergyKcal: 250 });
+  expect((await getDashboardData()).find(p => p.id === profileId)?.healthEnergy).toMatchObject({ goalKcal: 500, goalPercent: 50 });
+  await (await db()).execute({ sql: "INSERT INTO settings(key,value) VALUES (?,?)", args: [energyGoalKey(profileId), "1000"] });
+  expect((await getDashboardData()).find(p => p.id === profileId)?.healthEnergy).toMatchObject({ goalKcal: 1000, goalPercent: 25 });
+  await (await db()).execute({ sql: "DELETE FROM settings WHERE key=?", args: [energyGoalKey(profileId)] });
 });
 it("rejects invalid/future dates, wrong units and unwanted training fields", () => {
   for (const date of ["", "04.10.2026", "2026-02-30", "2026-10-05"]) expect(healthEnergySchema.safeParse({ ...input, date }).success).toBe(false);

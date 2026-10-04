@@ -52,6 +52,18 @@ export function AdminHealthTrainingTest() {
     <section className="health-energy-settings" aria-label="Aktive Energie aus Apple Health">
       <h3>Aktive Energie · täglicher Kurzbefehl</h3>
       <p>Derselbe Familienschlüssel und deine Profil-ID. Wiederholter Empfang ersetzt den Tageswert, auch bei einer Korrektur nach unten. Keine Umrechnung in Training oder Punkte.</p>
+      <h4>kcal-Tagesziel · manuell</h4>
+      <p>Vorläufig 500 kcal pro Profil. Nicht aus Apple gelesen; Änderungen werden in FitFamily gespeichert.</p>
+      {status?.profiles.map(profile => <form key={`${profile.id}:${"energyGoalKcal" in profile ? profile.energyGoalKcal : 500}`} onSubmit={async event => {
+        event.preventDefault();
+        const goalKcal = Number(new FormData(event.currentTarget).get("goalKcal"));
+        setBusy(true); setNotice("");
+        try {
+          await requestJson("/api/admin/health-training-test", "Ziel konnte nicht gespeichert werden.", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ profileId: profile.id, goalKcal }) });
+          await refresh(); setNotice(`kcal-Ziel für ${profile.name} gespeichert.`);
+        } catch (error) { setNotice(error instanceof Error ? error.message : "Ziel konnte nicht gespeichert werden."); }
+        finally { setBusy(false); }
+      }}><label>{profile.name} · kcal-Ziel<input aria-label={`kcal-Ziel für ${profile.name}`} name="goalKcal" type="number" required min="1" max="20000" step="1" defaultValue={"energyGoalKcal" in profile ? Number(profile.energyGoalKcal) : 500} /></label><button type="submit" disabled={busy}>Ziel speichern</button></form>)}
       <section className="health-shortcut-download" aria-label="Mac-Kurzbefehl herunterladen">
         <h4>Fertigen Kurzbefehl auf dem Mac erstellen</h4>
         <label>Profil<select value={shortcutProfile || status?.profiles[0]?.id || ""} onChange={event => setShortcutProfile(event.target.value)}>{status?.profiles.map(profile => <option key={profile.id} value={profile.id}>{profile.name}</option>)}</select></label>

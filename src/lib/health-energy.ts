@@ -1,6 +1,16 @@
 import { z } from "zod";
 import { db } from "./db";
 
+export const DEFAULT_ENERGY_GOAL = 500;
+export const energyGoalKey = (profileId: string) => `health_energy_goal:${profileId}`;
+export function energyGoal(value: unknown) {
+  const number = Number(value);
+  return Number.isFinite(number) && number >= 1 && number <= 20000 ? number : DEFAULT_ENERGY_GOAL;
+}
+export function energyGoalPercent(kcal: number, goal: number) {
+  return Math.round(kcal / goal * 100);
+}
+
 // No locale-dependent coercion, thousands separators or arithmetic in Shortcuts.
 export const energyKcalSchema = z.union([
   z.number(),

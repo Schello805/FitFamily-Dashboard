@@ -82,7 +82,7 @@ function ProfileDashboardCard({ profile, clock }: { profile: DashboardProfile; c
         <div className="score" title="Trainingspunkte: Kraft 1, Ausdauer 2, importierte Health-Trainings 1,5 Punkte/Minute. Aktive kcal zählen nicht als Punkte. Nach einem Punkte-Reset zählen nur neue Trainingsminuten."><Trophy size={22} /><div><strong key={profile.score} className="score-value">{profile.score.toLocaleString("de-DE")}</strong><span>{profile.scoreResetAt ? "Punkte seit Reset" : "Gesamtpunkte"}</span></div></div>
         <div className="health-energy-summary" title="Aktive Energie aus Apple Health, inklusive Alltagsbewegung. Separater Tageswert ohne Einfluss auf Trainingsziel, Punkte oder Level.">
           <span>Apple Health · aktive Energie</span>
-          {profile.healthEnergy ? <><strong>{profile.healthEnergy.activeEnergyKcal.toLocaleString("de-DE", { maximumFractionDigits: 1 })} <small>kcal</small></strong><small>{new Date(`${profile.healthEnergy.date}T12:00:00`).toLocaleDateString("de-DE")} · ohne Wertung</small></> : <small>Noch kein Wert</small>}
+          {profile.healthEnergy ? <><strong>{profile.healthEnergy.activeEnergyKcal.toLocaleString("de-DE", { maximumFractionDigits: 1 })} <small>/ {profile.healthEnergy.goalKcal ?? 500} kcal</small></strong><small>{profile.healthEnergy.goalPercent ?? Math.round(profile.healthEnergy.activeEnergyKcal / 500 * 100)} % · Ziel manuell</small><small>{new Date(`${profile.healthEnergy.date}T12:00:00`).toLocaleDateString("de-DE")} · ohne Wertung</small></> : <small>Noch kein Wert</small>}
         </div>
         <div className="today"><strong>{profile.todayMinutes}</strong><span>Minuten heute</span></div>
       </div>
