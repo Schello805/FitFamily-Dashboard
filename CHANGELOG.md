@@ -4,6 +4,12 @@ Alle wichtigen Änderungen werden hier nach dem Prinzip von Keep a Changelog dok
 
 ## [Unreleased]
 
+## [0.3.14] – 2026-10-04
+
+### Behoben
+
+- Health-Testskript akzeptiert auch `Export.xml` mit großem E im ZIP. Mehrdeutige Exporte bleiben blockiert; die Fehlermeldung nennt die direkte XML-Datei als Alternative.
+
 ## [0.3.13] – 2026-10-04
 
 ### Geändert

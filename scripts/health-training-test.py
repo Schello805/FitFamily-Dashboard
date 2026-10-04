@@ -88,9 +88,9 @@ def read_workouts(stream, day, zone):
 def load_export(filename, day, zone):
     if zipfile.is_zipfile(filename):
         with zipfile.ZipFile(filename) as archive:
-            members = [name for name in archive.namelist() if pathlib.PurePosixPath(name).name == "export.xml"]
+            members = [name for name in archive.namelist() if pathlib.PurePosixPath(name).name.casefold() == "export.xml" and not name.endswith("/")]
             if len(members) != 1:
-                raise ValueError("ZIP muss genau eine export.xml enthalten.")
+                raise ValueError("ZIP muss genau eine Export.xml enthalten (Groß-/Kleinschreibung ist egal). Alternativ die entpackte XML-Datei mit --file angeben.")
             with archive.open(members[0]) as stream:
                 return read_workouts(stream, day, zone)
     with open(filename, "rb") as stream:

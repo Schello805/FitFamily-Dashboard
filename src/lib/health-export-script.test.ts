@@ -25,3 +25,23 @@ except ValueError: pass`;
   const result = spawnSync("python3", ["-B", "-c", code, script]);
   expect(result.status, result.stderr.toString()).toBe(0);
 });
+
+it("accepts capitalized Export.xml inside ZIP without accepting ambiguous exports", () => {
+  const code = `import importlib.util,sys,tempfile,pathlib,zipfile,datetime
+from zoneinfo import ZoneInfo
+spec=importlib.util.spec_from_file_location('healthtest',sys.argv[1]); module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
+xml=b'<HealthData><Workout startDate="2026-01-01 12:00:00 +0100" endDate="2026-01-01 12:30:00 +0100" duration="20.5" durationUnit="min" sourceName="Gymondo" workoutActivityType="Strength"/></HealthData>'
+with tempfile.TemporaryDirectory(prefix='fitfamily-zip-test-') as folder:
+    filename=pathlib.Path(folder)/'export.zip'
+    for name in ['apple_health_export/Export.xml','apple_health_export/export.xml']:
+        with zipfile.ZipFile(filename,'w') as archive:
+            archive.writestr(name,xml)
+            archive.writestr('apple_health_export/export_cda.xml',b'<irrelevant/>')
+        records=module.load_export(filename,datetime.date(2026,1,1),ZoneInfo('Europe/Berlin'))
+        assert len(records)==1 and records[0]['durationSeconds']==1230
+    with zipfile.ZipFile(filename,'a') as archive: archive.writestr('another/Export.xml',xml)
+    try: module.load_export(filename,datetime.date(2026,1,1),ZoneInfo('Europe/Berlin')); raise AssertionError('ambiguous exports accepted')
+    except ValueError: pass`;
+  const result = spawnSync("python3", ["-B", "-c", code, script]);
+  expect(result.status, result.stderr.toString()).toBe(0);
+});
