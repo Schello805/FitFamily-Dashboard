@@ -88,7 +88,7 @@ function ProfileDashboardCard({ profile, clock, timeZone }: { profile: Dashboard
         <div className="score" title="Trainingspunkte: Kraft 1, Ausdauer 2, importierte Health-Trainings 1,5 Punkte/Minute. Aktive kcal zählen nicht als Punkte. Nach einem Punkte-Reset zählen nur neue Trainingsminuten."><Trophy size={22} /><div><strong key={profile.score} className="score-value">{profile.score.toLocaleString("de-DE")}</strong><span>{profile.scoreResetAt ? "Punkte seit Reset" : "Gesamtpunkte"}</span></div></div>
         <div className="today"><strong>{profile.todayMinutes}</strong><span>Minuten heute</span></div>
       </div>
-      <HealthDailyMetrics value={profile.healthEnergy} />
+      <HealthDailyMetrics value={profile.healthEnergy} trend={profile.healthDailyTrend} />
       {profile.trainingProgress && <div className="dashboard-level" aria-label={`Trainingslevel ${profile.trainingProgress.level}, automatischer Aufstieg`} title="1 abgeschlossene Trainingsminute = 1 Level-Fortschrittspunkt. Level 2 ab 150, Level 3 ab 450, Level 4 ab 900 Minuten. Kraft und Ausdauer zählen gleich; kein wöchentlicher Reset."><span key={profile.trainingProgress.level} className="level-value">★ Trainingslevel {profile.trainingProgress.level}</span><div role="progressbar" aria-label="Trainingslevel-Fortschritt" aria-valuemin={0} aria-valuemax={100} aria-valuenow={profile.trainingProgress.percent}><i style={{ width: `${profile.trainingProgress.percent}%` }} /></div><small>{profile.trainingProgress.nextThreshold === null ? "Maximum erreicht" : `Level ${profile.trainingProgress.level + 1} in ${profile.trainingProgress.remaining} Min.`}</small></div>}
       {profile.activeTraining && (
         <div className="active-strip">

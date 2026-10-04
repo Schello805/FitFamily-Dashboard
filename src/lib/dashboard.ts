@@ -19,10 +19,11 @@ export async function getDashboardData(): Promise<DashboardProfile[]> {
   const client = await db();
   const now = new Date();
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const healthToday = energyDate(now);
   const recentDates = Array.from({ length: 30 }, (_, index) => {
-    const date = new Date(todayStart);
-    date.setDate(date.getDate() - (29 - index));
-    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+    const date = new Date(`${healthToday}T12:00:00Z`);
+    date.setUTCDate(date.getUTCDate() - (29 - index));
+    return date.toISOString().slice(0, 10);
   });
   const recentStart = recentDates[0];
   const monthlyStartDate = new Date(now.getFullYear(), now.getMonth() - 11, 1);
@@ -54,7 +55,18 @@ export async function getDashboardData(): Promise<DashboardProfile[]> {
   const healthFactors = new Map(healthRows.rows.map(h => [`health:${h.profile_id}:${h.external_id}`, Number(h.duration_seconds) / durationSeconds(String(h.started_at), String(h.ended_at))]));
   const healthActiveSeconds = new Map(healthRows.rows.map(h => [`health:${h.profile_id}:${h.external_id}`, Number(h.duration_seconds)]));
   const factorFor = (id: unknown) => healthFactors.get(String(id)) ?? 1;
-  const energyRows = await client.execute({ sql: "SELECT * FROM health_energy_daily WHERE date <= ? ORDER BY date DESC", args: [energyDate(now)] });
+  const [energyRows, latestEnergyRows] = await Promise.all([
+    client.execute({ sql: "SELECT * FROM health_energy_daily WHERE date BETWEEN ? AND ? ORDER BY date DESC", args: [recentStart, healthToday] }),
+    client.execute({ sql: "SELECT e.* FROM health_energy_daily e WHERE e.date = (SELECT MAX(date) FROM health_energy_daily WHERE profile_id=e.profile_id AND date<=?)", args: [healthToday] })
+  ]);
+  const recentEnergyByProfile = new Map<string, Map<string, { activeEnergyKcal: number; stepCount: number | null }>>();
+  for (const row of energyRows.rows) {
+    const date = String(row.date);
+    const profileId = String(row.profile_id);
+    const days = recentEnergyByProfile.get(profileId) ?? new Map();
+    days.set(date, { activeEnergyKcal: Number(row.active_energy_kcal), stepCount: row.step_count == null ? null : Number(row.step_count) });
+    recentEnergyByProfile.set(profileId, days);
+  }
   const goalRows = await client.execute("SELECT key,value FROM settings WHERE key LIKE 'health_energy_goal:%' OR key LIKE 'health_step_goal:%'");
   const energyGoals = new Map(goalRows.rows.map(row => [String(row.key), row.value]));
 
@@ -82,7 +94,7 @@ export async function getDashboardData(): Promise<DashboardProfile[]> {
 
   return profilesResult.rows.map((row) => {
     const profileId = String(row.id);
-    const energy = energyRows.rows.find(entry => String(entry.profile_id) === profileId);
+    const energy = latestEnergyRows.rows.find(entry => String(entry.profile_id) === profileId);
     const profileSegments = segmentsResult.rows.filter((segment) => String(segment.profile_id) === profileId);
     let points = 0;
     let totalSeconds = 0;
@@ -236,6 +248,10 @@ export async function getDashboardData(): Promise<DashboardProfile[]> {
     return {
       ...profile,
       healthEnergy: energy ? { date: String(energy.date), activeEnergyKcal: Number(energy.active_energy_kcal), stepCount: energy.step_count == null ? null : Number(energy.step_count), updatedAt: String(energy.updated_at), goalKcal: energyGoal(energyGoals.get(energyGoalKey(String(row.id)))), goalSteps: stepGoal(energyGoals.get(stepGoalKey(String(row.id)))), goalPercent: energyGoalPercent(Number(energy.active_energy_kcal), energyGoal(energyGoals.get(energyGoalKey(String(row.id))))) } : null,
+      healthDailyTrend: recentDates.map(date => {
+        const day = recentEnergyByProfile.get(profileId)?.get(date);
+        return { date, activeEnergyKcal: day?.activeEnergyKcal ?? null, stepCount: day?.stepCount ?? null };
+      }),
       ...avatarProgress,
       trainingProgress: trainingProgress(completedSeconds / 60, completedSessions.size),
       score: Math.floor(profile.scoreBaseline + points + 1e-9),

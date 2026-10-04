@@ -24,3 +24,16 @@ it("shows remaining amounts and caps reached goal bars without hiding excess", (
   expect(screen.getByText("Ziel erreicht · +493 Schritte")).toBeTruthy();
   expect(screen.getByRole("progressbar", { name: "Schritte-Ziel" }).getAttribute("aria-valuenow")).toBe("3000");
 });
+it("draws separate 30-day kcal and step areas without joining missing days", () => {
+  const value = { date: "2026-10-04", activeEnergyKcal: 200, stepCount: 3000, updatedAt: "2026-10-04" };
+  const trend = [
+    { date: "2026-10-02", activeEnergyKcal: 100, stepCount: null },
+    { date: "2026-10-03", activeEnergyKcal: null, stepCount: 0 },
+    { date: "2026-10-04", activeEnergyKcal: 200, stepCount: 3000 }
+  ];
+  const { container } = render(<HealthDailyMetrics value={value} trend={trend} />);
+  expect(screen.getByRole("img", { name: /kcal-Verlauf.*2 Tageswerte/ })).toBeTruthy();
+  expect(screen.getByRole("img", { name: /Schritte-Verlauf.*2 Tageswerte/ })).toBeTruthy();
+  expect(container.querySelectorAll(".health-trend-fill")).toHaveLength(3);
+  expect(screen.getAllByText("Letzte 30 Tage")).toHaveLength(2);
+});

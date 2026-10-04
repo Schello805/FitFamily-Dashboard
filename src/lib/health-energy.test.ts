@@ -130,3 +130,14 @@ it("stores steps separately without scoring, replacing rather than adding and pr
   await POST(request({ ...payload, stepRows: "" }));
   expect((await getDashboardData()).find(p => p.id === profileId)?.healthEnergy?.stepCount).toBe(0);
 });
+it("keeps all imported days and exposes exactly 30 calendar days with gaps", async () => {
+  await storeHealthEnergy({ ...input, date: "2026-09-04", activeEnergyKcal: 50, stepCount: 500 });
+  await storeHealthEnergy({ ...input, date: "2026-09-05", activeEnergyKcal: 0, stepCount: 0 });
+  await storeHealthEnergy({ ...input, date: "2026-10-04", activeEnergyKcal: 250, stepCount: 3500 });
+  const days = (await getDashboardData()).find(profile => profile.id === profileId)?.healthDailyTrend ?? [];
+  expect(days).toHaveLength(30);
+  expect(days[0]).toEqual({ date: "2026-09-05", activeEnergyKcal: 0, stepCount: 0 });
+  expect(days[1]).toEqual({ date: "2026-09-06", activeEnergyKcal: null, stepCount: null });
+  expect(days[29]).toEqual({ date: "2026-10-04", activeEnergyKcal: 250, stepCount: 3500 });
+  expect((await (await db()).execute({ sql: "SELECT COUNT(*) count FROM health_energy_daily WHERE profile_id=?", args: [profileId] })).rows[0].count).toBe(3);
+});

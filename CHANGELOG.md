@@ -4,6 +4,10 @@ Alle wichtigen Änderungen werden hier nach dem Prinzip von Keep a Changelog dok
 
 ## [Unreleased]
 
+## [0.3.40] – 2026-10-04
+
+- Dashboard zeigt für aktive kcal und Schritte je einen dezenten 30-Tage-Verlauf mit gefüllter Linie und Tagesziel als Orientierung. Fehlende Übertragungen bleiben Lücken; historische Tageswerte werden aus der dauerhaft gespeicherten Health-Tabelle geladen.
+
 ## [0.3.39] – 2026-10-04
 
 - Apple-Health-Tageskennzahlen mit Fortschrittsbalken, Prozent und fehlenden kcal bzw. Schritten; erreichte Ziele zeigen den Überschuss. Schritte-Ziel standardmäßig 10.000, gemeinsam mit dem kcal-Ziel pro Profil einstellbar. Keine Änderungen an Punkten oder Trainingswertung.
