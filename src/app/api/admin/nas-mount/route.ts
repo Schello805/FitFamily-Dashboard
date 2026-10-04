@@ -26,7 +26,7 @@ export async function POST(request: Request) {
     const metadata = await stat(HELPER);
     if (metadata.uid !== 0 || metadata.mode & 0o022) throw new Error("Der NAS-Helfer ist nicht sicher installiert. Bitte die Installationsanleitung zur Aktualisierung der Systemhelfer verwenden.");
     await new Promise<void>((resolve, reject) => {
-      const child = execFile("sudo", ["-n", HELPER], { timeout: 50000, encoding: "utf8" }, (error) => {
+      const child = execFile("sudo", ["-n", HELPER], { timeout: 90000, encoding: "utf8" }, (error) => {
         if (error) reject(new Error("NAS konnte nicht eingehängt werden. Prüfe Freigabe, Zugangsdaten und ob das Laufwerk noch verwendet wird."));
         else resolve();
       });
@@ -36,8 +36,25 @@ export async function POST(request: Request) {
     });
     const status = await setBackupSettings({ path: TARGET });
     if (!status.writable) throw new Error(status.statusMessage);
-    return NextResponse.json({ ok: true, path: TARGET, status, message: "Netzlaufwerk unter /mnt/nas/fitfamily eingehängt. Für automatisches Einhängen nach einem Neustart siehe Installationsanleitung." });
+    return NextResponse.json({ ok: true, path: TARGET, status, message: "NAS-Verbindung dauerhaft gespeichert. Sie wird nach einem Rechnerneustart automatisch wiederhergestellt." });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "NAS konnte nicht eingehängt werden." }, { status: 500 });
+  }
+}
+
+export async function GET(request: Request) {
+  const denied = await verifyAdminPinOrReject(undefined, request);
+  if (denied) return denied;
+  try {
+    const metadata = await stat(HELPER);
+    if (metadata.uid !== 0 || metadata.mode & 0o022) throw new Error("NAS-Helfer bitte aktualisieren.");
+    const configuration = await new Promise<string>((resolve, reject) => {
+      const child = execFile("sudo", ["-n", HELPER], { timeout: 10000, encoding: "utf8" }, (error, stdout) => error ? reject(error) : resolve(stdout));
+      child.stdin?.end(JSON.stringify({ action: "status" }));
+    });
+    const data = JSON.parse(configuration);
+    return NextResponse.json({ configured: Boolean(data.configured), server: data.server ?? "", share: data.share ?? "", username: data.username ?? "" }, { headers: { "Cache-Control": "no-store" } });
+  } catch {
+    return NextResponse.json({ configured: false, unavailable: true }, { headers: { "Cache-Control": "no-store" } });
   }
 }

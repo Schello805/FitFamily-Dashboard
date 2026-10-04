@@ -133,10 +133,10 @@ export function AdminBackupPanel({
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
             <label className="api-key-field" style={{ margin: 0 }}>Benutzername (optional)<input type="text" placeholder="z. B. admin" value={username} onChange={(event) => onUsernameChange(event.target.value)} /></label>
-            <label className="api-key-field" style={{ margin: 0 }}>Passwort (optional)<input type="password" placeholder="Passwort" value={password} onChange={(event) => onPasswordChange(event.target.value)} /></label>
+            <label className="api-key-field" style={{ margin: 0 }}>Passwort<input type="password" placeholder="Leer lassen: gespeichertes Passwort verwenden" value={password} onChange={(event) => onPasswordChange(event.target.value)} /><small>Bei gleicher Freigabe und gleichem Benutzer bleibt das gespeicherte Passwort erhalten.</small></label>
           </div>
           <button type="button" className="update-secondary-btn" style={{ justifySelf: "start", marginTop: "4px" }} disabled={mounting || !server.trim() || !share.trim()} onClick={onMountShare}>
-            <HardDrive className={mounting ? "spin" : ""} size={16} /><span>{mounting ? "Verbinde Netzlaufwerk …" : "Netzlaufwerk jetzt verbinden & mounten"}</span>
+            <HardDrive className={mounting ? "spin" : ""} size={16} /><span>{mounting ? "Verbinde Netzlaufwerk …" : "Verbinden & dauerhaft speichern"}</span>
           </button>
         </div>}
       </div>

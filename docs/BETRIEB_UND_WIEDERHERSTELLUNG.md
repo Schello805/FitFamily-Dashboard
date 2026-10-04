@@ -1,5 +1,13 @@
 # Sicherer Betrieb ab v0.2.96
 
+## Dauerhafte NAS-Verbindung ab v0.3.36
+
+Nach dem App-Update in der Verwaltung den Netzlaufwerk-Assistenten einmal mit den NAS-Zugangsdaten ausführen: **Verbinden & dauerhaft speichern**. Die bisherige temporäre Verbindung enthält keine gespeicherten Zugangsdaten und kann daher nicht automatisch übernommen werden.
+
+Nach erfolgreichem Verbinden legt der Systemhelfer `/var/lib/fitfamily/nas/connection.json` an (root, Datei 0600, Verzeichnis 0700) und aktiviert `fitfamily-nas.service`. Server, Freigabe und Benutzername werden wieder im Formular angezeigt; das Passwort wird nie zurückgegeben. Bei unveränderter Freigabe und gleichem Benutzer kann das Passwortfeld leer bleiben. Der Startdienst wartet auf das Netzwerk und wiederholt fehlgeschlagene Verbindungen nach 30 Sekunden. App-Updates erhalten die Verbindungskonfiguration. Diese Betriebssystem-Konfiguration ist nicht Teil der App-Datenbank-Sicherung.
+
+Status prüfen: `sudo systemctl status fitfamily-nas.service`; Startfehler: `sudo journalctl -u fitfamily-nas.service --no-pager -n 30`. Die Konfigurationsdatei nicht in Protokolle kopieren: Sie enthält das NAS-Passwort.
+
 ## Bestehenden Ubuntu-PC einmalig umstellen
 
 Die neuen Update- und NAS-Helfer benötigen eine einmalige Installation auf dem PC. Ein GitHub-Push allein installiert keine Systemdienste oder Zertifikate. Vorher die aktuelle Datensicherung und den zugehörigen Schlüssel getrennt sichern. Im vorhandenen Checkout unter `/opt/fitfamily`:

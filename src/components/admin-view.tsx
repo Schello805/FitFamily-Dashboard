@@ -363,6 +363,14 @@ export function AdminView({
         setBackupStatus(result.backup);
         setNasPathInput(result.backup.path || "");
       }
+      try {
+        const saved = await requestJson<{ configured: boolean; server?: string; share?: string; username?: string }>("/api/admin/nas-mount", "NAS-Konfiguration konnte nicht geladen werden.");
+        if (saved.configured) {
+          setNasServerInput(saved.server ?? "");
+          setNasShareInput(saved.share ?? "");
+          setNasUserInput(saved.username ?? "");
+        }
+      } catch { /* NAS helper may be unavailable on a development Mac. */ }
       if (result.displaySettings) {
         setDisplaySettings(result.displaySettings);
         cacheDisplaySettings(result.displaySettings);
@@ -505,6 +513,7 @@ export function AdminView({
       if (response.ok && data.ok) {
         showToast({ type: "success", title: "Netzlaufwerk verbunden", message: data.message });
         setNasPathInput(data.path);
+        setNasPassInput("");
         setStatus((cur) => (cur ? { ...cur, nas: true } : cur));
         setShowNasMountForm(false);
         if (data.status) setBackupStatus(data.status);
