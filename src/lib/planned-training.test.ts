@@ -1,0 +1,30 @@
+import { randomUUID } from "node:crypto";
+import { afterEach, expect, it, vi } from "vitest";
+import { db } from "./db";
+import { getDashboardData } from "./dashboard";
+import { startOrSwitchTraining, stopTraining } from "./training";
+const profileId = `planned-${randomUUID()}`;
+afterEach(async () => {
+  vi.useRealTimers(); const client = await db();
+  await client.execute({ sql: "DELETE FROM training_sessions WHERE profile_id=?", args: [profileId] });
+  await client.execute({ sql: "DELETE FROM audit_log WHERE profile_id=?", args: [profileId] });
+  await client.execute({ sql: "DELETE FROM profiles WHERE id=?", args: [profileId] });
+});
+it("caps delayed exercise stops exactly, excludes idle gaps and protects later sessions", async () => {
+  const client = await db(); await client.execute({ sql: "INSERT INTO profiles(id,name,color,avatar) VALUES (?,'Plan Test','#22d3ee','papa')", args: [profileId] });
+  vi.useFakeTimers(); vi.setSystemTime(new Date("2026-10-03T12:00:00Z"));
+  const first = await startOrSwitchTraining({ profileId, type: "strength", plannedDurationSeconds: 60 });
+  expect("sessionId" in first).toBe(true);
+  vi.setSystemTime(new Date("2026-10-03T12:05:00Z"));
+  await stopTraining(profileId, "sessionId" in first ? first.sessionId : "");
+  const profile = (await getDashboardData()).find(p => p.id === profileId)!;
+  expect(profile.score).toBe(1);
+  expect(profile.todayMinutes).toBe(1);
+  vi.setSystemTime(new Date("2026-10-03T12:10:00Z"));
+  const next = await startOrSwitchTraining({ profileId, type: "endurance", plannedDurationSeconds: 60 });
+  await stopTraining(profileId, "sessionId" in first ? first.sessionId : "");
+  expect((await getDashboardData()).find(p => p.id === profileId)?.activeTraining).not.toBeNull();
+  vi.setSystemTime(new Date("2026-10-03T12:12:00Z"));
+  await stopTraining(profileId, "sessionId" in next ? next.sessionId : "");
+  expect((await getDashboardData()).find(p => p.id === profileId)?.score).toBe(3);
+});

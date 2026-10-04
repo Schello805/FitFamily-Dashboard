@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { db } from "./db";
 import { healthTrainingTestSchema } from "./health-training-test";
+import { enforceSafetyPauses } from "./training";
 
 const workoutSchema = healthTrainingTestSchema.shape.workouts.element;
 export const healthTrainingSchema = healthTrainingTestSchema.extend({
@@ -9,6 +10,7 @@ export const healthTrainingSchema = healthTrainingTestSchema.extend({
 
 // The batch holds a write transaction: overlapping sources cannot race each other.
 export async function bookHealthTraining(input: z.infer<typeof healthTrainingSchema>) {
+  await enforceSafetyPauses();
   const client = await db();
   const profile = await client.execute({ sql: "SELECT name FROM profiles WHERE id=?", args: [input.profileId] });
   if (!profile.rows.length) return null;

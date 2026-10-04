@@ -1061,6 +1061,12 @@ export function AdminView({
         </div>
 
         <div className="screensaver-night-settings" style={{ marginTop: "14px" }}>
+          <label>Vorbereitungszeit vor jeder KI-Plan-Übung
+            <select value={displaySettings.preparationSeconds ?? 30} disabled={savingDisplay} onChange={event => void saveDisplaySettings({ preparationSeconds: Number(event.target.value) })}>
+              {[5, 10, 20, 30, 60].map(seconds => <option key={seconds} value={seconds}>{seconds} Sekunden</option>)}
+            </select>
+          </label>
+          <p>Vorbereitung und Übungswechsel zählen nicht als Trainingszeit. Die nächste Übung muss bewusst gestartet werden.</p>
           <label className="night-mode-toggle-wrap">
             <input
               type="checkbox"

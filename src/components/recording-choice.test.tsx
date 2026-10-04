@@ -18,7 +18,7 @@ it("does not start until an explicit answer, and forwards Health mode",async()=>
   fireEvent.click(screen.getByRole("button",{name:"Übung jetzt starten"}));
   expect(screen.getByRole("dialog",{name:HEALTH_RECORDING_QUESTION})).toBeInTheDocument();
   expect(request).not.toHaveBeenCalled();
-  expect(screen.getByText(/Health-Daten fehlen dadurch nicht/)).toBeTruthy();
+  expect(screen.getByText(/kcal und Schritte kommen unabhängig/)).toBeTruthy();
   fireEvent.click(screen.getByRole("button",{name:"Ja · nur importierte Trainingszeit werten"}));
   await waitFor(()=>expect(request).toHaveBeenCalled());
   expect(JSON.parse(String(request.mock.calls[0][2]?.body))).toMatchObject({recordingMode:"health"});

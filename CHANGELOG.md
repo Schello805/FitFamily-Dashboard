@@ -4,6 +4,15 @@ Alle wichtigen Änderungen werden hier nach dem Prinzip von Keep a Changelog dok
 
 ## [Unreleased]
 
+## [0.3.28] – 2026-10-04
+
+### Neu
+
+- Manueller Health-Export-Import direkt im Profil: ZIP/XML lokal und stückweise lesen, Zeitraum und Trainingsart prüfen, bis zu 25 Trainings je bestätigter Buchung. Nur Trainingszeiten verlassen das Handy; Duplikate und Überschneidungen bleiben gesperrt.
+- KI-Plan-Übungen: zentrale Vorbereitungszeit 5/10/20/30/60 Sekunden (Standard 30), Töne bei 30 Sekunden Rest und in den letzten fünf Sekunden. Nächste Übung nur nach bewusstem Start; Vorbereitung und Wechsel ohne Wertung.
+- Serverseitige Übungszeitgrenze und geschütztes Stoppen einer konkreten Sitzung verhindern zusätzliche Wertung bei verspätetem Browser-Timer. Laufender Übungsdialog bleibt geöffnet.
+- Importfrage erklärt explizit den späteren manuellen Apple-Health-Export statt nur das Tragen der Watch.
+
 ## [0.3.27] – 2026-10-04
 
 ### Korrigiert

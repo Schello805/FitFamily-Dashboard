@@ -8,7 +8,7 @@ export async function getDisplaySettings(): Promise<DisplaySettings> {
   try {
     const client = await db();
     const result = await client.execute({
-      sql: "SELECT key, value FROM settings WHERE key IN ('display_time_zone', 'idle_timeout_minutes', 'night_mode_enabled', 'night_idle_timeout_minutes', 'night_start_time', 'night_end_time')"
+      sql: "SELECT key, value FROM settings WHERE key IN ('training_preparation_seconds', 'display_time_zone', 'idle_timeout_minutes', 'night_mode_enabled', 'night_idle_timeout_minutes', 'night_start_time', 'night_end_time')"
     });
 
     let idleTimeoutMinutes = DEFAULT_DISPLAY_SETTINGS.idleTimeoutMinutes;
@@ -17,8 +17,10 @@ export async function getDisplaySettings(): Promise<DisplaySettings> {
     let nightStartTime = DEFAULT_DISPLAY_SETTINGS.nightStartTime;
     let nightEndTime = DEFAULT_DISPLAY_SETTINGS.nightEndTime;
     let timeZone = DEFAULT_DISPLAY_SETTINGS.timeZone;
+    let preparationSeconds = 30;
 
     for (const row of result.rows) {
+      if (row.key === "training_preparation_seconds" && [5, 10, 20, 30, 60].includes(Number(row.value))) preparationSeconds = Number(row.value);
       if (row.key === "display_time_zone" && validTimeZone(row.value)) timeZone = row.value;
       if (row.key === "idle_timeout_minutes" && row.value !== null) {
         const val = Number(row.value);
@@ -40,6 +42,7 @@ export async function getDisplaySettings(): Promise<DisplaySettings> {
     }
 
     return {
+      preparationSeconds,
       timeZone,
       idleTimeoutMinutes,
       nightModeEnabled,
@@ -53,6 +56,7 @@ export async function getDisplaySettings(): Promise<DisplaySettings> {
 }
 
 export async function setDisplaySettings(settings: {
+  preparationSeconds?: number;
   timeZone?: string;
   idleTimeoutMinutes?: number;
   nightModeEnabled?: boolean;
@@ -61,6 +65,10 @@ export async function setDisplaySettings(settings: {
   nightEndTime?: string;
 }): Promise<DisplaySettings> {
   const client = await db();
+  if (settings.preparationSeconds !== undefined) {
+    if (![5, 10, 20, 30, 60].includes(settings.preparationSeconds)) throw new Error("Ungültige Vorbereitungszeit.");
+    await client.execute({ sql: "INSERT INTO settings (key,value) VALUES ('training_preparation_seconds',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value", args: [String(settings.preparationSeconds)] });
+  }
   if (settings.timeZone !== undefined) {
     if (!validTimeZone(settings.timeZone)) throw new Error("Ungültige Zeitzone.");
     await client.execute({

@@ -8,6 +8,7 @@ type StartInput = {
   exerciseId?: string | null;
   source?: "touch" | "mobile" | "nfc" | "manual";
   recordingMode?: "app" | "health";
+  plannedDurationSeconds?: number;
 };
 
 // Serialize updates for one profile so two quick scans cannot create overlapping segments.
@@ -22,8 +23,8 @@ async function updateTraining<T>(profileId: string, action: () => Promise<T>): P
 export function startOrSwitchTraining(input: StartInput) {
   return updateTraining(input.profileId, () => startOrSwitch(input));
 }
-export function stopTraining(profileId: string) {
-  return updateTraining(profileId, () => stop(profileId));
+export function stopTraining(profileId: string, expectedSessionId?: string) {
+  return updateTraining(profileId, () => stop(profileId, expectedSessionId));
 }
 
 async function startOrSwitch(input: StartInput) {
@@ -39,6 +40,9 @@ async function startOrSwitch(input: StartInput) {
   });
 
   const current = active.rows[0];
+  if (input.plannedDurationSeconds !== undefined && current) {
+    return { error: "Es läuft bereits ein Training. Bitte dieses zuerst beenden.", conflict: true };
+  }
   const mode = input.recordingMode ?? (current?.recording_mode === "health" ? "health" : "app");
   if (current && String(current.recording_mode) !== mode) {
     await stop(input.profileId);
@@ -64,9 +68,9 @@ async function startOrSwitch(input: StartInput) {
     });
   } else {
     statements.push({
-      sql: `INSERT INTO training_sessions (id, profile_id, started_at, status, source, recording_mode)
-        VALUES (?, ?, ?, 'active', ?, ?)`,
-      args: [sessionId, input.profileId, now, input.source ?? "touch", mode]
+      sql: `INSERT INTO training_sessions (id, profile_id, started_at, status, source, recording_mode, planned_end_at)
+        VALUES (?, ?, ?, 'active', ?, ?, ?)`,
+      args: [sessionId, input.profileId, now, input.source ?? "touch", mode, input.plannedDurationSeconds ? new Date(Date.parse(now) + input.plannedDurationSeconds * 1000).toISOString() : null]
     });
   }
 
@@ -81,16 +85,16 @@ async function startOrSwitch(input: StartInput) {
   });
 
   await client.batch(statements, "write");
-  return { sessionId, segmentId, changed: true };
+  return { sessionId, segmentId, changed: true, startedAt: now, plannedEndAt: input.plannedDurationSeconds ? new Date(Date.parse(now) + input.plannedDurationSeconds * 1000).toISOString() : null };
 }
 
-async function stop(profileId: string) {
+async function stop(profileId: string, expectedSessionId?: string) {
   await enforceSafetyPauses();
   const client = await db();
   const now = new Date().toISOString();
   const active = await client.execute({
-    sql: "SELECT id FROM training_sessions WHERE profile_id = ? AND status = 'active'",
-    args: [profileId]
+    sql: "SELECT id FROM training_sessions WHERE profile_id = ? AND status = 'active' AND (? IS NULL OR id=?)",
+    args: [profileId, expectedSessionId ?? null, expectedSessionId ?? null]
   });
   if (!active.rows.length) return { changed: false };
   const sessionIds = active.rows.map((row) => String(row.id));
@@ -116,12 +120,16 @@ export async function enforceSafetyPauses() {
   const client = await db();
   const limitMs = 4 * 60 * 60 * 1000;
   const sessions = await client.execute({
-    sql: "SELECT id, profile_id, started_at FROM training_sessions WHERE status = 'active' AND julianday(started_at) <= julianday(?)",
-    args: [new Date(Date.now() - limitMs).toISOString()]
+    sql: "SELECT id, profile_id, started_at, planned_end_at FROM training_sessions WHERE status = 'active' AND (julianday(started_at) <= julianday(?) OR julianday(planned_end_at)<=julianday(?))",
+    args: [new Date(Date.now() - limitMs).toISOString(), new Date().toISOString()]
   });
   for (const session of sessions.rows) {
       const sessionId = String(session.id);
-      const endedAt = new Date(new Date(String(session.started_at)).getTime() + limitMs).toISOString();
+      const safetyEnd = new Date(String(session.started_at)).getTime() + limitMs;
+      const parsedEnd = session.planned_end_at ? Date.parse(String(session.planned_end_at)) : Infinity;
+      const plannedEnd = Number.isFinite(parsedEnd) ? parsedEnd : Infinity;
+      const endedAt = new Date(Math.min(safetyEnd, plannedEnd)).toISOString();
+      const status = plannedEnd <= safetyEnd ? "completed" : "paused";
       // A delayed read or switch must never credit time after the safety limit.
       // Keep late segments as zero-duration records instead of deleting history.
       const details = JSON.stringify({ sessionId, endedAt });
@@ -130,11 +138,11 @@ export async function enforceSafetyPauses() {
             started_at = CASE WHEN julianday(started_at) > julianday(?) THEN ? ELSE started_at END,
             ended_at = CASE WHEN ended_at IS NULL OR julianday(ended_at) > julianday(?) THEN ? ELSE ended_at END
             WHERE session_id = ? AND EXISTS (SELECT 1 FROM training_sessions WHERE id = ? AND status = 'active')`, args: [endedAt, endedAt, endedAt, endedAt, sessionId, sessionId] },
-        { sql: "UPDATE training_sessions SET ended_at = ?, status = 'paused' WHERE id = ? AND status = 'active'", args: [endedAt, sessionId] },
+        { sql: "UPDATE training_sessions SET ended_at = ?, status = ? WHERE id = ? AND status = 'active'", args: [endedAt, status, sessionId] },
         {
           sql: `INSERT INTO audit_log (id, action, profile_id, details)
             SELECT ?, 'training.safety_pause', ?, ?
-            WHERE EXISTS (SELECT 1 FROM training_sessions WHERE id = ? AND status = 'paused' AND ended_at = ?)
+            WHERE EXISTS (SELECT 1 FROM training_sessions WHERE id = ? AND status IN ('paused','completed') AND ended_at = ?)
             AND NOT EXISTS (SELECT 1 FROM audit_log WHERE action = 'training.safety_pause' AND details = ?)`,
           args: [randomUUID(), String(session.profile_id), details, sessionId, endedAt, details]
         }

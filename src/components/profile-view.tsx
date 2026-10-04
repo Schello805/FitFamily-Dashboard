@@ -544,6 +544,7 @@ export function ProfileView({
       )}
 
       <nav className={`profile-nav ${isMobile ? "mobile-nav" : ""}`}>
+        <Link href={`/profil/${profile.id}/import`}><CalendarRange /><div className="profile-nav-text"><b>Health-Training importieren</b><small>Export auswählen &amp; prüfen</small></div></Link>
         <Link href={`/profil/${profile.id}/verlauf`} title="Bisherige Trainingseinheiten und Zeiten ansehen">
           <History />
           <div className="profile-nav-text">

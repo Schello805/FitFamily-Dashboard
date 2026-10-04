@@ -249,6 +249,9 @@ async function createSchema(client: Client) {
   }
 
   const sessionColumns = await client.execute("PRAGMA table_info(training_sessions)");
+  if (!sessionColumns.rows.some(row => String(row.name) === "planned_end_at")) {
+    await client.execute("ALTER TABLE training_sessions ADD COLUMN planned_end_at TEXT");
+  }
   if (!sessionColumns.rows.some(row => String(row.name) === "recording_mode")) {
     await client.execute("ALTER TABLE training_sessions ADD COLUMN recording_mode TEXT NOT NULL DEFAULT 'app' CHECK(recording_mode IN ('app','health'))");
   }

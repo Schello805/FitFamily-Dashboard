@@ -1,6 +1,6 @@
 {
   "name": "fitfamily-dashboard",
-  "version": "0.3.27",
+  "version": "0.3.28",
   "private": true,
   "license": "LicenseRef-PolyForm-Noncommercial-1.0.0",
   "scripts": {
@@ -22,11 +22,13 @@
   "dependencies": {
     "@libsql/client": "0.18.0",
     "bcryptjs": "3.0.3",
+    "fflate": "^0.8.3",
     "lucide-react": "1.49.0",
     "next": "16.3.7",
     "qrcode": "1.5.4",
     "react": "19.3.0",
     "react-dom": "19.3.0",
+    "saxes": "^6.0.0",
     "sharp": "0.35.5",
     "zod": "4.6.5"
   },

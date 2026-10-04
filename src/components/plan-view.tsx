@@ -1,16 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, BookOpen, CalendarDays, ChevronLeft, ChevronRight, Cpu, Download, Play, RefreshCw, Sparkles, Square, Trash2, Upload, Video, X } from "lucide-react";
+import { useEffect, useState } from "react";
+import { ArrowLeft, BookOpen, CalendarDays, ChevronLeft, ChevronRight, Cpu, Download, Play, RefreshCw, Sparkles, Trash2, Upload, Video, X } from "lucide-react";
 import { getFitnessStageCount, type DashboardProfile } from "@/lib/domain";
 import { showToast } from "@/components/toast";
 import { normalizePlanJson, type NormalizedPlan, type NormalizedSession } from "@/lib/plan-normalizer";
 import { resolveExerciseId } from "@/lib/exercise-guides";
 import { youtubeVideoId } from "@/lib/exercise-video";
-import { exerciseSlotSeconds, formatCountdown, getCurrentExerciseIndex, getExerciseRemainingSeconds } from "@/lib/plan-timers";
+import { PlanSessionRunner } from "./plan-session-runner";
 import { KioskIdleBar } from "@/components/kiosk-idle-bar";
-import { LiveDuration } from "@/components/live-duration";
 import { formatGermanDate } from "@/lib/date-format";
 import { YoutubePlayer } from "@/components/youtube-player";
 import { requestJson } from "@/lib/api-client";
@@ -65,17 +64,12 @@ export function PlanView({ profile, goals }: { profile: DashboardProfile; goals:
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
   const [startingSession, setStartingSession] = useState(false);
-  const [stoppingSession, setStoppingSession] = useState(false);
   const [unitDialog, setUnitDialog] = useState<{ session: NormalizedSession; startedAt: string; recordingMode: RecordingMode } | null>(null);
   const recording = useRecordingChoice();
-  const [remainingSeconds, setRemainingSeconds] = useState(0);
-  const [idleCloseSeconds, setIdleCloseSeconds] = useState(30);
+  const [preparationSeconds, setPreparationSeconds] = useState(30);
+  const [unitAudio, setUnitAudio] = useState<AudioContext | null>(null);
   const [selectedExercise, setSelectedExercise] = useState<SessionExercise | null>(null);
-  const [isVideoPlaying, setIsVideoPlaying] = useState(false);
   const [runningUnitKey, setRunningUnitKey] = useState<string | null>(null);
-  const audioContext = useRef<AudioContext | null>(null);
-  const lastBeep = useRef<number | null>(null);
-  const unitLastActivity = useRef(0);
   const [weekPage, setWeekPage] = useState<{ planId: string; page: number } | null>(null);
   const load = () => requestJson<{ plans?: Plan[] }>(`/api/plans?profileId=${encodeURIComponent(profile.id)}`, "Trainingspläne konnten nicht geladen werden.")
     .then((data) => setPlans(data.plans ?? []));
@@ -90,15 +84,6 @@ export function PlanView({ profile, goals }: { profile: DashboardProfile; goals:
   const requestedWeekPage = weekPage && weekPage.planId === active?.id ? weekPage.page : Math.floor(Math.max(0, currentWeekIndex) / 4);
   const visibleWeekPage = Math.min(requestedWeekPage, weekPageCount - 1);
   const visibleWeeks = weeks.slice(visibleWeekPage * 4, visibleWeekPage * 4 + 4);
-  const unitTotalSeconds = unitDialog ? Math.max(1, unitDialog.session.minutes) * 60 : 0;
-  const unitElapsedSeconds = Math.max(0, unitTotalSeconds - remainingSeconds);
-  const unitExercises = unitDialog?.session.exercises ?? [];
-  const currentExerciseIndex = unitExercises.length
-    ? getCurrentExerciseIndex(unitTotalSeconds, unitElapsedSeconds, unitExercises.length)
-    : -1;
-  const currentExerciseRemaining = currentExerciseIndex >= 0
-    ? getExerciseRemainingSeconds(unitTotalSeconds, unitElapsedSeconds, unitExercises.length, currentExerciseIndex)
-    : 0;
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -110,66 +95,14 @@ export function PlanView({ profile, goals }: { profile: DashboardProfile; goals:
     return () => window.clearTimeout(timer);
   }, [profile.id]);
 
-  useEffect(() => {
-    if (!unitDialog || isVideoPlaying) return;
-    unitLastActivity.current = Date.now();
-    const recordActivity = () => { unitLastActivity.current = Date.now(); };
-    const updateIdleTimer = () => {
-      const left = Math.max(0, Math.ceil((unitLastActivity.current + 30_000 - Date.now()) / 1000));
-      setIdleCloseSeconds(left);
-      if (left === 0) {
-        setUnitDialog(null);
-        setSelectedExercise(null);
-      }
-    };
-    const events = ["pointerdown", "keydown", "touchstart", "wheel"] as const;
-    const interval = window.setInterval(updateIdleTimer, 250);
-    events.forEach((event) => window.addEventListener(event, recordActivity, { passive: true }));
-    return () => {
-      window.clearInterval(interval);
-      events.forEach((event) => window.removeEventListener(event, recordActivity));
-    };
-  }, [unitDialog, isVideoPlaying]);
-
-  useEffect(() => {
-    if (!unitDialog) return;
-    const duration = Math.max(1, unitDialog.session.minutes) * 60;
-    const updateCountdown = () => {
-      const left = Math.max(0, Math.ceil((new Date(unitDialog.startedAt).getTime() + duration * 1000 - Date.now()) / 1000));
-      setRemainingSeconds(left);
-      if ((left === 30 || left <= 5) && left !== lastBeep.current) {
-        lastBeep.current = left;
-        try {
-          const context = audioContext.current;
-          if (context && context.state !== "closed") {
-            const oscillator = context.createOscillator();
-            const gain = context.createGain();
-            oscillator.frequency.value = left <= 5 ? 880 : 660;
-            gain.gain.value = 0.08;
-            oscillator.connect(gain);
-            gain.connect(context.destination);
-            oscillator.start();
-            oscillator.stop(context.currentTime + 0.12);
-          }
-        } catch { /* Audio ist optional; der visuelle Countdown bleibt verfügbar. */ }
-      }
-    };
-    updateCountdown();
-    const interval = window.setInterval(updateCountdown, 250);
-    return () => window.clearInterval(interval);
-  }, [unitDialog]);
-
   function openUnitView(session: NormalizedSession, startedAt: string, recordingMode: RecordingMode = "app") {
     setSelectedExercise(null);
-    lastBeep.current = null;
-    setIdleCloseSeconds(30);
-    if (!audioContext.current && typeof window !== "undefined") {
-      try { audioContext.current = new window.AudioContext(); void audioContext.current.resume(); } catch { /* Browser ohne AudioContext */ }
-    }
     setUnitDialog({ session, startedAt, recordingMode });
   }
 
   async function startUnit(session: NormalizedSession) {
+    // Unlock audio directly in the user's click before modal/network awaits.
+    try { const context = new AudioContext(); void context.resume(); setUnitAudio(context); } catch { /* Visual timer works without audio. */ }
     const sessionKey = `${profile.id}:${session.date ?? ""}:${session.title}`;
     try {
       const saved = JSON.parse(localStorage.getItem("fitfamily_running_plan_unit") ?? "null") as { key?: string; startedAt?: string; recordingMode?: RecordingMode } | null;
@@ -183,25 +116,16 @@ export function PlanView({ profile, goals }: { profile: DashboardProfile; goals:
     try {
       const recordingMode = await recording.ask();
       if (!recordingMode) return;
-      await requestJson("/api/training", "Training konnte nicht gestartet werden.", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "start",
-          profileId: profile.id,
-          type: session.type,
-          recordingMode,
-          source: "touch"
-        })
-      });
+      const settings = await requestJson<{ settings: { preparationSeconds?: number } }>("/api/admin/display-settings", "Vorbereitungszeit konnte nicht geladen werden.");
+      setPreparationSeconds(settings.settings.preparationSeconds ?? 30);
       const startedAt = new Date().toISOString();
       localStorage.setItem("fitfamily_running_plan_unit", JSON.stringify({ key: sessionKey, startedAt, recordingMode }));
       setRunningUnitKey(sessionKey);
       openUnitView(session, startedAt, recordingMode);
       showToast({
         type: "success",
-        title: `Einheit gestartet: ${session.title}`,
-        message: recordingMode === "health" ? "App-Timer ohne Wertung. Der Health-Import zählt mit 1,5 Punkten/Minute." : `${session.type === "strength" ? "Krafttraining (+1 Pkt./Min.)" : "Ausdauertraining (+2 Pkt./Min.)"} läuft.`
+        title: `Einheit bereit: ${session.title}`,
+        message: "Der Vorbereitungs-Countdown läuft. Vorbereitungszeit wird nicht gewertet."
       });
     } catch {
       showToast({
@@ -230,26 +154,6 @@ export function PlanView({ profile, goals }: { profile: DashboardProfile; goals:
     } catch (error) {
       setSelectedExercise({ id, name: exerciseName, mode });
       showToast({ type: "error", title: "Anleitung nicht verfügbar", message: error instanceof Error ? error.message : "Bitte Verbindung prüfen." });
-    }
-  }
-
-  async function stopUnit() {
-    setStoppingSession(true);
-    try {
-      await requestJson("/api/training", "Das Training konnte nicht beendet werden.", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "stop", profileId: profile.id })
-      });
-      localStorage.removeItem("fitfamily_running_plan_unit");
-      setRunningUnitKey(null);
-      setUnitDialog(null);
-      setSelectedExercise(null);
-      showToast({ type: "success", title: "Einheit beendet", message: unitDialog?.recordingMode === "health" ? "App-Timer beendet. Minuten und Punkte folgen erst mit dem Health-Import." : "Die Trainingszeit wurde gespeichert." });
-    } catch (error) {
-      showToast({ type: "error", title: "Stoppen fehlgeschlagen", message: error instanceof Error ? error.message : "Bitte Verbindung prüfen." });
-    } finally {
-      setStoppingSession(false);
     }
   }
 
@@ -344,7 +248,7 @@ export function PlanView({ profile, goals }: { profile: DashboardProfile; goals:
   return (
     <main className="subpage" style={{ "--profile": profile.color } as React.CSSProperties}>
       {recording.dialog}
-      <KioskIdleBar redirectUrl="/" seconds={120} color={profile.color} title={`Trainingsplan von ${profile.name}`} paused={isVideoPlaying || recording.open} />
+      <KioskIdleBar redirectUrl="/" seconds={120} color={profile.color} title={`Trainingsplan von ${profile.name}`} paused={Boolean(unitDialog) || recording.open} />
       <header>
         <Link href={`/profil/${profile.id}`} title={`Zurück zur Profilseite von ${profile.name}`}>
           <ArrowLeft /> Zurück
@@ -444,34 +348,9 @@ export function PlanView({ profile, goals }: { profile: DashboardProfile; goals:
     ) : <section className="empty-state large"><Cpu /><h2>Noch kein Trainingsplan</h2><p>Erstelle einen einfachen, auf eure Geräte abgestimmten Vorschlag.</p><button onClick={() => setCreating(true)}>Plan erstellen</button></section>}
     {archivedPlans.length > 0 && <details className="plan-archive-list"><summary>Archivierte Pläne <span>{archivedPlans.length}</span></summary><div>{archivedPlans.map((plan) => <article key={plan.id}><span><b>{plan.title}</b><small>{plan.goal}</small></span><button type="button" disabled={busy} onClick={() => void restorePlan(plan)}>Wiederherstellen</button></article>)}</div></details>}
     {unitDialog && (
-      <div className="modal-backdrop plan-unit-backdrop" onClick={() => { setUnitDialog(null); setSelectedExercise(null); setIsVideoPlaying(false); }}>
-        <section className="plan-unit-dialog" role="dialog" aria-modal="true" aria-labelledby="plan-unit-title" onClick={(event) => event.stopPropagation()}>
-          <button type="button" className="modal-close" aria-label="Einheit schließen" onClick={() => { setUnitDialog(null); setSelectedExercise(null); setIsVideoPlaying(false); }}><X /></button>
-          <div className={`plan-unit-heading ${remainingSeconds <= 30 && remainingSeconds > 0 ? "is-countdown-warning" : ""} ${remainingSeconds === 0 ? "is-countdown-finished" : ""}`}>
-            <div className="plan-unit-title-block"><span className="setup-badge">Einheit läuft · {unitDialog.session.type === "endurance" ? "Ausdauer" : "Kraft"}</span>
-              <h2 id="plan-unit-title">{unitDialog.session.title}</h2>
-              {unitDialog.recordingMode === "health" && <p>Health zählt · App-Timer ohne Wertung · Import noch nötig</p>}
-              <p>{unitDialog.session.date ? `${formatGermanDate(unitDialog.session.date)} · ` : ""}{unitDialog.session.minutes} Min.{unitDialog.session.distanceKm ? ` · ${unitDialog.session.distanceKm} km` : ""}</p>
-            </div>
-            <div className="plan-unit-live"><span>{remainingSeconds === 0 ? "ZEIT ERREICHT" : "EINHEIT · GESAMT"}</span><strong className={remainingSeconds <= 5 && remainingSeconds > 0 ? "countdown-last-five" : ""}>{formatCountdown(remainingSeconds)}</strong><small>Trainingszeit <LiveDuration since={unitDialog.startedAt} /></small></div>
-          </div>
-          <div className="plan-unit-content">
-            <div className="plan-unit-exercises">
-              <h3>Geplante Übungen {unitExercises.length > 1 && <small className="plan-exercise-split-note">Zeit gleichmäßig verteilt</small>}</h3>
-              {currentExerciseIndex >= 0 && (
-                <div className="plan-current-exercise">
-                  <div><small>JETZT · ÜBUNG {currentExerciseIndex + 1}/{unitExercises.length}</small><strong>{unitExercises[currentExerciseIndex]}</strong></div>
-                  <time>{formatCountdown(currentExerciseRemaining)}</time>
-                </div>
-              )}
-              {unitDialog.session.exercises?.length ? unitDialog.session.exercises.map((exercise, index) => (
-                <article key={`${exercise}-${index}`} className={`plan-unit-exercise-row ${index === currentExerciseIndex ? "is-current-exercise" : ""}`}>
-                  <span>{index + 1}</span>
-                  <button type="button" className="plan-exercise-name" onClick={() => void loadExercise(exercise)}><span>{exercise}</span><small>{formatCountdown(exerciseSlotSeconds(unitTotalSeconds, unitDialog.session.exercises.length, index))}</small></button>
-                  <button type="button" className="plan-exercise-guide" onClick={() => void loadExercise(exercise, "manual")}><BookOpen size={17} /><span>PDF-Anleitung</span></button>
-                </article>
-              )) : <p className="empty-week">Für diese Einheit sind keine einzelnen Übungen hinterlegt.</p>}
-            </div>
+      <div className="modal-backdrop plan-unit-backdrop">
+        <div className="plan-runner-layout">
+          <PlanSessionRunner profileId={profile.id} session={unitDialog.session} recordingMode={unitDialog.recordingMode} preparationSeconds={preparationSeconds} audioContext={unitAudio} onGuide={(name, mode) => void loadExercise(name, mode)} onClose={() => { localStorage.removeItem("fitfamily_running_plan_unit"); setRunningUnitKey(null); setUnitDialog(null); setSelectedExercise(null); }} />
             {selectedExercise ? (
               <section className="plan-exercise-detail" aria-live="polite">
                 <div className="plan-exercise-detail-heading">
@@ -487,7 +366,7 @@ export function PlanView({ profile, goals }: { profile: DashboardProfile; goals:
                       </>
                     ) : <p className="plan-no-video">Für „{selectedExercise.guide.equipment}“ ist hier keine PDF-Geräteanleitung hinterlegt.</p> : <>
                       {selectedExercise.videoUrl && (youtubeVideoId(selectedExercise.videoUrl) ? (
-                        <YoutubePlayer videoId={youtubeVideoId(selectedExercise.videoUrl)!} title={`Übungsvideo: ${selectedExercise.name}`} onPlayingChange={setIsVideoPlaying} />
+                        <YoutubePlayer videoId={youtubeVideoId(selectedExercise.videoUrl)!} title={`Übungsvideo: ${selectedExercise.name}`} onPlayingChange={() => {}} />
                       ) : <a className="plan-external-video" href={selectedExercise.videoUrl} target="_blank" rel="noreferrer"><Video size={18} /> Übungsvideo öffnen</a>)}
                       {!selectedExercise.videoUrl && <p className="plan-no-video">Für diese Übung ist noch kein YouTube-Video hinterlegt.</p>}
                     </>}
@@ -501,15 +380,7 @@ export function PlanView({ profile, goals }: { profile: DashboardProfile; goals:
                 ) : <p>Die Anleitung ist derzeit nicht verfügbar.</p>}
               </section>
             ) : <section className="plan-exercise-detail plan-exercise-placeholder"><Video size={38} /><b>Übung auswählen</b><p>Die Anleitung und das eingebettete Video erscheinen hier.</p></section>}
-          </div>
-          <footer className="plan-unit-footer">
-            <div className={`plan-idle-countdown ${isVideoPlaying ? "is-paused" : ""}`} style={{ "--idle-progress": `${((30 - idleCloseSeconds) / 30) * 100}%` } as React.CSSProperties}>
-              <span>{isVideoPlaying ? "Schließ-Timer pausiert · Video läuft" : "Fenster schließt bei Inaktivität in"}</span>
-              <strong>{formatCountdown(idleCloseSeconds)}</strong>
-            </div>
-            <button type="button" className="plan-unit-stop" disabled={stoppingSession} onClick={() => void stopUnit()}><Square size={17} fill="currentColor" />{stoppingSession ? "Wird beendet…" : "Einheit beenden"}</button>
-          </footer>
-        </section>
+        </div>
       </div>
     )}
     {creating && (() => {

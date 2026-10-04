@@ -12,6 +12,7 @@ export async function GET() {
 }
 
 const postSchema = z.object({
+  preparationSeconds: z.union([z.literal(5), z.literal(10), z.literal(20), z.literal(30), z.literal(60)]).optional(),
   pin: adminPinSchema,
   timeZone: z.string().refine(validTimeZone).optional(),
   idleTimeoutMinutes: z.number().int().min(0).max(180).optional(),
@@ -31,6 +32,7 @@ export async function POST(request: Request) {
   if (pinError) return pinError;
 
   const updated = await setDisplaySettings({
+    preparationSeconds: body.data.preparationSeconds,
     timeZone: body.data.timeZone,
     idleTimeoutMinutes: body.data.idleTimeoutMinutes,
     nightModeEnabled: body.data.nightModeEnabled,

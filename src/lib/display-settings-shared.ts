@@ -1,6 +1,7 @@
 import { DEFAULT_TIME_ZONE } from "./display-time";
 
 export type DisplaySettings = {
+  preparationSeconds?: number;
   timeZone: string;
   idleTimeoutMinutes: number; // Tagsüber: 0 = aus, bis zu 180 Minuten
   nightModeEnabled: boolean;
@@ -10,6 +11,7 @@ export type DisplaySettings = {
 };
 
 export const DEFAULT_DISPLAY_SETTINGS: DisplaySettings = {
+  preparationSeconds: 30,
   timeZone: DEFAULT_TIME_ZONE,
   idleTimeoutMinutes: 5,
   nightModeEnabled: true,

@@ -6,13 +6,14 @@ import { startOrSwitchTraining, stopTraining } from "@/lib/training";
 const requestSchema = z.discriminatedUnion("action", [
   z.object({
     action: z.literal("start"),
+    plannedDurationSeconds: z.number().int().min(1).max(14400).optional(),
     profileId: z.string().min(1),
     type: z.enum(["strength", "endurance"]),
     recordingMode: z.enum(["app", "health"]).optional(),
     exerciseId: z.string().nullable().optional(),
     source: z.enum(["touch", "mobile", "nfc", "manual"]).optional()
   }),
-  z.object({ action: z.literal("stop"), profileId: z.string().min(1) })
+  z.object({ action: z.literal("stop"), profileId: z.string().min(1), sessionId: z.string().optional() })
 ]);
 
 export async function POST(request: Request) {
@@ -37,7 +38,7 @@ export async function POST(request: Request) {
     }
   }
   const result = parsed.data.action === "stop"
-    ? await stopTraining(parsed.data.profileId)
+    ? await stopTraining(parsed.data.profileId, parsed.data.sessionId)
     : await startOrSwitchTraining(parsed.data);
-  return NextResponse.json(result);
+  return NextResponse.json(result, { status: "conflict" in result && result.conflict ? 409 : 200 });
 }

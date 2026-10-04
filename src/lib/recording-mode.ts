@@ -1,2 +1,2 @@
 export type RecordingMode = "app" | "health";
-export const HEALTH_RECORDING_QUESTION = "Zeichnest du dieses Training mit der Apple Watch oder Gymondo über Apple Health auf?";
+export const HEALTH_RECORDING_QUESTION = "Importierst du dieses Training später manuell über einen Apple-Health-Export?";

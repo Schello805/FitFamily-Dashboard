@@ -1,5 +1,33 @@
 # Apple Health: tägliche aktive Energie und Schritte per iPhone-Kurzbefehl
 
+## Manueller Trainingsimport direkt im Profil (0.3.28)
+
+Health → Profilbild → Alle Gesundheitsdaten exportieren → In Dateien sichern.
+FitFamily → eigenes Profil → Health-Training importieren → ZIP/XML auswählen.
+Zeitraum auswählen und lokale Vorschau laden. Profilzuordnung, Auswahl und Kraft/
+Ausdauer prüfen, dann verbindlich buchen. Maximal 25 Trainings pro Buchung; danach
+können weitere ausgewählt werden. Die komplette Datei bleibt auf dem Gerät; nur
+bestätigte Trainingszeiten werden gesendet. Exporte bis 4 GiB werden stückweise
+gelesen, jedoch kann die Verarbeitung auf älteren Handys länger dauern. Erster
+echter iPhone-Dateiauswahl-/ZIP-Test noch erforderlich. Unbekannte Trainingsarten
+müssen ausdrücklich zugeordnet werden. Duplikate und Überschneidungen mit bereits
+gewerteter App-Zeit werden nicht zusätzlich gebucht. 1,5 Punkte pro aktiver Minute.
+
+Beim Start beantwortest du „Importierst du dieses Training später manuell über
+einen Apple-Health-Export?“: Ja = App-Zeit ohne Wertung, erst der Import zählt;
+Nein = aktive App-Zeit zählt. kcal und Schritte bleiben separat und unbewertet.
+
+## KI-Plan-Timer
+
+Einheit starten → Vorbereitung → aktive erste Übung → automatisches Übungsende.
+Die nächste Übung wartet auf „Nächste Übung starten“ und ihren eigenen Countdown.
+Verwaltung → Anzeige/Ruhemodus → Vorbereitungszeit: 5/10/20/30/60 Sekunden.
+Vorbereitung und Wechsel zählen nicht. Die Übungszeiten werden weiterhin gleichmäßig
+aus der Einheit verteilt. Browser-Töne sind optional und können durch Gerätestumm-
+oder Browsereinstellungen ausbleiben. Der Server begrenzt die Wertung auf die
+gespeicherte Übungszeit auch bei geschlossenem Fenster; die nächste Serverabfrage
+schließt eine abgelaufene Sitzung exakt zu dieser Zeit ab.
+
 Ab 0.3.26 bietet die App einen einzigen ZIP-Download mit „FitFamily-Kurzbefehl.app“.
 Entpacken und per Doppelklick starten, ohne Terminaleingabe. Die enthaltene Vorlage
 wird auf dem Mac automatisch von Apples Kurzbefehle-Werkzeug signiert und geöffnet.
