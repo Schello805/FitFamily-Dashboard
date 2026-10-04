@@ -24,3 +24,13 @@ it("shows empty energy separately and refreshes the exact received kcal/error st
   expect(screen.getByRole("alert")).toHaveTextContent("example-import");
   expect(screen.getByText(/Wiederholter Empfang ersetzt den Tageswert/)).toBeInTheDocument();
 });
+it("saves both daily goals per profile with a default of 10000 steps", async () => {
+  const status = { configured: true, profiles: [{ id: "papa", name: "Papa" }], latest: null };
+  vi.mocked(requestJson).mockResolvedValue(status);
+  render(<AdminHealthTrainingTest />);
+  const steps = await screen.findByRole("spinbutton", { name: "Schritte-Ziel für Papa" });
+  expect(steps).toHaveValue(10000);
+  fireEvent.change(steps, { target: { value: "8000" } });
+  fireEvent.click(screen.getByRole("button", { name: "Ziele speichern" }));
+  await waitFor(() => expect(requestJson).toHaveBeenCalledWith("/api/admin/health-training-test", expect.any(String), expect.objectContaining({ method: "PATCH", body: JSON.stringify({ profileId: "papa", goalKcal: 500, goalSteps: 8000 }) })));
+});

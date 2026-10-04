@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { requestJson } from "@/lib/api-client";
 
-type TestStatus = { configured: boolean; profiles: { id: string; name: string }[]; latest: { at: string; importId: string; profileName: string; mode?: "test" | "book"; saved: number; alreadyReceived: number; conflicts?: number; workouts: { startedAt: string; durationSeconds: number; sourceName: string; minutes: number; testPoints?: number; points?: number; duplicate: boolean; conflict?: boolean; error?: string }[] } | null };
+type TestStatus = { configured: boolean; profiles: { id: string; name: string; energyGoalKcal?: number; goalSteps?: number }[]; latest: { at: string; importId: string; profileName: string; mode?: "test" | "book"; saved: number; alreadyReceived: number; conflicts?: number; workouts: { startedAt: string; durationSeconds: number; sourceName: string; minutes: number; testPoints?: number; points?: number; duplicate: boolean; conflict?: boolean; error?: string }[] } | null };
 export function AdminHealthTrainingTest() {
   const [status, setStatus] = useState<(TestStatus & {
     energyDaily?: { profile_id: string; profile_name: string; date: string; active_energy_kcal: number; step_count?: number | null; updated_at: string }[];
@@ -52,18 +52,20 @@ export function AdminHealthTrainingTest() {
     <section className="health-energy-settings" aria-label="Aktive Energie aus Apple Health">
       <h3>Aktive Energie · täglicher Kurzbefehl</h3>
       <p>Derselbe Familienschlüssel und deine Profil-ID. Wiederholter Empfang ersetzt den Tageswert, auch bei einer Korrektur nach unten. Keine Umrechnung in Training oder Punkte.</p>
-      <h4>kcal-Tagesziel · manuell</h4>
-      <p>Vorläufig 500 kcal pro Profil. Nicht aus Apple gelesen; Änderungen werden in FitFamily gespeichert.</p>
-      {status?.profiles.map(profile => <form key={`${profile.id}:${"energyGoalKcal" in profile ? profile.energyGoalKcal : 500}`} onSubmit={async event => {
+      <h4>Tagesziele · kcal und Schritte</h4>
+      <p>Standard: 500 kcal und 10.000 Schritte pro Profil. Ziele werden manuell in FitFamily gepflegt, nicht aus Apple gelesen. Ohne Wertung.</p>
+      {status?.profiles.map(profile => <form className="health-goal-form" key={`${profile.id}:${profile.energyGoalKcal}:${profile.goalSteps}`} onSubmit={async event => {
         event.preventDefault();
-        const goalKcal = Number(new FormData(event.currentTarget).get("goalKcal"));
+        const data = new FormData(event.currentTarget);
+        const goalKcal = Number(data.get("goalKcal"));
+        const goalSteps = Number(data.get("goalSteps"));
         setBusy(true); setNotice("");
         try {
-          await requestJson("/api/admin/health-training-test", "Ziel konnte nicht gespeichert werden.", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ profileId: profile.id, goalKcal }) });
-          await refresh(); setNotice(`kcal-Ziel für ${profile.name} gespeichert.`);
+          await requestJson("/api/admin/health-training-test", "Ziele konnten nicht gespeichert werden.", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ profileId: profile.id, goalKcal, goalSteps }) });
+          await refresh(); setNotice(`Tagesziele für ${profile.name} gespeichert.`);
         } catch (error) { setNotice(error instanceof Error ? error.message : "Ziel konnte nicht gespeichert werden."); }
         finally { setBusy(false); }
-      }}><label>{profile.name} · kcal-Ziel<input aria-label={`kcal-Ziel für ${profile.name}`} name="goalKcal" type="number" required min="1" max="20000" step="1" defaultValue={"energyGoalKcal" in profile ? Number(profile.energyGoalKcal) : 500} /></label><button type="submit" disabled={busy}>Ziel speichern</button></form>)}
+      }}><strong>{profile.name}</strong><label>kcal-Ziel<input aria-label={`kcal-Ziel für ${profile.name}`} name="goalKcal" type="number" required min="1" max="20000" step="1" defaultValue={profile.energyGoalKcal ?? 500} /></label><label>Schritte-Ziel<input aria-label={`Schritte-Ziel für ${profile.name}`} name="goalSteps" type="number" required min="1" max="100000" step="1" defaultValue={profile.goalSteps ?? 10000} /></label><button type="submit" disabled={busy}>Ziele speichern</button></form>)}
       <section className="health-shortcut-download" aria-label="Mac-Kurzbefehl herunterladen">
         <h4>Fertigen Kurzbefehl auf dem Mac erstellen</h4>
         <label>Profil<select value={shortcutProfile || status?.profiles[0]?.id || ""} onChange={event => setShortcutProfile(event.target.value)}>{status?.profiles.map(profile => <option key={profile.id} value={profile.id}>{profile.name}</option>)}</select></label>

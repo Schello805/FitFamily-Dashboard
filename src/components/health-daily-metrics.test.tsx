@@ -13,3 +13,14 @@ it("distinguishes missing steps from a measured zero and labels date and non-sco
   expect(screen.getByText("0")).toBeTruthy();
   expect(screen.queryByText("Noch nicht übertragen")).toBeNull();
 });
+it("shows remaining amounts and caps reached goal bars without hiding excess", () => {
+  const value = { date: "2026-10-04", activeEnergyKcal: 288.9, stepCount: 3493, updatedAt: "2026-10-04" };
+  const { rerender } = render(<HealthDailyMetrics value={value} />);
+  expect(screen.getByText("Noch 211,1 kcal")).toBeTruthy();
+  expect(screen.getByText("Noch 6.507 Schritte")).toBeTruthy();
+  expect(screen.getByRole("progressbar", { name: "Schritte-Ziel" }).getAttribute("aria-valuemax")).toBe("10000");
+  rerender(<HealthDailyMetrics value={{ ...value, goalKcal: 250, goalSteps: 3000 }} />);
+  expect(screen.getByText("Ziel erreicht · +38,9 kcal")).toBeTruthy();
+  expect(screen.getByText("Ziel erreicht · +493 Schritte")).toBeTruthy();
+  expect(screen.getByRole("progressbar", { name: "Schritte-Ziel" }).getAttribute("aria-valuenow")).toBe("3000");
+});

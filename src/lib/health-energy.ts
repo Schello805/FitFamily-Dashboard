@@ -2,6 +2,12 @@ import { z } from "zod";
 import { db } from "./db";
 
 export const DEFAULT_ENERGY_GOAL = 500;
+export const DEFAULT_STEP_GOAL = 10000;
+export const stepGoalKey = (profileId: string) => `health_step_goal:${profileId}`;
+export function stepGoal(value: unknown) {
+  const number = Number(value);
+  return Number.isInteger(number) && number >= 1 && number <= 100000 ? number : DEFAULT_STEP_GOAL;
+}
 export const energyGoalKey = (profileId: string) => `health_energy_goal:${profileId}`;
 export function energyGoal(value: unknown) {
   const number = Number(value);

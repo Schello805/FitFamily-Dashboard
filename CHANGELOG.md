@@ -4,6 +4,10 @@ Alle wichtigen Änderungen werden hier nach dem Prinzip von Keep a Changelog dok
 
 ## [Unreleased]
 
+## [0.3.39] – 2026-10-04
+
+- Apple-Health-Tageskennzahlen mit Fortschrittsbalken, Prozent und fehlenden kcal bzw. Schritten; erreichte Ziele zeigen den Überschuss. Schritte-Ziel standardmäßig 10.000, gemeinsam mit dem kcal-Ziel pro Profil einstellbar. Keine Änderungen an Punkten oder Trainingswertung.
+
 ## [0.3.38] – 2026-10-04
 
 - Wochenkreis mit orangefarbenem Soll-Fortschritt bis zum aktuellen Wochentag (Montag 1/7 bis Sonntag 7/7) und „Bis heute“-Minuten. Trainingsfortschritt überdeckt Orange; bei erreichtem Tagesstand verschwindet es. Verglichen wird mit exakten Minuten, in der gewählten Anzeige-Zeitzone.

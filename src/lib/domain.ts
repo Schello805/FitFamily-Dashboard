@@ -140,7 +140,7 @@ export type ActivityTrendPoint = {
 };
 
 export type DashboardProfile = Profile & {
-  healthEnergy?: { date: string; activeEnergyKcal: number; updatedAt: string; goalKcal?: number; goalPercent?: number; stepCount?: number | null } | null;
+  healthEnergy?: { date: string; activeEnergyKcal: number; updatedAt: string; goalKcal?: number; goalPercent?: number; goalSteps?: number; stepCount?: number | null } | null;
   trainingProgress?: import("@/lib/training-progress").TrainingProgress;
   strengthMinutes: number;
   enduranceMinutes: number;

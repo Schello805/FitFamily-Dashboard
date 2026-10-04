@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { db } from "./db";
-import { energyDate, energyKcalSchema, healthEnergySchema, storeHealthEnergy, energyGoal, energyGoalPercent, energyGoalKey } from "./health-energy";
+import { energyDate, energyKcalSchema, healthEnergySchema, storeHealthEnergy, energyGoal, energyGoalPercent, energyGoalKey, stepGoal, stepGoalKey } from "./health-energy";
 import { getDashboardData } from "./dashboard";
 import { POST, energyTranscript } from "@/app/api/sync/health-energy/route";
 import { DATA_TABLE_SPECS, DATA_IMPORT_ORDER } from "./data-transfer-schema";
@@ -115,6 +115,12 @@ it("stores steps separately without scoring, replacing rather than adding and pr
   expect((await POST(request(payload))).status).toBe(200);
   let after = (await getDashboardData()).find(p => p.id === profileId)!;
   expect(after.healthEnergy?.stepCount).toBe(250);
+  expect(after.healthEnergy?.goalSteps).toBe(10000);
+  await (await db()).execute({ sql: "INSERT INTO settings(key,value) VALUES (?,?)", args: [stepGoalKey(profileId), "8000"] });
+  expect((await getDashboardData()).find(p => p.id === profileId)?.healthEnergy?.goalSteps).toBe(8000);
+  expect(stepGoal("invalid")).toBe(10000);
+  expect(stepGoal(0)).toBe(10000);
+  expect(stepGoal(1.5)).toBe(10000);
   for (const field of ["score", "todayMinutes", "totalMinutes", "trainingProgress"] as const) expect(after[field]).toEqual(before[field]);
   expect((await POST(request({ ...payload, stepRows: "0\tcount\tWatch" }))).status).toBe(200);
   await POST(request(input));
