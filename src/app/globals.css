@@ -713,6 +713,10 @@ body::before {
 }
 .training-hero { min-height: 230px; margin: 26px 0 18px; padding: 30px 34px; border: 1px solid var(--line); border-radius: var(--radius); background: linear-gradient(120deg, color-mix(in srgb, var(--profile) 12%, var(--panel)), var(--panel)); box-shadow: var(--card-shadow); display: flex; align-items: center; justify-content: space-between; }
 .profile-hero-left { display: flex; align-items: center; gap: 26px; min-width: 0; }
+.profile-avatar-edit { position: relative; flex: none; display: block; padding: 0; border: 0; border-radius: 22px; background: transparent; color: var(--text); cursor: pointer; }
+.profile-avatar-edit:focus-visible { outline: 3px solid var(--brand-bright); outline-offset: 5px; }
+.profile-avatar-edit-badge { position: absolute; right: -5px; top: -5px; display: grid; place-items: center; width: 30px; height: 30px; border: 1px solid var(--line-strong); border-radius: 50%; background: var(--card-bg); box-shadow: var(--card-shadow); }
+.profile-avatar-edit:hover .profile-avatar-edit-badge { color: var(--brand-bright); }
 .avatar-meta-pills { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 10px; }
 .avatar-pill { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 999px; font-size: 11px; font-weight: 700; line-height: 1; border: 1px solid var(--line); background: var(--subtle-bg); color: var(--text); }
 .avatar-pill.stage { background: color-mix(in srgb, var(--profile) 16%, transparent); border-color: color-mix(in srgb, var(--profile) 42%, transparent); color: var(--text); }

@@ -435,7 +435,10 @@ export function ProfileView({
       <TrainingProgress progress={profile.trainingProgress} />
       <section className="training-hero">
         <div className="profile-hero-left">
-          <Avatar profile={profile} size="large" />
+          <button type="button" className="profile-avatar-edit" onClick={openProfileEditor} aria-label={`${profile.name}: Profil bearbeiten`} title="Profil bearbeiten: Name, Geburtsdatum, E-Mail, Figur und Punktestand">
+            <Avatar profile={profile} size="large" />
+            <span className="profile-avatar-edit-badge" aria-hidden="true"><Settings2 size={16} /></span>
+          </button>
           <div className="training-copy">
             <span className="section-kicker">Was möchtest du tun?</span>
             <h2>{profile.activeTraining ? "Dein Training läuft" : "Bereit, wenn du es bist."}</h2>
@@ -543,26 +546,15 @@ export function ProfileView({
           <button
             type="button"
             onClick={openHandoff}
-            title="QR-Code anzeigen: Profil auf dem Smartphone öffnen für mobile Trainingssteuerung"
+            title="Handy verknüpfen: QR-Code für die mobile Trainingssteuerung anzeigen"
           >
             <QrCode />
             <div className="profile-nav-text">
-              <b>Am Handy öffnen</b>
+              <b>Handy verknüpfen</b>
               <small>QR-Code scannen</small>
             </div>
           </button>
         )}
-        <button
-          type="button"
-          onClick={openProfileEditor}
-          title="Name, Geburtsdatum, Avatar und PIN für dieses Profil anpassen"
-        >
-          <Settings2 />
-          <div className="profile-nav-text">
-            <b>Profil &amp; Familie</b>
-            <small>Daten, Avatar &amp; Punktestand</small>
-          </div>
-        </button>
       </nav>
       {profileNotice && <p className="profile-notice" role="status">{profileNotice}</p>}
       {editingProfile && <ProfileEditModal
@@ -675,11 +667,11 @@ export function ProfileView({
                     </button>
                   )}
                 </div>
-                <h2 id="handoff-title">Profil auf dem Handy öffnen</h2>
+                <h2 id="handoff-title">Handy verknüpfen</h2>
                 <p style={{ maxWidth: "480px", margin: "6px auto 14px", lineHeight: "1.45", fontSize: "13px", color: "var(--muted)" }}>
                   Scanne den QR-Code mit der iPhone- oder Android-Kamera. <b>{profile.name}</b> öffnet sich direkt auf deinem Smartphone zur mobilen Trainingssteuerung (10 Minuten gültig).
                 </p>
-                <Image src={handoff.qr} alt="QR-Code zum Öffnen des Profils auf dem Handy" width={330} height={330} unoptimized />
+                <Image src={handoff.qr} alt="QR-Code zum Verknüpfen des Handys mit diesem Profil" width={330} height={330} unoptimized />
                 {handoff.url && <p style={{ wordBreak: "break-all", fontSize: "12px", color: "var(--muted)", margin: "12px 0 0", textAlign: "center" }}><code>{handoff.url}</code></p>}
               </>
             )}

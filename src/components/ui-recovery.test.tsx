@@ -228,12 +228,27 @@ describe("profile request recovery", () => {
     }));
     render(<ProfileView initialProfile={profile} exercises={[]} />);
     await screen.findByText("Lokal verbunden");
-    fireEvent.click(screen.getByRole("button", { name: /Am Handy öffnen/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Handy verknüpfen/ }));
     await waitFor(() => expect(toast).toHaveBeenCalledWith(expect.objectContaining({ title: "Handy-Verbindung fehlgeschlagen" })));
     expect(screen.queryByText(/Apple Health/)).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Starten\s*Kraft/ })).toBeEnabled();
     expect(screen.getByRole("button", { name: /Starten\s*Ausdauer/ })).toBeEnabled();
     expect(screen.getByRole("link", { name: /Trainingsplan/ })).toHaveAttribute("href", "/profil/papa/plan");
+  });
+
+  it("opens the profile editor from the avatar and removes the duplicate navigation button", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ profiles: [profile] })));
+    render(<ProfileView initialProfile={profile} exercises={[]} />);
+    await screen.findByText("Lokal verbunden");
+    expect(screen.queryByRole("button", { name: /Profil & Familie/ })).not.toBeInTheDocument();
+    const avatar = screen.getByRole("button", { name: "Papa: Profil bearbeiten" });
+    avatar.focus();
+    fireEvent.click(avatar);
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(screen.getByLabelText("E-Mail-Adresse")).toBeInTheDocument();
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(avatar).toHaveFocus();
   });
 });
 

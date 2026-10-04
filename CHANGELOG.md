@@ -4,6 +4,13 @@ Alle wichtigen Änderungen werden hier nach dem Prinzip von Keep a Changelog dok
 
 ## [Unreleased]
 
+## [0.3.10] – 2026-10-04
+
+### Geändert
+
+- Ein Klick oder Touch auf den Profil-Avatar öffnet den Profileditor. Einstellungs-Abzeichen und Tastaturfokus machen die Funktion erkennbar; der doppelte Profil-Button entfällt.
+- „Am Handy öffnen“ heißt im Profil und QR-Dialog jetzt „Handy verknüpfen“. Die Hilfe erklärt den neuen Avatar-Einstieg.
+
 ## [0.3.9] – 2026-10-04
 
 ### Geändert

@@ -34,7 +34,7 @@ export function UserHelp() {
         <span className="setup-badge">FitFamily · Kurz erklärt</span>
         <h2 id="user-help-title">Von deinem Profil bis zum Trainingsfortschritt</h2>
         <ol className="user-help-steps">
-          <li><b>Wähle dein Profil.</b><span>Dein Dashboard zeigt deine Trainingspunkte, dein Bewegungsziel und deinen Verlauf. Unter „Profil bearbeiten“ kannst du Fitnessstufe und Figur selbst einstellen.</span></li>
+          <li><b>Wähle dein Profil.</b><span>Dein Dashboard zeigt deine Trainingspunkte, dein Bewegungsziel und deinen Verlauf. Tippe im Profil auf deine Figur, um Profil, Fitnessstufe und Avatar zu bearbeiten. Über „Handy verknüpfen“ kannst du das Training auf deinem Smartphone steuern.</span></li>
           <li><b>Starte eine Übung oder erstelle einen Plan.</b><span>Wähle im Profil entweder den Direktstart über „Kraft“ oder „Ausdauer“ oder deinen persönlichen KI-Trainingsplan. Beim KI-Plan gibst du Ziel, Trainingsstand, Häufigkeit und Dauer an; berücksichtigt werden die verfügbaren Geräte. Du kannst auch ohne KI planen.</span></li>
           <li><b>Trainiere und beende die Einheit.</b><span>Wähle eine Übung für Video oder Anleitung, starte das Training und beende es nachher mit „Beenden“ oder „Stopp“. FitFamily speichert die Einheit für deinen Verlauf und Score. Falsch gestartete Einträge kannst du im Verlauf nachträglich bearbeiten oder löschen.</span></li>
           <li><b>Sieh dir deine Entwicklung an.</b><span>Auf dem Dashboard findest du Bewegungsziel, Trainingsminuten und Punkte. Im Profil kannst du deinen Trainingsverlauf ansehen.</span></li>
