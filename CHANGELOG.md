@@ -4,6 +4,8 @@ Alle wichtigen Änderungen werden hier nach dem Prinzip von Keep a Changelog dok
 
 ## [Unreleased]
 
+## [0.3.31] – 2026-10-04
+
 - Verlaufskarten mit kompakten Stift- und Papierkorb-Icons statt beschrifteter Aktionsbuttons; verständliche Tooltips und zugängliche Beschriftungen bleiben erhalten.
 
 - Doppeltes PIN-Eingabefeld unter dem Zahlenblock entfernt. Die automatische Prüfung nach vier Ziffern bleibt bestehen.
