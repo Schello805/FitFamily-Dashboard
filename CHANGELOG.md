@@ -4,6 +4,14 @@ Alle wichtigen Änderungen werden hier nach dem Prinzip von Keep a Changelog dok
 
 ## [Unreleased]
 
+## [0.3.9] – 2026-10-04
+
+### Geändert
+
+- Dashboard: größere Avatare, 20 px Abstand zur Kopfzeile und inhaltsbreite Namensspalte mit gleichen Diagramm-Abständen statt pauschaler Verschiebung.
+- Zielkreis als animierter SVG-Ring mit klarer Ziel-Beschriftung; Punkte nach einem Reset werden als „Punkte seit Reset“ angezeigt. Fortschritt und Werte wechseln weich, aktive Figuren bewegen sich dezent; reduzierte Bewegung wird respektiert.
+- Hilfe erklärt Tages-/Wochenziel, Punktewertung, automatische Level-Schwellen und die Folgen von Reset bzw. Änderungen am Trainingsverlauf. Formeln bleiben unverändert und sind durch Zahlen- und Reset-Tests abgesichert.
+
 ## [0.3.8] – 2026-10-04
 
 ### Behoben

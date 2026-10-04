@@ -2654,8 +2654,8 @@ body::before {
 }
 
 @keyframes dashboard-card-arrive {
-  from { opacity: 0; transform: translateY(10px) scale(.992); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
+  from { transform: translateY(10px) scale(.992); }
+  to { transform: translateY(0) scale(1); }
 }
 @keyframes dashboard-trend-draw { to { stroke-dashoffset: 0; } }
 
@@ -3737,3 +3737,38 @@ body::before {
   .profile-card .today strong { font-size: 24px; line-height: 1.1; }
   .profile-card .active-strip { min-height: 32px; }
 }
+
+/* Balanced wall-display header: content-sized identity, equal chart gutters. */
+@media (min-width: 901px) {
+  .dashboard-shell { row-gap: 20px; }
+  .profile-card .profile-heading { grid-template-columns: auto minmax(0, 1fr) 96px; column-gap: 14px; }
+  .profile-card .profile-heading > .profile-identity { grid-template-columns: 94px auto; gap: 12px; }
+  .profile-card .profile-name { width: min-content; max-width: 94px; }
+  .profile-card .profile-name h2 { font-size: clamp(20px, 1.55vw, 28px); overflow-wrap: break-word; }
+  .profile-card .profile-name p { font-size: 10px; max-width: 94px; line-height: 1.35; }
+  .profile-card .avatar-generated { width: 94px; height: 132px; }
+  .profile-card .goal-ring-summary { width: 96px; }
+  .profile-card .goal-ring { width: 96px; height: 96px; }
+  .profile-card .profile-heading > .dashboard-history-chart { transform: none; }
+}
+@media (min-width: 901px) and (max-width: 1150px) {
+  .profile-card .profile-heading { grid-template-columns: auto minmax(0, 1fr) 68px; column-gap: 8px; }
+  .profile-card .profile-heading > .profile-identity { grid-template-columns: 68px auto; gap: 8px; }
+  .profile-card .avatar-generated { width: 68px; height: 100px; }
+  .profile-card .profile-name { max-width: 65px; }
+  .profile-card .profile-name h2 { font-size: 18px; }
+  .profile-card .goal-ring-summary, .profile-card .goal-ring { width: 68px; }
+  .profile-card .goal-ring { height: 68px; }
+}
+.goal-ring { background: var(--ring-inner); }
+.goal-ring::after { display: none; }
+.goal-ring-visual { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; transform: rotate(-90deg); }
+.goal-ring-visual circle { fill: none; stroke-width: 8; }
+.goal-ring-track { stroke: var(--ring-track); }
+.goal-ring-fill { stroke: var(--profile); transition: stroke-dashoffset 1s cubic-bezier(.2,.7,.25,1); }
+.goal-reached { box-shadow: 0 0 22px color-mix(in srgb, var(--profile) 30%, transparent); }
+.score-value, .level-value { animation: dashboard-value-arrive .45s ease-out both; }
+.dashboard-level i { transition: width 1s cubic-bezier(.2,.7,.25,1); }
+.profile-card.is-active .avatar-generated img { animation: dashboard-avatar-breathe 4s ease-in-out infinite; }
+@keyframes dashboard-value-arrive { from { opacity: .4; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes dashboard-avatar-breathe { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }

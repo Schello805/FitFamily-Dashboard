@@ -50,12 +50,14 @@ function useClock() {
 }
 
 
-function GoalRing({ value, color, targetMinutes, targetPeriod }: { value: number; color: string; targetMinutes: number; targetPeriod: "Tag" | "Woche" }) {
+export function GoalRing({ value, color, targetMinutes, targetPeriod }: { value: number; color: string; targetMinutes: number; targetPeriod: "Tag" | "Woche" }) {
+  const progress = Math.max(0, Math.min(100, Number.isFinite(value) ? value : 0));
   return (
-    <div className="goal-ring-summary" role="img" aria-label={`Bewegungsziel: ${value} Prozent von ${targetMinutes} Minuten pro ${targetPeriod.toLowerCase()}`}>
-      <span className="goal-ring" aria-hidden="true" style={{ "--progress": `${Math.min(100, value) * 3.6}deg`, "--profile": color } as React.CSSProperties}>
+    <div className="goal-ring-summary" role="img" aria-label={`Trainingsziel: ${value} Prozent von ${targetMinutes} Minuten pro ${targetPeriod.toLowerCase()}`} title={`Dein ${targetPeriod === "Tag" ? "Tagesziel" : "Wochenziel"}: ${targetMinutes} Trainingsminuten. Erfasste Kraft- und Ausdauerminuten füllen den Kreis; nach Ablauf des Zeitraums beginnt er neu. Ein Punkte-Reset setzt auch das Ziel zurück, nicht deinen Trainingslevel.`}>
+      <span className={`goal-ring ${value >= 100 ? "goal-reached" : ""}`} aria-hidden="true" style={{ "--profile": color } as React.CSSProperties}>
+        <svg className="goal-ring-visual" viewBox="0 0 100 100"><circle className="goal-ring-track" cx="50" cy="50" r="44" /><circle className="goal-ring-fill" cx="50" cy="50" r="44" pathLength="100" strokeDasharray="100" strokeDashoffset={100 - progress} /></svg>
         <strong>{value}%</strong>
-        <small>IST</small>
+        <small>ZIEL</small>
       </span>
       <span className="goal-ring-target">SOLL {targetMinutes} Minuten/{targetPeriod === "Tag" ? "Tag" : "Woche"}</span>
     </div>
@@ -76,10 +78,10 @@ function ProfileDashboardCard({ profile, clock }: { profile: DashboardProfile; c
       </div>
 
       <div className="score-row">
-        <div className="score"><Trophy size={22} /><div><strong>{profile.score.toLocaleString("de-DE")}</strong><span>Gesamtpunkte</span></div></div>
+        <div className="score" title="Trainingspunkte: Ausdauer 1 Punkt/Minute, Kraft 2 Punkte/Minute. Nach einem Punkte-Reset zählen nur neue Minuten. Trainingslevel zählt unabhängig davon alle abgeschlossenen Minuten."><Trophy size={22} /><div><strong key={profile.score} className="score-value">{profile.score.toLocaleString("de-DE")}</strong><span>{profile.scoreResetAt ? "Punkte seit Reset" : "Gesamtpunkte"}</span></div></div>
         <div className="today"><strong>{profile.todayMinutes}</strong><span>Minuten heute</span></div>
       </div>
-      {profile.trainingProgress && <div className="dashboard-level" aria-label={`Trainingslevel ${profile.trainingProgress.level}, automatischer Aufstieg`}><span>★ Trainingslevel {profile.trainingProgress.level}</span><div role="progressbar" aria-label="Trainingslevel-Fortschritt" aria-valuemin={0} aria-valuemax={100} aria-valuenow={profile.trainingProgress.percent}><i style={{ width: `${profile.trainingProgress.percent}%` }} /></div><small>{profile.trainingProgress.nextThreshold === null ? "Maximum erreicht" : `Automatisch in ${profile.trainingProgress.remaining} Min.`}</small></div>}
+      {profile.trainingProgress && <div className="dashboard-level" aria-label={`Trainingslevel ${profile.trainingProgress.level}, automatischer Aufstieg`} title="1 abgeschlossene Trainingsminute = 1 Level-Fortschrittspunkt. Level 2 ab 150, Level 3 ab 450, Level 4 ab 900 Minuten. Kraft und Ausdauer zählen gleich; kein wöchentlicher Reset."><span key={profile.trainingProgress.level} className="level-value">★ Trainingslevel {profile.trainingProgress.level}</span><div role="progressbar" aria-label="Trainingslevel-Fortschritt" aria-valuemin={0} aria-valuemax={100} aria-valuenow={profile.trainingProgress.percent}><i style={{ width: `${profile.trainingProgress.percent}%` }} /></div><small>{profile.trainingProgress.nextThreshold === null ? "Maximum erreicht" : `Level ${profile.trainingProgress.level + 1} in ${profile.trainingProgress.remaining} Min.`}</small></div>}
       {profile.activeTraining && (
         <div className="active-strip">
           <div className="pulse-dot" />
