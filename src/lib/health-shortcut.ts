@@ -69,10 +69,9 @@ export function buildEnergyShortcut(profileId: string, server: string) {
     WFWorkflowMinimumClientVersionString: "900", WFWorkflowHasOutputFallback: false,
     WFWorkflowIcon: { WFWorkflowIconStartColor: 4282601983, WFWorkflowIconGlyphNumber: 59511 },
     WFWorkflowInputContentItemClasses: [], WFWorkflowOutputContentItemClasses: [], WFWorkflowTypes: [],
-    WFWorkflowImportQuestions: [
-      { ActionIndex: 1, Category: "Parameter", ParameterKey: "WFTextActionText", Text: "Bekannten Familienschlüssel einfügen (nicht neu erzeugen)." },
-      { ActionIndex: 2, Category: "Parameter", ParameterKey: "WFTextActionText", Text: "Exakten Namen einer Energie-Datenquelle aus Health einfügen, z. B. Apple Watch von Michael. Nur diese Quelle wird summiert." }
-    ]
+    // Configure the two existing Text actions after adding the shortcut. The
+    // generated import questions repeatedly reopen on the user's Mac.
+    WFWorkflowImportQuestions: []
   };
 }
 export function plist(value: Plist): string {

@@ -1,5 +1,5 @@
 import Image from "next/image";
-import { avatarProgressAssetForProfile, getFitnessStageCount, physiqueLabel, type AvatarPhysique, type ProfileAvatar } from "@/lib/domain";
+import { avatarProgressAssetForProfile, getFitnessStageCount, personalHeadLayout, physiqueLabel, type AvatarPhysique, type ProfileAvatar } from "@/lib/domain";
 
 type AvatarProps = {
   profile?: {
@@ -57,6 +57,7 @@ export function Avatar({
     ? `Avatar von ${name}: Fitness-Selbsteinschätzung ${level} von ${stageCount}, ${label}`
     : `Avatar: Fitness-Selbsteinschätzung ${level} von ${stageCount}, ${label}`;
   const trainingLevel = profile?.trainingProgress?.level;
+  const head = personalHeadLayout(id, avatar);
 
   return (
     <div
@@ -67,6 +68,10 @@ export function Avatar({
       title={`${trainingLevel ? `Trainingslevel ${trainingLevel} · automatischer Aufstieg. ` : ""}Figur: Fitness-Selbsteinschätzung ${level} von ${stageCount} · ${label}`}
     >
       <div className={`avatar-canvas ${customAvatar ? "has-personal-head" : ""}`}>
+        <div className="avatar-figure" style={{
+          "--head-top": `${head.top}%`, "--head-width": `${head.width}%`,
+          "--head-height": `${head.height}%`, "--head-cutoff": `${head.cutoff}%`
+        } as React.CSSProperties}>
         <Image
           className="avatar-sprite"
           src={`/assets/avatars/${avatarAsset}.webp`}
@@ -92,6 +97,7 @@ export function Avatar({
             } as React.CSSProperties}
           />
         )}
+        </div>
       </div>
       {showChip && <div className="level-chip" aria-label={trainingLevel ? `Trainingslevel ${trainingLevel}, automatischer Aufstieg` : `Fitness-Selbsteinschätzung ${level}, manuell gewählt`}>{trainingLevel ? `★ Level ${trainingLevel}` : `Fitness ${level}`}</div>}
     </div>

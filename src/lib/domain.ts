@@ -26,6 +26,18 @@ export function avatarAssetForProfile(profileId: string, avatar: ProfileAvatar) 
   return AVATAR_IDS.includes(avatar as AvatarId) ? avatar : AVATAR_IDS.includes(profileId as AvatarId) ? profileId as AvatarId : "neutral";
 }
 
+// Percentages refer to the same 1:2 figure frame, not its surrounding card.
+export function personalHeadLayout(profileId: string, avatar: ProfileAvatar) {
+  const base = avatarAssetForProfile(profileId, avatar);
+  switch (base) {
+    case "fabian": return { top: 7, width: 46, height: 23, cutoff: 29 };
+    case "fabian-alt": return { top: 4, width: 46, height: 21, cutoff: 24 };
+    case "frieda": return { top: 25, width: 52, height: 24, cutoff: 48 };
+    case "frieda-alt": return { top: 11, width: 52, height: 24, cutoff: 34 };
+    default: return { top: 0, width: 36, height: 23, cutoff: 18 };
+  }
+}
+
 export function avatarProgressAssetForProfile(profileId: string, avatar: ProfileAvatar, fitnessStage: number, physique: AvatarPhysique, stageCount = 7) {
   const base = avatarAssetForProfile(profileId, avatar);
   // Keep children's avatars age-appropriate: their progress is reflected by the stage UI,

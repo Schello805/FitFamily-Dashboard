@@ -633,7 +633,7 @@ export function AdminView({
       const timestamp = formatGermanLogTimestamp(entry.createdAt);
       const level = entry.details.level === "error" ? "FEHLER" : entry.details.level === "warning" ? "WARNUNG" : "INFO";
       const message = summarizeAdminLog(entry);
-      return `[${timestamp}] ${level} · ${message}`;
+      return `[${timestamp}] ${level} · ${message}\n${entry.action}\n${JSON.stringify(entry.details, null, 2)}`;
     }).join("\n");
     if (!text) {
       showToast({ type: "info", title: "Keine Einträge", message: "Für diesen Filter gibt es keine Protokolleinträge." });

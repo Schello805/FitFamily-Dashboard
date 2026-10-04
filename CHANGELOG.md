@@ -4,6 +4,15 @@ Alle wichtigen Änderungen werden hier nach dem Prinzip von Keep a Changelog dok
 
 ## [Unreleased]
 
+## [0.3.21] – 2026-10-04
+
+### Korrigiert
+
+- Health-Ereignisse im Betriebsprotokoll sichtbar, mit eigenem Übertragungsfilter und kopierbaren vollständigen Details.
+- Energie-Übertragungen protokollieren empfangene Felder, begrenzte Messwert-Texte, Fehler und gespeichertes Ergebnis; Zugangsschlüssel bleiben ausgeschlossen.
+- Mac-Kurzbefehl ohne wiederholten Import-Konfigurationsdialog; zwei vorbereitete Textfelder nach dem Hinzufügen ausfüllen.
+- Eigene Kinderköpfe und Standardkopf-Ausblendung an die jeweilige Figur angepasst.
+
 ## [0.3.20] – 2026-10-04
 
 ### Neu

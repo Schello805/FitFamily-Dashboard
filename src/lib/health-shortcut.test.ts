@@ -7,13 +7,15 @@ const auth = vi.hoisted(() => ({ reject: false }));
 vi.mock("./security", () => ({ verifyAdminPinOrReject: async () => auth.reject ? new Response("Unauthorized", { status: 401 }) : null }));
 vi.mock("./db", () => ({ db: async () => ({ execute: async ({ args }: { args: string[] }) => ({ rows: args[0] === "papa" ? [{ id: "papa" }] : [] }) }) }));
 
-it("builds a complete text-only energy workflow with linked outputs and import questions", () => {
+it("builds a complete text-only energy workflow without the looping import dialog", () => {
   const shortcut = buildEnergyShortcut("papa", "http://192.168.1.253:3000");
   const actions = shortcut.WFWorkflowActions as { WFWorkflowActionIdentifier: string; WFWorkflowActionParameters: Record<string, unknown> }[];
   const identifiers = actions.map(action => action.WFWorkflowActionIdentifier);
   expect(identifiers).not.toContain("is.workflow.actions.math");
   expect(identifiers).not.toContain("is.workflow.actions.statistics");
-  expect(shortcut.WFWorkflowImportQuestions).toMatchObject([{ ActionIndex: 1, ParameterKey: "WFTextActionText" }, { ActionIndex: 2, ParameterKey: "WFTextActionText" }]);
+  expect(shortcut.WFWorkflowImportQuestions).toEqual([]);
+  expect(actions[1].WFWorkflowActionParameters.WFTextActionText).toBe("FAMILIENSCHLUESSEL_HIER_EINFUEGEN");
+  expect(actions[2].WFWorkflowActionParameters.WFTextActionText).toBe("EXAKTEN_HEALTH_DATENQUELLENNAMEN_EINFUEGEN");
   const uuids = new Set(actions.map(action => action.WFWorkflowActionParameters.UUID));
   for (const match of JSON.stringify(shortcut).matchAll(/"OutputUUID":"([^"]+)"/g)) expect(uuids.has(match[1])).toBe(true);
   expect(JSON.stringify(shortcut)).toContain("/api/sync/health-energy");

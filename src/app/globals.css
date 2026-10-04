@@ -323,11 +323,11 @@ body::before {
 }
 .avatar-sprite { position: absolute; z-index: 2; inset: 0; width: 100%; height: 100%; object-fit: contain; object-position: center bottom; filter: drop-shadow(0 5px 6px rgba(0,0,0,.18)); pointer-events: none; }
 .avatar-canvas.has-personal-head { background: transparent; }
+.avatar-figure { position: absolute; height: 100%; aspect-ratio: 1 / 2; left: 50%; transform: translateX(-50%); }
 .avatar-canvas.has-personal-head .avatar-sprite {
-  -webkit-mask-image: radial-gradient(ellipse 21% 10% at 56% 8%, transparent 0 86%, #fff 100%);
-  mask-image: radial-gradient(ellipse 21% 10% at 56% 8%, transparent 0 86%, #fff 100%);
+  clip-path: inset(var(--head-cutoff) 0 0 0);
 }
-.avatar-personal-head { position: absolute; z-index: 3; top: var(--personal-head-y, 0%); left: calc(50% + var(--personal-head-x, 0%)); width: 36%; height: 23%; object-fit: contain; object-position: center top; transform: translateX(-50%) scale(var(--personal-head-scale, 1)); transform-origin: top center; pointer-events: none; }
+.avatar-personal-head { position: absolute; z-index: 3; top: calc(var(--head-top) + var(--personal-head-y, 0%)); left: calc(50% + var(--personal-head-x, 0%)); width: var(--head-width); height: var(--head-height); object-fit: fill; transform: translateX(-50%) scale(var(--personal-head-scale, 1)); transform-origin: top center; pointer-events: none; }
 .goal-ring-summary { width: 116px; display: grid; justify-items: center; gap: 6px; padding: 4px 0; color: inherit; }
 .goal-ring { --progress: 0deg; width: 92px; height: 92px; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; background: conic-gradient(var(--profile) var(--progress), var(--ring-track) 0); box-shadow: 0 0 0 5px color-mix(in srgb, var(--ring-track) 72%, transparent); }
 .goal-ring::after { content: ""; position: absolute; inset: 9px; border-radius: 50%; background: var(--ring-inner); }

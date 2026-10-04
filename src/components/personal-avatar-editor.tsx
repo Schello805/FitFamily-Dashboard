@@ -5,9 +5,9 @@ import { Camera, Sparkles, Trash2 } from "lucide-react";
 import { Avatar } from "@/components/avatar";
 import { TouchPinpad } from "@/components/touch-pinpad";
 import { Modal } from "@/components/modal";
-import { getFitnessStageCount, type AvatarDesignId, type AvatarPhysique } from "@/lib/domain";
+import { getFitnessStageCount, personalHeadLayout, type AvatarDesignId, type AvatarPhysique } from "@/lib/domain";
 
-async function adjustedAvatarImage(source: string, scale: number, offsetX: number, offsetY: number) {
+async function adjustedAvatarImage(source: string, scale: number, offsetX: number, offsetY: number, headWidth: number, headHeight: number) {
   const image = new window.Image();
   await new Promise<void>((resolve, reject) => {
     image.onload = () => resolve();
@@ -19,8 +19,8 @@ async function adjustedAvatarImage(source: string, scale: number, offsetX: numbe
   canvas.height = 512;
   const context = canvas.getContext("2d");
   if (!context) throw new Error("Die Bildanpassung ist in diesem Browser nicht verfügbar.");
-  const scaleOffsetX = (offsetX / 23) * 512;
-  const scaleOffsetY = (offsetY / 23) * 512;
+  const scaleOffsetX = (offsetX / headWidth) * 512;
+  const scaleOffsetY = (offsetY / headHeight) * 512;
   const size = 512 * scale;
   context.drawImage(image, 256 - size / 2 + scaleOffsetX, scaleOffsetY, size, size);
   // PNG export is consistently supported by iOS Safari. Safari may silently
@@ -177,7 +177,8 @@ export function PersonalAvatarEditor({
     if (!preview || pin.length !== 4) return;
     setBusy(true); setError(""); setNotice("");
     try {
-      const adjustedImage = await adjustedAvatarImage(preview, headScale, headOffsetX, headOffsetY);
+      const head = personalHeadLayout(profileId, avatar);
+      const adjustedImage = await adjustedAvatarImage(preview, headScale, headOffsetX, headOffsetY, head.width, head.height);
       const response = await fetch(`/api/profiles/${encodeURIComponent(profileId)}/avatar`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "save", pin, image: adjustedImage })

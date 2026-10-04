@@ -59,8 +59,8 @@ export function AdminHealthTrainingTest() {
         {status?.profiles.length ? <a className="health-shortcut-link" href={`/api/admin/health-shortcut?profileId=${encodeURIComponent(shortcutProfile || status.profiles[0].id)}${shortcutServer ? `&server=${encodeURIComponent(shortcutServer)}` : ""}`} download>Mac-Skript herunterladen (.command)</a> : null}
         <ol>
           <li>Auf dem Mac herunterladen. Im Terminal <code>bash </code> eingeben, die heruntergeladene Datei ins Terminal ziehen und Enter drücken. Kein npm, kein Projektordner nötig.</li>
-          <li>Das Skript erzeugt die Vorlage, lässt sie von Apple signieren und öffnet sie in Kurzbefehle. „Kurzbefehl hinzufügen“ bestätigen. Beim Import bekannten Familienschlüssel und exakten Namen einer aktuellen Energie-Datenquelle aus Health angeben.</li>
-          <li>Falls die Importfragen fehlen: Nur die zwei vorbereiteten Textfelder oben ersetzen (Schlüssel und Quelle). Keine Aktionen selbst anlegen. Der Schlüssel kommt erst nach der Signierung hinein; keinen ausgefüllten Kurzbefehl teilen.</li>
+          <li>Das Skript erzeugt die Vorlage, lässt sie von Apple signieren und öffnet sie in Kurzbefehle. „Kurzbefehl hinzufügen“ bestätigen. Es gibt keine Konfigurationsfragen beim Import.</li>
+          <li>Danach den Kurzbefehl bearbeiten und nur die zwei vorbereiteten Textfelder oben ersetzen: bekannter Familienschlüssel und exakter Name einer aktuellen Energie-Datenquelle aus Health. Keine Aktionen selbst anlegen. Der Schlüssel kommt erst nach der Signierung hinein; keinen ausgefüllten Kurzbefehl teilen.</li>
           <li>Mac und iPhone: derselbe Apple-Account, Kurzbefehle → Einstellungen → iCloud-Synchronisierung aktivieren. Dann den fertigen Kurzbefehl auf dem iPhone einmal ausführen und den Empfang hier prüfen.</li>
         </ol>
         <p>Diese Version überträgt Werte, Einheiten und Quellennamen als Text. Die App summiert nur die ausgewählte Quelle; kein „mal 1“ und keine lokale Zahlenumwandlung. Der Wert kann von Apples bereinigter Gesamtanzeige abweichen. Import/Health-Lauf noch auf deinem iPhone testen. Die tägliche Automation wird einmal auf dem iPhone eingerichtet.</p>

@@ -3,7 +3,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { db } from "./db";
 import { energyDate, energyKcalSchema, healthEnergySchema, storeHealthEnergy } from "./health-energy";
 import { getDashboardData } from "./dashboard";
-import { POST } from "@/app/api/sync/health-energy/route";
+import { POST, energyTranscript } from "@/app/api/sync/health-energy/route";
 import { DATA_TABLE_SPECS, DATA_IMPORT_ORDER } from "./data-transfer-schema";
 
 vi.mock("./health-training-test", async original => ({ ...await original<object>(), verifyFamilyHealthKey: async (key: string) => key === "test-key" }));
@@ -19,6 +19,22 @@ afterEach(async () => {
 });
 const request = (body: unknown, key = "test-key") => new Request("http://localhost/api/sync/health-energy", {
   method: "POST", headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" }, body: JSON.stringify(body)
+});
+
+it("records a bounded transcript without arbitrary secrets, including rejected values", async () => {
+  const body = { profileId, date: input.date, sourceName: "Watch", sampleRows: "6.337\tkcal\tWatch", secret: "test-key", authorization: "test-key" };
+  const response = await POST(request({ ...body, sampleRows: "broken test-key" }));
+  expect(response.status).toBe(400);
+  const result = await response.json();
+  const logs = await (await db()).execute({ sql: "SELECT details FROM audit_log WHERE action='health.energy.failed' AND details LIKE ?", args: [`%${result.importId}%`] });
+  const details = JSON.parse(String(logs.rows[0].details));
+  expect(details.received.sampleRows).toBe("broken [SCHLÜSSEL ENTFERNT]");
+  expect(details.errors.length).toBeGreaterThan(0);
+  expect(JSON.stringify(details)).not.toContain("test-key");
+  expect(details.received.secret).toBeUndefined();
+  const bounded = energyTranscript({ sampleRows: "a".repeat(15000) }, "test-key");
+  expect(bounded.transcriptTruncated).toBe(true);
+  expect(bounded.sampleRowsCharacters).toBe(15000);
 });
 
 it("reads dot and comma decimals without removing separators or multiplying", () => {

@@ -26,10 +26,11 @@ kcal-Test auf dem iPhone ab; auch Schritte sollen ohne Wertung gespeichert werde
    erst bei Erfolg die signierte Datei. Apple bekommt beim Signieren die Vorlage,
    **noch ohne echten Familienschlüssel**. Kein automatischer Wechsel auf den
    Kontaktinformationen enthaltenden Modus „people-who-know-me“.
-4. In Kurzbefehle **Kurzbefehl hinzufügen** bestätigen. Bei den Importfragen den
-   bekannten Familienschlüssel und den exakten Namen **einer aktuellen Energie-
-   Datenquelle** aus Health → Aktive Energie → Datenquellen eingeben. Falls macOS
-   die Importfragen nicht zeigt, nur die beiden Textfelder ganz oben ersetzen.
+4. In Kurzbefehle **Kurzbefehl hinzufügen** bestätigen. Danach den Kurzbefehl
+   bearbeiten und die beiden Textfelder ganz oben ersetzen: bekannter
+   Familienschlüssel und exakter Name **einer aktuellen Energie-Datenquelle**
+   aus Health → Aktive Energie → Datenquellen. Keine Import-Konfigurationsfragen:
+   Diese öffneten sich auf dem getesteten Mac wiederholt statt abzuschließen.
    Alle Aktionen und Variablenverknüpfungen sind bereits vorbereitet.
 5. Mac und iPhone: gleicher Apple-Account, iCloud-Synchronisierung in Kurzbefehle
    einschalten. Danach taucht der hinzugefügte Kurzbefehl auf dem iPhone auf.
