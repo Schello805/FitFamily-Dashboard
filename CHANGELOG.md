@@ -4,6 +4,12 @@ Alle wichtigen Änderungen werden hier nach dem Prinzip von Keep a Changelog dok
 
 ## [Unreleased]
 
+## [0.3.7] – 2026-10-04
+
+### Geändert
+
+- Verwaltung prüft die Eltern-PIN automatisch nach der vierten Ziffer, auch bei eingefügter PIN. Der separate Entsperren-Button entfällt; doppelte Anfragen sind blockiert, Fehlversuche leeren die Eingabe für den nächsten Versuch.
+
 ## [0.3.6] – 2026-10-04
 
 ### Behoben

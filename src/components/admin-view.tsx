@@ -64,6 +64,7 @@ export function AdminView({
   const [pin, setPin] = useState("");
   const [authExpiresAt, setAuthExpiresAt] = useState<number | null>(null);
   const [verifying, setVerifying] = useState(false);
+  const verificationInFlight = useRef(false);
   const [status, setStatus] = useState<Status | null>(null);
   const [activeAdminSection, setActiveAdminSection] = useState<AdminSection>("allgemein");
   const [error, setError] = useState("");
@@ -296,7 +297,8 @@ export function AdminView({
   }, [authExpiresAt]);
 
   async function performUnlock(pinToTest?: string) {
-    if (pinToTest && pinToTest.length !== 4) return;
+    if (verificationInFlight.current || (pinToTest !== undefined && !/^\d{4}$/.test(pinToTest))) return;
+    verificationInFlight.current = true;
     setVerifying(true);
     setError("");
     try {
@@ -343,12 +345,14 @@ export function AdminView({
       }
       void checkUpdate();
     } catch (error) {
+      if (pinToTest) setPin("");
       if (error instanceof ApiRequestError) {
         if (pinToTest || error.status !== 401) setError(error.message);
       } else {
         setError("Verbindungsfehler beim Prüfen der PIN");
       }
     } finally {
+      verificationInFlight.current = false;
       setVerifying(false);
     }
   }
@@ -371,9 +375,12 @@ export function AdminView({
     }
   }
 
-  async function unlock(event?: React.FormEvent) {
-    if (event) event.preventDefault();
-    await performUnlock(pin);
+  function enterPin(value: string) {
+    if (verificationInFlight.current) return;
+    const nextPin = value.replace(/\D/g, "").slice(0, 4);
+    setPin(nextPin);
+    setError("");
+    if (nextPin.length === 4) void performUnlock(nextPin);
   }
 
   async function saveNasBackupPath() {
@@ -864,7 +871,7 @@ export function AdminView({
   if (!status) {
     return (
       <main className="mobile-page">
-        <form className="admin-login" onSubmit={unlock}>
+        <form className="admin-login" onSubmit={event => event.preventDefault()}>
           <div className="pair-icon">
             <ShieldCheck />
           </div>
@@ -874,10 +881,7 @@ export function AdminView({
 
           <TouchPinpad
             value={pin}
-            onChange={(val) => {
-              setPin(val);
-              if (error) setError("");
-            }}
+            onChange={enterPin}
             disabled={verifying}
           />
 
@@ -891,18 +895,16 @@ export function AdminView({
               aria-label="Eltern-PIN"
               placeholder="Tippen öffnet die Bildschirmtastatur"
               maxLength={4}
+              disabled={verifying}
               value={pin}
               onChange={(event) => {
-                setPin(event.target.value.replace(/\D/g, "").slice(0, 4));
-                if (error) setError("");
+                enterPin(event.target.value);
               }}
             />
           </label>
 
-          {error && <p className="form-error">{error}</p>}
-          <button className="primary-submit" disabled={verifying || pin.length !== 4}>
-            {verifying ? "Wird geprüft …" : "Entsperren"}
-          </button>
+          {error && <p className="form-error" role="alert">{error}</p>}
+          <p role="status">{verifying ? "PIN wird geprüft …" : "Prüfung automatisch nach der vierten Ziffer."}</p>
           <Link href="/">
             <ArrowLeft /> Dashboard
           </Link>
