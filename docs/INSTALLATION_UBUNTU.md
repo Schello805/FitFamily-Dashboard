@@ -128,7 +128,7 @@ FitFamily bietet zwei bequeme Möglichkeiten für Updates. Bei beiden Methoden w
 1. Öffne das Dashboard und wechsle zu **Verwaltung** (`/verwaltung`).
 2. Entsperre den Bereich mit deinem Eltern-PIN.
 3. Im Bereich **„Software-Update“** siehst du sofort, ob eine neue Version auf GitHub verfügbar ist.
-4. Klicke auf **„1-Click Update einspielen“**. Die Änderungen werden im Hintergrund geladen, installiert, gebaut und der Dienst startet nahtlos neu.
+4. Klicke auf **„Update installieren“**, anschließend **„Jetzt installieren“**. Keine erneute PIN-Abfrage: Die bereits entsperrte Verwaltung genügt. Beim Dienstwechsel kann die Verbindung kurz unterbrochen sein; die App fragt den Auftragsstatus erneut ab.
 
 ### Methode 2: Über das Terminal (Automatisiert)
 Im Terminal des Ubuntu-PCs einfach folgenden Einzeiler ausführen:
@@ -139,16 +139,22 @@ sudo /opt/fitfamily/scripts/update.sh
 *(Alternativ im Projektordner: `npm run update`)*
 
 Das Skript führt vollautomatisch folgende Schritte durch:
-1. Datenbank-Backup anlegen (`backups/fitfamily-backup-pre-update-*.db`)
-2. Neueste Version von GitHub laden (`git fetch origin main && git reset --hard origin/main`)
-3. Abhängigkeiten aktualisieren (`npm install`)
-4. Dashboard neu bauen (`npm run build`)
-5. Hintergrunddienst neu starten (`systemctl restart fitfamily`)
+1. Hauptzweig `main` in ein separates Release-Verzeichnis klonen.
+2. Abhängigkeiten per `npm ci` installieren und Dashboard unprivilegiert bauen.
+3. Rechte für den Dienstbenutzer prüfen und nach Stoppen des Dienstes eine konsistente Datenbanksicherung anlegen.
+4. Release atomar aktivieren und Dienst starten.
+5. Dashboard und exakte laufende Revision prüfen; bei Fehlern zurückwechseln. Startfehler werden vor dem Rückwechsel im Update-Dienstprotokoll festgehalten.
 
 > [!TIP]
 > **Falls ein Server auf einer alten Revision festhängt:** Einmalig im Terminal `sudo /opt/fitfamily/scripts/repair.sh` ausführen, um veraltete Sperren aufzuheben.
 
 Deine Einstellungen in `.env.local` und alle Trainingsdaten bleiben dabei vollständig erhalten.
+
+### Fehler beim Start eines neuen Releases
+
+Ein erfolgreicher Build bestätigt nicht, dass der Dienst startet. Zuerst `sudo systemctl status fitfamily.service --no-pager -l` und `sudo journalctl -u fitfamily.service -n 60 --no-pager` prüfen. Bei automatischem Rückwechsel steht der Fehler im Protokoll des Update-Auftrags: `sudo journalctl -u 'fitfamily-update-*' -n 100 --no-pager`.
+
+`cd /opt/fitfamily/current: Keine Berechtigung` betrifft zunächst nur den angemeldeten Benutzer; entscheidend sind die Zugriffsrechte des Dienstbenutzers `fitfamily`. Alte installierte Helfer verwenden weiterhin ihren alten Code, auch wenn das neue Release bereits reparierte Skripte enthält. Sie müssen gegebenenfalls einmal aus einem aktuellen, geprüften Checkout mit `sudo ./scripts/install-privileged-helpers.sh` erneuert werden, bevor das Update erneut gestartet wird. Nicht pauschal Daten- oder Konfigurationsverzeichnisse für alle Benutzer freigeben.
 
 ## NAS-Backups & Datensicherung
 

@@ -56,11 +56,9 @@ export async function GET(request: Request) {
   }
 }
 
-const schema = z.object({ pin: z.string().regex(/^\d{4}$/).or(z.literal("")).optional() });
 export async function POST(request: Request) {
-  const body = schema.safeParse(await request.json().catch(() => null));
-  if (!body.success) return NextResponse.json({ error: "Ungültige Anfrage." }, { status: 400 });
-  const authError = await verifyAdminPinOrReject(body.data.pin, request);
+  // The existing admin session is sufficient; never ask for a second PIN.
+  const authError = await verifyAdminPinOrReject(undefined, request);
   if (authError) return authError;
   try {
     const metadata = await lstat(HELPER);

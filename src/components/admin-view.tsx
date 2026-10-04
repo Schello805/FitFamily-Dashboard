@@ -269,16 +269,16 @@ export function AdminView({
       confirmLabel: "Jetzt installieren",
       confirmVariant: "brand",
       requiresPin: false,
-      action: (freshPin) => executeApplyUpdate(freshPin)
+      action: () => executeApplyUpdate()
     });
   }
 
-  async function executeApplyUpdate(freshPin = pin) {
+  async function executeApplyUpdate() {
     setRunningUpdate(true);
     setNotice("Neue Version wird separat gebaut und geprüft. Die laufende App bleibt verfügbar.");
     try {
       const result = await requestJson<{ pending?: boolean; jobId?: string }>("/api/admin/update", "Update konnte nicht gestartet werden.", {
-        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pin: freshPin })
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({})
       });
       if (!result.pending || !result.jobId) throw new Error("Der Server hat keinen eindeutigen Update-Auftrag bestätigt.");
       monitorUpdate(result.jobId);

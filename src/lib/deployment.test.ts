@@ -71,6 +71,15 @@ describe("deployment helpers", () => {
     execFileSync("/usr/bin/python3", ["-c", "import sys; compile(sys.argv[1], 'helper-refresh', 'exec')", code]);
   });
 
+  it("checks runtime permissions and preserves the actual start failure before rollback", async () => {
+    const worker = await readFile(path.join(scriptRoot, "update.sh"), "utf8");
+    expect(worker.indexOf('test -w "$runtime_dir"')).toBeLessThan(worker.indexOf("systemctl stop fitfamily.service", worker.indexOf("# Quiesce writes")));
+    expect(worker).toContain('chmod 0755 "$STAGE"');
+    expect(worker).toContain('test -r .next/BUILD_ID && test -r node_modules/next/dist/bin/next');
+    expect(worker).toContain('journalctl -u fitfamily.service -n 40 --no-pager');
+    expect(worker).toContain('${FAILURE_REASON:-Update fehlgeschlagen.} Rückwechsel');
+  });
+
   it("restores helper bytes on replacement failure and rejects changed release sources", async () => {
     const directory = await realpath(await mkdtemp(path.join(tmpdir(), "fitfamily-helper-test-")));
     try {

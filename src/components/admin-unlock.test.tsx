@@ -88,3 +88,24 @@ it("does not display saved success for a different running revision", async () =
   await waitFor(() => expect(screen.getByText(/Update nicht bestätigt: Bitte/)).toBeInTheDocument());
   expect(screen.queryByText(/erfolgreich installiert/i)).not.toBeInTheDocument();
 });
+
+it("installs updates using the existing session without another PIN or PIN payload", async () => {
+  request.mockImplementation(async (url, _message, init) => {
+    if (url === "/api/admin/verify") return authorized;
+    if (url === "/api/admin/update" && init?.method === "POST") return { pending: true, jobId: "12345678-1234-1234-1234-123456789abc" };
+    if (url === "/api/admin/update") return { hasUpdate: true, version: "0.3.11", latestVersion: "0.3.12", latestCommit: "abcdef0", currentCommit: "1234567" };
+    if (url === "/api/admin/health-training-test") return { configured: false, profiles: [], latest: null };
+    if (url === "/api/admin/system-status") return { database: { kind: "local", location: "test.db", sizeBytes: 0, error: null }, applicationVolume: { availableBytes: 100, totalBytes: 1000, error: null } };
+    return {};
+  });
+  render(<AdminView equipment={[]} exercises={[]} />);
+  await waitFor(() => expect(screen.getByRole("button", { name: /Sperren/ })).toBeInTheDocument());
+  fireEvent.click(screen.getByRole("button", { name: /System, Daten & Speicher/ }));
+  fireEvent.click(screen.getByRole("button", { name: "Nach Updates suchen" }));
+  await waitFor(() => expect(screen.getByRole("button", { name: "Update installieren" })).toBeInTheDocument());
+  fireEvent.click(screen.getByRole("button", { name: "Update installieren" }));
+  expect(screen.queryByText("Eltern-PIN erneut eingeben")).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Jetzt installieren" }));
+  await waitFor(() => expect(request.mock.calls.some(call => call[0] === "/api/admin/update" && call[2]?.method === "POST")).toBe(true));
+  expect(request.mock.calls.find(call => call[0] === "/api/admin/update" && call[2]?.method === "POST")![2]?.body).toBe("{}");
+});

@@ -4,6 +4,14 @@ Alle wichtigen Änderungen werden hier nach dem Prinzip von Keep a Changelog dok
 
 ## [Unreleased]
 
+## [0.3.12] – 2026-10-04
+
+### Behoben
+
+- Update prüft Schreibrechte auf Laufzeitdaten und Leserechte auf Konfiguration und Release; das Release-Hauptverzeichnis ist für den Serveradministrator betretbar, ohne Schreibzugriff zu gewähren.
+- Bei fehlgeschlagenem Neustart werden Dienststatus und Journal vor dem Rückwechsel ausgegeben. Der Status behält die konkrete Fehlerursache statt einer allgemeinen Gesundheitsprüfungs-Meldung.
+- Update verwendet ausschließlich die vorhandene Verwaltungssitzung, ohne erneute PIN oder PIN im Update-Auftrag. Ubuntu-Dokumentation beschreibt aktuellen Release-Ablauf und Fehlerdiagnose.
+
 ## [0.3.11] – 2026-10-04
 
 ### Hinzugefügt

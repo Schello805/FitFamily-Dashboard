@@ -27,6 +27,7 @@ SNAPSHOT_DIR=""
 PREVIOUS="$(readlink -f "$APP_DIR/current" 2>/dev/null || true)"
 SWITCHED=0
 SERVICE_STOPPED=0
+FAILURE_REASON=""
 
 write_status() {
   /usr/bin/python3 - "$1" "$2" "$JOB_ID" "$STARTED_AT" "$NEW_COMMIT" "$NEW_VERSION" <<'PY'
@@ -72,7 +73,7 @@ rollback() {
         fi
       fi
       if systemctl start fitfamily.service && systemctl is-active --quiet fitfamily.service; then
-        write_status error 'Update fehlgeschlagen; Rückwechsel auf die vorherige Version ausgeführt. Bitte Dienst und Datenbank prüfen.'
+        write_status error "${FAILURE_REASON:-Update fehlgeschlagen.} Rückwechsel auf die vorherige Version ausgeführt."
       else
         write_status error 'Update fehlgeschlagen; vorherige Version konnte nicht gestartet werden. Serveradministration erforderlich.'
       fi
@@ -82,7 +83,7 @@ rollback() {
       elif [[ $SWITCHED -eq 1 ]]; then
         systemctl stop fitfamily.service || true
       fi
-      write_status error 'Update fehlgeschlagen; die aktive Version wurde nicht ausgetauscht. Siehe journalctl -u fitfamily-update.'
+      write_status error "${FAILURE_REASON:-Update fehlgeschlagen.} Die aktive Version wurde nicht ausgetauscht. Siehe Update-Dienstprotokoll."
     fi
   fi
   # Retain failed stages for diagnostics; never delete the active release.
@@ -108,6 +109,20 @@ runuser -u "$APP_USER" -- env NEXT_PUBLIC_APP_VERSION="$NEW_COMMIT" DATABASE_URL
 [[ -f "$STAGE/.next/BUILD_ID" ]] || { echo 'Build ist unvollständig.' >&2; exit 1; }
 NEW_VERSION="$(/usr/bin/python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("version", ""))' "$STAGE/package.json")"
 
+# Check the future runtime identity before taking the running service offline.
+for runtime_dir in "$APP_DIR/data" "$APP_DIR/backups"; do
+  if ! runuser -u "$APP_USER" -- test -w "$runtime_dir"; then
+    FAILURE_REASON="Dienstbenutzer $APP_USER kann $runtime_dir nicht beschreiben."
+    echo "$FAILURE_REASON" >&2
+    exit 1
+  fi
+done
+if [[ -e "$APP_DIR/.env.local" ]] && ! runuser -u "$APP_USER" -- test -r "$APP_DIR/.env.local"; then
+  FAILURE_REASON="Dienstbenutzer $APP_USER kann die Serverkonfiguration nicht lesen."
+  echo "$FAILURE_REASON" >&2
+  exit 1
+fi
+
 # Quiesce writes only after the build succeeds, before taking the rollback snapshot.
 systemctl stop fitfamily.service
 SERVICE_STOPPED=1
@@ -130,14 +145,24 @@ chown -hR root:fitfamily "$STAGE"
 # root-owned, but grant the service account group traversal/read access so
 # systemd can enter the atomically activated release after a restart.
 chmod -R g+rX "$STAGE"
+# The checkout contains public application code, not the linked runtime secrets.
+# Allow the server administrator to enter current without granting write access.
+chmod 0755 "$STAGE"
 # Code and package scripts cannot be replaced by the web service.
 chmod -R go-w "$STAGE"
 mkdir -p "$STAGE/.next/cache"
 chown -R "$APP_USER:$APP_USER" "$STAGE/.next/cache"
+if ! runuser -u "$APP_USER" -- sh -c 'cd "$1" && test -r .next/BUILD_ID && test -r node_modules/next/dist/bin/next' sh "$STAGE"; then
+  FAILURE_REASON="Neues Release ist für den Dienstbenutzer nicht zugänglich."
+  echo "$FAILURE_REASON" >&2
+  exit 1
+fi
 write_status running 'Build und Sicherung geprüft; aktiviere neue Version.'
 activate_release "$APP_DIR" "$STAGE" "$JOB_ID"
 SWITCHED=1
+FAILURE_REASON="Neue Version konnte nicht gestartet werden."
 systemctl restart fitfamily.service
+FAILURE_REASON="Neue Version beantwortet Dashboard- oder Revisionsprüfung nicht."
 for attempt in $(seq 1 30); do
   if curl --fail --silent --max-time 2 http://127.0.0.1:3000/api/dashboard >/dev/null && systemctl is-active --quiet fitfamily.service; then
     # A healthy old process is not proof that the requested build is running.
@@ -152,5 +177,8 @@ for attempt in $(seq 1 30); do
   fi
   sleep 1
 done
-echo 'Neue Version beantwortet die Gesundheitsprüfung nicht.' >&2
+echo "$FAILURE_REASON" >&2
+# Capture the actual start failure before rollback overwrites the service state.
+systemctl status fitfamily.service --no-pager -l >&2 || true
+journalctl -u fitfamily.service -n 40 --no-pager >&2 || true
 exit 1
