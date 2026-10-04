@@ -53,4 +53,69 @@ describe("deployment helpers", () => {
       expect(source).toContain("http://127.0.0.1:3000/api/dashboard");
     }
   });
+
+  it("checks the exact running revision before refreshing the fixed helper allowlist", async () => {
+    const worker = await readFile(path.join(scriptRoot, "update.sh"), "utf8");
+    expect(worker).toContain('NEXT_PUBLIC_APP_VERSION="$NEW_COMMIT"');
+    expect(worker).toContain("revision==expected");
+    expect(worker.indexOf("http://127.0.0.1:3000/api/version")).toBeLessThan(worker.indexOf('refresh_release_helpers "$STAGE" "$NEW_COMMIT"'));
+    expect(worker.indexOf('refresh_release_helpers "$STAGE" "$NEW_COMMIT"')).toBeLessThan(worker.indexOf("write_status success"));
+    const helpers = await readFile(path.join(scriptRoot, "release-state.sh"), "utf8");
+    expect(helpers).toContain("metadata.st_uid != 0");
+    expect(helpers).toContain("metadata.st_mode & 0o022");
+    expect(helpers).toContain("stat.S_ISREG");
+    expect(helpers).toContain("trusted != (release / 'scripts' / source).read_bytes()");
+    expect(helpers).toContain("for name in reversed(replaced)");
+    expect(helpers).toContain("os.replace(work / (name + '.old'), destination / name)");
+    const code = helpers.split("<<'PY'\n")[1].split("\nPY")[0];
+    execFileSync("/usr/bin/python3", ["-c", "import sys; compile(sys.argv[1], 'helper-refresh', 'exec')", code]);
+  });
+
+  it("restores helper bytes on replacement failure and rejects changed release sources", async () => {
+    const directory = await realpath(await mkdtemp(path.join(tmpdir(), "fitfamily-helper-test-")));
+    try {
+      const release = path.join(directory, "releases", "new");
+      const destination = path.join(directory, "helpers");
+      await mkdir(path.join(release, "scripts"), { recursive: true });
+      await mkdir(destination);
+      const names = { "update.sh": "fitfamily-update", "release-state.sh": "fitfamily-release-state", "request-update.sh": "fitfamily-update-request", "mount-nas.py": "fitfamily-mount", "restore-db.sh": "fitfamily-restore" };
+      const source = await readFile(path.join(scriptRoot, "release-state.sh"), "utf8");
+      // Redirect every privileged destination into the temporary fixture. Simulate
+      // root metadata and HTTPS; exercise real file preparation/replacement/undo.
+      const code = source.split("<<'PY'\n")[1].split("\nPY")[0]
+        .replace("'/usr/local/libexec'", JSON.stringify(destination))
+        .replace("'/opt/fitfamily/releases/'", JSON.stringify(path.join(directory, "releases") + "/"));
+      const harness = `import io, os, pathlib, stat, sys, types, urllib.request
+code, release, scenario = sys.argv[1:]
+sys.argv = ['test', release, 'a' * 40]
+os.geteuid = lambda: 0
+original_stat = pathlib.Path.lstat
+def owned(path):
+    value = original_stat(path)
+    permissions = value.st_mode & ~0o022 if stat.S_ISDIR(value.st_mode) else value.st_mode
+    return types.SimpleNamespace(st_uid=0, st_mode=permissions)
+pathlib.Path.lstat = owned
+def download(url, timeout):
+    return io.BytesIO(b'tampered' if scenario == 'tamper' else (pathlib.Path(release) / 'scripts' / url.rsplit('/', 1)[1]).read_bytes())
+urllib.request.urlopen = download
+original_replace = os.replace
+def replace(source, target):
+    if scenario == 'failure' and pathlib.Path(source).name == 'fitfamily-release-state':
+        raise OSError('Injected replacement failure')
+    return original_replace(source, target)
+os.replace = replace
+exec(compile(code, 'helper-refresh', 'exec'))`;
+      for (const mode of ["failure", "tamper", "success"]) {
+        for (const [filename, target] of Object.entries(names)) {
+          await writeFile(path.join(release, "scripts", filename), `new-${filename}`, { mode: 0o644 });
+          await writeFile(path.join(destination, target), `old-${filename}`, { mode: 0o644 });
+        }
+        const result = spawnSync("/usr/bin/python3", ["-c", harness, code, release, mode]);
+        expect(result.status, result.stderr.toString()).toBe(mode === "success" ? 0 : 1);
+        for (const [filename, target] of Object.entries(names)) {
+          expect(await readFile(path.join(destination, target), "utf8")).toBe(`${mode === "success" ? "new" : "old"}-${filename}`);
+        }
+      }
+    } finally { await rm(directory, { recursive: true, force: true }); }
+  });
 });

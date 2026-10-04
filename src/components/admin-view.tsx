@@ -19,6 +19,7 @@ import { DEFAULT_DISPLAY_SETTINGS, type DisplaySettings } from "@/lib/display-se
 import { formatGermanLogTimestamp } from "@/lib/date-format";
 import { ApiRequestError, requestJson } from "@/lib/api-client";
 import { EquipmentScanSettings } from "@/components/equipment-scan-settings";
+import { matchesUpdate, parseUpdateJob, UPDATE_JOB_KEY, UPDATE_RESULT_KEY, UPDATE_TIMEOUT } from "@/lib/update-state";
 
 type AiUsage = { requests: number; inputTokens: number; outputTokens: number; estimateUsd: number; updatedAt: string | null };
 type Status = { openai: boolean; gemini: boolean; nas: boolean; models: { openai: string; gemini: string }; usage: { openai: AiUsage; gemini: AiUsage } };
@@ -142,6 +143,7 @@ export function AdminView({
   const [runningUpdate, setRunningUpdate] = useState(false);
   const [updateCountdown] = useState<number | null>(null);
   const updatePollTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const updateMonitorGeneration = useRef(0);
   const currentInstalledVersion = updateInfo?.version ?? initialVersion;
   const currentInstalledCommit = updateInfo?.currentCommit ?? initialCommit;
 
@@ -185,54 +187,70 @@ export function AdminView({
   const [postUpdateSuccess, setPostUpdateSuccess] = useState<UpdateSuccess | null>(null);
 
   useEffect(() => () => {
+    updateMonitorGeneration.current++;
     if (updatePollTimer.current) clearInterval(updatePollTimer.current);
   }, []);
 
-  function monitorUpdate(jobId: string) {
+  function monitorUpdate(jobId: string, startedAt = Date.now()) {
     if (updatePollTimer.current) clearInterval(updatePollTimer.current);
-    const startedAt = Date.now();
+    const generation = ++updateMonitorGeneration.current;
+    setRunningUpdate(true);
+    try { sessionStorage.setItem(UPDATE_JOB_KEY, JSON.stringify({ jobId, startedAt })); } catch {}
+    const stop = (forget = false) => {
+      if (updatePollTimer.current) clearInterval(updatePollTimer.current);
+      updatePollTimer.current = null;
+      updateMonitorGeneration.current++;
+      setRunningUpdate(false);
+      if (forget) try { sessionStorage.removeItem(UPDATE_JOB_KEY); } catch {}
+    };
     let polling = false;
     updatePollTimer.current = setInterval(async () => {
       if (polling) return;
       polling = true;
       try {
         const result = await requestJson<{
-          state: "idle" | "running" | "success" | "error";
+          state: "idle" | "unknown" | "running" | "success" | "error";
           message?: string; newCommit?: string; newVersion?: string;
         }>(`/api/admin/update?status=1&jobId=${encodeURIComponent(jobId)}`, "Update-Status nicht erreichbar.", { cache: "no-store", signal: AbortSignal.timeout(10_000) });
+        if (generation !== updateMonitorGeneration.current) return;
         if (result.state === "error") {
-          if (updatePollTimer.current) clearInterval(updatePollTimer.current);
-          updatePollTimer.current = null;
-          setRunningUpdate(false);
+          stop(true);
           setNotice(result.message || "Update fehlgeschlagen. Die vorherige Version wurde beibehalten.");
           showToast({ type: "error", title: "Update fehlgeschlagen", message: result.message || "Bitte das Betriebsprotokoll prüfen." });
         } else if (result.state === "success") {
-          if (updatePollTimer.current) clearInterval(updatePollTimer.current);
-          updatePollTimer.current = null;
+          const target = { targetCommit: result.newCommit, targetVersion: result.newVersion };
+          const current = await requestJson<{ version: string; commit: string; fullCommit: string }>("/api/version", "Laufende Version nicht erreichbar.", { cache: "no-store", signal: AbortSignal.timeout(10_000) });
+          if (generation !== updateMonitorGeneration.current) return;
+          if (!matchesUpdate(current, target)) {
+            stop();
+            setNotice("Update nicht bestätigt: Die laufende Version stimmt nicht mit dem Update-Auftrag überein.");
+            return;
+          }
           try {
-            sessionStorage.setItem("fitfamily_last_update_status", JSON.stringify({
-              targetCommit: result.newCommit, targetVersion: result.newVersion
-            }));
+            sessionStorage.setItem(UPDATE_RESULT_KEY, JSON.stringify(target));
           } catch {}
+          stop(true);
           window.location.reload();
+        } else if (result.state === "unknown" || result.state === "idle") {
+          setNotice(result.message || "Update-Status noch unklar.");
+          if (Date.now() - startedAt > 60_000) stop();
         } else {
           setNotice(result.message || "Update wird vorbereitet und geprüft …");
         }
       } catch (error) {
+        if (generation !== updateMonitorGeneration.current) return;
         if (error instanceof ApiRequestError && (error.status === 401 || error.status === 403)) {
-          if (updatePollTimer.current) clearInterval(updatePollTimer.current);
-          updatePollTimer.current = null;
-          setRunningUpdate(false);
+          stop();
+          setStatus(null);
+          setAuthExpiresAt(null);
           setNotice("Bitte erneut entsperren, um den Update-Status zu prüfen.");
         } else {
           setNotice("Verbindung während des Updates unterbrochen. Status wird erneut geprüft …");
         }
       } finally {
         polling = false;
-        if (Date.now() - startedAt > 15 * 60_000 && updatePollTimer.current) {
-          clearInterval(updatePollTimer.current);
-          updatePollTimer.current = null;
-          setRunningUpdate(false);
+        if (generation === updateMonitorGeneration.current && Date.now() - startedAt > UPDATE_TIMEOUT && updatePollTimer.current) {
+          stop();
           setNotice("Update-Status noch unklar. Bitte Betriebsprotokoll und installierte Version prüfen.");
         }
       }
@@ -282,6 +300,10 @@ export function AdminView({
   useEffect(() => {
     if (!authExpiresAt) return;
     const lock = () => {
+      updateMonitorGeneration.current++;
+      if (updatePollTimer.current) clearInterval(updatePollTimer.current);
+      updatePollTimer.current = null;
+      setRunningUpdate(false);
       setStatus(null);
       setPin("");
       setAuthExpiresAt(null);
@@ -319,20 +341,20 @@ export function AdminView({
       setAuthExpiresAt(result.expiresAt);
       setPin("");
       try {
-        const updateDoneRaw = sessionStorage.getItem("fitfamily_last_update_status");
+        const updateDoneRaw = sessionStorage.getItem(UPDATE_RESULT_KEY);
         if (updateDoneRaw) {
-          sessionStorage.removeItem("fitfamily_last_update_status");
+          sessionStorage.removeItem(UPDATE_RESULT_KEY);
           const meta = JSON.parse(updateDoneRaw);
-          setPostUpdateSuccess({
-            version: meta.targetVersion || currentInstalledVersion,
-            commit: meta.targetCommit || ""
-          });
-          showToast({
-            type: "sparkles",
-            title: "🎉 Update erfolgreich installiert!",
-            message: `Das Dashboard läuft jetzt auf Version v${meta.targetVersion || "0.2.15"}${meta.targetCommit ? ` (Rev. ${meta.targetCommit})` : ""}.`
-          });
+          const current = await requestJson<{ version: string; commit: string; fullCommit: string }>("/api/version", "Versionsprüfung fehlgeschlagen.", { cache: "no-store", signal: AbortSignal.timeout(10_000) });
+          if (matchesUpdate(current, meta)) {
+            setPostUpdateSuccess({ version: current.version, commit: current.commit });
+            showToast({ type: "sparkles", title: "Update erfolgreich installiert!", message: `Version v${current.version} (Rev. ${current.commit}) wurde geprüft.` });
+          } else setNotice("Update nicht bestätigt: Bitte installierte Version und Betriebsprotokoll prüfen.");
         }
+      } catch {}
+      try {
+        const pending = parseUpdateJob(sessionStorage.getItem(UPDATE_JOB_KEY));
+        if (pending) monitorUpdate(pending.jobId, pending.startedAt);
       } catch {}
       setStatus({ ...result.providers, usage: result.usage, models: result.models, nas: result.nas });
       if (result.backup) {
@@ -923,6 +945,10 @@ export function AdminView({
           className="admin-lock-btn"
           title="Verwaltungsbereich sperren"
           onClick={() => {
+            updateMonitorGeneration.current++;
+            if (updatePollTimer.current) clearInterval(updatePollTimer.current);
+            updatePollTimer.current = null;
+            setRunningUpdate(false);
             setStatus(null);
             setPin("");
             setAuthExpiresAt(null);

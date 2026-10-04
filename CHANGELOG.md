@@ -4,6 +4,15 @@ Alle wichtigen Änderungen werden hier nach dem Prinzip von Keep a Changelog dok
 
 ## [Unreleased]
 
+## [0.3.8] – 2026-10-04
+
+### Behoben
+
+- Update-Erfolg setzt passende laufende Build-Revision und Versionsnummer voraus; Produktionsrevision bleibt die des gebauten Codes, auch nach einem späteren Git-Pull.
+- Update-Auftrag wird nach Neuladen und erneuter PIN-Freigabe weiter überwacht. Fehlende, ungültige oder unlesbare Statusdateien melden keinen fiktiven laufenden Auftrag.
+- Update-Worker erneuert nach erfolgreicher Prüfung die feste Liste root-eigener Systemhelfer mit Rücksetzung bei Austauschfehlern. Alte Serverhelfer benötigen einmalige Installation aus v0.3.8; siehe Betriebsdokumentation.
+- Fehler beim Rückwechsel oder Dienststart werden ausdrücklich gemeldet; auch frühe Staging-Fehler erhalten einen Fehlerstatus.
+
 ## [0.3.7] – 2026-10-04
 
 ### Geändert

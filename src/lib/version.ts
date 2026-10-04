@@ -19,7 +19,8 @@ export function getAppRevision(): AppRevision {
   try {
     const gitDir = path.join(process.cwd(), ".git");
     const headPath = path.join(gitDir, "HEAD");
-    if (fs.existsSync(headPath)) {
+    // In production the bundled build revision is authoritative, not a later git pull.
+    if (process.env.NODE_ENV !== "production" && fs.existsSync(headPath)) {
       const head = fs.readFileSync(headPath, "utf8").trim();
       if (head.startsWith("ref:")) {
         const refName = head.slice(4).trim();
@@ -49,8 +50,8 @@ export function getAppRevision(): AppRevision {
     // Filesystem-Fehler abfangen
   }
 
-  const commit = liveCommit || (envRev ? envRev.slice(0, 7) : versionData.commit);
-  const fullCommit = fullLiveCommit || (envRev ? envRev : versionData.fullCommit) || commit;
+  const commit = process.env.NODE_ENV === "production" ? versionData.commit : liveCommit || (envRev ? envRev.slice(0, 7) : versionData.commit);
+  const fullCommit = process.env.NODE_ENV === "production" ? versionData.fullCommit || commit : fullLiveCommit || (envRev ? envRev : versionData.fullCommit) || commit;
   // Keep the human-facing release version separate from the Git revision.
   const version = versionData.version;
   const commitUrl = fullCommit && fullCommit !== "aktuell"

@@ -6,6 +6,7 @@ import { z } from "zod";
 import { verifyAdminPinOrReject } from "@/lib/security";
 import { getAppRevision } from "@/lib/version";
 import { writeAdminLog } from "@/lib/admin-log";
+import { matchesUpdate } from "@/lib/update-state";
 
 export const dynamic = "force-dynamic";
 const HELPER = "/usr/local/libexec/fitfamily-update-request";
@@ -22,13 +23,18 @@ export async function GET(request: Request) {
   const parameters = new URL(request.url).searchParams;
   if (parameters.get("status") === "1") {
     const jobId = parameters.get("jobId");
-    if (jobId && !/^[a-f0-9-]{36}$/.test(jobId)) return NextResponse.json({ error: "Ungültige Update-ID." }, { status: 400 });
+    if (jobId && !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(jobId)) return NextResponse.json({ error: "Ungültige Update-ID." }, { status: 400 });
     try {
       const filename = jobId ? `/var/lib/fitfamily/update-${jobId}.json` : "/var/lib/fitfamily/update-status.json";
       const status = statusSchema.parse(JSON.parse(await readFile(filename, "utf8")));
+      if (jobId && status.jobId !== jobId) throw new Error("Update-ID stimmt nicht überein.");
+      if (status.state === "success" && !matchesUpdate(getAppRevision(), { targetCommit: status.newCommit, targetVersion: status.newVersion })) {
+        return NextResponse.json({ state: "unknown", jobId: status.jobId, message: "Gespeicherter Update-Erfolg passt nicht zur laufenden Version. Bitte Betriebsprotokoll prüfen." }, { headers: { "Cache-Control": "no-store" } });
+      }
       return NextResponse.json(status, { headers: { "Cache-Control": "no-store" } });
-    } catch {
-      return NextResponse.json({ state: jobId ? "running" : "idle", jobId: jobId ?? undefined, message: jobId ? "Update-Dienst wird gestartet …" : undefined }, { headers: { "Cache-Control": "no-store" } });
+    } catch (error) {
+      const missing = (error as NodeJS.ErrnoException).code === "ENOENT";
+      return NextResponse.json({ state: missing && !jobId ? "idle" : "unknown", jobId: jobId ?? undefined, message: missing ? "Noch keine Statusmeldung des Update-Dienstes vorhanden." : "Update-Status ist unlesbar oder ungültig. Bitte Betriebsprotokoll prüfen." }, { headers: { "Cache-Control": "no-store" } });
     }
   }
   const current = getAppRevision();
@@ -60,7 +66,7 @@ export async function POST(request: Request) {
     const metadata = await lstat(HELPER);
     if (!metadata.isFile() || metadata.uid !== 0 || metadata.mode & 0o022) throw new Error("Unsicherer Update-Helfer.");
   } catch {
-    return NextResponse.json({ error: "Sichere Update-Helfer fehlen. Auf dem Server einmal sudo ./scripts/install-ubuntu.sh ausführen. Die aktive Version bleibt erhalten." }, { status: 503 });
+    return NextResponse.json({ error: "Sichere Update-Helfer fehlen. Im aktiven Projektverzeichnis auf dem Server einmal sudo ./scripts/install-privileged-helpers.sh ausführen. Die aktive Version bleibt erhalten." }, { status: 503 });
   }
   const jobId = randomUUID();
   try {

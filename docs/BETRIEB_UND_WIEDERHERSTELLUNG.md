@@ -16,6 +16,17 @@ Neue Versionen werden unter `/opt/fitfamily/releases/` vorbereitet. Erst nach er
 
 Die root-eigenen Helfer liegen unter `/usr/local/libexec/`. Die Web-App darf ausschließlich die festen Update- und NAS-Aufträge ohne Argumente anstoßen; sie kann keinen beliebigen Systembefehl oder Mount-Pfad auswählen. Offline-Restore gehört nicht zu diesen sudo-Berechtigungen. Daten und Backups bleiben für den Dienst beschreibbar, Anwendungscode nicht.
 
+Ab v0.3.8 wird Erfolg zusätzlich gegen die tatsächlich laufende Build-Revision und Versionsnummer geprüft. Neuladen oder erneutes Entsperren nimmt die Überwachung desselben Auftrags wieder auf; fehlende oder beschädigte Statusdateien werden nicht als laufendes Update ausgegeben. Netzwerkunterbrechungen sind kein Erfolgsnachweis.
+
+Nach dem ersten Update auf v0.3.8 (oder neuer) **einmal auf dem Ubuntu-Server** die alten, bereits installierten Helfer erneuern:
+
+```bash
+cd /opt/fitfamily/current
+sudo ./scripts/install-privileged-helpers.sh
+```
+
+Der alte Worker kann diese Änderung beim ersten Upgrade noch nicht selbst ausführen. Ab dann erneuert der neue Worker die feste Helferliste aus der geprüften, root-eigenen Release-Version automatisch, nachdem Dashboard und Revision erreichbar sind. Die Helfer werden zusätzlich per HTTPS mit genau dieser GitHub-Revision verglichen: npm-Abhängigkeiten dürfen keine nachträglich geänderten Dateien als Root-Code einschleusen. Die Dateien werden vorab vollständig vorbereitet; bei einem Austauschfehler werden die vorherigen Helfer zurückgesetzt. Keine npm-Skripte laufen als root. Das ist kein Test auf dem echten Lenovo: Dienstneustart, sudoers und Rollback müssen dort zusätzlich geprüft werden.
+
 ## Touch am Wand-PC
 
 Touchgeräte erhalten unabhängig von der Auflösung mindestens 48px hohe Schaltflächen und ein größeres PIN-Tastenfeld. Dialoge haben sichtbare Schließen-/Abbrechen-Tasten; Ruhemodus lässt sich durch Berühren beenden. Auf kurzen Bildschirmen bleibt vertikales Scrollen möglich, statt Daten abzuschneiden.

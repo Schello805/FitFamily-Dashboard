@@ -4,12 +4,14 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import "@testing-library/jest-dom/vitest";
 import { AdminView } from "./admin-view";
 import { ApiRequestError, requestJson } from "@/lib/api-client";
+import { UPDATE_JOB_KEY, UPDATE_RESULT_KEY } from "@/lib/update-state";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
 vi.mock("@/lib/api-client", async original => ({ ...await original<object>(), requestJson: vi.fn() }));
 const request = vi.mocked(requestJson);
 const authorized = { expiresAt: Date.now() + 60000, providers: { openai: false, gemini: false }, usage: {}, models: { openai: "", gemini: "" }, nas: false };
 beforeEach(() => {
+  sessionStorage.clear();
   request.mockReset();
   request.mockImplementation(async (_url, _message, init) => {
     if (init?.method === "POST") return authorized;
@@ -17,7 +19,7 @@ beforeEach(() => {
   });
   vi.stubGlobal("fetch", vi.fn(async () => Response.json({})));
 });
-afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
+afterEach(() => { cleanup(); sessionStorage.clear(); vi.useRealTimers(); vi.unstubAllGlobals(); });
 async function open() {
   render(<AdminView equipment={[]} exercises={[]} />);
   await waitFor(() => expect(request).toHaveBeenCalled());
@@ -59,4 +61,30 @@ it("also checks a pasted PIN and blocks duplicate attempts while pending", async
   reject(new ApiRequestError("Verbindung prüfen", 503));
   await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("Verbindung prüfen"));
   expect(input).toBeEnabled();
+});
+
+it("resumes the persisted update after restoring authorization", async () => {
+  const jobId = "12345678-1234-1234-1234-123456789abc";
+  sessionStorage.setItem(UPDATE_JOB_KEY, JSON.stringify({ jobId, startedAt: Date.now() - 10000 }));
+  request.mockImplementation(async url => {
+    if (url === "/api/admin/verify") return authorized;
+    if (String(url).includes("status=1")) return { state: "running", message: "Test-Update läuft" };
+    return {};
+  });
+  render(<AdminView equipment={[]} exercises={[]} />);
+  await waitFor(() => expect(screen.getByRole("button", { name: /Sperren/ })).toBeInTheDocument());
+  await waitFor(() => expect(request.mock.calls.some(call => String(call[0]).includes(`jobId=${jobId}`))).toBe(true), { timeout: 4500 });
+  expect(sessionStorage.getItem(UPDATE_JOB_KEY)).toContain(jobId);
+});
+
+it("does not display saved success for a different running revision", async () => {
+  sessionStorage.setItem(UPDATE_RESULT_KEY, JSON.stringify({ targetVersion: "0.3.8", targetCommit: "abcdef0" }));
+  request.mockImplementation(async url => {
+    if (url === "/api/admin/verify") return authorized;
+    if (url === "/api/version") return { version: "0.3.8", commit: "1234567" };
+    return {};
+  });
+  render(<AdminView equipment={[]} exercises={[]} />);
+  await waitFor(() => expect(screen.getByText(/Update nicht bestätigt: Bitte/)).toBeInTheDocument());
+  expect(screen.queryByText(/erfolgreich installiert/i)).not.toBeInTheDocument();
 });
