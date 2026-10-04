@@ -4,6 +4,10 @@ Alle wichtigen Änderungen werden hier nach dem Prinzip von Keep a Changelog dok
 
 ## [Unreleased]
 
+## [0.3.35] – 2026-10-04
+
+- Deutlichere Rundung der Dashboard-Verlaufskurve mit längeren Bézier-Griffen; Datenpunkte und Lücken bleiben erhalten, ohne zusätzliche Spitzen.
+
 ## [0.3.34] – 2026-10-04
 
 - Zusätzliche Verwaltungs-Kopfzeile entfernt. Logo und Dashboard-Button neben FitFamily im festen Header wiederhergestellt; Sperren in die Verwaltungsnavigation verschoben.

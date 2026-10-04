@@ -13,8 +13,10 @@ export function makeTrendLine(points: ActivityTrendPoint[], value: (point: Activ
     const y = 92 - 84 * Math.max(0, amount) / max;
     if (!previous) path += `M${format(x)} ${format(y)} `;
     else if (smooth) {
-      const third = (x - previous.x) / 3;
-      path += `C${format(previous.x + third)} ${format(previous.y)} ${format(x - third)} ${format(y)} ${format(x)} ${format(y)} `;
+      // Longer horizontal handles make turns visibly rounded even in the
+      // narrow dashboard chart, while keeping the curve within both values.
+      const half = (x - previous.x) / 2;
+      path += `C${format(previous.x + half)} ${format(previous.y)} ${format(x - half)} ${format(y)} ${format(x)} ${format(y)} `;
     } else path += `L${format(x)} ${format(y)} `;
     previous = { x, y };
   });
