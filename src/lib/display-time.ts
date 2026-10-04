@@ -1,4 +1,9 @@
 export const DEFAULT_TIME_ZONE = "Europe/Berlin";
+
+export function weeklyTargetFraction(clock: Date, timeZone = DEFAULT_TIME_ZONE) {
+  const weekday = new Intl.DateTimeFormat("en-US", { timeZone, weekday: "short" }).format(clock);
+  return (["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].indexOf(weekday) + 1) / 7;
+}
 export const CLOCK_TIME_PATTERN = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
 export const TIME_ZONE_OPTIONS = [
   "Europe/Berlin", "Europe/London", "Europe/Paris", "Europe/Vienna", "Europe/Zurich",

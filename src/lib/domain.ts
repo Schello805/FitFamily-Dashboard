@@ -152,6 +152,7 @@ export type DashboardProfile = Profile & {
   totalMinutes: number;
   todayMinutes: number;
   targetPercent: number;
+  targetActualMinutes?: number;
   targetMinutes: number;
   targetPeriod: "Tag" | "Woche";
   nextTraining: string | null;

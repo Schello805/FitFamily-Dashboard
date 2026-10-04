@@ -4,6 +4,10 @@ Alle wichtigen Änderungen werden hier nach dem Prinzip von Keep a Changelog dok
 
 ## [Unreleased]
 
+## [0.3.38] – 2026-10-04
+
+- Wochenkreis mit orangefarbenem Soll-Fortschritt bis zum aktuellen Wochentag (Montag 1/7 bis Sonntag 7/7) und „Bis heute“-Minuten. Trainingsfortschritt überdeckt Orange; bei erreichtem Tagesstand verschwindet es. Verglichen wird mit exakten Minuten, in der gewählten Anzeige-Zeitzone.
+
 ## [0.3.37] – 2026-10-04
 
 - Zielkreis vom Punkte-Reset entkoppelt: alle vorhandenen Trainings des aktuellen Tages bzw. der Woche ab Montag zählen, auch bei früher gespeicherten Reset-Markierungen. Punkte-Reset setzt künftig ausschließlich die Punkte zurück.

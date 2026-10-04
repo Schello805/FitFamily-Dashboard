@@ -21,7 +21,7 @@ import { DEFAULT_DISPLAY_SETTINGS, type DisplaySettings } from "@/lib/display-se
 import { requestJson } from "@/lib/api-client";
 import { formatGermanDate, formatGermanTime } from "@/lib/date-format";
 import { cacheDisplaySettings } from "@/lib/theme";
-import { isWithinNightWindow } from "@/lib/display-time";
+import { isWithinNightWindow, weeklyTargetFraction } from "@/lib/display-time";
 import { Modal } from "@/components/modal";
 import { ConnectionStatus } from "@/components/connection-status";
 import { useDashboardConnection } from "@/components/use-dashboard-connection";
@@ -52,21 +52,26 @@ function useClock() {
 }
 
 
-export function GoalRing({ value, color, targetMinutes, targetPeriod }: { value: number; color: string; targetMinutes: number; targetPeriod: "Tag" | "Woche" }) {
-  const progress = Math.max(0, Math.min(100, Number.isFinite(value) ? value : 0));
+export function GoalRing({ value, color, targetMinutes, targetPeriod, actualMinutes, clock, timeZone }: { value: number; color: string; targetMinutes: number; targetPeriod: "Tag" | "Woche"; actualMinutes?: number; clock?: Date; timeZone?: string }) {
+  const rawProgress = actualMinutes !== undefined && Number.isFinite(actualMinutes) ? actualMinutes / targetMinutes * 100 : value;
+  const progress = Math.max(0, Math.min(100, Number.isFinite(rawProgress) ? rawProgress : 0));
+  const expected = targetPeriod === "Woche" && clock ? weeklyTargetFraction(clock, timeZone) * 100 : 0;
+  const expectedMinutes = new Intl.NumberFormat("de-DE", { maximumFractionDigits: 1 }).format(targetMinutes * expected / 100);
+  const paceExplanation = expected ? ` Bis einschließlich heute: ${expectedMinutes} Minuten. Orange zeigt den noch fehlenden Fortschritt bis zum heutigen Soll; dein Trainingsfortschritt liegt darüber.` : "";
   return (
-    <div className="goal-ring-summary" role="img" aria-label={`Trainingsziel: ${value} Prozent von ${targetMinutes} Minuten pro ${targetPeriod.toLowerCase()}`} title={`Dein ${targetPeriod === "Tag" ? "Tagesziel" : "Wochenziel"}: ${targetMinutes} Trainingsminuten. Erfasste Kraft- und Ausdauerminuten füllen den Kreis; nach Ablauf des Zeitraums beginnt er neu. Ein Punkte-Reset verändert den Zielkreis und Trainingslevel nicht.`}>
+    <div className="goal-ring-summary" role="img" aria-label={`Trainingsziel: ${value} Prozent von ${targetMinutes} Minuten pro ${targetPeriod.toLowerCase()}.${paceExplanation}`} title={`Dein ${targetPeriod === "Tag" ? "Tagesziel" : "Wochenziel"}: ${targetMinutes} Trainingsminuten. Erfasste Kraft- und Ausdauerminuten füllen den Kreis; nach Ablauf des Zeitraums beginnt er neu. Ein Punkte-Reset verändert den Zielkreis und Trainingslevel nicht.${paceExplanation}`}>
       <span className={`goal-ring ${value >= 100 ? "goal-reached" : ""}`} aria-hidden="true" style={{ "--profile": color } as React.CSSProperties}>
-        <svg className="goal-ring-visual" viewBox="0 0 100 100"><circle className="goal-ring-track" cx="50" cy="50" r="44" /><circle className="goal-ring-fill" cx="50" cy="50" r="44" pathLength="100" strokeDasharray="100" strokeDashoffset={100 - progress} /></svg>
+        <svg className="goal-ring-visual" viewBox="0 0 100 100"><circle className="goal-ring-track" cx="50" cy="50" r="44" />{progress < expected && <circle className="goal-ring-expected" cx="50" cy="50" r="44" pathLength="100" strokeDasharray="100" strokeDashoffset={100 - expected} />}<circle className="goal-ring-fill" cx="50" cy="50" r="44" pathLength="100" strokeDasharray="100" strokeDashoffset={100 - progress} /></svg>
         <strong>{value}%</strong>
         <small>ZIEL</small>
       </span>
       <span className="goal-ring-target">SOLL {targetMinutes} Minuten/{targetPeriod === "Tag" ? "Tag" : "Woche"}</span>
+      {expected > 0 && <span className="goal-ring-pace" title={paceExplanation}>Bis heute: {expectedMinutes} Min.</span>}
     </div>
   );
 }
 
-function ProfileDashboardCard({ profile, clock }: { profile: DashboardProfile; clock: Date }) {
+function ProfileDashboardCard({ profile, clock, timeZone }: { profile: DashboardProfile; clock: Date; timeZone: string }) {
   return (
     <article className={`profile-card ${profile.activeTraining ? "is-active" : ""}`} style={{ "--profile": profile.color } as React.CSSProperties}>
       <div className="card-accent" />
@@ -76,7 +81,7 @@ function ProfileDashboardCard({ profile, clock }: { profile: DashboardProfile; c
           <div className="profile-name"><span>Profil</span><h2>{profile.name}</h2><p>{profile.goal}</p></div>
         </Link>
         <ActivityTrendChart points={profile.activityTrend} color={profile.color} targetMinutes={profile.targetMinutes} targetPeriod={profile.targetPeriod} profileName={profile.name} />
-        <GoalRing value={profile.targetPercent} color={profile.color} targetMinutes={profile.targetMinutes} targetPeriod={profile.targetPeriod} />
+        <GoalRing value={profile.targetPercent} color={profile.color} targetMinutes={profile.targetMinutes} targetPeriod={profile.targetPeriod} actualMinutes={profile.targetActualMinutes} clock={clock} timeZone={timeZone} />
       </div>
 
       <div className="score-row">
@@ -336,7 +341,7 @@ export function Dashboard({
       </DashboardHeader>
 
       <section className="profile-grid" aria-label="Familienprofile">
-        {profiles.map((profile) => <ProfileDashboardCard key={profile.id} profile={profile} clock={clock} />)}
+        {profiles.map((profile) => <ProfileDashboardCard key={profile.id} profile={profile} clock={clock} timeZone={displaySettings.timeZone} />)}
       </section>
 
       <footer className="app-footer">
