@@ -66,7 +66,20 @@ it("authenticates, logs successful normalized kcal and never echoes the secret",
 it("rejects huge, malformed and unknown-profile payloads without writing daily energy", async () => {
   expect((await POST(request({ ...input, activeEnergyKcal: "343391100000182000" }))).status).toBe(400);
   expect((await POST(request({ ...input, profileId: "nonexistent-energy-profile" }))).status).toBe(404);
-  expect((await POST(request({ ...input, extra: "x".repeat(5000) }))).status).toBe(413);
+  expect((await POST(request({ ...input, extra: "x".repeat(70000) }))).status).toBe(413);
   expect((await POST(new Request("http://localhost", { method: "POST", headers: { Authorization: "Bearer test-key" }, body: "not JSON" }))).status).toBe(400);
   expect((await (await db()).execute({ sql: "SELECT * FROM health_energy_daily WHERE profile_id=?", args: [profileId] })).rows).toHaveLength(0);
+});
+it("sums decimal sample texts from one source only, replacing daily energy without scoring", async () => {
+  const payload = { profileId, date: input.date, sourceName: "Apple Watch", sampleRows: "6.337000000000004\tkcal\tApple Watch\n3,663\tkcal\tApple Watch\n900\tkcal\tiPhone" };
+  const response = await POST(request(payload));
+  expect(response.status).toBe(200);
+  expect(await response.json()).toMatchObject({ activeEnergyKcal: expect.closeTo(10, 10), sourceName: "Apple Watch", sampleCount: 2 });
+  expect((await getDashboardData()).find(p => p.id === profileId)?.score).toBe(0);
+  const again = await POST(request({ ...payload, sampleRows: "5\tkcal\tApple Watch" }));
+  expect(await again.json()).toMatchObject({ activeEnergyKcal: 5 });
+  for (const sampleRows of ["", "123456789\tkcal\tApple Watch", "5\tkJ\tApple Watch", "5\tkcal\tiPhone", "5 kcal", Array(2002).fill("1\tkcal\tApple Watch").join("\n")]) {
+    expect((await POST(request({ ...payload, sampleRows }))).status).toBe(400);
+  }
+  expect((await (await db()).execute({ sql: "SELECT active_energy_kcal FROM health_energy_daily WHERE profile_id=?", args: [profileId] })).rows[0].active_energy_kcal).toBe(5);
 });

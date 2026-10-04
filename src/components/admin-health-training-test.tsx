@@ -12,6 +12,8 @@ export function AdminHealthTrainingTest() {
   const [secret, setSecret] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
+  const [shortcutProfile, setShortcutProfile] = useState("");
+  const [shortcutServer, setShortcutServer] = useState("");
   useEffect(() => {
     let disposed = false;
     requestJson<TestStatus>("/api/admin/health-training-test", "Trainingstest nicht erreichbar.", { cache: "no-store" })
@@ -50,9 +52,22 @@ export function AdminHealthTrainingTest() {
     <section className="health-energy-settings" aria-label="Aktive Energie aus Apple Health">
       <h3>Aktive Energie · täglicher Kurzbefehl</h3>
       <p>Derselbe Familienschlüssel und deine Profil-ID. Wiederholter Empfang ersetzt den Tageswert, auch bei einer Korrektur nach unten. Keine Umrechnung in Training oder Punkte.</p>
+      <section className="health-shortcut-download" aria-label="Mac-Kurzbefehl herunterladen">
+        <h4>Fertigen Kurzbefehl auf dem Mac erstellen</h4>
+        <label>Profil<select value={shortcutProfile || status?.profiles[0]?.id || ""} onChange={event => setShortcutProfile(event.target.value)}>{status?.profiles.map(profile => <option key={profile.id} value={profile.id}>{profile.name}</option>)}</select></label>
+        <label>Serveradresse (optional)<input value={shortcutServer} onChange={event => setShortcutServer(event.target.value)} placeholder="Leer = Adresse dieser App; kein localhost auf dem iPhone" /></label>
+        {status?.profiles.length ? <a className="health-shortcut-link" href={`/api/admin/health-shortcut?profileId=${encodeURIComponent(shortcutProfile || status.profiles[0].id)}${shortcutServer ? `&server=${encodeURIComponent(shortcutServer)}` : ""}`} download>Mac-Skript herunterladen (.command)</a> : null}
+        <ol>
+          <li>Auf dem Mac herunterladen. Im Terminal <code>bash </code> eingeben, die heruntergeladene Datei ins Terminal ziehen und Enter drücken. Kein npm, kein Projektordner nötig.</li>
+          <li>Das Skript erzeugt die Vorlage, lässt sie von Apple signieren und öffnet sie in Kurzbefehle. „Kurzbefehl hinzufügen“ bestätigen. Beim Import bekannten Familienschlüssel und exakten Namen einer aktuellen Energie-Datenquelle aus Health angeben.</li>
+          <li>Falls die Importfragen fehlen: Nur die zwei vorbereiteten Textfelder oben ersetzen (Schlüssel und Quelle). Keine Aktionen selbst anlegen. Der Schlüssel kommt erst nach der Signierung hinein; keinen ausgefüllten Kurzbefehl teilen.</li>
+          <li>Mac und iPhone: derselbe Apple-Account, Kurzbefehle → Einstellungen → iCloud-Synchronisierung aktivieren. Dann den fertigen Kurzbefehl auf dem iPhone einmal ausführen und den Empfang hier prüfen.</li>
+        </ol>
+        <p>Diese Version überträgt Werte, Einheiten und Quellennamen als Text. Die App summiert nur die ausgewählte Quelle; kein „mal 1“ und keine lokale Zahlenumwandlung. Der Wert kann von Apples bereinigter Gesamtanzeige abweichen. Import/Health-Lauf noch auf deinem iPhone testen. Die tägliche Automation wird einmal auf dem iPhone eingerichtet.</p>
+      </section>
       {status?.energyAttempt && <p role={status.energyAttempt.level === "error" ? "alert" : "status"}>{status.energyAttempt.message} {status.energyAttempt.errors?.join(" · ")} · Import-ID {status.energyAttempt.importId}</p>}
       {status?.energyDaily?.length ? <div className="health-test-table"><table><thead><tr><th>Profil</th><th>Tag</th><th>Aktive kcal</th><th>Empfangen</th></tr></thead><tbody>{status.energyDaily.map(day => <tr key={`${day.profile_id}:${day.date}`}><td>{day.profile_name}</td><td>{day.date}</td><td>{day.active_energy_kcal.toLocaleString("de-DE", { maximumFractionDigits: 1 })}</td><td>{new Date(day.updated_at.replace(" ", "T") + "Z").toLocaleString("de-DE", { timeZone: "Europe/Berlin" })}</td></tr>)}</tbody></table></div> : <p>Noch keine aktive Energie empfangen.</p>}
-      <details><summary>Kurzbefehl einrichten und täglich ausführen</summary>
+      <details><summary>Alternative: manuell einrichten und täglich ausführen</summary>
         <ol>
           <li>„Aktuelles Datum“ → „Datum formatieren“: eigenes Format <code>yyyy-MM-dd</code>. Dieser Tag gehört zum gesuchten Health-Zeitraum (Europe/Berlin).</li>
           <li>„Health-Messungen suchen“: Typ „Aktive Energie“, Startdatum „ist heute“, Einheit „kcal“, Gruppieren nach „Tag“, „Fehlende ausfüllen“ aus. Nur die gewünschte aktuelle Datenquelle verwenden. Ohne Treffer: Kurzbefehl stoppen, keinen 0-Wert senden.</li>

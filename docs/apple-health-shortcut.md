@@ -12,6 +12,48 @@ kcal-Test auf dem iPhone ab; auch Schritte sollen ohne Wertung gespeichert werde
 
 ## Einmal einrichten
 
+### Empfohlen: fertige Mac-Datei herunterladen (ab v0.3.20)
+
+1. In Verwaltung → Apple Health/Gymondo → „Fertigen Kurzbefehl auf dem Mac erstellen“
+   dein Profil auswählen und **Mac-Skript herunterladen (.command)** anklicken.
+   Die Serveradresse muss auf dem iPhone erreichbar sein, kein `localhost`.
+2. Auf dem Mac im Terminal `bash ` (mit Leerzeichen) eingeben, die Datei aus
+   Downloads hineinziehen, Enter drücken. Es werden nur Apples eingebaute Werkzeuge
+   benötigt, kein npm, Python oder Projektordner. Alternativ die Datei ausführbar
+   machen und doppelklicken; macOS-Sicherheitshinweise nicht blind umgehen.
+3. Das Skript erstellt eine neue Datei in einem eigenen temporären Verzeichnis,
+   prüft sie mit `plutil`, signiert sie mit `shortcuts sign --mode anyone` und öffnet
+   erst bei Erfolg die signierte Datei. Apple bekommt beim Signieren die Vorlage,
+   **noch ohne echten Familienschlüssel**. Kein automatischer Wechsel auf den
+   Kontaktinformationen enthaltenden Modus „people-who-know-me“.
+4. In Kurzbefehle **Kurzbefehl hinzufügen** bestätigen. Bei den Importfragen den
+   bekannten Familienschlüssel und den exakten Namen **einer aktuellen Energie-
+   Datenquelle** aus Health → Aktive Energie → Datenquellen eingeben. Falls macOS
+   die Importfragen nicht zeigt, nur die beiden Textfelder ganz oben ersetzen.
+   Alle Aktionen und Variablenverknüpfungen sind bereits vorbereitet.
+5. Mac und iPhone: gleicher Apple-Account, iCloud-Synchronisierung in Kurzbefehle
+   einschalten. Danach taucht der hinzugefügte Kurzbefehl auf dem iPhone auf.
+   Dateiübertragung allein installiert ihn noch nicht. Als Alternative kann die
+   signierte Datei per AirDrop aufs iPhone übertragen und dort hinzugefügt werden.
+6. Auf dem iPhone zuerst manuell starten, Health-Leserechte erlauben und den echten
+   Empfang in der App prüfen. Nur Energie von der gewählten Quelle wird auf dem
+   Server summiert; keine Zahl wird in Kurzbefehle multipliziert oder umgewandelt.
+   Der Wert ist **nicht automatisch die quellübergreifend bereinigte Fitness-
+   Summe**. Mit der Tagesanzeige dieser Quelle vergleichen. Bei unbekanntem
+   Quellennamen meldet die App die tatsächlich empfangenen Namen, statt 0 zu buchen.
+7. Erst nach passendem Test eine tägliche Tageszeit-Automation auf dem iPhone
+   einrichten. Persönliche Automationen sind ein separater Schritt, der nicht mit
+   der Kurzbefehl-Datei installiert wird. Die Vorlage zeigt Ergebnisse per
+   Mitteilung und wartet nicht auf „OK“. Server/WLAN und Health-Zugriff müssen
+   verfügbar sein. Keine ausgefüllte Datei mit Schlüssel teilen.
+
+Das Installer-Skript selbst liest keine Gesundheitsdaten und sendet keine kcal.
+Der Health-Lauf erfolgt später auf dem iPhone. Erzeugung und Formatprüfung ersetzen
+keinen echten iPhone-Test. Signierungsfehler von Apple werden als Fehler gemeldet;
+eine unsignierte Datei wird nicht als erfolgreich importierbar bezeichnet.
+
+### Alternative: Aktionen manuell anlegen
+
 1. App auf mindestens v0.3.18 aktualisieren. In Verwaltung → Apple Health/Gymondo
    die Profil-ID prüfen (z. B. `papa`). Den vorhandenen Familienschlüssel verwenden.
    Nicht erneut erzeugen, wenn er bekannt ist: Ersetzen macht den alten ungültig.

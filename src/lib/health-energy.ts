@@ -12,15 +12,42 @@ export function energyDate(now = new Date()) {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Berlin", year: "numeric", month: "2-digit", day: "2-digit" }).format(now);
 }
 
-export const healthEnergySchema = z.object({
+const dailyIdentity = {
   profileId: z.string().min(1).max(80),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine(value => {
     const time = Date.parse(`${value}T00:00:00Z`);
     return Number.isFinite(time) && new Date(time).toISOString().slice(0, 10) === value && value >= "2000-01-01" && value <= energyDate();
-  }, "Gültigen Tag YYYY-MM-DD senden; keine zukünftigen Tage."),
+  }, "Gültigen Tag YYYY-MM-DD senden; keine zukünftigen Tage.")
+};
+const dayValueSchema = z.object({
+  ...dailyIdentity,
   activeEnergyKcal: energyKcalSchema,
   unit: z.literal("kcal")
 }).strict();
+const sampleTextSchema = z.object({
+  ...dailyIdentity,
+  sourceName: z.string().trim().min(1).max(200).regex(/^[^\r\n\t]+$/),
+  sampleRows: z.string().min(1).max(60000)
+}).strict().transform((input, context) => {
+  const rows = input.sampleRows.trim().split(/\r?\n/);
+  if (rows.length > 2000) { context.addIssue({ code: "custom", message: "Zu viele Energie-Messungen; maximal 2000 pro Tag." }); return z.NEVER; }
+  let total = 0, selected = 0;
+  const sources = new Set<string>();
+  for (const row of rows) {
+    const fields = row.split("\t");
+    if (fields.length !== 3) { context.addIssue({ code: "custom", message: "Messzeile benötigt Wert, Einheit und Quelle, getrennt durch Tabulatoren." }); return z.NEVER; }
+    const [value, unit, source] = fields.map(field => field.trim());
+    sources.add(source);
+    if (source !== input.sourceName) continue;
+    const parsed = energyKcalSchema.safeParse(value);
+    if (!parsed.success || unit !== "kcal") { context.addIssue({ code: "custom", message: "Ausgewählte Quelle liefert ungültige Dezimalwerte oder eine andere Einheit als kcal." }); return z.NEVER; }
+    total += parsed.data; selected++;
+  }
+  if (!selected) { context.addIssue({ code: "custom", message: `Keine Messungen für diese Quelle. Empfangene Quellen: ${[...sources].slice(0, 8).join(" · ")}` }); return z.NEVER; }
+  if (!Number.isFinite(total) || total > 20000) { context.addIssue({ code: "custom", message: "Energie-Tagessumme ist unplausibel (maximal 20000 kcal)." }); return z.NEVER; }
+  return { profileId: input.profileId, date: input.date, activeEnergyKcal: total, unit: "kcal" as const, sourceName: input.sourceName, sampleCount: selected };
+});
+export const healthEnergySchema = z.union([dayValueSchema, sampleTextSchema]);
 
 export async function storeHealthEnergy(input: z.infer<typeof healthEnergySchema>) {
   const client = await db();
@@ -32,5 +59,6 @@ export async function storeHealthEnergy(input: z.infer<typeof healthEnergySchema
     args: [input.profileId, input.date, input.activeEnergyKcal]
   });
   return { profileId: input.profileId, profileName: String(profiles.rows[0].name), date: input.date, activeEnergyKcal: input.activeEnergyKcal,
+    ...("sourceName" in input ? { sourceName: input.sourceName, sampleCount: input.sampleCount } : {}),
     unit: "kcal", message: "Aktive Energie gespeichert. Tageswert ersetzt, nicht addiert. Keine Trainingsminuten, Punkte oder Level geändert." };
 }

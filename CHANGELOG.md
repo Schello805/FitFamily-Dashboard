@@ -4,6 +4,14 @@ Alle wichtigen Änderungen werden hier nach dem Prinzip von Keep a Changelog dok
 
 ## [Unreleased]
 
+## [0.3.20] – 2026-10-04
+
+### Neu
+
+- Downloadbarer, profilbezogener Mac-Installer im Health-Menü: erzeugt eine vollständige Energie-Kurzbefehlvorlage, prüft und signiert sie mit Apples Werkzeugen und öffnet sie zum Import. Keine zusätzlichen Laufzeiten nötig.
+- Schlüssel und Datenquelle erst beim Import ergänzen, keine echten Zugangsdaten im Download oder bei Apple-Signierung. iCloud-/AirDrop-Anleitung; persönlicher iPhone-Test weiter erforderlich.
+- Sichere Energie-Auswertung von Dezimal-Messwerttexten einer ausgewählten Quelle auf dem Server. Keine Zahlenarithmetik im Kurzbefehl, keine Addition von Watch und iPhone, Tageswert ersetzen ohne Trainingswertung. Diese Quellensumme ist nicht automatisch Apples bereinigte Gesamtanzeige.
+
 ## [0.3.19] – 2026-10-04
 
 ### Behoben

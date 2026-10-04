@@ -13,6 +13,7 @@ it("shows empty energy separately and refreshes the exact received kcal/error st
   await waitFor(() => expect(screen.getByText("Profil-IDs: Papa: papa")).toBeInTheDocument());
   expect(screen.getByText("Noch keine aktive Energie empfangen.")).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "Familienschlüssel ersetzen" })).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "Mac-Skript herunterladen (.command)" })).toHaveAttribute("href", "/api/admin/health-shortcut?profileId=papa");
   vi.mocked(requestJson).mockResolvedValueOnce({ configured: true, profiles: [], latest: null,
     energyDaily: [{ profile_id: "papa", profile_name: "Papa", date: "2026-10-04", active_energy_kcal: 343.39, updated_at: "2026-10-04 12:00:00" }],
     energyAttempt: { level: "error", message: "Aktive Energie abgelehnt.", importId: "example-import", errors: ["Ungültige Einheit"] }
