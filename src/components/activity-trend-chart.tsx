@@ -20,7 +20,7 @@ function makeLine(points: ActivityTrendPoint[], value: (point: ActivityTrendPoin
   return path.trim();
 }
 
-export function ActivityTrendChart({ points, color, targetMinutes, targetPeriod, profileName }: {
+export function ActivityTrendChart({ points, targetMinutes, targetPeriod, profileName }: {
   points: ActivityTrendPoint[];
   color: string;
   targetMinutes: number;
@@ -79,9 +79,9 @@ export function ActivityTrendChart({ points, color, targetMinutes, targetPeriod,
         {yearIndex > 0 && <path className="dashboard-history-period-separator" d={`M${marker(firstMonthlyIndex)} 3V97`} />}
         {firstDailyIndex > 0 && <path className="dashboard-history-period-separator" d={`M${marker(firstDailyIndex)} 3V97`} />}
         {points.length > 1 && <path className="dashboard-history-target" d={targetLine} />}
-        {hasData && <path className="dashboard-history-actual" d={actualLine} pathLength={1} style={{ stroke: color }} />}
+        {hasData && <path className="dashboard-history-actual" d={actualLine} pathLength={1} style={{ stroke: "var(--history-actual, #0891b2)" }} />}
         {points.map((point, index) => point.activityMinutes === null ? null : (
-          <circle key={`${point.resolution}-${point.date}`} className="dashboard-history-point" cx={(3 + (254 * index) / Math.max(1, points.length - 1)).toFixed(1)} cy={(92 - (84 * Math.max(0, point.activityMinutes)) / scaleMax).toFixed(1)} r="2.5" style={{ fill: color }}>
+          <circle key={`${point.resolution}-${point.date}`} className="dashboard-history-point" cx={(3 + (254 * index) / Math.max(1, points.length - 1)).toFixed(1)} cy={(92 - (84 * Math.max(0, point.activityMinutes)) / scaleMax).toFixed(1)} r="2.5" style={{ fill: "var(--history-actual, #0891b2)" }}>
             <title>{`${point.label}: Ø ${new Intl.NumberFormat("de-DE", { maximumFractionDigits: 1 }).format(point.activityMinutes)} Minuten/Tag, Daten für ${point.measuredDays} von ${point.periodDays} Tagen.`}</title>
           </circle>
         ))}
@@ -91,7 +91,7 @@ export function ActivityTrendChart({ points, color, targetMinutes, targetPeriod,
         <span>{points[0]?.label ?? ""}</span>
         <span>{points[firstDailyIndex]?.label ?? ""}</span>
         <span>{points.at(-1)?.label ?? ""}</span>
-        <span className="dashboard-history-legend"><i className="history-legend-actual" style={{ background: color }} /> IST <i className="history-legend-target" /> SOLL {new Intl.NumberFormat("de-DE", { maximumFractionDigits: 1 }).format(points.at(-1)?.targetMinutes ?? 0)} Minuten/Tag</span>
+        <span className="dashboard-history-legend"><i className="history-legend-actual" /> IST <i className="history-legend-target" /> SOLL {new Intl.NumberFormat("de-DE", { maximumFractionDigits: 1 }).format(points.at(-1)?.targetMinutes ?? 0)} Minuten/Tag</span>
       </div>
     </div>;
 

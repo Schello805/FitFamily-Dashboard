@@ -4,6 +4,12 @@ Alle wichtigen Änderungen werden hier nach dem Prinzip von Keep a Changelog dok
 
 ## [Unreleased]
 
+## [0.3.6] – 2026-10-04
+
+### Behoben
+
+- Verlaufsdiagramme verwenden auf Dashboard und Detailansicht einheitliches Türkis statt der Profilfarbe. Neutraler Hintergrund und Fokusrahmen verhindern orange Diagramme im Dark Mode; Profilakzente bleiben außerhalb des Diagramms erhalten.
+
 ## [0.3.5] – 2026-10-04
 
 ### Geändert

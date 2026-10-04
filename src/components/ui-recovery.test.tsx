@@ -44,6 +44,15 @@ afterEach(() => {
 });
 
 describe("dashboard interactions and freshness", () => {
+  it("uses the shared chart palette even for an orange profile", () => {
+    const view = render(<ActivityTrendChart points={[{
+      date: "2026-10-04", label: "04.10.", resolution: "Tag", activityMinutes: 42,
+      targetMinutes: 21.4, measuredDays: 1, periodDays: 1
+    }]} color="#fb923c" targetMinutes={150} targetPeriod="Woche" />);
+    expect(view.container.querySelector(".dashboard-history-actual")?.getAttribute("style")).toContain("var(--history-actual, #0891b2)");
+    expect(view.container.querySelector(".dashboard-history-point")?.getAttribute("style")).toContain("var(--history-actual, #0891b2)");
+    expect(view.container.querySelector(".history-legend-actual")?.getAttribute("style")).toBeNull();
+  });
   it("asks for a PIN only when saving profile changes and retains the draft on cancel", async () => {
     const save = vi.fn(async (form: FormData, pin: string) => Boolean(form && pin));
     function Editor() {
