@@ -48,6 +48,16 @@ describe("paired device scans", () => {
     expect((await scan(strengthId, "geraet", false)).status).toBe(401);
     expect((await POST(new NextRequest("http://localhost/api/scan", { method: "POST", headers: { origin: "https://other.example" } }))).status).toBe(403);
   });
+  it("matches whitespace-normalized device names and requires reselection of stale defaults", async () => {
+    const client = await db();
+    await client.execute({ sql: "UPDATE exercises SET equipment = '  ' || equipment || '  ' WHERE id = ?", args: [strengthId] });
+    expect((await equipmentScanConfig(strengthId))?.exercises).toHaveLength(1);
+    await client.execute({ sql: "INSERT INTO settings (key, value) VALUES (?, ?)", args: [`equipment_scan:${strengthId}`, JSON.stringify({ exerciseId: "removed-exercise", tagLabel: "Sticker 01" })] });
+    expect(await equipmentScanConfig(strengthId)).toMatchObject({ exerciseId: null, tagLabel: "Sticker 01" });
+    const request = new Request("http://localhost", { method: "PATCH", body: JSON.stringify({ type: "strength", exerciseId: strengthId, tagLabel: "  Sticker 02  " }) });
+    expect((await PATCH(request, { params: Promise.resolve({ id: strengthId }) })).status).toBe(200);
+    expect(await equipmentScanConfig(strengthId)).toMatchObject({ exerciseId: strengthId, tagLabel: "Sticker 02" });
+  });
   it("handles concurrent repeated scans without duplicate sessions or segments", async () => {
     const responses = await Promise.all([scan(strengthId), scan(strengthId), scan(strengthId)]);
     expect(responses.every(response => response.status === 200)).toBe(true);

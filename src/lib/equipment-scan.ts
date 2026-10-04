@@ -6,13 +6,16 @@ export async function equipmentScanConfig(id: string) {
   const result = await client.execute({ sql: "SELECT id, name, active, available FROM equipment_inventory WHERE id = ?", args: [id] });
   const item = result.rows[0];
   if (!item) return null;
-  const exercises = await client.execute({ sql: "SELECT id, name FROM exercises WHERE equipment = ? COLLATE NOCASE AND active = 1 ORDER BY name", args: [String(item.name)] });
+  const exercises = await client.execute({ sql: "SELECT id, name FROM exercises WHERE trim(equipment) = trim(?) COLLATE NOCASE AND active = 1 ORDER BY name", args: [String(item.name)] });
   const saved = await client.execute({ sql: "SELECT value FROM settings WHERE key = ?", args: [`equipment_scan:${id}`] });
-  let config: { type?: TrainingType; exerciseId?: string | null } = {};
+  let config: { type?: TrainingType; exerciseId?: string | null; tagLabel?: string } = {};
   try { config = JSON.parse(String(saved.rows[0]?.value ?? "{}")); } catch { /* Use defaults for older imports. */ }
   const type: TrainingType = config?.type === "strength" || config?.type === "endurance" ? config.type : /laufband|ergometer|treadmill|bike/i.test(String(item.name)) ? "endurance" : "strength";
   const choices = exercises.rows.map(e => ({ id: String(e.id), name: String(e.name) }));
-  return { id, name: String(item.name), active: Boolean(item.active), available: Boolean(item.available), type, exerciseId: config?.exerciseId ?? choices[0]?.id ?? null, exercises: choices };
+  const exerciseId = config?.exerciseId
+    ? choices.some(choice => choice.id === config.exerciseId) ? config.exerciseId : null
+    : choices[0]?.id ?? null;
+  return { id, name: String(item.name), active: Boolean(item.active), available: Boolean(item.available), type, exerciseId, tagLabel: typeof config?.tagLabel === "string" ? config.tagLabel : "", exercises: choices };
 }
 
 export async function scanTarget(kind: "geraet" | "uebung", id: string) {

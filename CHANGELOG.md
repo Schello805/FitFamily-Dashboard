@@ -4,6 +4,14 @@ Alle wichtigen Änderungen werden hier nach dem Prinzip von Keep a Changelog dok
 
 ## [Unreleased]
 
+## [0.3.29] – 2026-10-04
+
+### Verbessert
+
+- Verwaltungsformulare mit einheitlich gestalteten Auswahlfeldern, Fokusmarkierung, Touch-Bedienflächen und responsiven Formularrastern, einschließlich Health-Zielen und NFC-Links.
+- NFC-Zuordnung lädt auch nachträglich angelegte Geräte, ignoriert verspätete Antworten vorheriger Geräte und bietet erneutes Laden der Übungen. Ungültige Standardübungen verlangen eine neue Auswahl; Leerzeichen in Gerätenamen verhindern keine Zuordnung mehr.
+- Optionale Sticker-Bezeichnung speicherbar. Erklärung unterscheidet Bezeichnung, NFC-Geräte-Link und das Schreiben des physischen Stickers.
+
 ## [0.3.28] – 2026-10-04
 
 ### Neu
