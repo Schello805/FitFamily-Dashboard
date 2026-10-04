@@ -19,6 +19,7 @@ const editSchema = z.object({
   type: z.enum(["strength", "endurance"]),
   startedAt: z.string().datetime(),
   endedAt: z.string().datetime(),
+  durationSeconds: z.number().positive().max(14400).optional(),
   exerciseId: z.string().nullable().optional()
 }).refine((value) => new Date(value.endedAt) > new Date(value.startedAt), { message: "Endzeit muss nach der Startzeit liegen" })
   .refine((value) => new Date(value.startedAt).getTime() <= Date.now() + 60000, { message: "Trainingsbeginn darf nicht in der Zukunft liegen" })
@@ -41,7 +42,7 @@ export async function POST(request: Request) {
   if (pinError) return pinError;
   const sessionId = randomUUID();
   const client = await db();
-  const conflict = await client.execute({sql:"SELECT 1 FROM health_workouts WHERE profile_id=? AND julianday(started_at)<julianday(?) AND julianday(ended_at)>julianday(?) LIMIT 1",args:[body.data.profileId,body.data.endedAt,body.data.startedAt]});
+  const conflict = await client.execute({sql:"SELECT 1 FROM health_workouts WHERE profile_id=? AND deleted_at IS NULL AND julianday(started_at)<julianday(?) AND julianday(ended_at)>julianday(?) LIMIT 1",args:[body.data.profileId,body.data.endedAt,body.data.startedAt]});
   if(conflict.rows.length) return NextResponse.json({error:"Diese Zeit wurde bereits durch Apple Health gewertet. Keine zusätzliche App-Buchung."},{status:409});
   await client.batch([
     {
@@ -72,6 +73,20 @@ export async function PUT(request: Request) {
   if (pinError) return pinError;
 
   const client = await db();
+  if (body.data.sessionId.startsWith("health:")) {
+    const externalId = body.data.sessionId.slice(7);
+    const seconds = body.data.durationSeconds;
+    if (seconds === undefined || seconds > (Date.parse(body.data.endedAt) - Date.parse(body.data.startedAt)) / 1000 + 1) {
+      return NextResponse.json({ error: "Aktive Trainingszeit muss angegeben werden und darf den Zeitraum nicht überschreiten." }, { status: 400 });
+    }
+    try {
+      const results = await client.batch([
+        { sql: "UPDATE health_workouts SET started_at=?, ended_at=?, duration_seconds=?, training_type=?, edited=1 WHERE profile_id=? AND external_id=? AND deleted_at IS NULL", args: [body.data.startedAt,body.data.endedAt,seconds,body.data.type,body.data.profileId,externalId] },
+        { sql: "INSERT INTO audit_log (id, action, profile_id, details) SELECT ?, 'training.health_edit', ?, ? WHERE changes() > 0", args: [randomUUID(),body.data.profileId,JSON.stringify({ externalId, startedAt:body.data.startedAt, endedAt:body.data.endedAt, durationSeconds:seconds })] }
+      ], "write");
+      return results[0].rowsAffected ? NextResponse.json({ ok:true }) : NextResponse.json({ error:"Trainingseinheit nicht gefunden" }, { status:404 });
+    } catch { return NextResponse.json({ error:"Änderung nicht gespeichert. Der Zeitraum überschneidet sich mit bereits gewertetem Training." }, { status:409 }); }
+  }
   const existing = await client.execute({
     sql: "SELECT id, started_at, ended_at, recording_mode FROM training_sessions WHERE id = ? AND profile_id = ? AND COALESCE(source, '') <> 'apple_health'",
     args: [body.data.sessionId, body.data.profileId]
@@ -79,9 +94,8 @@ export async function PUT(request: Request) {
   if (existing.rows.length === 0) {
     return NextResponse.json({ error: "Trainingseinheit nicht gefunden" }, { status: 404 });
   }
-  if(existing.rows[0].recording_mode === "health") return NextResponse.json({error:"Health-App-Timer hat keine Wertung und kann nicht als App-Training bearbeitet werden."},{status:409});
-  const conflict = await client.execute({sql:"SELECT 1 FROM health_workouts WHERE profile_id=? AND julianday(started_at)<julianday(?) AND julianday(ended_at)>julianday(?) LIMIT 1",args:[body.data.profileId,body.data.endedAt,body.data.startedAt]});
-  if(conflict.rows.length) return NextResponse.json({error:"Diese Zeit wurde bereits durch Apple Health gewertet. Keine zusätzliche App-Buchung."},{status:409});
+  const conflict = await client.execute({sql:"SELECT 1 FROM health_workouts WHERE profile_id=? AND deleted_at IS NULL AND julianday(started_at)<julianday(?) AND julianday(ended_at)>julianday(?) LIMIT 1",args:[body.data.profileId,body.data.endedAt,body.data.startedAt]});
+  if(existing.rows[0].recording_mode !== "health" && conflict.rows.length) return NextResponse.json({error:"Diese Zeit wurde bereits durch Apple Health gewertet. Keine zusätzliche App-Buchung."},{status:409});
 
   const segmentResult = await client.execute({
     sql: "SELECT id, type, started_at, ended_at FROM training_segments WHERE session_id = ? ORDER BY started_at ASC",
@@ -132,6 +146,14 @@ export async function DELETE(request: Request) {
   if (pinError) return pinError;
 
   const client = await db();
+  if (body.data.sessionId.startsWith("health:")) {
+    const externalId = body.data.sessionId.slice(7);
+    const results = await client.batch([
+      { sql: "UPDATE health_workouts SET deleted_at=CURRENT_TIMESTAMP WHERE profile_id=? AND external_id=? AND deleted_at IS NULL", args: [body.data.profileId,externalId] },
+      { sql: "INSERT INTO audit_log (id, action, profile_id, details) SELECT ?, 'training.health_delete', ?, ? WHERE changes() > 0", args: [randomUUID(),body.data.profileId,JSON.stringify({ externalId })] }
+    ], "write");
+    return results[0].rowsAffected ? NextResponse.json({ ok:true }) : NextResponse.json({ error:"Trainingseinheit nicht gefunden" }, { status:404 });
+  }
   const existing = await client.execute({
     sql: "SELECT id FROM training_sessions WHERE id = ? AND profile_id = ? AND COALESCE(source, '') <> 'apple_health'",
     args: [body.data.sessionId, body.data.profileId]

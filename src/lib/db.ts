@@ -271,27 +271,37 @@ async function createSchema(client: Client) {
     ON training_sessions(profile_id, external_id) WHERE source = 'apple_health' AND external_id IS NOT NULL`);
 
   // Database guards also cover manual edits/restores and simultaneous imports.
+  const workoutColumns = await client.execute("PRAGMA table_info(health_workouts)");
+  if (!workoutColumns.rows.some(row => String(row.name) === "deleted_at")) {
+    await client.execute("ALTER TABLE health_workouts ADD COLUMN deleted_at TEXT");
+  }
+  if (!workoutColumns.rows.some(row => String(row.name) === "edited")) {
+    await client.execute("ALTER TABLE health_workouts ADD COLUMN edited INTEGER NOT NULL DEFAULT 0");
+  }
+  // Replace guards atomically, including recovery after an interrupted migration.
+  const guardStatements = ["health_no_overlap_insert", "health_no_overlap_update", "app_no_health_overlap_insert", "app_no_health_overlap_update", "session_no_health_overlap"].map(trigger => ({ sql: `DROP TRIGGER IF EXISTS ${trigger}` }));
   for (const event of ["INSERT", "UPDATE"] as const) {
-    await client.execute(`CREATE TRIGGER IF NOT EXISTS health_no_overlap_${event.toLowerCase()} BEFORE ${event} ON health_workouts
-      WHEN EXISTS (SELECT 1 FROM health_workouts h WHERE h.profile_id=NEW.profile_id
+    guardStatements.push({ sql: `CREATE TRIGGER IF NOT EXISTS health_no_overlap_${event.toLowerCase()} BEFORE ${event} ON health_workouts
+      WHEN NEW.deleted_at IS NULL AND (EXISTS (SELECT 1 FROM health_workouts h WHERE h.profile_id=NEW.profile_id AND h.deleted_at IS NULL
         AND NOT (h.profile_id=NEW.profile_id AND h.external_id=NEW.external_id)
         AND julianday(h.started_at)<julianday(NEW.ended_at) AND julianday(h.ended_at)>julianday(NEW.started_at))
       OR EXISTS (SELECT 1 FROM training_segments sg JOIN training_sessions ts ON ts.id=sg.session_id
         WHERE ts.profile_id=NEW.profile_id AND ts.recording_mode='app' AND COALESCE(ts.source,'')<>'apple_health'
-        AND julianday(sg.started_at)<julianday(NEW.ended_at) AND julianday(COALESCE(sg.ended_at,strftime('%Y-%m-%dT%H:%M:%fZ','now')))>julianday(NEW.started_at))
-      BEGIN SELECT RAISE(ABORT,'Health-Training überschneidet sich mit bereits gewertetem Training.'); END`);
-    await client.execute(`CREATE TRIGGER IF NOT EXISTS app_no_health_overlap_${event.toLowerCase()} BEFORE ${event} ON training_segments
+        AND julianday(sg.started_at)<julianday(NEW.ended_at) AND julianday(COALESCE(sg.ended_at,strftime('%Y-%m-%dT%H:%M:%fZ','now')))>julianday(NEW.started_at)))
+      BEGIN SELECT RAISE(ABORT,'Health-Training überschneidet sich mit bereits gewertetem Training.'); END` });
+    guardStatements.push({ sql: `CREATE TRIGGER IF NOT EXISTS app_no_health_overlap_${event.toLowerCase()} BEFORE ${event} ON training_segments
       WHEN EXISTS (SELECT 1 FROM training_sessions ts JOIN health_workouts h ON h.profile_id=ts.profile_id
-        WHERE ts.id=NEW.session_id AND ts.recording_mode='app' AND COALESCE(ts.source,'')<>'apple_health'
+        WHERE ts.id=NEW.session_id AND h.deleted_at IS NULL AND ts.recording_mode='app' AND COALESCE(ts.source,'')<>'apple_health'
         AND julianday(NEW.started_at)<julianday(h.ended_at) AND julianday(COALESCE(NEW.ended_at,'9999-12-31'))>julianday(h.started_at))
-      BEGIN SELECT RAISE(ABORT,'App-Training überschneidet sich mit gebuchtem Health-Training.'); END`);
+      BEGIN SELECT RAISE(ABORT,'App-Training überschneidet sich mit gebuchtem Health-Training.'); END` });
   }
-  await client.execute(`CREATE TRIGGER IF NOT EXISTS session_no_health_overlap BEFORE UPDATE OF recording_mode, profile_id, source ON training_sessions
+  guardStatements.push({ sql: `CREATE TRIGGER IF NOT EXISTS session_no_health_overlap BEFORE UPDATE OF recording_mode, profile_id, source ON training_sessions
     WHEN NEW.recording_mode='app' AND COALESCE(NEW.source,'')<>'apple_health' AND EXISTS (
       SELECT 1 FROM training_segments sg JOIN health_workouts h ON h.profile_id=NEW.profile_id
-      WHERE sg.session_id=NEW.id AND julianday(sg.started_at)<julianday(h.ended_at)
+      WHERE sg.session_id=NEW.id AND h.deleted_at IS NULL AND julianday(sg.started_at)<julianday(h.ended_at)
       AND julianday(COALESCE(sg.ended_at,'9999-12-31'))>julianday(h.started_at))
-    BEGIN SELECT RAISE(ABORT,'Aufzeichnungsmodus würde Training doppelt werten.'); END`);
+    BEGIN SELECT RAISE(ABORT,'Aufzeichnungsmodus würde Training doppelt werten.'); END` });
+  await client.batch(guardStatements, "write");
 
   const equipmentColumns = await client.execute("PRAGMA table_info(equipment_inventory)");
   if (!equipmentColumns.rows.some((row) => String(row.name) === "video_url")) {

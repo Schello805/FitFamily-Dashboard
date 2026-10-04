@@ -28,6 +28,7 @@ function elapsedMinutes(start: string, end: string | null, seconds?: number) {
   if (seconds !== undefined) return seconds / 60;
   return Math.max(0, (new Date(end ?? Date.now()).getTime() - new Date(start).getTime()) / 60000);
 }
+function displayedMinutes(seconds: number) { return Math.round(seconds / 60 * 100) / 100; }
 
 function SwipeableSessionRow({
   session,
@@ -43,7 +44,7 @@ function SwipeableSessionRow({
   const startRef = useRef<{ x: number; y: number; isHorizontal: boolean | null }>({ x: 0, y: 0, isHorizontal: null });
 
   function handleStart(clientX: number, clientY: number) {
-    if (session.source === "health_import" || session.recordingMode === "health") return;
+    if (session.status === "active") return;
     startRef.current = { x: clientX, y: clientY, isHorizontal: null };
     setSwiping(true);
   }
@@ -94,7 +95,7 @@ function SwipeableSessionRow({
         <button
           type="button"
           className="swipe-action-left"
-          disabled={session.source === "health_import" || session.recordingMode === "health"}
+          disabled={session.status === "active"}
           onClick={() => onEdit(session)}
           aria-label="Einheit bearbeiten"
           style={{
@@ -108,7 +109,7 @@ function SwipeableSessionRow({
         <button
           type="button"
           className="swipe-action-right"
-          disabled={session.source === "health_import" || session.recordingMode === "health"}
+          disabled={session.status === "active"}
           onClick={() => onDelete(session)}
           aria-label="Einheit löschen"
           style={{
@@ -151,7 +152,7 @@ function SwipeableSessionRow({
                 <b>{segment.exerciseName ?? (segment.type === "strength" ? "Krafttraining" : "Ausdauertraining")}</b>
                 <small>
                   {segment.equipmentName && `${segment.equipmentName} · `}{formatGermanTime(segment.startedAt)} ·{" "}
-                  {elapsedMinutes(segment.startedAt, segment.endedAt, segment.durationSeconds).toLocaleString("de-DE", { maximumFractionDigits: 2 })} Minuten
+                  {elapsedMinutes(segment.startedAt, segment.endedAt, session.recordingMode === "health" ? undefined : segment.durationSeconds).toLocaleString("de-DE", { maximumFractionDigits: 2 })} Minuten{session.recordingMode === "health" ? " · ohne Wertung" : ""}
                 </small>
               </span>
             </div>
@@ -166,11 +167,12 @@ function SwipeableSessionRow({
             </em>
           )}
           {session.status === "active" && <em className="session-running-tag">Läuft</em>}
+          {session.status === "active" && <small>Zum Bearbeiten oder Löschen zuerst stoppen.</small>}
           <div className="session-desktop-actions">
             <button
               type="button"
               className="session-action-icon edit-icon"
-              disabled={session.source === "health_import" || session.recordingMode === "health"}
+              disabled={session.status === "active"}
               title="Trainingseinheit bearbeiten"
               aria-label="Trainingseinheit bearbeiten"
               onClick={(e) => {
@@ -183,7 +185,7 @@ function SwipeableSessionRow({
             <button
               type="button"
               className="session-action-icon delete-icon"
-              disabled={session.source === "health_import" || session.recordingMode === "health"}
+              disabled={session.status === "active"}
               title="Trainingseinheit löschen"
               aria-label="Trainingseinheit löschen"
               onClick={(e) => {
@@ -204,6 +206,9 @@ export function HistoryView({ profile }: { profile: DashboardProfile }) {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [equipmentStats, setEquipmentStats] = useState<DeviceStats[]>([]);
   const [loadError, setLoadError] = useState("");
+  const [score, setScore] = useState(profile.score);
+  const [saving, setSaving] = useState(false);
+  const [editMinutes, setEditMinutes] = useState("");
 
   // Manual Add Modal state
   const [manual, setManual] = useState(false);
@@ -226,13 +231,19 @@ export function HistoryView({ profile }: { profile: DashboardProfile }) {
   const [deleteError, setDeleteError] = useState("");
   const [busyDelete, setBusyDelete] = useState(false);
 
-  const load = () => requestJson<{ sessions?: Session[]; equipmentStats?: DeviceStats[] }>(
+  const load = async () => {
+    const [data, dashboard] = await Promise.all([requestJson<{ sessions?: Session[]; equipmentStats?: DeviceStats[] }>(
     `/api/history/${encodeURIComponent(profile.id)}`, "Trainingsverlauf konnte nicht geladen werden."
-  ).then((data) => { setSessions(data.sessions ?? []); setEquipmentStats(data.equipmentStats ?? []); setLoadError(""); });
+    ), requestJson<{ profiles: DashboardProfile[] }>("/api/dashboard", "Wertung konnte nicht aktualisiert werden.")]);
+    setSessions(data.sessions ?? []); setEquipmentStats(data.equipmentStats ?? []); setLoadError("");
+    const updated = dashboard.profiles.find(item => item.id === profile.id);
+    if (updated) setScore(updated.score);
+  };
 
   useEffect(() => {
-    void load().catch(error => setLoadError(error instanceof Error ? error.message : "Verlauf nicht erreichbar."));
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    const timer = window.setTimeout(() => { void load().catch(error => setLoadError(error instanceof Error ? error.message : "Verlauf nicht erreichbar.")); }, 0);
+    return () => clearTimeout(timer);
+  }, [profile.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const totals = useMemo(
     () =>
@@ -245,13 +256,14 @@ export function HistoryView({ profile }: { profile: DashboardProfile }) {
   );
 
   function startEdit(session: Session) {
+    if (session.status === "active") return;
     const startDate = new Date(session.startedAt);
     const endDate = new Date(session.endedAt || Date.now());
     const dateStr = `${startDate.getFullYear()}-${String(startDate.getMonth() + 1).padStart(2, "0")}-${String(
       startDate.getDate()
     ).padStart(2, "0")}`;
-    const startStr = `${String(startDate.getHours()).padStart(2, "0")}:${String(startDate.getMinutes()).padStart(2, "0")}`;
-    const endStr = `${String(endDate.getHours()).padStart(2, "0")}:${String(endDate.getMinutes()).padStart(2, "0")}`;
+    const time = (date: Date) => `${String(date.getHours()).padStart(2,"0")}:${String(date.getMinutes()).padStart(2,"0")}:${String(date.getSeconds()).padStart(2,"0")}`;
+    const startStr = time(startDate), endStr = time(endDate);
 
     setEditingSession(session);
     setEditDate(dateStr);
@@ -259,11 +271,13 @@ export function HistoryView({ profile }: { profile: DashboardProfile }) {
     setEditStart(startStr);
     setEditEnd(endStr);
     setEditType(session.segments[0]?.type === "endurance" ? "endurance" : "strength");
+    setEditMinutes(String(displayedMinutes(session.segments[0]?.durationSeconds ?? 0)));
     setEditPin("");
     setEditError("");
   }
 
   function startDelete(session: Session) {
+    if (session.status === "active") return;
     setDeletingSession(session);
     setDeletePin("");
     setDeleteError("");
@@ -299,7 +313,7 @@ export function HistoryView({ profile }: { profile: DashboardProfile }) {
     }
     setManual(false);
     setManualPin("");
-    await load();
+    await load().catch(error => setLoadError(error instanceof Error ? error.message : "Verlauf bitte neu laden."));
     showToast({
       type: "success",
       title: "Training nachgetragen",
@@ -311,28 +325,30 @@ export function HistoryView({ profile }: { profile: DashboardProfile }) {
     event.preventDefault();
     if (!editingSession) return;
     setEditError("");
-    const startedAt = new Date(`${editDate}T${editStart}`).toISOString();
-    const endedAt = new Date(`${editEndDate}T${editEnd}`).toISOString();
-
+    setSaving(true);
     try {
+      const startedAt = new Date(`${editDate}T${editStart}`).toISOString();
+      const endedAt = new Date(`${editEndDate}T${editEnd}`).toISOString();
+      const storedSeconds = editingSession.segments[0]?.durationSeconds ?? 0;
+      const activeSeconds = Number(editMinutes) === displayedMinutes(storedSeconds) ? storedSeconds : Math.round(Number(editMinutes) * 60 * 1e6) / 1e6;
       await requestJson("/api/manual-training", "Änderungen konnten nicht gespeichert werden", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pin: editPin, sessionId: editingSession.id, profileId: profile.id, type: editType, startedAt, endedAt })
+        body: JSON.stringify({ pin: editPin, sessionId: editingSession.id, profileId: profile.id, type: editType, startedAt, endedAt, ...(editingSession.source === "health_import" ? { durationSeconds: activeSeconds } : {}) })
       });
     } catch (error) {
       const msg = error instanceof Error ? error.message : "Änderungen konnten nicht gespeichert werden";
       setEditError(msg);
       showToast({ type: "error", title: "Fehler beim Bearbeiten", message: msg });
       return;
-    }
+    } finally { setSaving(false); }
     setEditingSession(null);
     setEditPin("");
-    await load();
+    await load().catch(error => setLoadError(error instanceof Error ? error.message : "Verlauf bitte neu laden."));
     showToast({
       type: "success",
       title: "Einheit bearbeitet",
-      message: "Änderungen wurden erfolgreich gespeichert."
+      message: "Punkte, Trainingsminuten und Level werden aus den korrigierten Daten neu berechnet."
     });
   }
 
@@ -354,7 +370,7 @@ export function HistoryView({ profile }: { profile: DashboardProfile }) {
       });
       setDeletingSession(null);
       setDeletePin("");
-      await load();
+      await load().catch(error => setLoadError(error instanceof Error ? error.message : "Verlauf bitte neu laden."));
       showToast({
         type: "success",
         title: "Einheit gelöscht",
@@ -369,7 +385,7 @@ export function HistoryView({ profile }: { profile: DashboardProfile }) {
 
   return (
     <main className="subpage" style={{ "--profile": profile.color } as React.CSSProperties}>
-      <KioskIdleBar redirectUrl="/" seconds={60} color={profile.color} title={`Trainingsverlauf von ${profile.name}`} />
+      <KioskIdleBar paused={manual || Boolean(editingSession) || Boolean(deletingSession)} redirectUrl="/" seconds={60} color={profile.color} title={`Trainingsverlauf von ${profile.name}`} />
       <header>
         <Link href={`/profil/${profile.id}`} title={`Zurück zur Profilseite von ${profile.name}`}>
           <ArrowLeft /> Zurück
@@ -393,7 +409,7 @@ export function HistoryView({ profile }: { profile: DashboardProfile }) {
 
       <section className="history-stats">
         <div>
-          <strong>{profile.score}</strong>
+          <strong>{score}</strong>
           <span>Punkte gesamt</span>
         </div>
         <div>
@@ -406,8 +422,7 @@ export function HistoryView({ profile }: { profile: DashboardProfile }) {
         </div>
       </section>
 
-      {loadError && <p role="alert" className="form-error">{loadError}</p>}
-      {equipmentStats.length > 0 && <EquipmentStats items={equipmentStats} />}
+      {loadError && <div role="alert" className="form-error">{loadError}<button type="button" onClick={() => void load().catch(error => setLoadError(error instanceof Error ? error.message : "Verlauf nicht erreichbar."))}>Erneut laden</button></div>}
 
       {sessions.length > 0 && (
         <div className="swipe-hint">
@@ -434,6 +449,8 @@ export function HistoryView({ profile }: { profile: DashboardProfile }) {
           ))
         )}
       </section>
+
+      {equipmentStats.length > 0 && <EquipmentStats items={equipmentStats} />}
 
       {/* Manual Add Modal */}
       {manual && (
@@ -504,6 +521,8 @@ export function HistoryView({ profile }: { profile: DashboardProfile }) {
             </button>
             <span className="setup-badge">Bearbeiten</span>
             <h2>Training anpassen</h2>
+            {editingSession.recordingMode === "health" && <p>App-Timer ohne Wertung: Auch nach der Korrektur gibt dieser Eintrag keine Punkte oder Levelminuten. Nur ein späterer Health-Import zählt.</p>}
+            {editingSession.source === "health_import" && <><p>Apple-Health-Import · 1,5 Punkte pro aktiver Minute. Die Korrektur bleibt auch bei erneutem Import erhalten.</p><label>Aktive Trainingsminuten<input type="number" required min="0.01" max="240" step="any" value={editMinutes} onChange={event => setEditMinutes(event.target.value)} /></label><small>Gespeichert: {editingSession.segments[0]?.durationSeconds} Sekunden. Die gerundete Anzeige verändert beim unveränderten Speichern nicht die Zeit.</small></>}
             <label>
               Startdatum
               <input
@@ -528,6 +547,7 @@ export function HistoryView({ profile }: { profile: DashboardProfile }) {
                 <input
                   type="time"
                   required
+                  step="1"
                   value={editStart}
                   onChange={(e) => setEditStart(e.target.value)}
                 />
@@ -537,6 +557,7 @@ export function HistoryView({ profile }: { profile: DashboardProfile }) {
                 <input
                   type="time"
                   required
+                  step="1"
                   value={editEnd}
                   onChange={(e) => setEditEnd(e.target.value)}
                 />
@@ -559,8 +580,8 @@ export function HistoryView({ profile }: { profile: DashboardProfile }) {
             <label>Eltern-PIN zur Freigabe (4 Ziffern)</label>
             <TouchPinpad value={editPin} onChange={setEditPin} />
             {editError && <p className="form-error">{editError}</p>}
-            <button className="primary-submit" disabled={editPin.length !== 4}>
-              Änderungen speichern
+            <button className="primary-submit" disabled={editPin.length !== 4 || saving}>
+              {saving ? "Speichert …" : "Änderungen speichern"}
             </button>
           </form>
         </div>
@@ -593,11 +614,11 @@ export function HistoryView({ profile }: { profile: DashboardProfile }) {
                   {formatGermanTime(deletingSession.startedAt)}
                 </b>
                 <br />
-                {Math.floor(elapsedMinutes(deletingSession.startedAt, deletingSession.endedAt))} Minuten ·{" "}
+                {deletingSession.segments.reduce((sum, segment) => sum + elapsedMinutes(segment.startedAt, segment.endedAt, segment.durationSeconds), 0).toLocaleString("de-DE", { maximumFractionDigits:2 })} Minuten ·{" "}
                 {deletingSession.segments[0]?.type === "strength" ? "Kraft" : "Ausdauer"}
               </p>
               <p style={{ marginTop: "6px", color: "var(--muted)", fontSize: "11px" }}>
-                Diese Einheit und die dafür vergebenen Punkte werden unwiderruflich aus dem Verlauf gelöscht.
+                Diese Einheit wird aus Verlauf und Wertung entfernt. Punkte, Trainingsminuten und Level werden neu berechnet. {deletingSession.source === "health_import" && "Die Löschmarkierung verhindert eine erneute Buchung desselben Health-Exports."}
               </p>
             </div>
 
@@ -606,7 +627,7 @@ export function HistoryView({ profile }: { profile: DashboardProfile }) {
             {deleteError && <p className="form-error">{deleteError}</p>}
 
             <button type="submit" className="delete-submit-btn" disabled={deletePin.length !== 4 || busyDelete}>
-              {busyDelete ? "Wird gelöscht …" : "Endgültig löschen"}
+              {busyDelete ? "Wird entfernt …" : deletingSession.source === "health_import" ? "Aus Verlauf und Wertung entfernen" : "Endgültig löschen"}
             </button>
           </form>
         </div>

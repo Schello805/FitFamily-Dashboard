@@ -11,7 +11,7 @@ export function HealthImportView({ profileId, name }: { profileId: string; name:
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false), [progress, setProgress] = useState(0), [message, setMessage] = useState("");
   const [reading, setReading] = useState(false);
-  const [results, setResults] = useState<{ externalId: string; sourceName: string; startedAt: string; minutes: number; points: number; duplicate: boolean; conflict: boolean; error?: string }[]>([]);
+  const [results, setResults] = useState<{ externalId: string; sourceName: string; startedAt: string; minutes: number; points: number; duplicate: boolean; conflict: boolean; deleted?: boolean; error?: string }[]>([]);
   const controller = useRef<AbortController | null>(null);
   useEffect(() => () => controller.current?.abort(), []);
   async function preview() {
@@ -59,6 +59,6 @@ export function HealthImportView({ profileId, name }: { profileId: string; name:
       </article>)}
       <button disabled={busy || selected.size < 1 || selected.size > 25} onClick={() => void book()}>Ausgewählte Trainings für {name} verbindlich buchen</button>
     </section>}
-    {results.length > 0 && <section><h2>Import-Ergebnis</h2>{results.map(row => <p key={row.externalId}>{row.sourceName} · {row.minutes.toFixed(2)} Min. · {row.conflict ? row.error : row.duplicate ? "Bereits vorhanden – keine zusätzlichen Punkte" : `${row.points.toFixed(2)} Punkte gebucht`}</p>)}</section>}
+    {results.length > 0 && <section><h2>Import-Ergebnis</h2>{results.map(row => <p key={row.externalId}>{row.sourceName} · {row.minutes.toFixed(2)} Min. · {row.deleted ? "Im Verlauf gelöscht – nicht erneut gebucht" : row.conflict ? row.error : row.duplicate ? "Bereits vorhanden – keine zusätzlichen Punkte" : `${row.points.toFixed(2)} Punkte gebucht`}</p>)}</section>}
   </main>;
 }

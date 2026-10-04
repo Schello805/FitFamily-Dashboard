@@ -39,7 +39,7 @@ export async function getDashboardData(): Promise<DashboardProfile[]> {
       JOIN profiles p ON p.id = ts.profile_id
       WHERE COALESCE(ts.source, '') <> 'apple_health' AND ts.recording_mode='app'
       UNION ALL SELECT h.profile_id, 'health:' || h.profile_id || ':' || h.external_id, 'completed', h.training_type, h.started_at, h.ended_at,
-        p.target_reset_at, p.score_reset_at FROM health_workouts h JOIN profiles p ON p.id=h.profile_id`),
+        p.target_reset_at, p.score_reset_at FROM health_workouts h JOIN profiles p ON p.id=h.profile_id WHERE h.deleted_at IS NULL`),
     client.execute(`SELECT ts.profile_id, ts.id session_id, ts.started_at session_started_at, ts.recording_mode,
       sg.id segment_id, sg.type, sg.exercise_id, sg.started_at segment_started_at, ex.name exercise_name, ex.equipment equipment_name
       FROM training_sessions ts
@@ -50,7 +50,7 @@ export async function getDashboardData(): Promise<DashboardProfile[]> {
       WHERE status = 'active' ORDER BY COALESCE(target_date, '9999-12-31') ASC`)
   ]);
 
-  const healthRows = await client.execute("SELECT profile_id, external_id, duration_seconds, started_at, ended_at FROM health_workouts");
+  const healthRows = await client.execute("SELECT profile_id, external_id, duration_seconds, started_at, ended_at FROM health_workouts WHERE deleted_at IS NULL");
   const healthFactors = new Map(healthRows.rows.map(h => [`health:${h.profile_id}:${h.external_id}`, Number(h.duration_seconds) / durationSeconds(String(h.started_at), String(h.ended_at))]));
   const healthActiveSeconds = new Map(healthRows.rows.map(h => [`health:${h.profile_id}:${h.external_id}`, Number(h.duration_seconds)]));
   const factorFor = (id: unknown) => healthFactors.get(String(id)) ?? 1;

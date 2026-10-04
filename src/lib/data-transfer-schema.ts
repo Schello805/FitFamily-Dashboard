@@ -48,7 +48,7 @@ export const DATA_TABLE_SPECS = {
     required: ["key", "value"]
   },
   health_workouts: {
-    columns: ["profile_id", "external_id", "started_at", "ended_at", "duration_seconds", "source_name", "activity_type", "training_type", "created_at"],
+    columns: ["profile_id", "external_id", "started_at", "ended_at", "duration_seconds", "source_name", "activity_type", "training_type", "created_at", "edited", "deleted_at"],
     keys: ["profile_id", "external_id"],
     required: ["profile_id", "external_id", "started_at", "ended_at", "duration_seconds", "source_name", "activity_type", "training_type"]
   },

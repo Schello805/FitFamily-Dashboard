@@ -17,15 +17,15 @@ export async function bookHealthTraining(input: z.infer<typeof healthTrainingSch
   const results = await client.batch(input.workouts.map(w => ({
     sql: `INSERT OR IGNORE INTO health_workouts
       (profile_id, external_id, started_at, ended_at, duration_seconds, source_name, activity_type, training_type)
-      SELECT ?,?,?,?,?,?,?,? WHERE NOT EXISTS (
-        SELECT 1 FROM health_workouts WHERE profile_id=? AND julianday(started_at)<julianday(?) AND julianday(ended_at)>julianday(?)
+      SELECT ?,?,?,?,?,?,?,? WHERE NOT EXISTS (SELECT 1 FROM health_workouts WHERE profile_id=? AND external_id=?) AND NOT EXISTS (
+        SELECT 1 FROM health_workouts WHERE profile_id=? AND deleted_at IS NULL AND julianday(started_at)<julianday(?) AND julianday(ended_at)>julianday(?)
       ) AND NOT EXISTS (
         SELECT 1 FROM training_segments sg JOIN training_sessions ts ON ts.id=sg.session_id
         WHERE ts.profile_id=? AND ts.recording_mode='app' AND COALESCE(ts.source,'')<>'apple_health'
         AND julianday(sg.started_at)<julianday(?) AND julianday(COALESCE(sg.ended_at, strftime('%Y-%m-%dT%H:%M:%fZ','now')))>julianday(?)
       )`,
     args: [input.profileId,w.externalId,w.startedAt,w.endedAt,w.durationSeconds,w.sourceName,w.activityType,w.trainingType,
-      input.profileId,w.endedAt,w.startedAt,input.profileId,w.endedAt,w.startedAt]
+      input.profileId,w.externalId,input.profileId,w.endedAt,w.startedAt,input.profileId,w.endedAt,w.startedAt]
   })), "write");
   const stored = await client.execute({ sql: "SELECT * FROM health_workouts WHERE profile_id=?", args: [input.profileId] });
   const workouts = input.workouts.map((w,index) => {
@@ -35,7 +35,7 @@ export async function bookHealthTraining(input: z.infer<typeof healthTrainingSch
     return { externalId:w.externalId, startedAt:row ? String(row.started_at):w.startedAt, endedAt:row ? String(row.ended_at):w.endedAt,
       sourceName:row ? String(row.source_name):w.sourceName, activityType:row ? String(row.activity_type):w.activityType,
       trainingType:row ? String(row.training_type):w.trainingType, durationSeconds:seconds, minutes:seconds/60,
-      points:conflict ? 0:seconds/60*1.5, duplicate:!!row && results[index].rowsAffected===0, conflict,
+      points:conflict || row?.deleted_at ? 0:seconds/60*1.5, deleted: Boolean(row?.deleted_at), duplicate:!!row && results[index].rowsAffected===0, conflict,
       ...(conflict ? { error:"Überschneidung mit bereits gezähltem App-Training oder einem anderen Health-Import. Nicht gebucht." }: {}) };
   });
   return { mode:"book", profileId:input.profileId, profileName:String(profile.rows[0].name),

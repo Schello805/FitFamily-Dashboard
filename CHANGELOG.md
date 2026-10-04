@@ -4,6 +4,14 @@ Alle wichtigen Änderungen werden hier nach dem Prinzip von Keep a Changelog dok
 
 ## [Unreleased]
 
+## [0.3.30] – 2026-10-04
+
+### Verbessert
+
+- Persönlicher Verlauf: Health-Importe mit PIN bearbeitbar und aus Wertung/Verlauf entfernbar. Aktive Minuten bleiben getrennt vom Zeitfenster; Änderungen und Löschmarkierungen überstehen den erneuten Import derselben Datei.
+- Punkte im Verlauf werden nach Änderungen aktualisiert; Dashboard-Minuten und automatische Level werden aus den korrigierten Einträgen berechnet. Laufende Einheiten müssen für die Bedienung im Verlauf zuerst gestoppt werden.
+- Verlaufslinie optisch geglättet, ohne zusätzliche Spitzen, veränderte Datenpunkte oder Verbindungen über fehlende Tage.
+
 ## [0.3.29] – 2026-10-04
 
 ### Verbessert

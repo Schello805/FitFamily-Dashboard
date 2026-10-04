@@ -2,23 +2,7 @@ import type { ActivityTrendPoint } from "@/lib/domain";
 import { useCallback, useEffect, useId, useState } from "react";
 import { X } from "lucide-react";
 import { Modal } from "@/components/modal";
-
-function makeLine(points: ActivityTrendPoint[], value: (point: ActivityTrendPoint) => number | null, max: number) {
-  let path = "";
-  let open = false;
-  points.forEach((point, index) => {
-    const amount = value(point);
-    if (amount === null) {
-      open = false;
-      return;
-    }
-    const x = 3 + (254 * index) / Math.max(1, points.length - 1);
-    const y = 92 - (84 * Math.max(0, amount)) / max;
-    path += `${open ? "L" : "M"}${x.toFixed(1)} ${y.toFixed(1)} `;
-    open = true;
-  });
-  return path.trim();
-}
+import { makeTrendLine } from "@/lib/activity-trend-path";
 
 export function ActivityTrendChart({ points, targetMinutes, targetPeriod, profileName }: {
   points: ActivityTrendPoint[];
@@ -53,8 +37,8 @@ export function ActivityTrendChart({ points, targetMinutes, targetPeriod, profil
   const scaleStep = 10 ** Math.floor(Math.log10(rawMax));
   const scaleMax = Math.ceil(rawMax / scaleStep) * scaleStep;
   const axisFormat = new Intl.NumberFormat("de-DE", { maximumFractionDigits: 1 });
-  const targetLine = makeLine(points, (point) => point.targetMinutes, scaleMax);
-  const actualLine = makeLine(points, (point) => point.activityMinutes, scaleMax);
+  const targetLine = makeTrendLine(points, (point) => point.targetMinutes, scaleMax);
+  const actualLine = makeTrendLine(points, (point) => point.activityMinutes, scaleMax, true);
   const targetLabel = targetPeriod === "Woche"
     ? `${targetMinutes} Minuten/Woche (gleichmäßig ${new Intl.NumberFormat("de-DE", { maximumFractionDigits: 1 }).format(targetMinutes / 7)} Minuten/Tag)`
     : `${targetMinutes} Minuten/Tag`;
@@ -101,7 +85,7 @@ export function ActivityTrendChart({ points, targetMinutes, targetPeriod, profil
       <section className="dashboard-history-modal" role="dialog" aria-modal="true" aria-labelledby={titleId}>
         <button className="dashboard-history-close" type="button" aria-label="Verlauf schließen" onClick={closeDetails}><X size={22} /></button>
         <h2 id={titleId}>Dein Trainingsverlauf</h2>
-        <p>Die Kurve zeigt deinen tatsächlichen Verlauf im Vergleich zu deinem persönlichen Soll.</p>
+        <p>Die Linie ist optisch geglättet; alle Datenpunkte bleiben unverändert. Lücken werden nicht verbunden.</p>
         {chart(true)}
         <div className="dashboard-history-explanation">
           <p><strong>Ist:</strong> Pro Tag zählt die Summe deiner abgeschlossenen Kraft- und Ausdauertrainings in FitFamily.</p>

@@ -32,10 +32,10 @@ export async function GET(_request: Request, { params }: { params: Promise<{ pro
       ...(row.recording_mode === "health" ? { durationSeconds: 0 } : {})
     });
   }
-  const health = await client.execute({sql:"SELECT * FROM health_workouts WHERE profile_id=? ORDER BY started_at DESC LIMIT 500",args:[profileId]});
+  const health = await client.execute({sql:"SELECT * FROM health_workouts WHERE profile_id=? AND deleted_at IS NULL ORDER BY started_at DESC LIMIT 500",args:[profileId]});
   for (const row of health.rows) {
     const id=`health:${row.external_id}`;
-    sessions.set(id,{id,startedAt:row.started_at,endedAt:row.ended_at,status:"completed",source:"health_import",edited:false,
+    sessions.set(id,{id,startedAt:row.started_at,endedAt:row.ended_at,status:"completed",source:"health_import",edited:Boolean(row.edited),
       segments:[{id,type:row.training_type,exerciseName:row.source_name,equipmentName:null,startedAt:row.started_at,endedAt:row.ended_at,durationSeconds:Number(row.duration_seconds)}]});
   }
   const ordered=[...sessions.values()].sort((a,b)=>Date.parse(String(b.startedAt))-Date.parse(String(a.startedAt))).slice(0,500);
