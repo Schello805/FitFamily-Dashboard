@@ -4,6 +4,11 @@ Alle wichtigen Änderungen werden hier nach dem Prinzip von Keep a Changelog dok
 
 ## [Unreleased]
 
+- Verlaufskarten mit kompakten Stift- und Papierkorb-Icons statt beschrifteter Aktionsbuttons; verständliche Tooltips und zugängliche Beschriftungen bleiben erhalten.
+
+- Doppeltes PIN-Eingabefeld unter dem Zahlenblock entfernt. Die automatische Prüfung nach vier Ziffern bleibt bestehen.
+- NFC-Zuordnung: fehlende Übungen direkt beim Gerät anlegbar; optionaler Übungs-Tag gehört zur ausgewählten Standardübung. Verwaltungsschrift zentral kompakter gestaltet.
+
 ## [0.3.30] – 2026-10-04
 
 ### Verbessert

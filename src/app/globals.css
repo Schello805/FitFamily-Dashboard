@@ -1471,11 +1471,10 @@ body::before {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
   min-width: 44px;
-  width: auto;
+  width: 44px;
   height: 44px;
-  padding: 0 10px;
+  padding: 0;
   font-size: 11px;
   font-weight: 750;
   border-radius: 10px;
@@ -1487,7 +1486,6 @@ body::before {
   touch-action: manipulation;
   white-space: nowrap;
 }
-.session-action-icon span { display: inline; }
 .session-running-tag { color: #16a34a !important; font-size: 10px; font-style: normal; font-weight: 800; }
 [data-theme="dark"] .session-running-tag { color: #4ade80 !important; }
 
@@ -1859,7 +1857,12 @@ body::before {
 .admin-login label { display: grid; gap: 6px; text-align: left; margin: 24px 0 14px; color: var(--muted); font-size: 11px; font-weight: 750; }
 .admin-login input { height: 52px; border: 1px solid var(--line); border-radius: 13px; background: var(--input-bg); color: var(--text); padding: 0 13px; }
 .admin-login > a { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); margin-top: 20px; font-size: 13px; }
-.admin-page { --admin-header-height: 112px; min-height: 100vh; width: 95vw; max-width: 95vw; margin: 0 auto; padding: 0 24px 60px; }
+.admin-page { --admin-header-height: 112px; --admin-font-size: 14px; --admin-heading-size: 20px; min-height: 100vh; width: 95vw; max-width: 95vw; margin: 0 auto; padding: 0 24px 60px; font-size: var(--admin-font-size); line-height: 1.45; }
+.admin-content h2 { font-size: var(--admin-heading-size); line-height: 1.25; }
+.admin-content p, .admin-content summary { font-size: var(--admin-font-size); }
+.scan-exercise-setup { margin: 12px 0; padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel-soft); }
+.scan-exercise-setup .scan-fields { margin: 12px 0; }
+.scan-exercise-setup textarea { min-height: 80px; resize: vertical; }
 .admin-page > header { position: sticky; top: 0; z-index: 30; height: var(--admin-header-height); box-sizing: border-box; padding: 12px 0; display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; gap: 15px; background: var(--bg); border-bottom: 1px solid var(--line); }
 .admin-page > header > a { display: flex; align-items: center; gap: 6px; color: var(--muted); }
 .admin-page > header > div { text-align: center; }

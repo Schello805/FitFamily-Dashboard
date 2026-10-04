@@ -30,6 +30,7 @@ function posts() { return request.mock.calls.filter(call => call[2]?.method === 
 it("checks exactly once after digit four without an unlock button", async () => {
   await open();
   expect(screen.queryByRole("button", { name: "Entsperren" })).not.toBeInTheDocument();
+  expect(screen.queryByLabelText("Eltern-PIN")).not.toBeInTheDocument();
   for (const digit of ["1", "2", "3"]) fireEvent.click(screen.getByRole("button", { name: digit }));
   expect(posts()).toHaveLength(0);
   fireEvent.click(screen.getByRole("button", { name: "4" }));
@@ -48,19 +49,17 @@ it("clears a rejected PIN and permits a new automatic attempt", async () => {
   await waitFor(() => expect(posts()).toHaveLength(2));
 });
 
-it("also checks a pasted PIN and blocks duplicate attempts while pending", async () => {
+it("blocks duplicate keypad attempts while verification is pending", async () => {
   await open();
   let reject!: (error: Error) => void;
   request.mockImplementationOnce(() => new Promise((_resolve, no) => { reject = no; }));
-  const input = screen.getByLabelText("Eltern-PIN");
-  fireEvent.change(input, { target: { value: "1234" } });
+  for (const digit of ["1", "2", "3", "4"]) fireEvent.click(screen.getByRole("button", { name: digit }));
   expect(screen.getByRole("button", { name: "1" })).toBeDisabled();
-  fireEvent.change(input, { target: { value: "4321" } });
-  fireEvent.submit(input.closest("form")!);
+  fireEvent.click(screen.getByRole("button", { name: "1" }));
   expect(posts()).toHaveLength(1);
   reject(new ApiRequestError("Verbindung prüfen", 503));
   await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("Verbindung prüfen"));
-  expect(input).toBeEnabled();
+  expect(screen.getByRole("button", { name: "1" })).toBeEnabled();
 });
 
 it("resumes the persisted update after restoring authorization", async () => {

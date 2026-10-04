@@ -909,24 +909,6 @@ export function AdminView({
             disabled={verifying}
           />
 
-          <label className="admin-pin-entry">
-            Eltern-PIN · 4 Ziffern
-            <input
-              type="password"
-              inputMode="numeric"
-              pattern="[0-9]*"
-              autoComplete="current-password"
-              aria-label="Eltern-PIN"
-              placeholder="Tippen öffnet die Bildschirmtastatur"
-              maxLength={4}
-              disabled={verifying}
-              value={pin}
-              onChange={(event) => {
-                enterPin(event.target.value);
-              }}
-            />
-          </label>
-
           {error && <p className="form-error" role="alert">{error}</p>}
           <p role="status">{verifying ? "PIN wird geprüft …" : "Prüfung automatisch nach der vierten Ziffer."}</p>
           <Link href="/">

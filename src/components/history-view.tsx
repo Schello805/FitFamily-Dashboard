@@ -180,7 +180,7 @@ function SwipeableSessionRow({
                 onEdit(session);
               }}
             >
-              <Pencil size={15} /><span>Ändern</span>
+              <Pencil size={18} />
             </button>
             <button
               type="button"
@@ -193,7 +193,7 @@ function SwipeableSessionRow({
                 onDelete(session);
               }}
             >
-              <Trash2 size={15} /><span>Löschen</span>
+              <Trash2 size={18} />
             </button>
           </div>
         </div>
@@ -427,7 +427,7 @@ export function HistoryView({ profile }: { profile: DashboardProfile }) {
       {sessions.length > 0 && (
         <div className="swipe-hint">
           <ArrowLeftRight size={14} />
-          <span>Einträge direkt über „Ändern“ oder „Löschen“ verwalten – alternativ wischen.</span>
+          <span>Stift zum Bearbeiten · Papierkorb zum Löschen · alternativ wischen.</span>
         </div>
       )}
 
