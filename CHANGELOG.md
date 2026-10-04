@@ -4,6 +4,13 @@ Alle wichtigen Änderungen werden hier nach dem Prinzip von Keep a Changelog dok
 
 ## [Unreleased]
 
+## [0.3.26] – 2026-10-04
+
+### Neu
+
+- Ein Mac-App-ZIP als Health-Download: entpacken und per Doppelklick starten; Vorlage erzeugen, Apple-Kurzbefehlsignierung und Import ohne Terminaleingabe. Fehler öffnen ein lokales Protokoll.
+- Mac-App ist nicht Developer-ID-signiert/notarisiert; einmalige macOS-Freigabe bleibt erforderlich. Keine automatischen Gatekeeper-Umgehungen. Familienschlüssel bleibt außerhalb des Downloads.
+
 ## [0.3.25] – 2026-10-04
 
 ### Korrigiert

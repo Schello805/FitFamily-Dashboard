@@ -59,4 +59,9 @@ it("serves an authenticated downloadable installer for an existing profile only"
   expect(result.headers.get("content-disposition")).toContain(".command");
   expect(result.headers.get("cache-control")).toBe("no-store");
   expect(await result.text()).toContain("#!/bin/bash");
+  const app = await GET(new Request("http://localhost/api/admin/health-shortcut?profileId=papa&server=https://example.com&format=app"));
+  expect(app.status).toBe(200);
+  expect(app.headers.get("content-type")).toBe("application/zip");
+  expect(app.headers.get("content-disposition")).toContain(".zip");
+  expect(new Uint8Array(await app.arrayBuffer()).slice(0, 4)).toEqual(new Uint8Array([80, 75, 3, 4]));
 });

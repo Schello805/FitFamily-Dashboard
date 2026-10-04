@@ -1,5 +1,15 @@
 # Apple Health: tägliche aktive Energie und Schritte per iPhone-Kurzbefehl
 
+Ab 0.3.26 bietet die App einen einzigen ZIP-Download mit „FitFamily-Kurzbefehl.app“.
+Entpacken und per Doppelklick starten, ohne Terminaleingabe. Die enthaltene Vorlage
+wird auf dem Mac automatisch von Apples Kurzbefehle-Werkzeug signiert und geöffnet.
+Diese Kurzbefehlsignierung ist keine Developer-ID-Signierung der Mac-App: Die
+Mac-App ist nicht notarisiert und kann eine einmalige manuelle Freigabe unter
+Datenschutz & Sicherheit verlangen. Es werden keine Sicherheitsfunktionen deaktiviert.
+Fehler öffnen ein lokales Textprotokoll. Der Familienschlüssel wird erst nach dem
+Import eingetragen. Der tatsächliche Finder-/Gatekeeper-Start eines heruntergeladenen
+ZIPs muss auf dem Mac noch bestätigt werden; ZIP-Integrität und Skripte sind getestet.
+
 Version 0.3.25 erzeugt „FitFamily Alltag v2“. Energie- und Schrittzeilen werden
 ausdrücklich zu benannten Listen hinzugefügt und anschließend kombiniert. Keine
 Wenn-/Stopp-Verzweigung; der Server lehnt leere oder ungültige Daten unverändert ab.
