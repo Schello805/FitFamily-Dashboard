@@ -70,10 +70,10 @@ it("blocks already counted app time and future manual overlap at the database bo
   const id=randomUUID();await client.execute({sql:"INSERT INTO training_sessions (id,profile_id,started_at,status) VALUES (?, ?, ?, 'active')",args:[id,profileId,workout.startedAt]});
   await expect(client.execute({sql:"INSERT INTO training_segments (id,session_id,type,started_at,ended_at) VALUES (?,?,'strength',?,?)",args:[randomUUID(),id,workout.startedAt,workout.endedAt]})).rejects.toThrow(/überschneidet/);
 });
-it("clips reset goals/points proportionally to active duration and preserves lifetime level",async()=>{
+it("clips reset points proportionally but preserves period goals and lifetime level",async()=>{
   await book();const client=await db();
   await client.execute({sql:"UPDATE profiles SET score_reset_at='2026-10-04T10:15:00Z',target_reset_at='2026-10-04T10:15:00Z' WHERE id=?",args:[profileId]});
-  expect(await profile()).toMatchObject({score:15,todayMinutes:20,totalMinutes:20,targetPercent:7,trainingProgress:{xp:20}});
+  expect(await profile()).toMatchObject({score:15,todayMinutes:20,totalMinutes:20,targetPercent:13,trainingProgress:{xp:20}});
 });
 it("keeps old imports out of today's goals but includes them in lifetime level",async()=>{
   await book({...workout,startedAt:"2025-08-31T10:00:00Z",endedAt:"2025-08-31T10:30:00Z"});

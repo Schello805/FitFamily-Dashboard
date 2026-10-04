@@ -115,12 +115,10 @@ export async function getDashboardData(): Promise<DashboardProfile[]> {
       if (endTime >= todayStart) {
         const segSec = Math.max(0, (endTime - Math.max(startTime, todayStart)) / 1000) * factor;
         todaySeconds += segSec;
-        const resetAt = row.target_reset_at ? new Date(String(row.target_reset_at)).getTime() : Number.NEGATIVE_INFINITY;
-        targetTodaySeconds += Math.max(0, (endTime - Math.max(startTime, todayStart, resetAt)) / 1000) * factor;
+        targetTodaySeconds += segSec;
       }
       if (endTime >= weekStart) {
-        const resetAt = row.target_reset_at ? new Date(String(row.target_reset_at)).getTime() : Number.NEGATIVE_INFINITY;
-        targetWeekSeconds += Math.max(0, (endTime - Math.max(startTime, weekStart, resetAt)) / 1000) * factor;
+        targetWeekSeconds += Math.max(0, (endTime - Math.max(startTime, weekStart)) / 1000) * factor;
       }
     }
 

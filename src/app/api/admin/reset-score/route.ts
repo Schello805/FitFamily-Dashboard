@@ -22,10 +22,10 @@ export async function POST(request: Request) {
 
   const resetAt = new Date().toISOString();
   await client.execute({
-    sql: `UPDATE profiles SET score_baseline = 0, score_reset_at = ?, target_reset_at = ?, updated_at = CURRENT_TIMESTAMP
+    sql: `UPDATE profiles SET score_baseline = 0, score_reset_at = ?, updated_at = CURRENT_TIMESTAMP
       WHERE id = ?`,
-    args: [resetAt, resetAt, body.data.profileId]
+    args: [resetAt, body.data.profileId]
   });
 
-  return NextResponse.json({ ok: true, newScore: 0, targetPercent: 0, resetAt, profileId: body.data.profileId });
+  return NextResponse.json({ ok: true, newScore: 0, resetAt, profileId: body.data.profileId });
 }

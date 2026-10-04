@@ -50,12 +50,13 @@ describe("FitFamily training without Health contributions", () => {
     const client = await db();
     expect((await client.execute({ sql: "SELECT id FROM training_sessions WHERE profile_id = ?", args: [profileId] })).rows).toHaveLength(4);
   });
-  it("keeps historical levels while resetting points and the period goal", async () => {
+  it("keeps the period goal and historical levels after a points reset, including old reset markers", async () => {
+    vi.setSystemTime(new Date("2026-10-04T12:00:00Z"));
     const client = await db();
-    await client.execute({ sql: "UPDATE profiles SET score_reset_at = ?, target_reset_at = ? WHERE id = ?", args: [now.toISOString(), now.toISOString(), profileId] });
+    await client.execute({ sql: "UPDATE profiles SET score_reset_at = ?, target_reset_at = ? WHERE id = ?", args: [new Date().toISOString(), new Date().toISOString(), profileId] });
     const profile = (await getDashboardData()).find(entry => entry.id === profileId)!;
     expect(profile.score).toBe(0);
-    expect(profile.targetPercent).toBe(0);
+    expect(profile.targetPercent).toBe(23);
     expect(profile.trainingProgress?.xp).toBe(35);
   });
 });

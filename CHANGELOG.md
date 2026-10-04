@@ -4,6 +4,10 @@ Alle wichtigen Änderungen werden hier nach dem Prinzip von Keep a Changelog dok
 
 ## [Unreleased]
 
+## [0.3.37] – 2026-10-04
+
+- Zielkreis vom Punkte-Reset entkoppelt: alle vorhandenen Trainings des aktuellen Tages bzw. der Woche ab Montag zählen, auch bei früher gespeicherten Reset-Markierungen. Punkte-Reset setzt künftig ausschließlich die Punkte zurück.
+
 ## [0.3.36] – 2026-10-04
 
 - NAS-Verbindung nach erfolgreichem Verbinden dauerhaft in root-geschützter Konfiguration gespeichert; eigener systemd-Dienst stellt sie nach Neustarts wieder her und wiederholt fehlgeschlagene Verbindungen. Gespeicherte Freigabe wird im Formular angezeigt; Passwort bei unveränderter Verbindung wiederverwendbar.

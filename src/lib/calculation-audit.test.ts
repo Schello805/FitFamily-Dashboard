@@ -41,11 +41,11 @@ describe("numeric calculation audit", () => {
     expect(result).toMatchObject({ score: 40, totalMinutes: 20, todayMinutes: 10, targetPercent: 7 });
     expect(result.activityTrend.filter(p => p.resolution === "Tag" && p.activityMinutes !== null).map(p => p.activityMinutes)).toEqual([10, 10]);
   });
-  it("only credits time after independent score and target resets", async () => {
+  it("resets points while keeping all minutes of the period goal", async () => {
     await addSegment("endurance", new Date(now.getTime() - 20 * 60000), now);
     const client = await db();
     await client.execute({ sql: "UPDATE profiles SET score_baseline = 5, score_reset_at = ?, target_reset_at = ? WHERE id = ?", args: [new Date(now.getTime() - 10 * 60000).toISOString(), new Date(now.getTime() - 5 * 60000).toISOString(), profileId] });
-    expect(await profile()).toMatchObject({ score: 25, totalMinutes: 20, todayMinutes: 20, targetPercent: 3 });
+    expect(await profile()).toMatchObject({ score: 25, totalMinutes: 20, todayMinutes: 20, targetPercent: 13 });
   });
   it("allows exceeding a target: 180 strength minutes = 180 points and 120% of 150", async () => {
     await addSegment("strength", new Date(now.getTime() - 180 * 60000), now);
@@ -56,5 +56,7 @@ describe("numeric calculation audit", () => {
     await client.execute({ sql: "UPDATE profiles SET birth_date = '2012-01-01' WHERE id = ?", args: [profileId] });
     await addSegment("endurance", new Date(now.getTime() - 45 * 60000), now);
     expect(await profile()).toMatchObject({ score: 90, todayMinutes: 45, targetPercent: 50, targetPeriod: "Tag", targetMinutes: 90 });
+    await client.execute({ sql: "UPDATE profiles SET score_reset_at = ?, target_reset_at = ? WHERE id = ?", args: [now.toISOString(), now.toISOString(), profileId] });
+    expect(await profile()).toMatchObject({ score: 0, todayMinutes: 45, targetPercent: 50 });
   });
 });
