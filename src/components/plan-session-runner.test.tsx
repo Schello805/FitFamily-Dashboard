@@ -26,3 +26,15 @@ it("excludes preparation, stops the exercise and waits for a conscious next star
   expect(screen.getByText(/Mach dich bereit für Brustpresse/)).toBeInTheDocument();
   expect(vi.mocked(requestJson)).toHaveBeenCalledTimes(2);
 });
+it("shows equipment, exercise, media links and the current remaining time for each sequence", () => {
+  render(<PlanSessionRunner profileId="test" session={{ title: "Kraft", type: "strength", minutes: 2, exercises: ["Brustpresse", "Rudern"] }} recordingMode="app" preparationSeconds={30} onClose={() => {}} onGuide={() => {}} exerciseMedia={{ Brustpresse: { equipment: "Brustpresse Gerät", manualPdfUrl: "/api/equipment/brustpresse/manual", videoUrl: "https://www.youtube.com/watch?v=example" } }} />);
+  const first = screen.getByText("Brustpresse Gerät").closest("article")!;
+  expect(first.textContent).toContain("GERÄT");
+  expect(first.textContent).toContain("ÜBUNG");
+  expect(first.textContent).toContain("ZEIT");
+  expect(first.textContent).toContain("01:00");
+  expect(first.textContent).toContain("Start in 00:30");
+  expect(first.querySelector('a[href="/api/equipment/brustpresse/manual"]')).toBeTruthy();
+  expect(first.querySelector('a[href="https://www.youtube.com/watch?v=example"]')).toBeTruthy();
+  expect(screen.getByText("Gerät nicht zugeordnet")).toBeTruthy();
+});

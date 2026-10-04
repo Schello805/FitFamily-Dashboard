@@ -87,9 +87,9 @@ export async function storeHealthEnergy(input: z.infer<typeof healthEnergySchema
   const profiles = await client.execute({ sql: "SELECT name FROM profiles WHERE id=?", args: [input.profileId] });
   if (!profiles.rows.length) return null;
   await client.execute({
-    sql: `INSERT INTO health_energy_daily (profile_id,date,active_energy_kcal,step_count) VALUES (?,?,?,?)
-      ON CONFLICT(profile_id,date) DO UPDATE SET active_energy_kcal=excluded.active_energy_kcal, step_count=COALESCE(excluded.step_count,health_energy_daily.step_count), updated_at=CURRENT_TIMESTAMP`,
-    args: [input.profileId, input.date, input.activeEnergyKcal, input.stepCount ?? null]
+    sql: `INSERT INTO health_energy_daily (profile_id,date,active_energy_kcal,step_count,source_name) VALUES (?,?,?,?,?)
+      ON CONFLICT(profile_id,date) DO UPDATE SET active_energy_kcal=excluded.active_energy_kcal, step_count=COALESCE(excluded.step_count,health_energy_daily.step_count), source_name=excluded.source_name, updated_at=CURRENT_TIMESTAMP`,
+    args: [input.profileId, input.date, input.activeEnergyKcal, input.stepCount ?? null, "sourceName" in input ? input.sourceName : null]
   });
   return { profileId: input.profileId, profileName: String(profiles.rows[0].name), date: input.date, activeEnergyKcal: input.activeEnergyKcal,
     ...("sourceName" in input ? { sourceName: input.sourceName, sampleCount: input.sampleCount } : {}),

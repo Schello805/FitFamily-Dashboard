@@ -6,10 +6,12 @@ import type { RecordingMode } from "@/lib/recording-mode";
 import { requestJson } from "@/lib/api-client";
 
 type Run = { phase: "ready" | "preparing" | "starting" | "running" | "finished"; index: number; deadline: number; sessionId?: string; completed: number };
-export function PlanSessionRunner({ profileId, session, recordingMode, preparationSeconds, audioContext, onClose, onGuide }: {
+export type PlanExerciseMedia = { equipment: string; manualPdfUrl: string | null; videoUrl: string | null };
+export function PlanSessionRunner({ profileId, session, recordingMode, preparationSeconds, audioContext, onClose, onGuide, exerciseMedia = {} }: {
   profileId: string; session: NormalizedSession; recordingMode: RecordingMode; preparationSeconds: number;
   onClose: () => void; onGuide: (name: string, mode?: "video" | "manual") => void;
   audioContext?: AudioContext | null;
+  exerciseMedia?: Record<string, PlanExerciseMedia>;
 }) {
   const exercises = session.exercises.length ? session.exercises : [session.title];
   const total = Math.max(1, session.minutes) * 60;
@@ -94,7 +96,18 @@ export function PlanSessionRunner({ profileId, session, recordingMode, preparati
     <div className="plan-current-exercise"><div><small>ÜBUNG {run.index + 1}/{exercises.length}</small><strong>{exercises[run.index]}</strong></div><time>{formatCountdown(run.phase === "finished" ? 0 : left)}</time></div>
     <p className="plan-runner-phase" role="status">{run.phase === "preparing" ? `Mach dich bereit für ${exercises[run.index]}. Geh zum Gerät – Trainingszeit startet nach dem Countdown.` : run.phase === "running" ? "Übung läuft" : run.phase === "finished" ? "Übung beendet. Keine Zeit läuft bis zum nächsten bewussten Start." : "Bereit? Starte die Vorbereitung, wenn du zum Gerät gehen möchtest."}</p>
     {error && <p role="alert">{error}</p>}
-    <div className="plan-unit-exercises">{exercises.map((exercise, index) => <article className={`plan-unit-exercise-row ${run.index === index ? "is-current-exercise" : ""}`} key={`${exercise}:${index}`}><span>{index + 1}</span><button onClick={() => onGuide(exercise)}>{exercise}</button><time>{formatCountdown(exerciseSlotSeconds(total, exercises.length, index))}</time><button onClick={() => onGuide(exercise, "manual")}>PDF</button></article>)}</div>
+    <div className="plan-unit-exercises" aria-label="Übungssequenzen">{exercises.map((exercise, index) => {
+      const media = exerciseMedia[exercise];
+      const isCurrent = run.index === index;
+      const seconds = exerciseSlotSeconds(total, exercises.length, index);
+      const remaining = isCurrent && run.phase === "running" ? left : isCurrent && run.phase === "finished" ? 0 : seconds;
+      return <article className={`plan-unit-exercise-row ${isCurrent ? "is-current-exercise" : ""}`} key={`${exercise}:${index}`}>
+        <span className="plan-sequence-number">{index + 1}</span>
+        <div className="plan-sequence-cell"><small>GERÄT</small><strong>{media?.equipment ?? "Gerät nicht zugeordnet"}</strong>{media?.manualPdfUrl ? <a href={media.manualPdfUrl} target="_blank" rel="noreferrer">Geräte-PDF öffnen ↗</a> : <small>Keine PDF hinterlegt</small>}</div>
+        <div className="plan-sequence-cell"><small>ÜBUNG</small><button type="button" className="plan-sequence-exercise" onClick={() => onGuide(exercise)}>{exercise}</button>{media?.videoUrl ? <a href={media.videoUrl} target="_blank" rel="noreferrer">Übungsvideo öffnen ↗</a> : <small>Kein Video hinterlegt</small>}</div>
+        <div className="plan-sequence-cell plan-sequence-time"><small>ZEIT</small><time>{formatCountdown(remaining)}</time><small>{isCurrent && run.phase === "running" ? "Restlaufzeit" : isCurrent && run.phase === "finished" ? "Beendet" : isCurrent && run.phase === "preparing" ? `Start in ${formatCountdown(left)}` : "Vorgesehene Dauer"}</small></div>
+      </article>;
+    })}</div>
     <footer className="plan-unit-footer">
       {run.phase === "ready" && <button disabled={busy} onClick={() => prepare()}>Übung starten · {preparationSeconds} Sek. vorbereiten</button>}
       {run.phase === "finished" && run.index < exercises.length - 1 && <button disabled={busy} onClick={() => prepare(true)}>Nächste Übung starten · {preparationSeconds} Sek. vorbereiten</button>}

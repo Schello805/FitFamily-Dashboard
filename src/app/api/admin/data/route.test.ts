@@ -248,4 +248,23 @@ describe("admin data validation", () => {
       ], "write");
     }
   });
+
+  it("restores steps and source names together with the daily Health value", async () => {
+    const profileId = `health-export-${randomUUID()}`;
+    const backup = { format: "fitfamily-export", version: 1, data: {
+      profiles: [{ id: profileId, name: "Health Data Test", color: "#22d3ee", avatar: "neutral" }],
+      health_energy_daily: [{ profile_id: profileId, date: "2026-10-04", active_energy_kcal: 288.9, step_count: 3493, source_name: "Apple Watch von Michael" }]
+    } };
+    const send = (action: "validate" | "import") => POST(new Request("http://localhost/api/admin/data", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pin: "2468", action, backup })
+    }));
+    try {
+      expect(await (await send("validate")).json()).toMatchObject({ valid: true });
+      expect((await send("import")).status).toBe(200);
+      const rows = await (await db()).execute({ sql: "SELECT active_energy_kcal, step_count, source_name FROM health_energy_daily WHERE profile_id=?", args: [profileId] });
+      expect(rows.rows[0]).toMatchObject({ active_energy_kcal: 288.9, step_count: 3493, source_name: "Apple Watch von Michael" });
+    } finally {
+      await (await db()).execute({ sql: "DELETE FROM profiles WHERE id=?", args: [profileId] });
+    }
+  });
 });

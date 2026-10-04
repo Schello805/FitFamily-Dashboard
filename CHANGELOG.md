@@ -4,6 +4,11 @@ Alle wichtigen Änderungen werden hier nach dem Prinzip von Keep a Changelog dok
 
 ## [Unreleased]
 
+## [0.3.41] – 2026-10-04
+
+- Apple-Health-Karten zeigen den Zeitpunkt des letzten erfolgreichen Empfangs und kennzeichnen veraltete Tageswerte. Beide 30-Tage-Diagramme öffnen eine Tagesübersicht mit Datenlücken, kcal, Schritten, Quellname und Empfangszeit. Quellnamen werden bei neuen Übertragungen dauerhaft mit dem Tageswert gespeichert.
+- Laufende KI-Trainingseinheiten zeigen jede Sequenz lesbar nach Gerät, Übung und Zeit; vorhandene Geräte-PDFs und Übungsvideos sind direkt verlinkt, die laufende Übung zeigt ihre Restzeit.
+
 ## [0.3.40] – 2026-10-04
 
 - Dashboard zeigt für aktive kcal und Schritte je einen dezenten 30-Tage-Verlauf mit gefüllter Linie und Tagesziel als Orientierung. Fehlende Übertragungen bleiben Lücken; historische Tageswerte werden aus der dauerhaft gespeicherten Health-Tabelle geladen.

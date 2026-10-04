@@ -75,7 +75,7 @@ const rowSchemas: Record<DataTransferTable, z.ZodType> = {
     started_at: timestamp, ended_at: timestamp, duration_seconds: z.number().finite().min(1).max(14400),
     source_name: z.string().min(1).max(120), activity_type: z.string().min(1).max(100), created_at: timestamp.optional() })
     .refine(row => Date.parse(row.ended_at) > Date.parse(row.started_at) && row.duration_seconds <= (Date.parse(row.ended_at) - Date.parse(row.started_at)) / 1000 + 1, "Ungültige aktive Trainingsdauer."),
-  health_energy_daily: z.object({ profile_id: identifier, date, active_energy_kcal: z.number().finite().min(0).max(20000), updated_at: timestamp.optional() }),
+  health_energy_daily: z.object({ profile_id: identifier, date, active_energy_kcal: z.number().finite().min(0).max(20000), step_count: z.number().int().min(0).max(200000).nullable().optional(), source_name: z.string().min(1).max(200).nullable().optional(), updated_at: timestamp.optional() }),
   settings: z.object({ key: z.string().min(1).max(200), value: text, updated_at: timestamp.optional() })
 };
 

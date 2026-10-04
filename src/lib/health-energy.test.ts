@@ -101,6 +101,7 @@ it("sums decimal sample texts from one source only, replacing daily energy witho
   const response = await POST(request(payload));
   expect(response.status).toBe(200);
   expect(await response.json()).toMatchObject({ activeEnergyKcal: expect.closeTo(10, 10), sourceName: "Apple Watch", sampleCount: 2 });
+  expect((await getDashboardData()).find(p => p.id === profileId)?.healthDailyTrend?.at(-1)).toMatchObject({ sourceName: "Apple Watch", activeEnergyKcal: expect.closeTo(10, 10) });
   expect((await getDashboardData()).find(p => p.id === profileId)?.score).toBe(0);
   const again = await POST(request({ ...payload, sampleRows: "5\tkcal\tApple Watch" }));
   expect(await again.json()).toMatchObject({ activeEnergyKcal: 5 });
@@ -136,8 +137,8 @@ it("keeps all imported days and exposes exactly 30 calendar days with gaps", asy
   await storeHealthEnergy({ ...input, date: "2026-10-04", activeEnergyKcal: 250, stepCount: 3500 });
   const days = (await getDashboardData()).find(profile => profile.id === profileId)?.healthDailyTrend ?? [];
   expect(days).toHaveLength(30);
-  expect(days[0]).toEqual({ date: "2026-09-05", activeEnergyKcal: 0, stepCount: 0 });
-  expect(days[1]).toEqual({ date: "2026-09-06", activeEnergyKcal: null, stepCount: null });
-  expect(days[29]).toEqual({ date: "2026-10-04", activeEnergyKcal: 250, stepCount: 3500 });
+  expect(days[0]).toMatchObject({ date: "2026-09-05", activeEnergyKcal: 0, stepCount: 0 });
+  expect(days[1]).toMatchObject({ date: "2026-09-06", activeEnergyKcal: null, stepCount: null });
+  expect(days[29]).toMatchObject({ date: "2026-10-04", activeEnergyKcal: 250, stepCount: 3500 });
   expect((await (await db()).execute({ sql: "SELECT COUNT(*) count FROM health_energy_daily WHERE profile_id=?", args: [profileId] })).rows[0].count).toBe(3);
 });

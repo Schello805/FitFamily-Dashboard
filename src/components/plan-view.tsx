@@ -8,7 +8,7 @@ import { showToast } from "@/components/toast";
 import { normalizePlanJson, type NormalizedPlan, type NormalizedSession } from "@/lib/plan-normalizer";
 import { resolveExerciseId } from "@/lib/exercise-guides";
 import { youtubeVideoId } from "@/lib/exercise-video";
-import { PlanSessionRunner } from "./plan-session-runner";
+import { PlanSessionRunner, type PlanExerciseMedia } from "./plan-session-runner";
 import { KioskIdleBar } from "@/components/kiosk-idle-bar";
 import { formatGermanDate } from "@/lib/date-format";
 import { YoutubePlayer } from "@/components/youtube-player";
@@ -69,6 +69,7 @@ export function PlanView({ profile, goals }: { profile: DashboardProfile; goals:
   const [preparationSeconds, setPreparationSeconds] = useState(30);
   const [unitAudio, setUnitAudio] = useState<AudioContext | null>(null);
   const [selectedExercise, setSelectedExercise] = useState<SessionExercise | null>(null);
+  const [exerciseMedia, setExerciseMedia] = useState<Record<string, PlanExerciseMedia>>({});
   const [runningUnitKey, setRunningUnitKey] = useState<string | null>(null);
   const [weekPage, setWeekPage] = useState<{ planId: string; page: number } | null>(null);
   const load = () => requestJson<{ plans?: Plan[] }>(`/api/plans?profileId=${encodeURIComponent(profile.id)}`, "Trainingspläne konnten nicht geladen werden.")
@@ -86,6 +87,26 @@ export function PlanView({ profile, goals }: { profile: DashboardProfile; goals:
   const visibleWeeks = weeks.slice(visibleWeekPage * 4, visibleWeekPage * 4 + 4);
 
   useEffect(() => {
+    if (!unitDialog) return;
+    let cancelled = false;
+    const exercises = unitDialog.session.exercises.length ? unitDialog.session.exercises : [unitDialog.session.title];
+    Promise.all([
+      requestJson<{ exercises: { name: string; equipment: string; videoUrl: string | null }[] }>("/api/exercises", "Übungsgeräte konnten nicht geladen werden.", { cache: "no-store" }),
+      requestJson<{ equipment: { name: string; manualPdfUrl: string | null }[] }>("/api/equipment", "Geräte-PDFs konnten nicht geladen werden.", { cache: "no-store" })
+    ]).then(([catalog, devices]) => {
+      if (cancelled) return;
+      const byName = new Map(catalog.exercises.map(item => [item.name.trim().toLocaleLowerCase("de"), item]));
+      const byDevice = new Map(devices.equipment.map(item => [item.name.trim().toLocaleLowerCase("de"), item]));
+      setExerciseMedia(Object.fromEntries(exercises.flatMap(name => {
+        const match = byName.get(name.trim().toLocaleLowerCase("de"));
+        if (!match) return [];
+        return [[name, { equipment: match.equipment, manualPdfUrl: byDevice.get(match.equipment.trim().toLocaleLowerCase("de"))?.manualPdfUrl ?? null, videoUrl: match.videoUrl }]];
+      })));
+    }).catch(() => { if (!cancelled) setExerciseMedia({}); });
+    return () => { cancelled = true; };
+  }, [unitDialog]);
+
+  useEffect(() => {
     const timer = window.setTimeout(() => {
       try {
         const saved = JSON.parse(localStorage.getItem("fitfamily_running_plan_unit") ?? "null") as { key?: string } | null;
@@ -97,6 +118,7 @@ export function PlanView({ profile, goals }: { profile: DashboardProfile; goals:
 
   function openUnitView(session: NormalizedSession, startedAt: string, recordingMode: RecordingMode = "app") {
     setSelectedExercise(null);
+    setExerciseMedia({});
     setUnitDialog({ session, startedAt, recordingMode });
   }
 
@@ -350,7 +372,7 @@ export function PlanView({ profile, goals }: { profile: DashboardProfile; goals:
     {unitDialog && (
       <div className="modal-backdrop plan-unit-backdrop">
         <div className="plan-runner-layout">
-          <PlanSessionRunner profileId={profile.id} session={unitDialog.session} recordingMode={unitDialog.recordingMode} preparationSeconds={preparationSeconds} audioContext={unitAudio} onGuide={(name, mode) => void loadExercise(name, mode)} onClose={() => { localStorage.removeItem("fitfamily_running_plan_unit"); setRunningUnitKey(null); setUnitDialog(null); setSelectedExercise(null); }} />
+          <PlanSessionRunner profileId={profile.id} session={unitDialog.session} recordingMode={unitDialog.recordingMode} preparationSeconds={preparationSeconds} audioContext={unitAudio} exerciseMedia={exerciseMedia} onGuide={(name, mode) => void loadExercise(name, mode)} onClose={() => { localStorage.removeItem("fitfamily_running_plan_unit"); setRunningUnitKey(null); setUnitDialog(null); setSelectedExercise(null); }} />
             {selectedExercise ? (
               <section className="plan-exercise-detail" aria-live="polite">
                 <div className="plan-exercise-detail-heading">

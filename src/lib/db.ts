@@ -119,6 +119,8 @@ async function createSchema(client: Client) {
       profile_id TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
       date TEXT NOT NULL,
       active_energy_kcal REAL NOT NULL CHECK(active_energy_kcal >= 0 AND active_energy_kcal <= 20000),
+      step_count INTEGER CHECK(step_count >= 0 AND step_count <= 200000),
+      source_name TEXT,
       updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
       PRIMARY KEY(profile_id, date)
     )`,
@@ -216,6 +218,9 @@ async function createSchema(client: Client) {
   const energyColumns = await client.execute("PRAGMA table_info(health_energy_daily)");
   if (!energyColumns.rows.some(row => String(row.name) === "step_count")) {
     await client.execute("ALTER TABLE health_energy_daily ADD COLUMN step_count INTEGER CHECK(step_count >= 0 AND step_count <= 200000)");
+  }
+  if (!energyColumns.rows.some(row => String(row.name) === "source_name")) {
+    await client.execute("ALTER TABLE health_energy_daily ADD COLUMN source_name TEXT");
   }
   if (!profileColumns.rows.some((row) => String(row.name) === "email")) {
     await client.execute("ALTER TABLE profiles ADD COLUMN email TEXT");

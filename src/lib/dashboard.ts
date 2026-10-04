@@ -55,16 +55,17 @@ export async function getDashboardData(): Promise<DashboardProfile[]> {
   const healthFactors = new Map(healthRows.rows.map(h => [`health:${h.profile_id}:${h.external_id}`, Number(h.duration_seconds) / durationSeconds(String(h.started_at), String(h.ended_at))]));
   const healthActiveSeconds = new Map(healthRows.rows.map(h => [`health:${h.profile_id}:${h.external_id}`, Number(h.duration_seconds)]));
   const factorFor = (id: unknown) => healthFactors.get(String(id)) ?? 1;
-  const [energyRows, latestEnergyRows] = await Promise.all([
+  const [energyRows, latestEnergyRows, lastHealthReceipts] = await Promise.all([
     client.execute({ sql: "SELECT * FROM health_energy_daily WHERE date BETWEEN ? AND ? ORDER BY date DESC", args: [recentStart, healthToday] }),
-    client.execute({ sql: "SELECT e.* FROM health_energy_daily e WHERE e.date = (SELECT MAX(date) FROM health_energy_daily WHERE profile_id=e.profile_id AND date<=?)", args: [healthToday] })
+    client.execute({ sql: "SELECT e.* FROM health_energy_daily e WHERE e.date = (SELECT MAX(date) FROM health_energy_daily WHERE profile_id=e.profile_id AND date<=?)", args: [healthToday] }),
+    client.execute("SELECT profile_id, MAX(updated_at) received_at FROM health_energy_daily GROUP BY profile_id")
   ]);
-  const recentEnergyByProfile = new Map<string, Map<string, { activeEnergyKcal: number; stepCount: number | null }>>();
+  const recentEnergyByProfile = new Map<string, Map<string, { activeEnergyKcal: number; stepCount: number | null; sourceName: string | null; updatedAt: string }>>();
   for (const row of energyRows.rows) {
     const date = String(row.date);
     const profileId = String(row.profile_id);
     const days = recentEnergyByProfile.get(profileId) ?? new Map();
-    days.set(date, { activeEnergyKcal: Number(row.active_energy_kcal), stepCount: row.step_count == null ? null : Number(row.step_count) });
+    days.set(date, { activeEnergyKcal: Number(row.active_energy_kcal), stepCount: row.step_count == null ? null : Number(row.step_count), sourceName: row.source_name == null ? null : String(row.source_name), updatedAt: String(row.updated_at) });
     recentEnergyByProfile.set(profileId, days);
   }
   const goalRows = await client.execute("SELECT key,value FROM settings WHERE key LIKE 'health_energy_goal:%' OR key LIKE 'health_step_goal:%'");
@@ -247,10 +248,10 @@ export async function getDashboardData(): Promise<DashboardProfile[]> {
 
     return {
       ...profile,
-      healthEnergy: energy ? { date: String(energy.date), activeEnergyKcal: Number(energy.active_energy_kcal), stepCount: energy.step_count == null ? null : Number(energy.step_count), updatedAt: String(energy.updated_at), goalKcal: energyGoal(energyGoals.get(energyGoalKey(String(row.id)))), goalSteps: stepGoal(energyGoals.get(stepGoalKey(String(row.id)))), goalPercent: energyGoalPercent(Number(energy.active_energy_kcal), energyGoal(energyGoals.get(energyGoalKey(String(row.id))))) } : null,
+      healthEnergy: energy ? { date: String(energy.date), activeEnergyKcal: Number(energy.active_energy_kcal), stepCount: energy.step_count == null ? null : Number(energy.step_count), updatedAt: String(energy.updated_at), latestReceivedAt: String(lastHealthReceipts.rows.find(receipt => String(receipt.profile_id) === profileId)?.received_at ?? energy.updated_at), sourceName: energy.source_name == null ? null : String(energy.source_name), goalKcal: energyGoal(energyGoals.get(energyGoalKey(String(row.id)))), goalSteps: stepGoal(energyGoals.get(stepGoalKey(String(row.id)))), goalPercent: energyGoalPercent(Number(energy.active_energy_kcal), energyGoal(energyGoals.get(energyGoalKey(String(row.id))))) } : null,
       healthDailyTrend: recentDates.map(date => {
         const day = recentEnergyByProfile.get(profileId)?.get(date);
-        return { date, activeEnergyKcal: day?.activeEnergyKcal ?? null, stepCount: day?.stepCount ?? null };
+        return { date, activeEnergyKcal: day?.activeEnergyKcal ?? null, stepCount: day?.stepCount ?? null, sourceName: day?.sourceName ?? null, updatedAt: day?.updatedAt ?? null };
       }),
       ...avatarProgress,
       trainingProgress: trainingProgress(completedSeconds / 60, completedSessions.size),
