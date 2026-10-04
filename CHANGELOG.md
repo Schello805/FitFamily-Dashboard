@@ -4,6 +4,13 @@ Alle wichtigen Änderungen werden hier nach dem Prinzip von Keep a Changelog dok
 
 ## [Unreleased]
 
+## [0.3.25] – 2026-10-04
+
+### Korrigiert
+
+- Health-Kurzbefehl sammelt Energie- und Schrittzeilen in benannten Listen statt einer empfindlichen Wiederholungsergebnis-Verknüpfung. Wenn-/Stopp-Block entfernt; leere Daten werden weiterhin serverseitig abgelehnt und protokolliert.
+- Vollständige Serverantwort statt gekürzter Mitteilung. Neuer Kurzbefehl heißt „FitFamily Alltag v2“; erster Lauf auf dem iPhone noch zu bestätigen.
+
 ## [0.3.24] – 2026-10-04
 
 ### Neu

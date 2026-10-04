@@ -1,5 +1,13 @@
 # Apple Health: tägliche aktive Energie und Schritte per iPhone-Kurzbefehl
 
+Version 0.3.25 erzeugt „FitFamily Alltag v2“. Energie- und Schrittzeilen werden
+ausdrücklich zu benannten Listen hinzugefügt und anschließend kombiniert. Keine
+Wenn-/Stopp-Verzweigung; der Server lehnt leere oder ungültige Daten unverändert ab.
+Die Serverantwort erscheint vollständig als Ergebnis. Bei einer täglichen Automation
+muss diese Ergebnisanzeige gegebenenfalls nach dem ersten erfolgreichen Test entfernt
+werden, damit sie nicht auf Bestätigung wartet. Den neuen Import zunächst auf dem
+iPhone testen; ein Strukturtest ersetzt keinen Health-Lauf.
+
 Aktive Energie ist ein kcal-Tageswert, einschließlich Alltagsbewegung. **Keine Punkte,
 Trainingsminuten, Ziele, Gerätezeiten oder Level werden daraus berechnet.** Echte
 Workouts aus dem Export bleiben separat; ihre bisherige Wertung bleibt erhalten.

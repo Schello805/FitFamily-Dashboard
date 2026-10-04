@@ -27,7 +27,7 @@ export function buildEnergyShortcut(profileId: string, server: string) {
     actions.push({ WFWorkflowActionIdentifier: `is.workflow.actions.${id}`, WFWorkflowActionParameters: { UUID, ...params } });
     return UUID;
   };
-  action("comment", { WFCommentActionText: "FitFamily aktive Energie – iPhone-Test erforderlich. Nur kcal, keine Wertung. Schlüssel und exakten Health-Datenquellennamen beim Import ergänzen. Keine Rechenoperation in Kurzbefehle. Server summiert nur die ausgewählte Quelle; das ist nicht automatisch Apples quellübergreifend bereinigter Fitness-Wert. Zum Test manuell starten. Später täglich automatisieren; Health und WLAN müssen erreichbar sein. Nicht mit eingefügtem Schlüssel teilen." });
+  action("comment", { WFCommentActionText: "FitFamily Alltag v2: Energie und Schritte ohne Wertung. Schlüssel und exakten Health-Datenquellennamen in den nächsten beiden Textaktionen einfügen. Messwert-Texte werden in benannten Listen gesammelt; nur der Server rechnet. Er summiert ausschließlich die ausgewählte Quelle, nicht Apples quellübergreifend bereinigten Gesamtwert. Zunächst auf dem iPhone manuell testen. Health und Server müssen erreichbar sein. Nicht mit eingefügtem Schlüssel teilen." });
   const secret = action("gettext", { WFTextActionText: "FAMILIENSCHLUESSEL_HIER_EINFUEGEN" });
   const source = action("gettext", { WFTextActionText: "EXAKTEN_HEALTH_DATENQUELLENNAMEN_EINFUEGEN" });
   const now = action("date", { WFDateActionMode: "Current Date" });
@@ -42,21 +42,21 @@ export function buildEnergyShortcut(profileId: string, server: string) {
       ]
     })
   });
-  const guard = randomUUID().toUpperCase();
-  action("conditional", { GroupingIdentifier: guard, WFControlFlowMode: 0, WFCondition: 101, WFInput: { Type: "Variable", Variable: input(ref(samples, "Health Samples")) } });
-  action("notification", { WFNotificationActionBody: "FitFamily: Keine heutigen Energie-Messungen. Nichts gesendet; Health-Leserechte prüfen." });
-  action("exit");
-  action("conditional", { GroupingIdentifier: guard, WFControlFlowMode: 2 });
+  // Explicit named lists avoid an unresolved Repeat Results magic variable
+  // becoming the pale, empty “Text List” placeholder in imported shortcuts.
+  const emptyEnergy = action("nothing");
+  action("setvariable", { WFVariableName: "Energiezeilen", WFInput: input(ref(emptyEnergy, "Nothing")) });
   const loop = randomUUID().toUpperCase();
   action("repeat.each", { GroupingIdentifier: loop, WFControlFlowMode: 0, WFInput: input(ref(samples, "Health Samples")) });
   const repeatItem: Plist = { Type: "Variable", VariableName: "Repeat Item" };
   const value = action("properties.health.quantity", { WFContentItemPropertyName: "Value", WFInput: input(repeatItem) });
   const unit = action("properties.health.quantity", { WFContentItemPropertyName: "Unit", WFInput: input(repeatItem) });
   const origin = action("properties.health.quantity", { WFContentItemPropertyName: "Source", WFInput: input(repeatItem) });
-  action("gettext", { WFTextActionText: tokens([ref(value, "Value"), "\t", ref(unit, "Unit"), "\t", ref(origin, "Source")]) });
-  const results = action("repeat.each", { GroupingIdentifier: loop, WFControlFlowMode: 2 });
+  const energyLine = action("gettext", { WFTextActionText: tokens([ref(value, "Value"), "\t", ref(unit, "Unit"), "\t", ref(origin, "Source")]) });
+  action("appendvariable", { WFVariableName: "Energiezeilen", WFInput: input(ref(energyLine, "Text")) });
+  action("repeat.each", { GroupingIdentifier: loop, WFControlFlowMode: 2 });
   // Unlike most actions, Combine Text reads its input from lowercase `text`.
-  const rows = action("text.combine", { text: input(ref(results, "Repeat Results")), WFTextSeparator: "New Lines" });
+  const rows = action("text.combine", { text: input({ Type: "Variable", VariableName: "Energiezeilen" }), WFTextSeparator: "New Lines" });
   const stepSamples = action("filter.health.quantity", {
     WFContentItemLimitEnabled: false,
     WFContentItemFilter: state("WFContentPredicateTableTemplate", {
@@ -67,23 +67,26 @@ export function buildEnergyShortcut(profileId: string, server: string) {
       ]
     })
   });
+  const emptySteps = action("nothing");
+  action("setvariable", { WFVariableName: "Schrittzeilen", WFInput: input(ref(emptySteps, "Nothing")) });
   const stepLoop = randomUUID().toUpperCase();
   action("repeat.each", { GroupingIdentifier: stepLoop, WFControlFlowMode: 0, WFInput: input(ref(stepSamples, "Health Samples")) });
   const stepValue = action("properties.health.quantity", { WFContentItemPropertyName: "Value", WFInput: input(repeatItem) });
   const stepUnit = action("properties.health.quantity", { WFContentItemPropertyName: "Unit", WFInput: input(repeatItem) });
   const stepSource = action("properties.health.quantity", { WFContentItemPropertyName: "Source", WFInput: input(repeatItem) });
-  action("gettext", { WFTextActionText: tokens([ref(stepValue, "Value"), "\t", ref(stepUnit, "Unit"), "\t", ref(stepSource, "Source")]) });
-  const stepResults = action("repeat.each", { GroupingIdentifier: stepLoop, WFControlFlowMode: 2 });
-  const stepRows = action("text.combine", { text: input(ref(stepResults, "Repeat Results")), WFTextSeparator: "New Lines" });
+  const stepLine = action("gettext", { WFTextActionText: tokens([ref(stepValue, "Value"), "\t", ref(stepUnit, "Unit"), "\t", ref(stepSource, "Source")]) });
+  action("appendvariable", { WFVariableName: "Schrittzeilen", WFInput: input(ref(stepLine, "Text")) });
+  action("repeat.each", { GroupingIdentifier: stepLoop, WFControlFlowMode: 2 });
+  const stepRows = action("text.combine", { text: input({ Type: "Variable", VariableName: "Schrittzeilen" }), WFTextSeparator: "New Lines" });
   const sent = action("downloadurl", {
     WFURL: text(`${url.origin}/api/sync/health-energy`), WFHTTPMethod: "POST", WFHTTPBodyType: "JSON",
     WFHTTPHeaders: dictionary([["Authorization", tokens(["Bearer ", ref(secret, "Text")])]]),
     WFJSONValues: dictionary([["profileId", text(profileId)], ["date", tokens([ref(date, "Formatted Date")])],
       ["sourceName", tokens([ref(source, "Text")])], ["sampleRows", tokens([ref(rows, "Combined Text")])], ["stepRows", tokens([ref(stepRows, "Combined Text")])]])
   });
-  action("notification", { WFNotificationActionBody: tokens(["FitFamily Energie: ", ref(sent, "Contents of URL")]) });
+  action("showresult", { Text: tokens(["FitFamily Alltag: ", ref(sent, "Contents of URL")]) });
   return {
-    WFWorkflowName: `FitFamily Alltag · ${profileId}`, WFWorkflowActions: actions,
+    WFWorkflowName: `FitFamily Alltag v2 · ${profileId}`, WFWorkflowActions: actions,
     WFWorkflowClientVersion: "2600.0.0", WFWorkflowMinimumClientVersion: 900,
     WFWorkflowMinimumClientVersionString: "900", WFWorkflowHasOutputFallback: false,
     WFWorkflowIcon: { WFWorkflowIconStartColor: 4282601983, WFWorkflowIconGlyphNumber: 59511 },

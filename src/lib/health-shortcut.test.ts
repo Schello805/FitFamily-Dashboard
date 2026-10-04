@@ -14,7 +14,11 @@ it("builds a complete text-only energy workflow without the looping import dialo
   expect(identifiers).not.toContain("is.workflow.actions.math");
   expect(identifiers).not.toContain("is.workflow.actions.statistics");
   const combine = actions.find(action => action.WFWorkflowActionIdentifier === "is.workflow.actions.text.combine")!;
-  expect(combine.WFWorkflowActionParameters.text).toMatchObject({ WFSerializationType: "WFTextTokenAttachment", Value: { OutputName: "Repeat Results" } });
+  expect(combine.WFWorkflowActionParameters.text).toMatchObject({ WFSerializationType: "WFTextTokenAttachment", Value: { Type: "Variable", VariableName: "Energiezeilen" } });
+  expect(identifiers).not.toContain("is.workflow.actions.conditional");
+  expect(identifiers).not.toContain("is.workflow.actions.exit");
+  expect(identifiers).toContain("is.workflow.actions.showresult");
+  expect(actions.filter(action => action.WFWorkflowActionIdentifier === "is.workflow.actions.appendvariable").map(action => action.WFWorkflowActionParameters.WFVariableName)).toEqual(["Energiezeilen", "Schrittzeilen"]);
   expect(combine.WFWorkflowActionParameters.WFInput).toBeUndefined();
   expect(shortcut.WFWorkflowImportQuestions).toEqual([]);
   expect(actions[1].WFWorkflowActionParameters.WFTextActionText).toBe("FAMILIENSCHLUESSEL_HIER_EINFUEGEN");
