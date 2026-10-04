@@ -4,6 +4,12 @@ Alle wichtigen Änderungen werden hier nach dem Prinzip von Keep a Changelog dok
 
 ## [Unreleased]
 
+## [0.3.15] – 2026-10-04
+
+### Behoben
+
+- KI-Trainingsplan-Kachel beginnt und endet auf Desktop auf gleicher Höhe wie Kraft und Ausdauer. Die Überschrift liegt außerhalb der gemeinsamen Kartenzeile; mobile Stapelung bleibt erhalten.
+
 ## [0.3.14] – 2026-10-04
 
 ### Behoben

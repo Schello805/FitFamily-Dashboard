@@ -464,9 +464,10 @@ export function ProfileView({
         </div>
       </section>
 
-      <section className="training-entry-grid" aria-label="Training starten">
+      <section className="training-entry-section" aria-label="Training starten">
+        <span className="section-kicker">Direkt starten</span>
+        <div className="training-entry-grid">
         <div className="training-direct-entry">
-          <span className="section-kicker">Direkt starten</span>
       <section className={`training-actions ${profile.activeTraining ? "has-active-training" : ""}`}>
         <button
           disabled={busy}
@@ -512,6 +513,7 @@ export function ProfileView({
           <CalendarRange size={38} />
           <span><small>Mit deinem Plan trainieren</small><strong>KI-Trainingsplan</strong><em>Plan erstellen oder fortsetzen</em></span>
         </Link>
+        </div>
       </section>
 
       {activeType === "strength" && (
