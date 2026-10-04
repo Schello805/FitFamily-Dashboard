@@ -55,7 +55,8 @@ export function buildEnergyShortcut(profileId: string, server: string) {
   const origin = action("properties.health.quantity", { WFContentItemPropertyName: "Source", WFInput: input(repeatItem) });
   action("gettext", { WFTextActionText: tokens([ref(value, "Value"), "\t", ref(unit, "Unit"), "\t", ref(origin, "Source")]) });
   const results = action("repeat.each", { GroupingIdentifier: loop, WFControlFlowMode: 2 });
-  const rows = action("text.combine", { WFInput: input(ref(results, "Repeat Results")), WFTextSeparator: "New Lines" });
+  // Unlike most actions, Combine Text reads its input from lowercase `text`.
+  const rows = action("text.combine", { text: input(ref(results, "Repeat Results")), WFTextSeparator: "New Lines" });
   const sent = action("downloadurl", {
     WFURL: text(`${url.origin}/api/sync/health-energy`), WFHTTPMethod: "POST", WFHTTPBodyType: "JSON",
     WFHTTPHeaders: dictionary([["Authorization", tokens(["Bearer ", ref(secret, "Text")])]]),

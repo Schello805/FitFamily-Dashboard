@@ -3,8 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Camera, Sparkles, Trash2 } from "lucide-react";
 import { Avatar } from "@/components/avatar";
-import { TouchPinpad } from "@/components/touch-pinpad";
-import { Modal } from "@/components/modal";
 import { getFitnessStageCount, personalHeadLayout, type AvatarDesignId, type AvatarPhysique } from "@/lib/domain";
 
 async function adjustedAvatarImage(source: string, scale: number, offsetX: number, offsetY: number, headWidth: number, headHeight: number) {
@@ -37,8 +35,6 @@ export function PersonalAvatarEditor({
   fitnessStage,
   physique,
   birthDate,
-  pin,
-  setPin,
   hasSavedAvatar,
   onSaved
 }: {
@@ -48,8 +44,6 @@ export function PersonalAvatarEditor({
   fitnessStage: number;
   physique: AvatarPhysique;
   birthDate: string | null;
-  pin: string;
-  setPin: (pin: string) => void;
   hasSavedAvatar: boolean;
   onSaved: (saved: boolean) => void;
 }) {
@@ -66,7 +60,6 @@ export function PersonalAvatarEditor({
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [cameraOpen, setCameraOpen] = useState(false);
-  const [pinModalOpen, setPinModalOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const cameraFileRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -75,11 +68,6 @@ export function PersonalAvatarEditor({
 
   async function readAvatarResponse(response: Response, fallback: string) {
     const result = await response.json().catch(() => null) as { error?: unknown; image?: unknown } | null;
-    if (response.status === 401) {
-      setPin("");
-      setPinModalOpen(true);
-      throw new Error("Die PIN wurde vom Server abgelehnt. Bitte gib sie erneut ein.");
-    }
     if (!response.ok) throw new Error(typeof result?.error === "string" ? result.error : fallback);
     return result;
   }
@@ -139,7 +127,6 @@ export function PersonalAvatarEditor({
       return;
     }
     setPhoto(new File([image], "fitfamily-kamerafoto.jpg", { type: "image/jpeg" }));
-    if (pin.length !== 4) setPinModalOpen(true);
     setPreview(""); setError("");
     setNotice("Kamerafoto aufgenommen. Du kannst jetzt die Vorschau erstellen.");
     stopCamera();
@@ -148,15 +135,13 @@ export function PersonalAvatarEditor({
   function selectPhoto(file: File | null) {
     stopCamera();
     setPhoto(file); setPreview(""); setError(""); setNotice("");
-    if (file && pin.length !== 4) setPinModalOpen(true);
   }
 
   async function generate() {
-    if (!photo || !consent || (isChild && !guardianConsent) || pin.length !== 4) return;
+    if (!photo || !consent || (isChild && !guardianConsent)) return;
     setBusy(true); setError(""); setNotice(""); setPreview("");
     const form = new FormData();
     form.set("provider", provider);
-    form.set("pin", pin);
     form.set("consent", "yes");
     form.set("photo", photo);
     try {
@@ -174,14 +159,14 @@ export function PersonalAvatarEditor({
   }
 
   async function save() {
-    if (!preview || pin.length !== 4) return;
+    if (!preview) return;
     setBusy(true); setError(""); setNotice("");
     try {
       const head = personalHeadLayout(profileId, avatar);
       const adjustedImage = await adjustedAvatarImage(preview, headScale, headOffsetX, headOffsetY, head.width, head.height);
       const response = await fetch(`/api/profiles/${encodeURIComponent(profileId)}/avatar`, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "save", pin, image: adjustedImage })
+        body: JSON.stringify({ action: "save", image: adjustedImage })
       });
       await readAvatarResponse(response, "Der Avatar konnte nicht gespeichert werden.");
       onSaved(true);
@@ -195,11 +180,10 @@ export function PersonalAvatarEditor({
   }
 
   async function remove() {
-    if (pin.length !== 4) { setError("Bitte zuerst die vierstellige Eltern-PIN eingeben."); return; }
     setBusy(true); setError(""); setNotice("");
     try {
       const response = await fetch(`/api/profiles/${encodeURIComponent(profileId)}/avatar`, {
-        method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pin })
+        method: "DELETE"
       });
       await readAvatarResponse(response, "Der KI-Avatar konnte nicht entfernt werden.");
       onSaved(false);
@@ -245,9 +229,8 @@ export function PersonalAvatarEditor({
         {isChild && <label className="personal-avatar-consent"><input type="checkbox" checked={guardianConsent} onChange={(event) => setGuardianConsent(event.target.checked)} />
           Ich bin sorgeberechtigt und stimme der KI-Verarbeitung dieses Kinderfotos zu.
         </label>}
-        <div className="personal-avatar-pin-entry"><span>Eltern-PIN · 4 Ziffern</span><button type="button" onClick={() => { if (pin.length === 4) setPin(""); setPinModalOpen(true); }}>{pin.length === 4 ? "PIN eingegeben · ändern" : "PIN mit Ziffernblock eingeben"}</button>{pin.length === 4 && <small>PIN ist für Vorschau und Speichern bereit.</small>}</div>
         <div className="personal-avatar-actions">
-          <button type="button" onClick={() => void generate()} disabled={busy || !photo || !consent || (isChild && !guardianConsent) || pin.length !== 4}>
+          <button type="button" onClick={() => void generate()} disabled={busy || !photo || !consent || (isChild && !guardianConsent)}>
             <Sparkles size={16} /> {busy ? "Avatar wird erstellt …" : "Vorschau erstellen"}
           </button>
           {hasSavedAvatar && <button type="button" className="personal-avatar-remove" onClick={() => void remove()} disabled={busy}><Trash2 size={16} /> KI-Avatar entfernen</button>}
@@ -270,17 +253,6 @@ export function PersonalAvatarEditor({
         {error && <p className="form-error" role="alert">{error}</p>}
         {hasSavedAvatar && <p className="personal-avatar-footnote">Dein gespeicherter KI-Kopf wird auch auf den verschiedenen Fitnessstufen angezeigt.</p>}
       </div>}
-      {expanded && pinModalOpen && <Modal className="personal-avatar-pin-backdrop" onClose={() => setPinModalOpen(false)}>
-        <div className="confirm-modal-card personal-avatar-pin-card" role="dialog" aria-modal="true" aria-labelledby="personal-avatar-pin-title" onClick={(event) => event.stopPropagation()}>
-          <h3 id="personal-avatar-pin-title">Eltern-PIN eingeben</h3>
-          <p>Tippe deine vierstellige PIN auf dem Ziffernblock ein.</p>
-          <TouchPinpad value={pin} onChange={(value) => { setPin(value); setError(""); }} />
-          <div className="confirm-modal-actions">
-            <button type="button" className="confirm-cancel-btn" onClick={() => setPinModalOpen(false)}>Abbrechen</button>
-            <button type="button" className="confirm-submit-btn primary" disabled={pin.length !== 4} onClick={() => setPinModalOpen(false)}>Weiter</button>
-          </div>
-        </div>
-      </Modal>}
     </section>
   );
 }

@@ -5,7 +5,7 @@ import sharp from "sharp";
 import { db } from "@/lib/db";
 import { avatarAssetForProfile, type ProfileAvatar } from "@/lib/domain";
 import { getAiApiKey, type AiProvider } from "@/lib/ai-config";
-import { verifyAdminPinOrReject } from "@/lib/security";
+import { isSameOriginRequest } from "@/lib/security";
 
 export const maxDuration = 120;
 
@@ -181,6 +181,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ pro
 }
 
 export async function POST(request: Request, { params }: { params: Promise<{ profileId: string }> }) {
+  if (!isSameOriginRequest(request)) return jsonError("Fremde Herkunft nicht erlaubt.", 403);
   const { profileId } = await params;
   const profile = await getProfile(profileId);
   if (!profile) return jsonError("Profil nicht gefunden.", 404);
@@ -190,19 +191,16 @@ export async function POST(request: Request, { params }: { params: Promise<{ pro
     let form: FormData;
     try { form = await request.formData(); } catch { return jsonError("Das Foto konnte nicht gelesen werden."); }
     const providerValue = form.get("provider");
-    const pin = form.get("pin");
     const consent = form.get("consent");
     const photoFile = form.get("photo");
-    if ((providerValue !== "openai" && providerValue !== "gemini") || typeof pin !== "string" || !/^\d{4}$/.test(pin)) {
-      return jsonError("Bitte KI-Anbieter und vierstellige Eltern-PIN prüfen.");
+    if (providerValue !== "openai" && providerValue !== "gemini") {
+      return jsonError("Bitte KI-Anbieter prüfen.");
     }
     if (consent !== "yes") return jsonError("Bitte bestätige zuerst die Übermittlung des Fotos an den gewählten KI-Anbieter.");
     if (!(photoFile instanceof File) || !["image/jpeg", "image/png", "image/webp"].includes(photoFile.type)) {
       return jsonError("Bitte ein Foto im JPG-, PNG- oder WebP-Format auswählen.");
     }
     if (photoFile.size === 0 || photoFile.size > MAX_PHOTO_BYTES) return jsonError("Das Foto darf höchstens 10 MB groß sein.");
-    const pinError = await verifyAdminPinOrReject(pin, request);
-    if (pinError) return pinError;
 
     const now = Date.now();
     const attempts = generationWindow.fitFamilyAvatarGenerations ??= new Map<string, number[]>();
@@ -232,12 +230,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ pro
     }
   }
 
-  const body = await request.json().catch(() => null) as { action?: unknown; pin?: unknown; image?: unknown } | null;
-  if (!body || (body.action !== "save" && body.action !== "delete") || typeof body.pin !== "string" || !/^\d{4}$/.test(body.pin)) {
-    return jsonError("Bitte Aktion und vierstellige Eltern-PIN prüfen.");
+  const body = await request.json().catch(() => null) as { action?: unknown; image?: unknown } | null;
+  if (!body || (body.action !== "save" && body.action !== "delete")) {
+    return jsonError("Bitte Aktion prüfen.");
   }
-  const pinError = await verifyAdminPinOrReject(body.pin, request);
-  if (pinError) return pinError;
 
   const client = await db();
   if (body.action === "delete") {
@@ -276,13 +272,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ pro
 }
 
 export async function DELETE(request: Request, { params }: { params: Promise<{ profileId: string }> }) {
+  if (!isSameOriginRequest(request)) return jsonError("Fremde Herkunft nicht erlaubt.", 403);
   const { profileId } = await params;
   const profile = await getProfile(profileId);
   if (!profile) return jsonError("Profil nicht gefunden.", 404);
-  const body = await request.json().catch(() => null) as { pin?: unknown } | null;
-  if (!body || typeof body.pin !== "string" || !/^\d{4}$/.test(body.pin)) return jsonError("Bitte vierstellige Eltern-PIN eingeben.");
-  const pinError = await verifyAdminPinOrReject(body.pin, request);
-  if (pinError) return pinError;
   const client = await db();
   await client.execute({ sql: "UPDATE profiles SET custom_avatar_data = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?", args: [profileId] });
   return NextResponse.json({ ok: true });

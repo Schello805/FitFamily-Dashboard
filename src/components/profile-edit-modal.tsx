@@ -144,8 +144,6 @@ export function ProfileEditModal({
           fitnessStage={preview.fitnessStage}
           physique={preview.physique}
           birthDate={birthDate || null}
-          pin={pin}
-          setPin={onPinChange}
           hasSavedAvatar={Boolean(profile.customAvatar)}
           onSaved={onAvatarSaved}
         />

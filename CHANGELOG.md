@@ -4,6 +4,13 @@ Alle wichtigen Änderungen werden hier nach dem Prinzip von Keep a Changelog dok
 
 ## [Unreleased]
 
+## [0.3.22] – 2026-10-04
+
+### Korrigiert
+
+- Eigene Avatar-Köpfe ohne Eltern-PIN erstellen, speichern und entfernen; Foto-Einwilligung, Herkunftsprüfung und KI-Limits bleiben erhalten.
+- Energie-Kurzbefehl verknüpft Wiederholungsergebnisse korrekt mit „Text kombinieren“; erfolgreicher iPhone-Empfang bestätigt.
+
 ## [0.3.21] – 2026-10-04
 
 ### Korrigiert
