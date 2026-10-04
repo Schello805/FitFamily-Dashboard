@@ -4,6 +4,14 @@ Alle wichtigen Änderungen werden hier nach dem Prinzip von Keep a Changelog dok
 
 ## [Unreleased]
 
+## [0.3.19] – 2026-10-04
+
+### Behoben
+
+- Radio und Hell-/Dunkelmodus auf jeder Seite in einem gemeinsamen, oben fixierten Header statt unten schwebend. Breite Sender-/Liedanzeige, mobile Anordnung und fortlaufende Wiedergabe bleiben erhalten.
+- Trainingsdialog erklärt die Auswahl als Schutz vor doppelter Trainingswertung. „Nein“ sperrt keine Health-Tagesdaten; kcal (und später Schritte) sind unabhängig. Der kcal-Kurzbefehl importiert keine Trainingszeiten.
+- Doppelten Design-Schalter auf der Profilseite entfernt.
+
 ## [0.3.18] – 2026-10-04
 
 ### Neu

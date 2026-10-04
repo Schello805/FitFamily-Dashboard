@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
+import { DashboardHeader } from "./dashboard-header";
 import { useEffect, useMemo, useState } from "react";
 import {
   CloudSun,
@@ -279,7 +280,7 @@ export function Dashboard({
 
   return (
     <main className="dashboard-shell">
-      <header className="topbar">
+      <DashboardHeader>
         <section className="brand-block">
           <Image className="brand-logo" src="/assets/fitfamily-logo.png" alt="FitFamily Dashboard – Gesund, aktiv, gemeinsam" width={112} height={112} priority unoptimized />
           <div className="brand-tools">
@@ -334,7 +335,7 @@ export function Dashboard({
             <span>{dateText}</span>
           </div>
         </section>
-      </header>
+      </DashboardHeader>
 
       <section className="profile-grid" aria-label="Familienprofile">
         {profiles.map((profile) => <ProfileDashboardCard key={profile.id} profile={profile} clock={clock} />)}

@@ -4,8 +4,11 @@ Aktive Energie ist ein kcal-Tageswert, einschließlich Alltagsbewegung. **Keine 
 Trainingsminuten, Ziele, Gerätezeiten oder Level werden daraus berechnet.** Echte
 Workouts aus dem Export bleiben separat; ihre bisherige Wertung bleibt erhalten.
 Alte Kurzbefehle für Schritte/Trainingsringe nicht wieder aktivieren. Wer nur kcal
-synchronisiert, wählt beim Trainingsstart **„Nein · FitFamily zählt“**, damit der
+synchronisiert, wählt beim Trainingsstart **„Nein · App-Trainingszeit werten“**, damit der
 App-Timer Punkte erhält. „Ja“ bleibt nur für tatsächlich importierte Workouts.
+Die Auswahl schaltet den Health-Empfang nicht aus: kcal und später Schritte werden
+unabhängig davon synchronisiert. Für Schritte warten wir zunächst den erfolgreichen
+kcal-Test auf dem iPhone ab; auch Schritte sollen ohne Wertung gespeichert werden.
 
 ## Einmal einrichten
 

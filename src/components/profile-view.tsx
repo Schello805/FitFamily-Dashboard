@@ -18,7 +18,6 @@ import { LiveDuration } from "@/components/live-duration";
 import { TrainingProgress } from "@/components/training-progress";
 import { ProfileEditModal } from "@/components/profile-edit-modal";
 import { Avatar } from "@/components/avatar";
-import { ThemeToggle } from "@/components/theme-toggle";
 import { showToast } from "@/components/toast";
 import { ApiRequestError, requestJson } from "@/lib/api-client";
 import { Modal } from "@/components/modal";
@@ -398,7 +397,6 @@ export function ProfileView({
           <h1>{profile.name}</h1>
         </div>
         <div className="profile-topbar-right">
-          <ThemeToggle showLabel={!isMobile} />
           {!isMobile && (
             <div
               className={`profile-idle-badge ${secondsLeft <= 15 ? "is-warning" : ""}`}

@@ -18,7 +18,8 @@ it("does not start until an explicit answer, and forwards Health mode",async()=>
   fireEvent.click(screen.getByRole("button",{name:"Übung jetzt starten"}));
   expect(screen.getByRole("dialog",{name:HEALTH_RECORDING_QUESTION})).toBeInTheDocument();
   expect(request).not.toHaveBeenCalled();
-  fireEvent.click(screen.getByRole("button",{name:"Ja · Apple Health zählt"}));
+  expect(screen.getByText(/Health-Daten fehlen dadurch nicht/)).toBeTruthy();
+  fireEvent.click(screen.getByRole("button",{name:"Ja · nur importierte Trainingszeit werten"}));
   await waitFor(()=>expect(request).toHaveBeenCalled());
   expect(JSON.parse(String(request.mock.calls[0][2]?.body))).toMatchObject({recordingMode:"health"});
 });
@@ -38,7 +39,7 @@ it("asks on NFC scans even in StrictMode and sends the selected app mode",async(
   render(<StrictMode><ScanStart kind="geraet" id="test-device" /></StrictMode>);
   await screen.findByRole("dialog",{name:HEALTH_RECORDING_QUESTION});
   expect(fetchMock).not.toHaveBeenCalled();
-  fireEvent.click(screen.getByRole("button",{name:"Nein · FitFamily zählt"}));
+  fireEvent.click(screen.getByRole("button",{name:"Nein · App-Trainingszeit werten"}));
   await screen.findByRole("alert");
   expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body))).toMatchObject({recordingMode:"app",kind:"geraet"});
 });

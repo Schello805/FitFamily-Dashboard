@@ -197,7 +197,7 @@ describe("profile request recovery", () => {
     render(<ProfileView initialProfile={running} exercises={[{ id: "push-up", name: "Liegestütze", type: "strength", equipment: "Klimmzugstation" }]} />);
     await screen.findByText("Lokal verbunden");
     fireEvent.click(screen.getByRole("button", { name: /Liegestütze\s*Klimmzugstation/ }));
-    fireEvent.click(screen.getByRole("button", { name: "Nein · FitFamily zählt" }));
+    fireEvent.click(screen.getByRole("button", { name: "Nein · App-Trainingszeit werten" }));
     fireEvent.click(await screen.findByRole("button", { name: /Sofort starten/ }));
     await waitFor(() => expect(toast).toHaveBeenCalledWith(expect.objectContaining({ type: "error", message: "Gerät nicht verfügbar." })));
     expect(push).not.toHaveBeenCalled();
@@ -215,7 +215,7 @@ describe("profile request recovery", () => {
     const start = screen.getByRole("button", { name: /Starten\s*Kraft/ });
     start.focus();
     fireEvent.click(start);
-    fireEvent.click(screen.getByRole("button", { name: "Nein · FitFamily zählt" }));
+    fireEvent.click(screen.getByRole("button", { name: "Nein · App-Trainingszeit werten" }));
     await screen.findByRole("dialog", { name: "Bereitmachen!" });
     fireEvent.keyDown(document, { key: "Escape" });
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();

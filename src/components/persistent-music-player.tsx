@@ -1,17 +1,18 @@
 "use client";
 
-import { usePathname } from "next/navigation";
+import Link from "next/link";
 import { MusicPlayer } from "@/components/music-player";
 import { ThemeToggle } from "@/components/theme-toggle";
 
 export function PersistentMusicPlayer() {
-  const pathname = usePathname();
-  const isDashboard = pathname === "/";
-
   return (
-    <div className="persistent-radio">
-      {isDashboard && <ThemeToggle showLabel={true} className="radio-theme-toggle" />}
-      <MusicPlayer />
-    </div>
+    <header className="app-media-header" aria-label="FitFamily · Radio und Anzeige">
+      <Link href="/" className="app-header-home">FitFamily <span>Dashboard</span></Link>
+      <div id="dashboard-header-slot" />
+      <div className="persistent-radio">
+        <ThemeToggle showLabel={true} className="radio-theme-toggle" />
+        <MusicPlayer />
+      </div>
+    </header>
   );
 }

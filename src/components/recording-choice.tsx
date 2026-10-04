@@ -18,10 +18,10 @@ export function useRecordingChoice() {
   return { ask, open, dialog: open ? <Modal onClose={() => choose(null)}>
     <section className="recording-choice" role="dialog" aria-modal="true" aria-labelledby="recording-question">
       <h2 id="recording-question">{HEALTH_RECORDING_QUESTION}</h2>
-      <p>Bei „Ja“ dient der App-Timer nur zur Orientierung. Erst importierte Health-Trainings zählen: 1,5 Punkte pro aktiver Minute. Starte die Aufzeichnung auch in deiner Watch oder Gymondo.</p>
-      <p>Nur aktive kcal per Kurzbefehl? Diese geben keine Trainingspunkte. Wähle „Nein · FitFamily zählt“, wenn der App-Timer deine Einheit werten soll – auch wenn du eine Watch trägst.</p>
-      <button type="button" onClick={() => choose("health")}>Ja · Apple Health zählt</button>
-      <button type="button" onClick={() => choose("app")}>Nein · FitFamily zählt</button>
+      <p>Diese Auswahl verhindert, dass dieselbe Trainingszeit zweimal gewertet wird. Bei „Ja“ dient der App-Timer nur zur Orientierung; erst ein importierter Trainingsdatensatz zählt mit 1,5 Punkten pro aktiver Minute. Die Watch-Aufzeichnung allein überträgt noch nichts.</p>
+      <p>Bei „Nein“ zählt der App-Timer. Health-Daten fehlen dadurch nicht: kcal und später Schritte kommen unabhängig davon per Kurzbefehl, ohne Wertung. Der kcal-Kurzbefehl überträgt keine Trainingszeit.</p>
+      <button type="button" onClick={() => choose("health")}>Ja · nur importierte Trainingszeit werten</button>
+      <button type="button" onClick={() => choose("app")}>Nein · App-Trainingszeit werten</button>
       <button type="button" onClick={() => choose(null)}>Abbrechen</button>
     </section>
   </Modal> : null };

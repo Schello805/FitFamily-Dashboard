@@ -25,8 +25,9 @@ it("keeps the same radio element, audio and station/song across navigation", asy
   expect(launch).toHaveAttribute("title", `${RADIO_STATIONS[0].name} · Artist · A very long song title`);
   route.pathname = "/profil/papa";
   view.rerender(<PersistentMusicPlayer />);
-  expect(view.container.firstElementChild).toHaveClass("persistent-radio");
-  expect(view.container.firstElementChild?.className).toBe("persistent-radio");
+  expect(view.container.firstElementChild).toHaveClass("app-media-header");
+  expect(screen.getByRole("banner", { name: "FitFamily · Radio und Anzeige" })).toContainElement(launch);
+  expect(screen.getByRole("banner", { name: "FitFamily · Radio und Anzeige" })).toContainElement(screen.getByRole("button", { name: "Design" }));
   expect(view.container.querySelector("audio")).toBe(audio);
   expect(screen.getByRole("button", { name: /Radiosteuerung öffnen/ })).toBe(launch);
   expect(launch).toHaveTextContent("Artist · A very long song title");
@@ -39,4 +40,6 @@ it("provides a four-tile-wide desktop launch, mobile text and modal exclusion", 
   expect(rules).toContain(".music-launch small { display: block;");
   expect(rules).toContain('body:has([role="dialog"][aria-modal="true"]) .persistent-radio { visibility: hidden; pointer-events: none; }');
   expect(rules).not.toContain("subpage-radio");
+  expect(rules).toContain(".app-media-header { position: sticky; top: 0;");
+  expect(rules).toContain(".persistent-radio { position: static;");
 });
