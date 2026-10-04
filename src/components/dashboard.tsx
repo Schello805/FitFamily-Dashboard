@@ -78,7 +78,11 @@ function ProfileDashboardCard({ profile, clock }: { profile: DashboardProfile; c
       </div>
 
       <div className="score-row">
-        <div className="score" title="Trainingspunkte: Ausdauer 1 Punkt/Minute, Kraft 2 Punkte/Minute. Nach einem Punkte-Reset zählen nur neue Minuten. Trainingslevel zählt unabhängig davon alle abgeschlossenen Minuten."><Trophy size={22} /><div><strong key={profile.score} className="score-value">{profile.score.toLocaleString("de-DE")}</strong><span>{profile.scoreResetAt ? "Punkte seit Reset" : "Gesamtpunkte"}</span></div></div>
+        <div className="score" title="Trainingspunkte: Kraft 1, Ausdauer 2, importierte Health-Trainings 1,5 Punkte/Minute. Aktive kcal zählen nicht als Punkte. Nach einem Punkte-Reset zählen nur neue Trainingsminuten."><Trophy size={22} /><div><strong key={profile.score} className="score-value">{profile.score.toLocaleString("de-DE")}</strong><span>{profile.scoreResetAt ? "Punkte seit Reset" : "Gesamtpunkte"}</span></div></div>
+        <div className="health-energy-summary" title="Aktive Energie aus Apple Health, inklusive Alltagsbewegung. Separater Tageswert ohne Einfluss auf Trainingsziel, Punkte oder Level.">
+          <span>Apple Health · aktive Energie</span>
+          {profile.healthEnergy ? <><strong>{profile.healthEnergy.activeEnergyKcal.toLocaleString("de-DE", { maximumFractionDigits: 1 })} <small>kcal</small></strong><small>{new Date(`${profile.healthEnergy.date}T12:00:00`).toLocaleDateString("de-DE")} · ohne Wertung</small></> : <small>Noch kein Wert</small>}
+        </div>
         <div className="today"><strong>{profile.todayMinutes}</strong><span>Minuten heute</span></div>
       </div>
       {profile.trainingProgress && <div className="dashboard-level" aria-label={`Trainingslevel ${profile.trainingProgress.level}, automatischer Aufstieg`} title="1 abgeschlossene Trainingsminute = 1 Level-Fortschrittspunkt. Level 2 ab 150, Level 3 ab 450, Level 4 ab 900 Minuten. Kraft und Ausdauer zählen gleich; kein wöchentlicher Reset."><span key={profile.trainingProgress.level} className="level-value">★ Trainingslevel {profile.trainingProgress.level}</span><div role="progressbar" aria-label="Trainingslevel-Fortschritt" aria-valuemin={0} aria-valuemax={100} aria-valuenow={profile.trainingProgress.percent}><i style={{ width: `${profile.trainingProgress.percent}%` }} /></div><small>{profile.trainingProgress.nextThreshold === null ? "Maximum erreicht" : `Level ${profile.trainingProgress.level + 1} in ${profile.trainingProgress.remaining} Min.`}</small></div>}

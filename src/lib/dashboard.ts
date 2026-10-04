@@ -4,6 +4,7 @@ import { getAvatarProgress, getFitnessStageCount, getProfileAge, movementTargetF
 import { enforceSafetyPauses } from "@/lib/training";
 import { normalizePlanJson } from "@/lib/plan-normalizer";
 import { trainingProgress } from "@/lib/training-progress";
+import { energyDate } from "@/lib/health-energy";
 
 function calendarDaysBetween(start: string, end: string) {
   return Math.max(0, Math.round((Date.parse(`${end}T00:00:00Z`) - Date.parse(`${start}T00:00:00Z`)) / 86400000));
@@ -53,6 +54,7 @@ export async function getDashboardData(): Promise<DashboardProfile[]> {
   const healthFactors = new Map(healthRows.rows.map(h => [`health:${h.profile_id}:${h.external_id}`, Number(h.duration_seconds) / durationSeconds(String(h.started_at), String(h.ended_at))]));
   const healthActiveSeconds = new Map(healthRows.rows.map(h => [`health:${h.profile_id}:${h.external_id}`, Number(h.duration_seconds)]));
   const factorFor = (id: unknown) => healthFactors.get(String(id)) ?? 1;
+  const energyRows = await client.execute({ sql: "SELECT * FROM health_energy_daily WHERE date <= ? ORDER BY date DESC", args: [energyDate(now)] });
 
   const workoutMinutesByProfile = new Map<string, Map<string, number>>();
   for (const row of segmentsResult.rows) {
@@ -78,6 +80,7 @@ export async function getDashboardData(): Promise<DashboardProfile[]> {
 
   return profilesResult.rows.map((row) => {
     const profileId = String(row.id);
+    const energy = energyRows.rows.find(entry => String(entry.profile_id) === profileId);
     const profileSegments = segmentsResult.rows.filter((segment) => String(segment.profile_id) === profileId);
     let points = 0;
     let totalSeconds = 0;
@@ -232,6 +235,7 @@ export async function getDashboardData(): Promise<DashboardProfile[]> {
 
     return {
       ...profile,
+      healthEnergy: energy ? { date: String(energy.date), activeEnergyKcal: Number(energy.active_energy_kcal), updatedAt: String(energy.updated_at) } : null,
       ...avatarProgress,
       trainingProgress: trainingProgress(completedSeconds / 60, completedSessions.size),
       score: Math.floor(profile.scoreBaseline + points + 1e-9),

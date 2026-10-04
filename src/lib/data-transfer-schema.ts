@@ -56,12 +56,17 @@ export const DATA_TABLE_SPECS = {
     columns: ["profile_id", "external_id", "started_at", "ended_at", "duration_seconds", "source_name", "activity_type", "created_at"],
     keys: ["profile_id", "external_id"],
     required: ["profile_id", "external_id", "started_at", "ended_at", "duration_seconds", "source_name", "activity_type"]
+  },
+  health_energy_daily: {
+    columns: ["profile_id", "date", "active_energy_kcal", "updated_at"],
+    keys: ["profile_id", "date"],
+    required: ["profile_id", "date", "active_energy_kcal"]
   }
 } as const;
 
 export type DataTransferTable = keyof typeof DATA_TABLE_SPECS;
 export const DATA_TRANSFER_TABLES = Object.keys(DATA_TABLE_SPECS) as DataTransferTable[];
-export const DATA_IMPORT_ORDER: DataTransferTable[] = ["profiles", "exercises", "equipment_inventory", "training_sessions", "training_plans", "training_segments", "apple_health_daily", "apple_health_ignored_workouts", "health_training_tests", "health_workouts", "settings"];
+export const DATA_IMPORT_ORDER: DataTransferTable[] = ["profiles", "exercises", "equipment_inventory", "training_sessions", "training_plans", "training_segments", "apple_health_daily", "apple_health_ignored_workouts", "health_training_tests", "health_workouts", "health_energy_daily", "settings"];
 
 const PRIVATE_SETTING_KEYS = new Set(["admin_pin_hash", "nas_backup_key", "nas_backup_path", "health_training_family_key_hash"]);
 

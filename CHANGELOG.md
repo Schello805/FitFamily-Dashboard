@@ -4,6 +4,18 @@ Alle wichtigen Änderungen werden hier nach dem Prinzip von Keep a Changelog dok
 
 ## [Unreleased]
 
+## [0.3.18] – 2026-10-04
+
+### Neu
+
+- Separate Tagesanzeige „Apple Health · aktive Energie“ (kcal) mit Datum. Fehlender Empfang bleibt leer; keine Punkte, Minuten, Ziele oder Level aus kcal.
+- Familienschlüssel-geschützter kcal-Empfang: validierte Punkt-/Komma-Dezimaltexte, Tageswert ersetzen statt addieren, Fehlerprotokoll und Empfangskontrolle. Persistente Datenbank und JSON-Export/Import.
+- Schritt-für-Schritt-Anleitung im Health-Menü für einen täglichen iPhone-Kurzbefehl. iPhone-Test noch erforderlich; Health-Zugriff bei Gerätesperre nicht garantiert.
+
+### Behoben
+
+- Dashboard-Punkte-Tooltip nennt Kraft 1, Ausdauer 2 und importierte Health-Trainings 1,5 Punkte/Minute korrekt.
+
 ## [0.3.17] – 2026-10-04
 
 ### Behoben

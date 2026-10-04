@@ -15,5 +15,14 @@ export function useRecordingChoice() {
     setOpen(true);
     return new Promise<RecordingMode | null>(done => { resolve.current = done; });
   }, []);
-  return { ask, open, dialog: open ? <Modal onClose={() => choose(null)}><section className="recording-choice" role="dialog" aria-modal="true" aria-labelledby="recording-question"><h2 id="recording-question">{HEALTH_RECORDING_QUESTION}</h2><p>Bei „Ja“ dient der App-Timer nur zur Orientierung. Erst importierte Health-Trainings zählen: 1,5 Punkte pro aktiver Minute. Starte die Aufzeichnung auch in deiner Watch oder Gymondo.</p><button type="button" onClick={() => choose("health")}>Ja · Apple Health zählt</button><button type="button" onClick={() => choose("app")}>Nein · FitFamily zählt</button><button type="button" onClick={() => choose(null)}>Abbrechen</button></section></Modal> : null };
+  return { ask, open, dialog: open ? <Modal onClose={() => choose(null)}>
+    <section className="recording-choice" role="dialog" aria-modal="true" aria-labelledby="recording-question">
+      <h2 id="recording-question">{HEALTH_RECORDING_QUESTION}</h2>
+      <p>Bei „Ja“ dient der App-Timer nur zur Orientierung. Erst importierte Health-Trainings zählen: 1,5 Punkte pro aktiver Minute. Starte die Aufzeichnung auch in deiner Watch oder Gymondo.</p>
+      <p>Nur aktive kcal per Kurzbefehl? Diese geben keine Trainingspunkte. Wähle „Nein · FitFamily zählt“, wenn der App-Timer deine Einheit werten soll – auch wenn du eine Watch trägst.</p>
+      <button type="button" onClick={() => choose("health")}>Ja · Apple Health zählt</button>
+      <button type="button" onClick={() => choose("app")}>Nein · FitFamily zählt</button>
+      <button type="button" onClick={() => choose(null)}>Abbrechen</button>
+    </section>
+  </Modal> : null };
 }

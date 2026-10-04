@@ -115,6 +115,13 @@ async function createSchema(client: Client) {
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
       PRIMARY KEY(profile_id, external_id)
     )`,
+    `CREATE TABLE IF NOT EXISTS health_energy_daily (
+      profile_id TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+      date TEXT NOT NULL,
+      active_energy_kcal REAL NOT NULL CHECK(active_energy_kcal >= 0 AND active_energy_kcal <= 20000),
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY(profile_id, date)
+    )`,
     `CREATE TABLE IF NOT EXISTS health_workouts (
       profile_id TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
       external_id TEXT NOT NULL,

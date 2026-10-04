@@ -12,7 +12,11 @@ export async function GET(request: Request) {
   const latest = await client.execute("SELECT created_at, details FROM audit_log WHERE action IN ('health.training.test.received','health.training.received') ORDER BY created_at DESC, rowid DESC LIMIT 1");
   const attempt = await client.execute("SELECT details FROM audit_log WHERE action IN ('health.training.test.received', 'health.training.test.failed','health.training.received','health.training.failed') ORDER BY created_at DESC, rowid DESC LIMIT 1");
   const lastAttempt = attempt.rows[0] ? JSON.parse(String(attempt.rows[0].details)) : null;
+  const energy = await client.execute("SELECT e.*, p.name profile_name FROM health_energy_daily e JOIN profiles p ON p.id=e.profile_id ORDER BY e.date DESC, e.updated_at DESC LIMIT 28");
+  const energyAttempt = await client.execute("SELECT details FROM audit_log WHERE action IN ('health.energy.received','health.energy.failed') ORDER BY created_at DESC, rowid DESC LIMIT 1");
   return NextResponse.json({ configured: Boolean(await getSetting(FAMILY_HEALTH_KEY)), profiles: profiles.rows,
+    energyDaily: energy.rows,
+    energyAttempt: energyAttempt.rows[0] ? JSON.parse(String(energyAttempt.rows[0].details)) : null,
     latestError: lastAttempt?.level === "error" ? { importId: lastAttempt.importId, message: lastAttempt.message,
       errors: lastAttempt.errors ?? lastAttempt.workouts?.filter((w: { conflict?: boolean }) => w.conflict).map((w: { error?: string }) => w.error) ?? [] } : null,
     latest: latest.rows[0] ? { at: latest.rows[0].created_at, ...JSON.parse(String(latest.rows[0].details)) } : null }, { headers: { "Cache-Control": "no-store" } });
