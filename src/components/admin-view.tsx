@@ -8,6 +8,7 @@ import { TouchPinpad } from "@/components/touch-pinpad";
 import { AdminLogsPanel, summarizeAdminLog, type AdminLogEntry, type AdminLogFilter } from "@/components/admin-logs-panel";
 import { AdminBackupPanel, type BackupStatus } from "@/components/admin-backup-panel";
 import { AdminUpdatePanel, type UpdateInfo, type UpdateSuccess } from "@/components/admin-update-panel";
+import { AdminHealthTrainingTest } from "@/components/admin-health-training-test";
 import { AdminDataTransferPanel, type ImportValidation } from "@/components/admin-data-transfer-panel";
 import { AdminSystemStatusPanel, type SystemStatus } from "@/components/admin-system-status-panel";
 import { ManualPdfField, readManualPdf } from "@/components/manual-pdf-field";
@@ -1237,6 +1238,7 @@ export function AdminView({
         onMountShare={() => void mountNasShare()}
       />}
       {activeAdminSection === "daten" && <>
+        <AdminHealthTrainingTest />
         <AdminUpdatePanel
           info={updateInfo}
           installedVersion={currentInstalledVersion}

@@ -66,6 +66,10 @@ const rowSchemas: Record<DataTransferTable, z.ZodType> = {
     }, "Trainingsplan muss ein JSON-Objekt enthalten."), ...metadata }),
   apple_health_daily: z.object({ profile_id: identifier, date, ...dailyFields, updated_at: timestamp.optional() }).partial().required({ profile_id: true, date: true }),
   apple_health_ignored_workouts: z.object({ profile_id: identifier, external_id: identifier, deleted_at: timestamp.optional() }),
+  health_training_tests: z.object({ profile_id: identifier, external_id: z.string().regex(/^[a-f0-9]{64}$/),
+    started_at: timestamp, ended_at: timestamp, duration_seconds: z.number().finite().min(1).max(14400),
+    source_name: z.string().min(1).max(120), activity_type: z.string().min(1).max(100), created_at: timestamp.optional() })
+    .refine(row => Date.parse(row.ended_at) > Date.parse(row.started_at) && row.duration_seconds <= (Date.parse(row.ended_at) - Date.parse(row.started_at)) / 1000 + 1, "Ungültige aktive Trainingsdauer."),
   settings: z.object({ key: z.string().min(1).max(200), value: text, updated_at: timestamp.optional() })
 };
 
@@ -137,7 +141,7 @@ async function checkReferences(rows: Record<string, Row[]>) {
   const sessionIds = new Set([...sessions.rows.map((row) => String(row.id)), ...rows.training_sessions.map((row) => String(row.id))]);
   const exerciseIds = new Set([...exercises.rows.map((row) => String(row.id)), ...rows.exercises.map((row) => String(row.id))]);
   const errors: string[] = [];
-  for (const table of ["training_sessions", "training_plans", "apple_health_daily", "apple_health_ignored_workouts"]) {
+  for (const table of ["training_sessions", "training_plans", "apple_health_daily", "apple_health_ignored_workouts", "health_training_tests"]) {
     for (const [index, row] of rows[table].entries()) {
       if (typeof row.profile_id === "string" && !profileIds.has(row.profile_id)) errors.push(`${table}, Zeile ${index + 1}: zugehöriges Profil fehlt.`);
     }

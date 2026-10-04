@@ -717,6 +717,9 @@ body::before {
 .profile-avatar-edit:focus-visible { outline: 3px solid var(--brand-bright); outline-offset: 5px; }
 .profile-avatar-edit-badge { position: absolute; right: -5px; top: -5px; display: grid; place-items: center; width: 30px; height: 30px; border: 1px solid var(--line-strong); border-radius: 50%; background: var(--card-bg); box-shadow: var(--card-shadow); }
 .profile-avatar-edit:hover .profile-avatar-edit-badge { color: var(--brand-bright); }
+.health-test-table { overflow-x: auto; margin: 14px 0; }
+.health-test-table table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.health-test-table th, .health-test-table td { padding: 10px; border-bottom: 1px solid var(--line); text-align: left; }
 .avatar-meta-pills { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 10px; }
 .avatar-pill { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 999px; font-size: 11px; font-weight: 700; line-height: 1; border: 1px solid var(--line); background: var(--subtle-bg); color: var(--text); }
 .avatar-pill.stage { background: color-mix(in srgb, var(--profile) 16%, transparent); border-color: color-mix(in srgb, var(--profile) 42%, transparent); color: var(--text); }

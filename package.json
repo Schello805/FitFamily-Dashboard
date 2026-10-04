@@ -1,6 +1,6 @@
 {
   "name": "fitfamily-dashboard",
-  "version": "0.3.10",
+  "version": "0.3.11",
   "private": true,
   "license": "LicenseRef-PolyForm-Noncommercial-1.0.0",
   "scripts": {
@@ -11,6 +11,7 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "health:test": "node scripts/health-training-test.mjs",
     "backup": "node --env-file-if-exists=.env.local scripts/backup.mjs",
     "update": "bash scripts/update.sh",
     "repair": "bash scripts/repair.sh",

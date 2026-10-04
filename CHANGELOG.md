@@ -4,6 +4,14 @@ Alle wichtigen Änderungen werden hier nach dem Prinzip von Keep a Changelog dok
 
 ## [Unreleased]
 
+## [0.3.11] – 2026-10-04
+
+### Hinzugefügt
+
+- Isolierter Apple-Health-/Gymondo-Trainingstest: Mac liest Workouts aus lokalem Health-XML/ZIP, zeigt eine Vorschau und sendet nur auf ausdrücklichen Wunsch einzelne Trainingszeiten.
+- Ein gemeinsamer Familienschlüssel, Profilzuordnung per ID und sichtbarer Testempfang mit Import-ID, Quelle, Minuten und 1,5 Testpunkten pro Minute. Wiederholungen werden erkannt; bestehende Dashboard-Zähler bleiben unverändert.
+- Testdaten sind in Backup und Datenexport berücksichtigt. Anleitung: `docs/HEALTH_TRAINING_TEST.md`. Produktive Aufzeichnungswahl und Punktewertung sind noch nicht aktiviert.
+
 ## [0.3.10] – 2026-10-04
 
 ### Geändert

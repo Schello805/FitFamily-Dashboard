@@ -46,14 +46,19 @@ export const DATA_TABLE_SPECS = {
     columns: ["key", "value", "updated_at"],
     keys: ["key"],
     required: ["key", "value"]
+  },
+  health_training_tests: {
+    columns: ["profile_id", "external_id", "started_at", "ended_at", "duration_seconds", "source_name", "activity_type", "created_at"],
+    keys: ["profile_id", "external_id"],
+    required: ["profile_id", "external_id", "started_at", "ended_at", "duration_seconds", "source_name", "activity_type"]
   }
 } as const;
 
 export type DataTransferTable = keyof typeof DATA_TABLE_SPECS;
 export const DATA_TRANSFER_TABLES = Object.keys(DATA_TABLE_SPECS) as DataTransferTable[];
-export const DATA_IMPORT_ORDER: DataTransferTable[] = ["profiles", "exercises", "equipment_inventory", "training_sessions", "training_plans", "training_segments", "apple_health_daily", "apple_health_ignored_workouts", "settings"];
+export const DATA_IMPORT_ORDER: DataTransferTable[] = ["profiles", "exercises", "equipment_inventory", "training_sessions", "training_plans", "training_segments", "apple_health_daily", "apple_health_ignored_workouts", "health_training_tests", "settings"];
 
-const PRIVATE_SETTING_KEYS = new Set(["admin_pin_hash", "nas_backup_key", "nas_backup_path"]);
+const PRIVATE_SETTING_KEYS = new Set(["admin_pin_hash", "nas_backup_key", "nas_backup_path", "health_training_family_key_hash"]);
 
 export function isPortableSetting(key: string) {
   return !PRIVATE_SETTING_KEYS.has(key) && !key.startsWith("ai_key_");
