@@ -4,6 +4,10 @@ Alle wichtigen Änderungen werden hier nach dem Prinzip von Keep a Changelog dok
 
 ## [Unreleased]
 
+## [0.3.34] – 2026-10-04
+
+- Zusätzliche Verwaltungs-Kopfzeile entfernt. Logo und Dashboard-Button neben FitFamily im festen Header wiederhergestellt; Sperren in die Verwaltungsnavigation verschoben.
+
 ## [0.3.33] – 2026-10-04
 
 - Ausgewähltes Design und Ruhemodus-Zeiten in der Verwaltung mit kräftigem Türkis, weißer Schrift, farbigem Rahmen und Häkchen hervorgehoben. Allgemeine Button-Stile überschreiben die Auswahlfarbe nicht mehr.

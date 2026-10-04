@@ -921,9 +921,10 @@ export function AdminView({
 
   return (
     <main className="admin-page">
-      <header>
-        <Link href="/"><ArrowLeft /> Dashboard</Link>
-        <div><span>Elternbereich</span><h1>Verwaltung</h1><small className="admin-build-stamp">v{currentInstalledVersion} · Rev. {currentInstalledCommit ?? "unbekannt"}</small></div>
+      {notice && <p className="notice">{notice}</p>}
+      <div className="admin-layout">
+        <nav className="admin-sidebar" aria-label="Verwaltungsbereiche">
+          <p className="admin-sidebar-label">Bereiche</p>
         <button
           type="button"
           className="admin-lock-btn"
@@ -941,11 +942,6 @@ export function AdminView({
         >
           <Lock size={15} /> Sperren
         </button>
-      </header>
-      {notice && <p className="notice">{notice}</p>}
-      <div className="admin-layout">
-        <nav className="admin-sidebar" aria-label="Verwaltungsbereiche">
-          <p className="admin-sidebar-label">Bereiche</p>
           {ADMIN_SECTIONS.map(({ id, label, detail, icon: Icon }) => (
             <button
               key={id}
