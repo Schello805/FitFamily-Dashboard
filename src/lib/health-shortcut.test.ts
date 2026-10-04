@@ -6,6 +6,7 @@ import { GET } from "@/app/api/admin/health-shortcut/route";
 const auth = vi.hoisted(() => ({ reject: false }));
 vi.mock("./security", () => ({ verifyAdminPinOrReject: async () => auth.reject ? new Response("Unauthorized", { status: 401 }) : null }));
 vi.mock("./db", () => ({ db: async () => ({ execute: async ({ args }: { args: string[] }) => ({ rows: args[0] === "papa" ? [{ id: "papa" }] : [] }) }) }));
+vi.mock("./server-url", () => ({ getMobileReachableBaseUrl: () => "http://192.168.1.253:3000" }));
 
 it("builds a complete text-only energy workflow without the looping import dialog", () => {
   const shortcut = buildEnergyShortcut("papa", "http://192.168.1.253:3000");
@@ -35,7 +36,7 @@ it("builds a complete text-only energy workflow without the looping import dialo
   expect(plist("<&\"")).toBe("<string>&lt;&amp;&quot;</string>");
 });
 it("rejects injection and builds a self-contained Mac installer with no real secret", () => {
-  for (const server of ["https://a/b", "file:///tmp/evil", "https://user:pass@example.com", "https://a/?key=x"]) expect(() => energyInstaller("papa", server)).toThrow();
+  for (const server of ["http://0.0.0.0:3000", "http://localhost:3000", "http://127.0.0.1:3000", "http://[::]:3000", "http://[::1]:3000", "https://a/b", "file:///tmp/evil", "https://user:pass@example.com", "https://a/?key=x"]) expect(() => energyInstaller("papa", server)).toThrow();
   expect(() => energyInstaller("papa;touch x", "https://example.com")).toThrow();
   const installer = energyInstaller("papa", "https://example.com");
   expect(installer).toContain("shortcuts sign --mode anyone");
@@ -64,4 +65,10 @@ it("serves an authenticated downloadable installer for an existing profile only"
   expect(app.headers.get("content-type")).toBe("application/zip");
   expect(app.headers.get("content-disposition")).toContain(".zip");
   expect(new Uint8Array(await app.arrayBuffer()).slice(0, 4)).toEqual(new Uint8Array([80, 75, 3, 4]));
+  const automatic = await GET(new Request("http://0.0.0.0:3000/api/admin/health-shortcut?profileId=papa"));
+  expect(automatic.status).toBe(200);
+  const script = await automatic.text();
+  const payload = script.match(/echo '([A-Za-z0-9+/=]+)' \|/)!;
+  expect(Buffer.from(payload[1], "base64").toString()).toContain("http://192.168.1.253:3000/api/sync/health-energy");
+  expect((await GET(new Request("http://localhost/api/admin/health-shortcut?profileId=papa&server=http://0.0.0.0:3000"))).status).toBe(400);
 });

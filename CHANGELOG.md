@@ -4,6 +4,12 @@ Alle wichtigen Änderungen werden hier nach dem Prinzip von Keep a Changelog dok
 
 ## [Unreleased]
 
+## [0.3.27] – 2026-10-04
+
+### Korrigiert
+
+- Health-Download verwendet die Smartphone-erreichbare Serveradresse statt der internen Request-Origin. Bind-Adressen und Loopback-Ziele werden vom Generator abgelehnt; manuelle LAN-/HTTPS-Adresse bleibt möglich.
+
 ## [0.3.26] – 2026-10-04
 
 ### Neu

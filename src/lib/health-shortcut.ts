@@ -20,6 +20,7 @@ const dictionary = (items: [string, Plist][]) => state("WFDictionaryFieldValue",
 export function buildEnergyShortcut(profileId: string, server: string) {
   if (!/^[a-zA-Z0-9_-]{1,80}$/.test(profileId)) throw new Error("Ungültige Profil-ID.");
   const url = new URL(server);
+  if (["0.0.0.0", "localhost", "[::]", "[::1]"].includes(url.hostname.toLowerCase()) || /^127\./.test(url.hostname)) throw new Error("Serveradresse ist vom iPhone nicht erreichbar.");
   if (!["http:", "https:"].includes(url.protocol) || url.username || url.password || url.pathname !== "/" || url.search || url.hash) throw new Error("Ungültige Serveradresse.");
   const actions: Plist[] = [];
   const action = (id: string, params: Record<string, Plist> = {}) => {
