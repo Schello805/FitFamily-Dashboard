@@ -13,16 +13,15 @@ it("distinguishes missing steps from a measured zero and labels date and non-sco
   expect(screen.getByText("0")).toBeTruthy();
   expect(screen.queryByText("Noch nicht übertragen")).toBeNull();
 });
-it("shows remaining amounts and caps reached goal bars without hiding excess", () => {
+it("shows remaining amounts and reached goals without progress bars", () => {
   const value = { date: "2026-10-04", activeEnergyKcal: 288.9, stepCount: 3493, updatedAt: "2026-10-04" };
   const { rerender } = render(<HealthDailyMetrics value={value} />);
-  expect(screen.getByText("Noch 211,1 kcal")).toBeTruthy();
-  expect(screen.getByText("Noch 6.507 Schritte")).toBeTruthy();
-  expect(screen.getByRole("progressbar", { name: "Schritte-Ziel" }).getAttribute("aria-valuemax")).toBe("10000");
+  expect(screen.getByText(/Noch 211,1 kcal/)).toBeTruthy();
+  expect(screen.getByText(/Noch 6.507 Schritte/)).toBeTruthy();
+  expect(screen.queryByRole("progressbar")).toBeNull();
   rerender(<HealthDailyMetrics value={{ ...value, goalKcal: 250, goalSteps: 3000 }} />);
-  expect(screen.getByText("Ziel erreicht · +38,9 kcal")).toBeTruthy();
-  expect(screen.getByText("Ziel erreicht · +493 Schritte")).toBeTruthy();
-  expect(screen.getByRole("progressbar", { name: "Schritte-Ziel" }).getAttribute("aria-valuenow")).toBe("3000");
+  expect(screen.getByText(/Ziel erreicht · \+38,9 kcal/)).toBeTruthy();
+  expect(screen.getByText(/Ziel erreicht · \+493 Schritte/)).toBeTruthy();
 });
 it("draws separate 30-day kcal and step areas without joining missing days", () => {
   const value = { date: "2026-10-04", activeEnergyKcal: 200, stepCount: 3000, updatedAt: "2026-10-04" };
@@ -35,7 +34,8 @@ it("draws separate 30-day kcal and step areas without joining missing days", () 
   expect(screen.getByRole("img", { name: /kcal-Verlauf.*2 Tageswerte/ })).toBeTruthy();
   expect(screen.getByRole("img", { name: /Schritte-Verlauf.*2 Tageswerte/ })).toBeTruthy();
   expect(container.querySelectorAll(".health-trend-fill")).toHaveLength(3);
-  expect(screen.getAllByText("Letzte 30 Tage")).toHaveLength(2);
+  expect(screen.getAllByText("30 Tage · Details")).toHaveLength(2);
+  expect(container.querySelectorAll(".health-metric-card > .health-trend")).toHaveLength(2);
 });
 it("reports the last receipt and opens a day detail with source and missing data", () => {
   const value = { date: "2026-10-03", activeEnergyKcal: 250, stepCount: 4000, updatedAt: "2026-10-03 11:00:00", latestReceivedAt: "2026-10-04 08:00:00" };

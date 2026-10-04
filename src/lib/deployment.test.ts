@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { execFileSync, spawnSync } from "node:child_process";
-import { mkdtemp, mkdir, readFile, realpath, rm, symlink, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, realpath, rm, symlink, utimes, writeFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
@@ -78,6 +79,61 @@ describe("deployment helpers", () => {
     expect(worker).toContain('test -r .next/BUILD_ID && test -r node_modules/next/dist/bin/next');
     expect(worker).toContain('journalctl -u fitfamily.service -n 40 --no-pager');
     expect(worker).toContain('${FAILURE_REASON:-Update fehlgeschlagen.} Rückwechsel');
+  });
+
+  it("previews and prunes only old update artifacts while retaining the active build", async () => {
+    const directory = await realpath(await mkdtemp(path.join(tmpdir(), "fitfamily-prune-test-")));
+    try {
+      const app = path.join(directory, "app");
+      const state = path.join(directory, "state");
+      const releases = path.join(app, "releases");
+      const backups = path.join(app, "backups");
+      await mkdir(releases, { recursive: true });
+      await mkdir(backups);
+      await mkdir(state);
+      const names = ["abcdefgh", "bcdefghi", "cdefghij", "defghijk", "efghijkl"];
+      for (const [index, name] of names.entries()) {
+        const release = path.join(releases, `.building.${name}`);
+        await mkdir(path.join(release, ".next"), { recursive: true });
+        await writeFile(path.join(release, ".next", "BUILD_ID"), name);
+        await symlink(path.join(app, "data"), path.join(release, "data"));
+        const stamp = new Date(2026, 0, index + 1);
+        await utimes(release, stamp, stamp);
+      }
+      const active = path.join(releases, `.building.${names[0]}`);
+      await symlink(active, path.join(app, "current"));
+      await mkdir(path.join(app, "data"));
+      await writeFile(path.join(app, "data", "fitfamily.db"), "live");
+      await mkdir(path.join(releases, ".building.failedxx"));
+      await mkdir(path.join(releases, "user-owned"));
+      for (let index = 0; index < 5; index++) {
+        const snapshot = path.join(state, `pre-update.${names[index]}`);
+        await mkdir(snapshot);
+        await writeFile(path.join(snapshot, "fitfamily.db"), "snapshot");
+        const backup = path.join(backups, `fitfamily-pre-update-00000000-0000-0000-0000-00000000000${index}.db`);
+        await writeFile(backup, "backup");
+        const stamp = new Date(2026, 0, index + 1);
+        await utimes(snapshot, stamp, stamp);
+        await utimes(backup, stamp, stamp);
+      }
+      await writeFile(path.join(backups, "fitfamily-regular.db"), "keep");
+      const script = path.join(scriptRoot, "cleanup-update-artifacts.py");
+      const run = (apply: boolean) => spawnSync("/usr/bin/python3", [script, "--app-dir", app, "--state-dir", state, ...(apply ? ["--apply"] : [])]);
+      expect(run(false).status).toBe(0);
+      expect(await readFile(path.join(releases, `.building.${names[1]}`, ".next", "BUILD_ID"), "utf8")).toBe(names[1]);
+      const result = run(true);
+      expect(result.status, result.stderr.toString()).toBe(0);
+      expect(await readFile(path.join(app, "data", "fitfamily.db"), "utf8")).toBe("live");
+      expect(await readFile(path.join(backups, "fitfamily-regular.db"), "utf8")).toBe("keep");
+      expect(await readFile(path.join(active, ".next", "BUILD_ID"), "utf8")).toBe(names[0]);
+      expect(await readFile(path.join(releases, `.building.${names[4]}`, ".next", "BUILD_ID"), "utf8")).toBe(names[4]);
+      expect(await readFile(path.join(releases, `.building.${names[3]}`, ".next", "BUILD_ID"), "utf8")).toBe(names[3]);
+      expect(existsSync(path.join(releases, `.building.${names[1]}`))).toBe(false);
+      expect(existsSync(path.join(releases, ".building.failedxx"))).toBe(false);
+      expect(existsSync(path.join(releases, "user-owned"))).toBe(true);
+      expect(existsSync(path.join(state, `pre-update.${names[0]}`))).toBe(false);
+      expect(existsSync(path.join(backups, "fitfamily-pre-update-00000000-0000-0000-0000-000000000000.db"))).toBe(false);
+    } finally { await rm(directory, { recursive: true, force: true }); }
   });
 
   it("restores helper bytes on replacement failure and rejects changed release sources", async () => {

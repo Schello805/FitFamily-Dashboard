@@ -3851,31 +3851,26 @@ body::before {
 .health-daily-label small { font-size: 10px; }
 .health-daily-values { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; margin-top: 7px; }
 .health-daily-values > div { display: grid; gap: 2px; min-width: 0; }
+.health-metric-card { position: relative; min-height: 86px; overflow: hidden; isolation: isolate; padding: 5px 8px 17px; border-radius: 10px; }
+.health-metric-card > span, .health-metric-card > strong, .health-metric-card > small, .health-metric-card > .health-metric-goal { position: relative; z-index: 1; pointer-events: none; }
 .health-daily-values > div + div { border-left: 1px solid var(--line); padding-left: 16px; }
 .health-daily-values span { font-size: 11px; color: var(--muted); }
 .health-daily-values strong { font-size: clamp(20px, 2vw, 28px); line-height: 1.15; font-variant-numeric: tabular-nums; }
 .health-daily-values strong small { font-size: 12px; font-weight: 600; }
 .health-daily-values > div > small { font-size: 10px; color: var(--muted); line-height: 1.35; }
-.health-metric-goal { display: grid; gap: 5px; margin-top: 4px; }
+.health-metric-goal { margin-top: 4px; }
 .health-metric-goal small { color: var(--muted); font-size: 11px; }
-.health-metric-goal b { font-size: 12px; line-height: 1.35; }
-.health-metric-bar { height: 8px; border-radius: 99px; background: var(--line); overflow: hidden; }
-.health-metric-bar i { display: block; height: 100%; border-radius: inherit; background: #ea580c; }
-.health-daily-values > div + div .health-metric-bar i { background: #0891b2; }
-.health-daily-values .is-reached .health-metric-bar i { background: #16a34a; }
-.health-trend { margin-top: 8px; padding: 7px 8px 4px; border: 1px solid color-mix(in srgb, #38bdf8 22%, var(--line)); border-radius: 10px; background: color-mix(in srgb, #e0f2fe 68%, var(--panel-soft)); min-width: 0; }
-.health-trend { display: block; width: 100%; color: var(--text); text-align: left; font: inherit; cursor: pointer; }
-[data-theme="dark"] .health-trend { background: color-mix(in srgb, #0891b2 14%, var(--panel)); }
-.health-trend:hover, .health-trend:focus-visible { border-color: #0891b2; outline-offset: 2px; }
-.health-trend-heading, .health-trend-dates { display: flex; justify-content: space-between; gap: 5px; color: var(--muted); font-size: 9px; }
-.health-trend-heading span:last-child { color: #a4541a; text-align: right; }
-.health-trend svg { display: block; width: 100%; height: 58px; overflow: visible; margin: 3px 0 0; }
-.health-trend-target { fill: none; stroke: #e58a43; stroke-width: 1; stroke-dasharray: 3 3; vector-effect: non-scaling-stroke; }
-.health-trend-baseline { fill: none; stroke: color-mix(in srgb, #0891b2 25%, transparent); stroke-width: 1; vector-effect: non-scaling-stroke; }
-.health-trend-fill { fill: color-mix(in srgb, #38bdf8 22%, transparent); }
-.health-trend-line { fill: none; stroke: #0998be; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
-.health-trend circle { fill: #0998be; }
-.health-trend-empty { display: block; margin-top: 8px; color: var(--muted); font-size: 10px; }
+.health-trend { position: absolute; inset: 0; z-index: 0; display: block; width: 100%; min-width: 0; padding: 0; border: 0; border-radius: inherit; background: color-mix(in srgb, #e0f2fe 35%, var(--panel-soft)); color: var(--muted); text-align: left; font: inherit; cursor: pointer; }
+[data-theme="dark"] .health-trend { background: color-mix(in srgb, #0891b2 9%, var(--panel)); }
+.health-trend:focus-visible { outline: 2px solid #0891b2; outline-offset: -2px; }
+.health-trend svg { position: absolute; inset: 6px 0 0; display: block; width: 100%; height: calc(100% - 6px); }
+.health-trend-target { fill: none; stroke: color-mix(in srgb, #e58a43 45%, transparent); stroke-width: 1; stroke-dasharray: 3 3; vector-effect: non-scaling-stroke; }
+.health-trend-baseline { fill: none; stroke: color-mix(in srgb, #0891b2 12%, transparent); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.health-trend-fill { fill: color-mix(in srgb, #38bdf8 12%, transparent); }
+.health-trend-line { fill: none; stroke: color-mix(in srgb, #0998be 42%, transparent); stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.health-trend circle { fill: color-mix(in srgb, #0998be 45%, transparent); }
+.health-trend-open { position: absolute; right: 7px; bottom: 3px; font-size: 9px !important; color: var(--muted); }
+.health-trend-empty { padding: 64px 8px 0; font-size: 10px; }
 .health-sync-status { margin: 6px 0 0; padding: 5px 8px; border-radius: 7px; color: var(--text); background: color-mix(in srgb, #14b8a6 12%, var(--panel)); font-size: 11px; font-weight: 750; line-height: 1.4; }
 .health-sync-status.is-stale { color: var(--text); background: color-mix(in srgb, #f59e0b 13%, var(--panel)); }
 .health-trend-dialog { width: min(760px, 94vw); max-height: 88dvh; display: flex; flex-direction: column; overflow: hidden; border-radius: 18px; background: var(--panel); color: var(--text); box-shadow: var(--card-shadow); }

@@ -171,7 +171,15 @@ for attempt in $(seq 1 30); do
       continue
     fi
     refresh_release_helpers "$STAGE" "$NEW_COMMIT"
-    write_status success 'Update installiert; laufende Revision, Dashboard und Systemhelfer geprüft.'
+    # Pruning is deliberately post-health-check and must never roll back a
+    # healthy deployment. The active release and two predecessors are retained.
+    if curl --fail --silent --show-error --max-time 15 "https://raw.githubusercontent.com/Schello805/FitFamily-Dashboard/$NEW_COMMIT/scripts/cleanup-update-artifacts.py" | cmp - "$STAGE/scripts/cleanup-update-artifacts.py" &&
+      /usr/bin/python3 "$STAGE/scripts/cleanup-update-artifacts.py" --apply; then
+      write_status success 'Update installiert; laufende Revision, Dashboard und Systemhelfer geprüft. Alte Update-Dateien bereinigt.'
+    else
+      echo 'Warnung: Update erfolgreich, automatische Bereinigung fehlgeschlagen.' >&2
+      write_status success 'Update installiert; Bereinigung fehlgeschlagen. Bitte Update-Dienstprotokoll prüfen.'
+    fi
     trap - EXIT
     exit 0
   fi
