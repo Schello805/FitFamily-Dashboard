@@ -3774,9 +3774,10 @@ body::before {
 
 /* Fill each wall-display card with its trend and anchor the score below it. */
 @media (min-width: 901px) and (min-height: 650px) {
-  .profile-grid { grid-template-rows: repeat(2, minmax(0, 1fr)); grid-auto-rows: minmax(0, 1fr); }
-  .profile-card { grid-template-rows: minmax(112px, 1fr) auto auto auto; align-content: stretch; }
-  .profile-card .profile-heading { min-height: 0; }
+  .dashboard-shell { overflow-y: auto; }
+  .profile-grid { grid-template-rows: repeat(2, minmax(min-content, 1fr)); grid-auto-rows: minmax(min-content, 1fr); }
+  .profile-card { min-height: max-content; grid-template-rows: minmax(max-content, 1fr) auto auto auto; align-content: stretch; }
+  .profile-card .profile-heading { min-height: max-content; }
   .profile-card .profile-heading > .dashboard-history-chart { height: 100%; min-height: 112px; transform: none; }
   .profile-card > .score-row { min-height: 72px; }
   .profile-card .score strong { font-size: clamp(34px, 2.5vw, 48px); }
@@ -3845,21 +3846,21 @@ body::before {
   .profile-card .profile-heading > .dashboard-history-chart { height: 104px; }
 }
 .health-energy-settings { border-block: 1px solid var(--line); padding: 18px 0; margin: 20px 0; }
-.health-daily-metrics { border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px; margin-bottom: 12px; background: var(--subtle-bg); }
+.health-daily-metrics { border: 1px solid var(--line); border-radius: 14px; padding: 7px 9px 5px; margin-bottom: 4px; background: var(--subtle-bg); }
 .health-daily-label { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; font-size: 11px; color: var(--muted); }
 .health-daily-label > span { font-weight: 750; }
 .health-daily-label small { font-size: 10px; }
-.health-daily-values { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; margin-top: 7px; }
+.health-daily-values { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 9px; margin-top: 4px; }
 .health-daily-values > div { display: grid; gap: 2px; min-width: 0; }
-.health-metric-card { position: relative; min-height: 86px; overflow: hidden; isolation: isolate; padding: 5px 8px 17px; border-radius: 10px; }
+.health-metric-card { position: relative; min-height: 68px; overflow: hidden; isolation: isolate; padding: 3px 6px 13px; border-radius: 10px; }
 .health-metric-card > span, .health-metric-card > strong, .health-metric-card > small, .health-metric-card > .health-metric-goal { position: relative; z-index: 1; pointer-events: none; }
-.health-daily-values > div + div { border-left: 1px solid var(--line); padding-left: 16px; }
+.health-daily-values > div + div { border-left: 1px solid var(--line); padding-left: 9px; }
 .health-daily-values span { font-size: 11px; color: var(--muted); }
-.health-daily-values strong { font-size: clamp(20px, 2vw, 28px); line-height: 1.15; font-variant-numeric: tabular-nums; }
+.health-daily-values strong { font-size: clamp(18px, 1.6vw, 24px); line-height: 1.1; font-variant-numeric: tabular-nums; }
 .health-daily-values strong small { font-size: 12px; font-weight: 600; }
 .health-daily-values > div > small { font-size: 10px; color: var(--muted); line-height: 1.35; }
-.health-metric-goal { margin-top: 4px; }
-.health-metric-goal small { color: var(--muted); font-size: 11px; }
+.health-metric-goal { margin-top: 2px; }
+.health-metric-goal small { color: var(--muted); font-size: 10px; }
 .health-trend { position: absolute; inset: 0; z-index: 0; display: block; width: 100%; min-width: 0; padding: 0; border: 0; border-radius: inherit; background: color-mix(in srgb, #e0f2fe 35%, var(--panel-soft)); color: var(--muted); text-align: left; font: inherit; cursor: pointer; }
 [data-theme="dark"] .health-trend { background: color-mix(in srgb, #0891b2 9%, var(--panel)); }
 .health-trend:focus-visible { outline: 2px solid #0891b2; outline-offset: -2px; }
@@ -3869,10 +3870,9 @@ body::before {
 .health-trend-fill { fill: color-mix(in srgb, #38bdf8 12%, transparent); }
 .health-trend-line { fill: none; stroke: color-mix(in srgb, #0998be 42%, transparent); stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
 .health-trend circle { fill: color-mix(in srgb, #0998be 45%, transparent); }
-.health-trend-open { position: absolute; right: 7px; bottom: 3px; font-size: 9px !important; color: var(--muted); }
-.health-trend-empty { padding: 64px 8px 0; font-size: 10px; }
-.health-sync-status { margin: 6px 0 0; padding: 5px 8px; border-radius: 7px; color: var(--text); background: color-mix(in srgb, #14b8a6 12%, var(--panel)); font-size: 11px; font-weight: 750; line-height: 1.4; }
-.health-sync-status.is-stale { color: var(--text); background: color-mix(in srgb, #f59e0b 13%, var(--panel)); }
+.health-trend-open { position: absolute; right: 6px; bottom: 2px; font-size: 8px !important; color: var(--muted); }
+.health-trend-empty { padding: 50px 6px 0; font-size: 9px; }
+.health-sync-status, .health-sync-status.is-stale { margin: 5px 2px 0; padding: 0; border: 0; color: var(--muted); background: none; font-size: 9px; font-weight: 400; font-style: italic; line-height: 1.25; }
 .health-trend-dialog { width: min(760px, 94vw); max-height: 88dvh; display: flex; flex-direction: column; overflow: hidden; border-radius: 18px; background: var(--panel); color: var(--text); box-shadow: var(--card-shadow); }
 .health-trend-dialog-head { display: flex; justify-content: space-between; gap: 16px; padding: 20px 22px; border-bottom: 1px solid var(--line); }
 .health-trend-dialog-head small { color: var(--muted); font-size: 11px; font-weight: 800; }

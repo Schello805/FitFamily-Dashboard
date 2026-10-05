@@ -43,9 +43,10 @@ it("reports the last receipt and opens a day detail with source and missing data
     { date: "2026-10-03", activeEnergyKcal: 250, stepCount: 4000, sourceName: "Apple Watch von Michael", updatedAt: "2026-10-03 11:00:00" },
     { date: "2026-10-04", activeEnergyKcal: null, stepCount: null }
   ];
-  render(<HealthDailyMetrics value={value} trend={trend} clock={new Date("2026-10-04T10:00:00Z")} />);
+  const { container } = render(<HealthDailyMetrics value={value} trend={trend} clock={new Date("2026-10-04T10:00:00Z")} />);
   expect(screen.getByRole("status").textContent).toContain("Heute übertragen");
   expect(screen.getByRole("status").textContent).toContain("letzter Tageswert 03.10.2026");
+  expect(container.querySelector(".health-daily-metrics")?.lastElementChild).toBe(screen.getByRole("status"));
   fireEvent.click(screen.getByRole("button", { name: "Schritte-Verlauf der letzten 30 Tage ansehen" }));
   expect(screen.getByText("1 von 30 Tagen übertragen · Lücken sind keine Nullwerte")).toBeTruthy();
   expect(screen.getByText("Apple Watch von Michael")).toBeTruthy();
