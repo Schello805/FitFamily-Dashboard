@@ -449,7 +449,7 @@ export function ProfileView({
           <div className="training-copy">
             <span className="section-kicker">Was möchtest du tun?</span>
             <h2>{profile.activeTraining ? "Dein Training läuft" : "Bereit, wenn du es bist."}</h2>
-            <p>Starte direkt oder setze deinen persönlichen Trainingsplan fort.</p>
+            <p>Direkt starten oder Trainingsplan fortsetzen.</p>
             <div className="avatar-meta-pills">
               <span className="avatar-pill stage">Fitness-Selbsteinschätzung: {profile.fitnessStage} von {getFitnessStageCount(profile.id, profile.birthDate)} · manuell</span>
               <span className={`avatar-pill physique ${profile.physique}`}>{physiqueLabel(profile.physique)}</span>
