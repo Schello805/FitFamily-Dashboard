@@ -22,13 +22,13 @@ it("excludes preparation, stops the exercise and waits for a conscious next star
   expect(vi.mocked(requestJson)).toHaveBeenCalledTimes(2);
   await act(async () => { await vi.advanceTimersByTimeAsync(60000); });
   expect(vi.mocked(requestJson)).toHaveBeenCalledTimes(2);
-  fireEvent.click(screen.getByRole("button", { name: /Nächste Übung starten/ }));
+  fireEvent.click(screen.getByRole("button", { name: /Nächste Übung vorbereiten/ }));
   expect(screen.getByText(/Mach dich bereit für Brustpresse/)).toBeInTheDocument();
   expect(vi.mocked(requestJson)).toHaveBeenCalledTimes(2);
 });
 it("shows equipment, exercise, media links and the current remaining time for each sequence", () => {
   render(<PlanSessionRunner profileId="test" session={{ title: "Kraft", type: "strength", minutes: 2, exercises: ["Brustpresse", "Rudern"] }} recordingMode="app" preparationSeconds={30} onClose={() => {}} onGuide={() => {}} exerciseMedia={{ Brustpresse: { equipment: "Brustpresse Gerät", manualPdfUrl: "/api/equipment/brustpresse/manual", videoUrl: "https://www.youtube.com/watch?v=example" } }} />);
-  const first = screen.getByText("Brustpresse Gerät").closest("article")!;
+  const first = screen.getAllByText("Brustpresse Gerät").find(element => element.closest("article"))!.closest("article")!;
   expect(first.textContent).toContain("GERÄT");
   expect(first.textContent).toContain("ÜBUNG");
   expect(first.textContent).toContain("ZEIT");
@@ -37,4 +37,7 @@ it("shows equipment, exercise, media links and the current remaining time for ea
   expect(first.querySelector('a[href="/api/equipment/brustpresse/manual"]')).toBeTruthy();
   expect(first.querySelector('a[href="https://www.youtube.com/watch?v=example"]')).toBeTruthy();
   expect(screen.getByText("Gerät nicht zugeordnet")).toBeTruthy();
+  expect(screen.getByText("Bereit machen")).toBeInTheDocument();
+  expect(screen.getByText(/startet erst nach deinem Klick/).textContent).toContain("Rudern");
+  expect(screen.getByText(/Alle 2 Übungssequenzen anzeigen/)).toBeInTheDocument();
 });

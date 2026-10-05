@@ -40,6 +40,9 @@ export function PlanSessionRunner({ profileId, session, recordingMode, preparati
   const left = ["preparing", "running"].includes(run.phase) ? Math.max(0, Math.ceil((run.deadline - now) / 1000)) : slot;
   const elapsed = run.phase === "running" ? Math.min(slot, Math.max(0, slot - left)) : 0;
   const remainingTotal = Math.max(0, total - run.completed - elapsed);
+  const currentExercise = exercises[run.index];
+  const currentMedia = exerciseMedia[currentExercise];
+  const nextExercise = exercises[run.index + 1];
   useEffect(() => {
     if (!["preparing", "running"].includes(run.phase)) return;
     const toneKey = `${run.index}:${run.phase}:${left}`;
@@ -93,10 +96,15 @@ export function PlanSessionRunner({ profileId, session, recordingMode, preparati
   }
   return <section className="plan-unit-dialog" role="dialog" aria-modal="true" aria-labelledby="runner-title">
     <div className="plan-unit-heading"><div><h2 id="runner-title">{session.title}</h2><p>{recordingMode === "health" ? "App-Timer ohne Wertung · manueller Health-Import nötig" : "Nur aktive Übungszeit zählt"}</p></div><div className="plan-unit-live"><span>TRAININGSZEIT NOCH</span><strong>{formatCountdown(remainingTotal)}</strong><small>Vorbereitung und Wechsel sind ausgeschlossen</small></div></div>
-    <div className="plan-current-exercise"><div><small>ÜBUNG {run.index + 1}/{exercises.length}</small><strong>{exercises[run.index]}</strong></div><time>{formatCountdown(run.phase === "finished" ? 0 : left)}</time></div>
+    <div className={`plan-runner-focus is-${run.phase}`}>
+      <div className="plan-runner-focus-head"><span>Übung {run.index + 1} von {exercises.length}</span><b>{run.phase === "preparing" ? "Bereit machen" : run.phase === "running" ? "Jetzt trainieren" : run.phase === "finished" ? "Geschafft" : "Bereit für den Start"}</b></div>
+      <div className="plan-runner-focus-main"><div><small>GERÄT</small><strong>{currentMedia?.equipment ?? "Gerät nicht zugeordnet"}</strong>{currentMedia?.manualPdfUrl && <a href={currentMedia.manualPdfUrl} target="_blank" rel="noreferrer">Geräte-PDF öffnen ↗</a>}</div><div><small>ÜBUNG</small><strong>{currentExercise}</strong>{currentMedia?.videoUrl && <a href={currentMedia.videoUrl} target="_blank" rel="noreferrer">Übungsvideo öffnen ↗</a>}</div></div>
+      <div className="plan-runner-focus-clock"><span>{run.phase === "preparing" ? "START IN" : run.phase === "running" ? "RESTZEIT" : "ÜBUNGSDAUER"}</span><time>{formatCountdown(run.phase === "finished" ? 0 : left)}</time></div>
+      {nextExercise && <p className="plan-runner-next">Danach: <strong>{nextExercise}</strong> · startet erst nach deinem Klick</p>}
+    </div>
     <p className="plan-runner-phase" role="status">{run.phase === "preparing" ? `Mach dich bereit für ${exercises[run.index]}. Geh zum Gerät – Trainingszeit startet nach dem Countdown.` : run.phase === "running" ? "Übung läuft" : run.phase === "finished" ? "Übung beendet. Keine Zeit läuft bis zum nächsten bewussten Start." : "Bereit? Starte die Vorbereitung, wenn du zum Gerät gehen möchtest."}</p>
     {error && <p role="alert">{error}</p>}
-    <div className="plan-unit-exercises" aria-label="Übungssequenzen">{exercises.map((exercise, index) => {
+    <details className="plan-runner-all"><summary>Alle {exercises.length} Übungssequenzen anzeigen</summary><div className="plan-unit-exercises" aria-label="Übungssequenzen">{exercises.map((exercise, index) => {
       const media = exerciseMedia[exercise];
       const isCurrent = run.index === index;
       const seconds = exerciseSlotSeconds(total, exercises.length, index);
@@ -107,10 +115,10 @@ export function PlanSessionRunner({ profileId, session, recordingMode, preparati
         <div className="plan-sequence-cell"><small>ÜBUNG</small><button type="button" className="plan-sequence-exercise" onClick={() => onGuide(exercise)}>{exercise}</button>{media?.videoUrl ? <a href={media.videoUrl} target="_blank" rel="noreferrer">Übungsvideo öffnen ↗</a> : <small>Kein Video hinterlegt</small>}</div>
         <div className="plan-sequence-cell plan-sequence-time"><small>ZEIT</small><time>{formatCountdown(remaining)}</time><small>{isCurrent && run.phase === "running" ? "Restlaufzeit" : isCurrent && run.phase === "finished" ? "Beendet" : isCurrent && run.phase === "preparing" ? `Start in ${formatCountdown(left)}` : "Vorgesehene Dauer"}</small></div>
       </article>;
-    })}</div>
+    })}</div></details>
     <footer className="plan-unit-footer">
-      {run.phase === "ready" && <button disabled={busy} onClick={() => prepare()}>Übung starten · {preparationSeconds} Sek. vorbereiten</button>}
-      {run.phase === "finished" && run.index < exercises.length - 1 && <button disabled={busy} onClick={() => prepare(true)}>Nächste Übung starten · {preparationSeconds} Sek. vorbereiten</button>}
+      {run.phase === "ready" && <button className="plan-runner-primary" disabled={busy} onClick={() => prepare()}>Jetzt vorbereiten · {preparationSeconds} Sek.</button>}
+      {run.phase === "finished" && run.index < exercises.length - 1 && <button className="plan-runner-primary" disabled={busy} onClick={() => prepare(true)}>Nächste Übung vorbereiten · {preparationSeconds} Sek.</button>}
       <button disabled={busy} onClick={() => void end()}>{run.phase === "preparing" ? "Vorbereitung abbrechen / Einheit beenden" : "Einheit beenden"}</button>
     </footer>
   </section>;

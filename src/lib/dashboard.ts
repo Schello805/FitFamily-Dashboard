@@ -5,6 +5,7 @@ import { enforceSafetyPauses } from "@/lib/training";
 import { normalizePlanJson } from "@/lib/plan-normalizer";
 import { trainingProgress } from "@/lib/training-progress";
 import { energyDate, energyGoal, energyGoalKey, energyGoalPercent, stepGoal, stepGoalKey } from "@/lib/health-energy";
+import { weeklyRecap, type RecapSegment } from "@/lib/weekly-recap";
 
 function calendarDaysBetween(start: string, end: string) {
   return Math.max(0, Math.round((Date.parse(`${end}T00:00:00Z`) - Date.parse(`${start}T00:00:00Z`)) / 86400000));
@@ -248,6 +249,12 @@ export async function getDashboardData(): Promise<DashboardProfile[]> {
 
     return {
       ...profile,
+      weeklyRecap: weeklyRecap(now, profileSegments.map(segment => ({
+        startedAt: String(segment.started_at), endedAt: asString(segment.ended_at),
+        type: String(segment.type) as TrainingType,
+        source: String(segment.session_id).startsWith("health:") ? "health" : "app",
+        factor: factorFor(segment.session_id)
+      } satisfies RecapSegment)), [...(recentEnergyByProfile.get(profileId)?.entries() ?? [])].map(([date, day]) => ({ date, stepCount: day.stepCount, activeEnergyKcal: day.activeEnergyKcal }))),
       healthEnergy: energy ? { date: String(energy.date), activeEnergyKcal: Number(energy.active_energy_kcal), stepCount: energy.step_count == null ? null : Number(energy.step_count), updatedAt: String(energy.updated_at), latestReceivedAt: String(lastHealthReceipts.rows.find(receipt => String(receipt.profile_id) === profileId)?.received_at ?? energy.updated_at), sourceName: energy.source_name == null ? null : String(energy.source_name), goalKcal: energyGoal(energyGoals.get(energyGoalKey(String(row.id)))), goalSteps: stepGoal(energyGoals.get(stepGoalKey(String(row.id)))), goalPercent: energyGoalPercent(Number(energy.active_energy_kcal), energyGoal(energyGoals.get(energyGoalKey(String(row.id))))) } : null,
       healthDailyTrend: recentDates.map(date => {
         const day = recentEnergyByProfile.get(profileId)?.get(date);

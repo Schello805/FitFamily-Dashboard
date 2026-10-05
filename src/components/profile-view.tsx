@@ -16,6 +16,7 @@ import {
 } from "@/lib/domain";
 import { LiveDuration } from "@/components/live-duration";
 import { TrainingProgress } from "@/components/training-progress";
+import { WeeklyRecapCard } from "@/components/weekly-recap-card";
 import { ProfileEditModal } from "@/components/profile-edit-modal";
 import { Avatar } from "@/components/avatar";
 import { showToast } from "@/components/toast";
@@ -522,6 +523,8 @@ export function ProfileView({
         </Link>
         </div>
       </section>
+
+      <WeeklyRecapCard recap={profile.weeklyRecap} />
 
       {activeType === "strength" && (
         <section className="exercise-picker">

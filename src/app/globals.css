@@ -4002,3 +4002,36 @@ body:has([role="dialog"][aria-modal="true"]) .persistent-radio { visibility: hid
 .plan-sequence-time time { color: var(--text); font-size: clamp(26px, 2.8vw, 42px); line-height: 1; font-weight: 900; font-variant-numeric: tabular-nums; }
 .plan-unit-exercise-row.is-current-exercise .plan-sequence-time time { color: var(--profile); }
 @media (max-width: 680px) { .plan-runner-layout .plan-unit-exercise-row { grid-template-columns: 28px minmax(0,1fr) minmax(0,1fr); } .plan-sequence-time { grid-column: 2 / -1; } .plan-sequence-time time { font-size: 32px; } }
+.weekly-recap { margin: 18px 0; padding: clamp(16px, 2vw, 24px); border: 1px solid var(--line); border-radius: 20px; background: var(--panel); }
+.weekly-recap-heading { display: flex; justify-content: space-between; align-items: end; flex-wrap: wrap; gap: 12px; }
+.weekly-recap-heading h2 { margin: 3px 0; font-size: clamp(22px, 2vw, 30px); }
+.weekly-recap-heading p, .weekly-recap-note { margin: 0; color: var(--muted); font-size: 12px; }
+.weekly-recap-split { display: flex; flex-wrap: wrap; gap: 7px; }
+.weekly-recap-split span { padding: 6px 10px; border-radius: 999px; background: var(--subtle-bg); color: var(--text); font-size: 12px; font-weight: 750; }
+.weekly-recap-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 9px; margin: 18px 0 10px; }
+.weekly-recap-grid article { display: flex; flex-direction: column; gap: 4px; min-width: 0; padding: 12px; border: 1px solid var(--line); border-radius: 13px; background: var(--subtle-bg); }
+.weekly-recap-grid article > span { color: var(--muted); font-size: 11px; font-weight: 800; }
+.weekly-recap-grid article > strong { font-size: clamp(19px, 2vw, 28px); line-height: 1.1; font-variant-numeric: tabular-nums; }
+.weekly-recap-grid article > strong small { font-size: 11px; }
+.weekly-recap-grid article > small { color: var(--muted); font-size: 10px; }
+.weekly-recap-grid article > em { margin-top: auto; padding-top: 5px; color: var(--profile); font-size: 11px; font-style: normal; font-weight: 750; }
+.weekly-recap-note { line-height: 1.45; }
+@media (max-width: 1050px) { .weekly-recap-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 620px) { .weekly-recap-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.plan-runner-focus { margin: 18px 24px 0; padding: clamp(16px, 2vw, 26px); border: 2px solid color-mix(in srgb, var(--profile) 48%, var(--line)); border-radius: 20px; background: color-mix(in srgb, var(--profile) 8%, var(--panel)); }
+.plan-runner-focus-head { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; color: var(--profile); font-size: 13px; font-weight: 850; }
+.plan-runner-focus-main { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 20px 0 8px; }
+.plan-runner-focus-main > div { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; min-width: 0; }
+.plan-runner-focus-main small, .plan-runner-focus-clock span { color: var(--muted); font-size: 11px; font-weight: 850; letter-spacing: .08em; }
+.plan-runner-focus-main strong { font-size: clamp(22px, 2.5vw, 34px); line-height: 1.1; overflow-wrap: anywhere; }
+.plan-runner-focus-main a { min-height: 40px; display: inline-flex; align-items: center; color: var(--profile); font-size: 13px; font-weight: 800; }
+.plan-runner-focus-clock { display: flex; flex-direction: column; align-items: center; gap: 3px; margin: 6px 0; }
+.plan-runner-focus-clock time { color: var(--profile); font-size: clamp(64px, 8vw, 116px); line-height: 1; font-weight: 900; font-variant-numeric: tabular-nums; }
+.plan-runner-focus.is-preparing .plan-runner-focus-clock time { color: #d97706; }
+.plan-runner-next { margin: 12px 0 0; padding-top: 12px; border-top: 1px solid var(--line); color: var(--muted); font-size: 14px; }
+.plan-runner-next strong { color: var(--text); }
+.plan-runner-all { margin: 0 24px 18px; }
+.plan-runner-all summary { min-height: 44px; display: flex; align-items: center; color: var(--muted); font-size: 13px; font-weight: 750; cursor: pointer; }
+.plan-runner-layout .plan-runner-all .plan-unit-exercises { padding: 0; }
+.plan-runner-layout .plan-unit-footer .plan-runner-primary { min-height: 58px; border-color: var(--profile); background: var(--profile); color: white; font-size: 17px; }
+@media (max-width: 680px) { .plan-runner-focus { margin: 12px 12px 0; } .plan-runner-focus-main { grid-template-columns: 1fr; gap: 12px; } .plan-runner-all { margin: 0 12px 12px; } }

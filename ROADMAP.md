@@ -27,9 +27,10 @@
 
 - Direkte Trainingsstarts über Kraft und Ausdauer sowie persönliche KI-Trainingspläne.
 - Trainingsqualität, verständliche Abläufe und zuverlässige lokale Fortschrittsberechnung.
-- Apple Health ist vorerst eingestellt; eine erneute Anbindung ist nicht Teil der aktuellen Arbeit.
+- Apple Health liefert per Kurzbefehl tägliche Schritte und aktive Energie ohne Wertung; einzelne Trainings können aus einem Export importiert werden. Der Wochenrückblick zeigt die Quellen getrennt.
 
 ## Später denkbar
 
 - Weitere Sprachen sind aktuell ausdrücklich nicht vorgesehen.
 - Keine Kamera- oder Pose-Erkennung.
+- Freiwillige Familien-Challenge (z. B. gemeinsames Wochenziel), ohne Rangliste oder Druck für Kinder. Erst nach Wochenrückblick und fokussiertem Trainingsbildschirm prüfen.
