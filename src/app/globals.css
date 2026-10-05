@@ -2633,7 +2633,7 @@ body::before {
 }
 @media (max-width: 620px) {
   .profile-card .profile-heading > .dashboard-history-chart { height: 150px; }
-  .profile-card .profile-heading > .dashboard-history-chart svg { height: 106px; }
+  .profile-card .profile-heading > .dashboard-history-chart svg { height: 100%; }
 }
 @media (max-height: 800px) and (min-width: 900px) {
   .profile-grid { gap: 12px; grid-template-rows: repeat(2, minmax(238px, 1fr)); grid-auto-rows: minmax(238px, 1fr); }
@@ -3908,6 +3908,14 @@ body::before {
   .profile-card .goal-ring-summary { width: 64px; grid-column: 2; grid-row: 1; }
   .profile-card .goal-ring { width: 64px; height: 64px; }
   .profile-card .profile-heading > .dashboard-history-chart { grid-column: 1 / -1; grid-row: 2; width: 100%; }
+}
+@media (max-width: 480px) {
+  .profile-card .profile-heading > .dashboard-history-chart { height: 174px; }
+  .profile-card .profile-heading > .dashboard-history-chart .dashboard-history-plot svg { height: 100%; }
+  .profile-card .dashboard-history-chart-footer { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); row-gap: 3px; }
+  .profile-card .dashboard-history-chart-footer > span:nth-child(2) { text-align: center; }
+  .profile-card .dashboard-history-chart-footer > span:nth-child(3) { text-align: right; }
+  .profile-card .dashboard-history-legend { grid-column: 1 / -1; justify-content: flex-end; }
 }
 .health-energy-settings details { line-height: 1.6; }
 .health-energy-settings summary { cursor: pointer; font-weight: 700; }
