@@ -4144,6 +4144,45 @@ body:has([role="dialog"][aria-modal="true"]) .persistent-radio { visibility: hid
   .profile-shell .avatar-large { width: 70px; height: 92px; }
   .profile-shell .profile-nav a, .profile-shell .profile-nav button { min-height: 48px; }
 }
+@media (min-width: 1280px) and (min-height: 740px) {
+  .profile-shell:not(:has(.mobile-connected-banner)) {
+    height: calc(100dvh - 85px);
+    grid-template-rows: auto auto minmax(140px, 1fr) minmax(340px, 2fr) auto;
+    align-content: stretch;
+    gap: 10px 20px;
+    padding: 10px 22px;
+  }
+  .profile-shell > .training-hero { padding: 10px 16px; }
+  .profile-shell .avatar-large { width: clamp(88px, 8vw, 130px); height: clamp(105px, 9vw, 145px); }
+  .profile-shell .training-copy h2 { font-size: clamp(30px, 2.6vw, 42px); }
+  .profile-shell .training-copy p { font-size: 14px; }
+  .profile-shell .avatar-pill { font-size: 10px; padding: 4px 9px; }
+  .profile-shell > .training-entry-section { display: grid; grid-template-rows: auto minmax(0, 1fr); }
+  .profile-shell .training-entry-grid,
+  .profile-shell .training-actions,
+  .profile-shell .training-button,
+  .profile-shell .training-plan-entry { height: 100%; }
+  .profile-shell .training-button { flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 12px; gap: 12px; }
+  .profile-shell .training-button .button-icon { width: 64px; min-width: 64px; height: 64px; }
+  .profile-shell .training-button .button-icon svg { width: 34px; height: 34px; }
+  .profile-shell .training-button strong { font-size: clamp(27px, 2.25vw, 36px); }
+  .profile-shell .training-button em { font-size: 13px; }
+  .profile-shell .training-plan-entry { flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 12px; }
+  .profile-shell .training-plan-entry > svg { width: 36px; min-width: 36px; }
+  .profile-shell .training-plan-entry strong { font-size: 23px; }
+  .profile-shell .training-plan-entry small, .profile-shell .training-plan-entry em { font-size: 12px; }
+  .profile-shell > .weekly-recap { display: flex; flex-direction: column; padding: 12px 14px; }
+  .profile-shell .weekly-recap-heading .section-kicker { display: none; }
+  .profile-shell .weekly-recap-heading h2 { font-size: 24px; }
+  .profile-shell .weekly-recap-heading p { font-size: 10px; }
+  .profile-shell .weekly-recap-grid { flex: 1; grid-template-rows: repeat(2, minmax(0, 1fr)); gap: 6px; margin: 8px 0 6px; }
+  .profile-shell .weekly-recap-grid article { padding: 8px; gap: 2px; }
+  .profile-shell .weekly-recap-grid article > span { font-size: 11px; }
+  .profile-shell .weekly-recap-grid article > strong { font-size: 23px; }
+  .profile-shell .weekly-recap-grid article > small, .profile-shell .weekly-recap-grid article > em { font-size: 10px; }
+  .profile-shell .weekly-recap-note { font-size: 9px; }
+  .profile-shell .profile-nav a, .profile-shell .profile-nav button { min-height: 58px; }
+}
 .plan-runner-focus { margin: 18px 24px 0; padding: clamp(16px, 2vw, 26px); border: 2px solid color-mix(in srgb, var(--profile) 48%, var(--line)); border-radius: 20px; background: color-mix(in srgb, var(--profile) 8%, var(--panel)); }
 .plan-runner-focus-head { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; color: var(--profile); font-size: 13px; font-weight: 850; }
 .plan-runner-focus-main { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 20px 0 8px; }

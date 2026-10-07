@@ -26,6 +26,6 @@ export function WeeklyRecapCard({ recap }: { recap?: WeeklyRecap }) {
   return <section className="weekly-recap" aria-label="Wochenrückblick">
     <div className="weekly-recap-heading"><div><span className="section-kicker">Dein Rückblick</span><h2>Letzte Woche</h2><p>{periodLabel(last)} · verglichen mit {periodLabel(before)}</p></div><div className="weekly-recap-split"><span>Kraft {number(last.strengthMinutes)} Min.</span><span>Ausdauer {number(last.enduranceMinutes)} Min.</span></div></div>
     <div className="weekly-recap-grid">{rows.map(row => <article key={row.label}><span>{row.label}</span><strong>{number(row.current, row.digits)} <small>{row.unit}</small></strong><small>{row.note}</small><em>{change(row.current, row.previous, row.unit, row.comparable)}{row.comparable === false ? "" : " zur Vorwoche"}</em></article>)}</div>
-    <p className="weekly-recap-note">Schritte und kcal sind Summen der empfangenen Tage. Fehlende Tage zählen nicht als Null; bei unterschiedlicher Datenabdeckung ist der Vergleich nur eingeschränkt aussagekräftig.</p>
+    <p className="weekly-recap-note">Schritte und kcal summieren empfangene Tage; fehlende Tage sind keine Nullwerte. Vergleiche nur bei gleicher Datenabdeckung.</p>
   </section>;
 }
