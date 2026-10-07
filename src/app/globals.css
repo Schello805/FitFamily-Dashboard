@@ -4322,6 +4322,44 @@ body:has([role="dialog"][aria-modal="true"]) .persistent-radio { visibility: hid
   .profile-shell .weekly-recap-note { font-size: 9px; }
   .profile-shell .profile-nav a, .profile-shell .profile-nav button { min-height: 58px; }
 }
+
+/* Dashboard cards on the wall display: the chart may never be taller than
+   the avatar beside it. This keeps the complete 2×2 overview above the fold. */
+@media (min-width: 901px) {
+  .profile-card { --dashboard-avatar-height: 132px; }
+  .profile-card .profile-heading > .dashboard-history-chart {
+    height: var(--dashboard-avatar-height);
+    min-height: 0;
+    max-height: var(--dashboard-avatar-height);
+  }
+}
+@media (min-width: 901px) and (max-width: 1150px) {
+  .profile-card { --dashboard-avatar-height: 100px; }
+}
+@media (min-width: 901px) and (max-height: 850px) {
+  .dashboard-shell {
+    height: calc(100dvh - 84px);
+    min-height: 0;
+    overflow: hidden;
+    grid-template-rows: minmax(0, 1fr) auto;
+  }
+  .profile-grid {
+    min-height: 0;
+    grid-template-rows: repeat(2, minmax(0, 1fr));
+    grid-auto-rows: minmax(0, 1fr);
+  }
+  .profile-card {
+    --dashboard-avatar-height: 92px;
+    min-height: 0;
+    overflow: hidden;
+    grid-template-rows: minmax(0, 1fr) auto auto auto;
+  }
+  .profile-card .profile-heading { min-height: 0; }
+  .dashboard-shell .app-footer { display: none; }
+}
+@media (min-width: 901px) and (max-height: 649px) {
+  .profile-card { --dashboard-avatar-height: 74px; }
+}
 .plan-runner-focus { margin: 18px 24px 0; padding: clamp(16px, 2vw, 26px); border: 2px solid color-mix(in srgb, var(--profile) 48%, var(--line)); border-radius: 20px; background: color-mix(in srgb, var(--profile) 8%, var(--panel)); }
 .plan-runner-focus-head { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; color: var(--profile); font-size: 13px; font-weight: 850; }
 .plan-runner-focus-main { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 20px 0 8px; }
