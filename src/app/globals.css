@@ -4327,6 +4327,9 @@ body:has([role="dialog"][aria-modal="true"]) .persistent-radio { visibility: hid
    the avatar beside it. This keeps the complete 2×2 overview above the fold. */
 @media (min-width: 901px) {
   .profile-card { --dashboard-avatar-height: 132px; }
+  .profile-card .profile-heading > .profile-identity,
+  .profile-card .profile-heading > .dashboard-history-chart,
+  .profile-card .profile-heading > .goal-ring-summary { align-self: start; }
   .profile-card .profile-heading > .dashboard-history-chart {
     height: var(--dashboard-avatar-height);
     min-height: 0;
