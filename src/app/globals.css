@@ -4147,6 +4147,71 @@ body:has([role="dialog"][aria-modal="true"]) .persistent-radio { visibility: hid
 /* Windows scaling and browser zoom can make a wide Lenovo effectively very short.
    Keep the profile overview usable in that case instead of falling back to a tall page. */
 @media (min-width: 901px) and (max-height: 649px) {
+  /* The persistent application header consumes part of a short, scaled kiosk
+     viewport. Keep the four dashboard cards inside the remaining viewport
+     instead of letting their desktop minimum height create a fifth screen. */
+  .dashboard-shell {
+    height: calc(100dvh - 84px);
+    min-height: 0;
+    padding: 5px 14px 3px;
+    gap: 5px;
+    overflow: hidden;
+    grid-template-rows: minmax(0, 1fr) auto;
+  }
+  body:has(#dashboard-header-slot > .topbar) .dashboard-shell { grid-template-rows: minmax(0, 1fr) auto; }
+  .profile-grid {
+    min-height: 0;
+    grid-template-rows: repeat(2, minmax(0, 1fr));
+    grid-auto-rows: minmax(0, 1fr);
+    gap: 6px;
+  }
+  .profile-card {
+    min-height: 0;
+    padding: 6px 10px;
+    gap: 3px;
+    grid-template-rows: minmax(78px, 1fr) auto auto auto;
+    overflow: hidden;
+  }
+  .profile-card .profile-heading { min-height: 78px; }
+  .profile-card .profile-heading > .profile-identity { grid-template-columns: 54px minmax(0, 1fr); gap: 7px; }
+  .profile-card .avatar-generated { width: 54px; height: 74px; }
+  .profile-card .profile-name { max-width: 68px; }
+  .profile-card .profile-name span { font-size: 8px; }
+  .profile-card .profile-name h2 { font-size: 18px; }
+  .profile-card .profile-name p { margin-top: 2px; font-size: 8px; line-height: 1.18; }
+  .profile-card .profile-heading > .dashboard-history-chart { min-height: 76px; height: 100%; padding: 5px 7px 4px; }
+  .profile-card .dashboard-history-chart-heading { font-size: 7px; }
+  .profile-card .dashboard-history-chart-footer,
+  .profile-card .dashboard-history-chart-footer > span:nth-child(1),
+  .profile-card .dashboard-history-chart-footer > span:nth-child(2),
+  .profile-card .dashboard-history-chart-footer > span:nth-child(3) { font-size: 6px; }
+  .profile-card .goal-ring-summary { width: 64px; gap: 2px; }
+  .profile-card .goal-ring { width: 58px; height: 58px; }
+  .profile-card .goal-ring strong { font-size: 17px; }
+  .profile-card .goal-ring small, .profile-card .goal-ring-target, .profile-card .goal-ring-pace { font-size: 7px; }
+  .profile-card > .score-row { min-height: 42px; margin: 0; padding: 5px 8px; }
+  .profile-card .score { gap: 5px; }
+  .profile-card .score svg { width: 16px; height: 16px; }
+  .profile-card .score strong { font-size: 23px; }
+  .profile-card .today strong { font-size: 19px; }
+  .profile-card .score span, .profile-card .today span { margin-top: 2px; font-size: 7px; }
+  .profile-card .health-daily-metrics { margin: 0; padding: 3px 6px 2px; }
+  .profile-card .health-daily-label { font-size: 8px; }
+  .profile-card .health-daily-label small { font-size: 7px; }
+  .profile-card .health-daily-values { gap: 5px; margin-top: 2px; }
+  .profile-card .health-daily-values > div + div { padding-left: 5px; }
+  .profile-card .health-metric-card { min-height: 46px; padding: 2px 4px 9px; }
+  .profile-card .health-daily-values span { font-size: 8px; }
+  .profile-card .health-daily-values strong { font-size: 15px; }
+  .profile-card .health-daily-values strong small,
+  .profile-card .health-daily-values > div > small,
+  .profile-card .health-metric-goal small,
+  .profile-card .health-trend-open { font-size: 7px; }
+  .profile-card .health-sync-status { margin: 2px 1px 0; font-size: 7px; }
+  .profile-card .dashboard-level { min-height: 14px; gap: 5px; font-size: 8px; }
+  .profile-card .dashboard-level > div { height: 5px; }
+  .profile-card .dashboard-level small { font-size: 7px; }
+  .dashboard-shell .app-footer { display: none; }
   .app-media-header:has(+ .profile-shell) { min-height: 60px; padding: 2px 14px; }
   .app-media-header:has(+ .profile-shell) .app-header-home { min-height: 54px; font-size: 20px; }
   .app-media-header:has(+ .profile-shell) .persistent-radio .music-launch { height: 54px; min-height: 54px; }
