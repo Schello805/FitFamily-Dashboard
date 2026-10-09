@@ -13,7 +13,7 @@ export function AdminHealthTrainingTest() {
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
   const [shortcutProfile, setShortcutProfile] = useState("");
-  const [shortcutServer, setShortcutServer] = useState("");
+  const [shortcutServer, setShortcutServer] = useState("http://192.168.1.253:3000");
   useEffect(() => {
     let disposed = false;
     requestJson<TestStatus>("/api/admin/health-training-test", "Trainingstest nicht erreichbar.", { cache: "no-store" })
@@ -69,7 +69,7 @@ export function AdminHealthTrainingTest() {
       <section className="health-shortcut-download" aria-label="Mac-Kurzbefehl herunterladen">
         <h4>Fertigen Kurzbefehl auf dem Mac erstellen</h4>
         <label>Profil<select value={shortcutProfile || status?.profiles[0]?.id || ""} onChange={event => setShortcutProfile(event.target.value)}>{status?.profiles.map(profile => <option key={profile.id} value={profile.id}>{profile.name}</option>)}</select></label>
-        <label>Serveradresse (optional)<input value={shortcutServer} onChange={event => setShortcutServer(event.target.value)} placeholder="Leer = Adresse dieser App; kein localhost auf dem iPhone" /></label>
+        <label>Serveradresse<input value={shortcutServer} onChange={event => setShortcutServer(event.target.value)} placeholder="http://192.168.1.253:3000" /></label>
         {status?.profiles.length ? <a className="health-shortcut-link" href={`/api/admin/health-shortcut?format=app&profileId=${encodeURIComponent(shortcutProfile || status.profiles[0].id)}${shortcutServer ? `&server=${encodeURIComponent(shortcutServer)}` : ""}`} download>Mac-App herunterladen · inklusive Kurzbefehl-Signierung</a> : null}
         <ol>
           <li>Auf dem Mac herunterladen, ZIP entpacken und „FitFamily-Kurzbefehl.app“ per Doppelklick öffnen. Keine Terminaleingabe nötig. Die Mac-App ist nicht notarisiert; macOS kann eine einmalige Freigabe unter Systemeinstellungen → Datenschutz &amp; Sicherheit verlangen. Keine Sicherheitsfunktionen abschalten.</li>
