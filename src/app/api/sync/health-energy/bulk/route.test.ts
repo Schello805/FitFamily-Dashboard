@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { BULK_SYNC_MAX_CALENDAR_DAYS, parseRows, type DayRows, validationMessages } from "./route";
+import { BULK_SYNC_MAX_CALENDAR_DAYS, failedDayTranscript, parseRows, type DayRows, validationMessages } from "./route";
 
 it("uses the selected source for Health values grouped by day", () => {
   const days = new Map<string, DayRows>();
@@ -20,4 +20,9 @@ it("allows the 31 calendar dates touched by a rolling 30-day period", () => {
 it("expands nested union validation errors for a useful shortcut response", () => {
   expect(validationMessages({ issues: [{ code: "invalid_union", path: [], message: "Invalid input", errors: [[{ path: ["stepRows"], message: "Schritte benötigen ganze Zahlen." }]] }] }))
     .toEqual(["stepRows: Schritte benötigen ganze Zahlen."]);
+});
+
+it("keeps a small, exact transcript of a rejected day", () => {
+  expect(failedDayTranscript("2026-10-05", { energy: ["421.2\tkcal\tApple Watch"], steps: ["3.493 Schritte\tAnzahl\tApple Watch"] }))
+    .toEqual({ date: "2026-10-05", energyRows: ["421.2\tkcal\tApple Watch"], stepRows: ["3.493 Schritte\tAnzahl\tApple Watch"] });
 });

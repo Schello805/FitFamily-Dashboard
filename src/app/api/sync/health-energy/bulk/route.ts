@@ -16,6 +16,20 @@ export function validationMessages(error: { issues: { code: string; path: Proper
     : [`${issue.path.join(".") || "Daten"}: ${issue.message}`]);
 }
 
+export function failedDayTranscript(date: string, rows: DayRows) {
+  return {
+    date,
+    energyRows: rows.energy.slice(0, 8).map(row => row.slice(0, 500)),
+    stepRows: rows.steps.slice(0, 8).map(row => row.slice(0, 500))
+  };
+}
+
+class BulkDayValidationError extends Error {
+  constructor(message: string, readonly transcript: ReturnType<typeof failedDayTranscript>) {
+    super(message);
+  }
+}
+
 export function parseRows(value: unknown, label: string, target: Map<string, DayRows>, kind: "energy" | "steps", fallbackSource: string) {
   if (typeof value !== "string" || !value.trim()) throw new Error(`${label} fehlen.`);
   const rows = value.trim().split(/\r?\n/);
@@ -56,7 +70,7 @@ export async function POST(request: Request) {
       const rows = days.get(date)!;
       if (!rows.energy.length) continue;
       const parsed = healthEnergySchema.safeParse({ profileId: input.profileId, date, sourceName, sampleRows: rows.energy.join("\n"), ...(rows.steps.length ? { stepRows: rows.steps.join("\n") } : {}) });
-      if (!parsed.success) throw new Error(`${date}: ${validationMessages(parsed.error).join(" · ")}`);
+      if (!parsed.success) throw new BulkDayValidationError(`${date}: ${validationMessages(parsed.error).join(" · ")}`, failedDayTranscript(date, rows));
       const result = await storeHealthEnergy(parsed.data);
       if (!result) return NextResponse.json({ error: "Profil-ID nicht gefunden.", importId }, { status: 404 });
       saved.push({ date: result.date, activeEnergyKcal: result.activeEnergyKcal, stepCount: result.stepCount });
@@ -65,7 +79,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, importId, savedDays: saved.length, days: saved }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     const message = error instanceof Error ? error.message.replaceAll(key, "[SCHLÜSSEL ENTFERNT]") : "Ungültige 30-Tage-Daten.";
-    await writeAdminLog("health.energy.bulk.failed", "error", "Apple Health · 30-Tage-Alltag abgelehnt; nichts gespeichert.", { importId, error: message });
-    return NextResponse.json({ error: message, importId }, { status: 400 });
+    const transcript = error instanceof BulkDayValidationError ? { receivedDay: error.transcript } : {};
+    await writeAdminLog("health.energy.bulk.failed", "error", "Apple Health · 30-Tage-Alltag abgelehnt; nichts gespeichert.", { importId, error: message, ...transcript });
+    return NextResponse.json({ error: message, importId, ...transcript }, { status: 400 });
   }
 }
