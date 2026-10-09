@@ -27,6 +27,8 @@ it("builds a complete text-only energy workflow without the looping import dialo
   const uuids = new Set(actions.map(action => action.WFWorkflowActionParameters.UUID));
   for (const match of JSON.stringify(shortcut).matchAll(/"OutputUUID":"([^"]+)"/g)) expect(uuids.has(match[1])).toBe(true);
   expect(JSON.stringify(shortcut)).toContain("/api/sync/health-energy/bulk");
+  expect(shortcut.WFWorkflowName).toBe("FitFamily Alltag v4 · papa");
+  expect(JSON.stringify(shortcut)).toContain("Startdatum innerhalb der letzten 30 Tage");
   expect(JSON.stringify(shortcut)).toContain('"Number":"30"');
   expect(JSON.stringify(shortcut)).toContain("Bearer ");
   expect(JSON.stringify(shortcut)).not.toContain("exerciseMinutes");

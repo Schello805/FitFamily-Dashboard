@@ -28,7 +28,7 @@ export function buildEnergyShortcut(profileId: string, server: string) {
     actions.push({ WFWorkflowActionIdentifier: `is.workflow.actions.${id}`, WFWorkflowActionParameters: { UUID, ...params } });
     return UUID;
   };
-  action("comment", { WFCommentActionText: "FitFamily Alltag v3: Energie und Schritte der letzten 30 Tage, ohne Wertung. Schlüssel und exakten Health-Datenquellennamen in den nächsten beiden Textaktionen einfügen. Jeder Messwert enthält seinen Kalendertag; FitFamily gruppiert und ersetzt jeden Tag einzeln. Nur die ausgewählte Quelle wird summiert. Zunächst auf dem iPhone manuell testen. Nicht mit eingefügtem Schlüssel teilen." });
+  action("comment", { WFCommentActionText: "FitFamily Alltag v4: Energie und Schritte der letzten 30 Tage, ohne Wertung. Beide Health-Suchen müssen ‚Startdatum innerhalb der letzten 30 Tage‘ anzeigen. Schlüssel und exakten Health-Datenquellennamen in den nächsten beiden Textaktionen einfügen. Jeder Messwert enthält seinen Kalendertag; FitFamily gruppiert und ersetzt jeden Tag einzeln. Nur die ausgewählte Quelle wird summiert. Zunächst auf dem iPhone manuell testen. Nicht mit eingefügtem Schlüssel teilen." });
   const secret = action("gettext", { WFTextActionText: "FAMILIENSCHLUESSEL_HIER_EINFUEGEN" });
   const source = action("gettext", { WFTextActionText: "EXAKTEN_HEALTH_DATENQUELLENNAMEN_EINFUEGEN" });
   const samples = action("filter.health.quantity", {
@@ -88,7 +88,7 @@ export function buildEnergyShortcut(profileId: string, server: string) {
   });
   action("showresult", { Text: tokens(["FitFamily Alltag: ", ref(sent, "Contents of URL")]) });
   return {
-    WFWorkflowName: `FitFamily Alltag v3 · ${profileId}`, WFWorkflowActions: actions,
+    WFWorkflowName: `FitFamily Alltag v4 · ${profileId}`, WFWorkflowActions: actions,
     WFWorkflowClientVersion: "2600.0.0", WFWorkflowMinimumClientVersion: 900,
     WFWorkflowMinimumClientVersionString: "900", WFWorkflowHasOutputFallback: false,
     WFWorkflowIcon: { WFWorkflowIconStartColor: 4282601983, WFWorkflowIconGlyphNumber: 59511 },
