@@ -27,14 +27,19 @@ export function avatarAssetForProfile(profileId: string, avatar: ProfileAvatar) 
 }
 
 // Percentages refer to the same 1:2 figure frame, not its surrounding card.
+// Every built-in body has a separately measured head/neck position.  Do not use
+// a generic fallback for the adult bodies: their wider shoulders made the
+// personal head visibly too small and left the original chin showing below it.
 export function personalHeadLayout(profileId: string, avatar: ProfileAvatar) {
   const base = avatarAssetForProfile(profileId, avatar);
   switch (base) {
-    case "fabian": return { top: 7, width: 46, height: 23, cutoff: 29 };
-    case "fabian-alt": return { top: 4, width: 46, height: 21, cutoff: 24 };
-    case "frieda": return { top: 25, width: 52, height: 24, cutoff: 48 };
-    case "frieda-alt": return { top: 11, width: 52, height: 24, cutoff: 34 };
-    default: return { top: 0, width: 36, height: 23, cutoff: 18 };
+    case "mama": return { top: 2, width: 44, height: 29, cutoff: 30 };
+    case "papa": return { top: 4, width: 54, height: 28, cutoff: 30 };
+    case "fabian": return { top: 8, width: 59, height: 26, cutoff: 33 };
+    case "fabian-alt": return { top: 4, width: 56, height: 25, cutoff: 28 };
+    case "frieda": return { top: 18, width: 52, height: 25, cutoff: 43 };
+    case "frieda-alt": return { top: 11, width: 52, height: 25, cutoff: 36 };
+    default: return { top: 3, width: 48, height: 28, cutoff: 30 };
   }
 }
 

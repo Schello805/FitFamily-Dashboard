@@ -22,4 +22,9 @@ describe("Persönliche Kinderköpfe", () => {
     expect(container.querySelector(".has-personal-head")).toBeNull();
     expect(container.querySelector(".avatar-personal-head")).toBeNull();
   });
+
+  it("misst auch die Erwachsenenfiguren am Hals statt die kleine Standard-Geometrie zu verwenden", () => {
+    expect(personalHeadLayout("mama", "female")).toEqual({ top: 2, width: 44, height: 29, cutoff: 30 });
+    expect(personalHeadLayout("papa", "male")).toEqual({ top: 4, width: 54, height: 28, cutoff: 30 });
+  });
 });
