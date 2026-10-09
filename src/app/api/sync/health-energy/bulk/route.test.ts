@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { parseRows, type DayRows } from "./route";
+import { BULK_SYNC_MAX_CALENDAR_DAYS, parseRows, type DayRows } from "./route";
 
 it("uses the selected source for Health values grouped by day", () => {
   const days = new Map<string, DayRows>();
@@ -11,4 +11,8 @@ it("uses the selected source for Health values grouped by day", () => {
     energy: ["432.5\tkcal\tApple Watch von Michael"],
     steps: ["7123\tcount\tApple Watch von Michael"]
   });
+});
+
+it("allows the 31 calendar dates touched by a rolling 30-day period", () => {
+  expect(BULK_SYNC_MAX_CALENDAR_DAYS).toBe(31);
 });

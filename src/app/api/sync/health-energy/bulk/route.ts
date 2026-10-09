@@ -6,6 +6,9 @@ import { readBoundedJson } from "@/lib/request-body";
 import { writeAdminLog } from "@/lib/admin-log";
 
 export type DayRows = { energy: string[]; steps: string[] };
+// A rolling 30 × 24-hour interval can touch yesterday's partial boundary and
+// today's partial boundary, so it legitimately spans 31 calendar dates.
+export const BULK_SYNC_MAX_CALENDAR_DAYS = 31;
 
 export function parseRows(value: unknown, label: string, target: Map<string, DayRows>, kind: "energy" | "steps", fallbackSource: string) {
   if (typeof value !== "string" || !value.trim()) throw new Error(`${label} fehlen.`);
@@ -41,7 +44,7 @@ export async function POST(request: Request) {
     parseRows(input.sampleRows, "Energie-Messungen", days, "energy", sourceName);
     if (input.stepRows !== undefined && input.stepRows !== "") parseRows(input.stepRows, "Schritt-Messungen", days, "steps", sourceName);
     const dates = [...days.keys()].sort();
-    if (dates.length > 30) throw new Error("Maximal 30 Kalendertage senden.");
+    if (dates.length > BULK_SYNC_MAX_CALENDAR_DAYS) throw new Error(`Maximal ${BULK_SYNC_MAX_CALENDAR_DAYS} Kalendertage senden.`);
     const saved = [];
     for (const date of dates) {
       const rows = days.get(date)!;
