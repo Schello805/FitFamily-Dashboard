@@ -13,7 +13,7 @@ it("shows empty energy separately and refreshes the exact received kcal/error st
   await waitFor(() => expect(screen.getByText("Profil-IDs: Papa: papa")).toBeInTheDocument());
   expect(screen.getByText("Noch keine aktive Energie empfangen.")).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "Familienschlüssel ersetzen" })).toBeInTheDocument();
-  expect(screen.getByRole("link", { name: "Mac-App herunterladen · inklusive Kurzbefehl-Signierung" })).toHaveAttribute("href", "/api/admin/health-shortcut?format=app&profileId=papa");
+  expect(screen.getByRole("link", { name: "Mac-App herunterladen · inklusive Kurzbefehl-Signierung" })).toHaveAttribute("href", "/api/admin/health-shortcut?format=app&profileId=papa&server=http%3A%2F%2F192.168.1.253%3A3000");
   vi.mocked(requestJson).mockResolvedValueOnce({ configured: true, profiles: [], latest: null,
     energyDaily: [{ profile_id: "papa", profile_name: "Papa", date: "2026-10-04", active_energy_kcal: 343.39, updated_at: "2026-10-04 12:00:00" }],
     energyAttempt: { level: "error", message: "Aktive Energie abgelehnt.", importId: "example-import", errors: ["Ungültige Einheit"] }
@@ -22,7 +22,7 @@ it("shows empty energy separately and refreshes the exact received kcal/error st
   await waitFor(() => expect(screen.getByRole("cell", { name: "343,4" })).toBeInTheDocument());
   expect(screen.getByRole("alert")).toHaveTextContent("Ungültige Einheit");
   expect(screen.getByRole("alert")).toHaveTextContent("example-import");
-  expect(screen.getByText(/Wiederholter Empfang ersetzt den Tageswert/)).toBeInTheDocument();
+  expect(screen.getByText(/überträgt die letzten 30 Kalendertage/)).toBeInTheDocument();
 });
 it("saves both daily goals per profile with a default of 10000 steps", async () => {
   const status = { configured: true, profiles: [{ id: "papa", name: "Papa" }], latest: null };
