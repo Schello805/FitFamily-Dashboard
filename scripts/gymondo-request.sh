@@ -37,7 +37,11 @@ runtime_dir="/run/user/$user_uid"
 # An earlier privileged launch may have created the dedicated browser profile
 # as root. Repair only these fixed, application-owned directories before the
 # user browser opens them; never touch the user's normal browser profile.
-for app_directory in "$user_home/.config/fitfamily-gymondo" "$user_home/.local/state/fitfamily"; do
+profile_directory="$user_home/.config/fitfamily-gymondo"
+if [[ -x /snap/bin/chromium ]]; then
+  profile_directory="$user_home/snap/chromium/common/fitfamily-gymondo"
+fi
+for app_directory in "$profile_directory" "$user_home/.local/state/fitfamily"; do
   [[ ! -e "$app_directory" || -d "$app_directory" ]] || fail "Der FitFamily-Gymondo-Ordner ist keine normale Mappe."
   install -d -o "$target_user" -g "$target_user" -m 0700 "$app_directory"
   find -P "$app_directory" -xdev -exec chown -h "$target_user:$target_user" {} +

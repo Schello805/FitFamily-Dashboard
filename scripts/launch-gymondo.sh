@@ -8,8 +8,6 @@ GYMONDO_URL="https://www.gymondo.com/"
 PROFILE_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/fitfamily-gymondo"
 LOG_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/fitfamily"
 LOG_FILE="$LOG_DIR/gymondo-launch.log"
-mkdir -p "$PROFILE_DIR"
-mkdir -p "$LOG_DIR"
 
 if command -v chromium-browser >/dev/null 2>&1; then
   browser="chromium-browser"
@@ -23,6 +21,15 @@ elif command -v firefox >/dev/null 2>&1; then
 else
   exit 1
 fi
+
+# Ubuntu's Chromium package is commonly a Snap. A Snap may not access an
+# arbitrary hidden directory in $HOME, so keep its separate login profile in
+# Chromium's permitted persistent Snap data directory.
+if [[ -x /snap/bin/chromium ]] && { [[ "$browser" == "chromium-browser" ]] || [[ "$(command -v "$browser")" == "/snap/bin/chromium" ]]; }; then
+  browser="/snap/bin/chromium"
+  PROFILE_DIR="$HOME/snap/chromium/common/fitfamily-gymondo"
+fi
+mkdir -p "$PROFILE_DIR" "$LOG_DIR"
 
 # Deliberately no --kiosk: the normal window controls make returning to the
 # dashboard as easy as closing this window after the workout. The Lenovo uses
