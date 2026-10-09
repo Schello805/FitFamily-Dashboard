@@ -4,7 +4,7 @@ set -euo pipefail
 # Runs as the logged-in desktop user. Keep a dedicated browser profile so that
 # the Gymondo login remains independent of the fullscreen FitFamily kiosk.
 export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-GYMONDO_URL="https://www.gymondo.com/"
+GYMONDO_URL="https://gymondo.com/train/timeline"
 PROFILE_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/fitfamily-gymondo"
 LOG_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/fitfamily"
 LOG_FILE="$LOG_DIR/gymondo-launch.log"
