@@ -49,6 +49,11 @@ if [[ -z "$USER_HOME" || ! -d "$USER_HOME" ]]; then
   exit 1
 fi
 
+# Shared with the reviewed Gymondo launcher: updates can reliably identify the
+# physical kiosk account without guessing a browser or display user.
+printf '%s\n' "$TARGET_USER" > /etc/fitfamily-kiosk-user
+chmod 0644 /etc/fitfamily-kiosk-user
+
 # 2. Browser prüfen (Chromium bevorzugt für Touch-Kiosk)
 echo ""
 echo "-> 1/5: Browser für Kiosk-Modus prüfen..."

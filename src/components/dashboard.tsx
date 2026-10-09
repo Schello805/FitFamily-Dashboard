@@ -25,6 +25,7 @@ import { isWithinNightWindow, weeklyTargetFraction } from "@/lib/display-time";
 import { Modal } from "@/components/modal";
 import { ConnectionStatus } from "@/components/connection-status";
 import { useDashboardConnection } from "@/components/use-dashboard-connection";
+import { GymondoLaunch } from "@/components/gymondo-launch";
 
 type Weather = { temperature: number; apparent: number; code: number; updatedAt: string } | null;
 
@@ -287,6 +288,7 @@ export function Dashboard({
         <section className="brand-block">
           <Image className="brand-logo" src="/assets/fitfamily-logo.png" alt="FitFamily Dashboard – Gesund, aktiv, gemeinsam" width={112} height={112} priority unoptimized />
           <div className="brand-tools">
+            <GymondoLaunch />
             <UserHelp />
             <Link className="admin-shortcut" href="/verwaltung" aria-label="Verwaltung öffnen" title="Einstellungen & Verwaltung öffnen (PIN, Backup, Ruhezustand, Updates)">
               <Settings size={26} />

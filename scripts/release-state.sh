@@ -29,6 +29,7 @@ helpers = {
     'request-update.sh': ('fitfamily-update-request', 0o755),
     'mount-nas.py': ('fitfamily-mount', 0o755),
     'restore-db.sh': ('fitfamily-restore', 0o755),
+    'gymondo-request.sh': ('fitfamily-gymondo-request', 0o755),
 }
 if os.geteuid() != 0 or not str(release).startswith('/opt/fitfamily/releases/') or not re.fullmatch('[a-f0-9]{40}', revision):
     raise RuntimeError('Untrusted helper release')

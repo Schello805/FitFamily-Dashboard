@@ -8,9 +8,10 @@ install -o root -g root -m 0644 "$source_dir/scripts/release-state.sh" /usr/loca
 install -o root -g root -m 0755 "$source_dir/scripts/request-update.sh" /usr/local/libexec/fitfamily-update-request
 install -o root -g root -m 0755 "$source_dir/scripts/mount-nas.py" /usr/local/libexec/fitfamily-mount
 install -o root -g root -m 0755 "$source_dir/scripts/restore-db.sh" /usr/local/libexec/fitfamily-restore
+install -o root -g root -m 0755 "$source_dir/scripts/gymondo-request.sh" /usr/local/libexec/fitfamily-gymondo-request
 sudoers_file="$(mktemp /etc/sudoers.d/.fitfamily.XXXXXXXX)"
 trap 'rm -f "$sudoers_file"' EXIT
-printf '%s\n' 'fitfamily ALL=(root) NOPASSWD: /usr/local/libexec/fitfamily-update-request "", /usr/local/libexec/fitfamily-mount ""' > "$sudoers_file"
+printf '%s\n' 'fitfamily ALL=(root) NOPASSWD: /usr/local/libexec/fitfamily-update-request "", /usr/local/libexec/fitfamily-mount "", /usr/local/libexec/fitfamily-gymondo-request ""' > "$sudoers_file"
 chmod 0440 "$sudoers_file"
 visudo -cf "$sudoers_file"
 mv -f "$sudoers_file" /etc/sudoers.d/fitfamily
