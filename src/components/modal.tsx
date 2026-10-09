@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 
 const openDialogs: HTMLElement[] = [];
@@ -34,7 +34,9 @@ export function Modal({ children, onClose, closeDisabled = false, className = ""
   const closeRef = useRef({ onClose, closeDisabled });
   useEffect(() => { closeRef.current = { onClose, closeDisabled }; }, [onClose, closeDisabled]);
 
-  useEffect(() => {
+  // Keyboard handling must be active in the same commit as the visible dialog.
+  // This avoids a lost Escape press directly after opening a touch countdown.
+  useLayoutEffect(() => {
     const backdrop = backdropRef.current;
     const dialog = backdrop?.querySelector<HTMLElement>('[role="dialog"]');
     if (!backdrop || !dialog) return;
