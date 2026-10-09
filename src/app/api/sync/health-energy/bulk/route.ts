@@ -1,0 +1,57 @@
+import { randomUUID } from "node:crypto";
+import { NextResponse } from "next/server";
+import { verifyFamilyHealthKey } from "@/lib/health-training-test";
+import { healthEnergySchema, storeHealthEnergy } from "@/lib/health-energy";
+import { readBoundedJson } from "@/lib/request-body";
+import { writeAdminLog } from "@/lib/admin-log";
+
+type DayRows = { energy: string[]; steps: string[] };
+
+function parseRows(value: unknown, label: string, target: Map<string, DayRows>, kind: "energy" | "steps") {
+  if (typeof value !== "string" || !value.trim()) throw new Error(`${label} fehlen.`);
+  const rows = value.trim().split(/\r?\n/);
+  if (rows.length > 60000) throw new Error(`Zu viele ${label}; maximal 60.000.`);
+  for (const row of rows) {
+    const fields = row.split("\t");
+    if (fields.length !== 4) throw new Error(`${label} benötigen Tag, Wert, Einheit und Quelle.`);
+    const [date, valuePart, unit, source] = fields.map(field => field.trim());
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !valuePart || !unit || !source) throw new Error(`${label} enthalten eine unvollständige Zeile.`);
+    const day = target.get(date) ?? { energy: [], steps: [] };
+    day[kind].push(`${valuePart}\t${unit}\t${source}`);
+    target.set(date, day);
+  }
+}
+
+export async function POST(request: Request) {
+  const key = request.headers.get("authorization")?.replace(/^Bearer /, "") || "";
+  const importId = randomUUID();
+  if (!await verifyFamilyHealthKey(key)) return NextResponse.json({ error: "Familienschlüssel fehlt oder ist ungültig.", importId }, { status: 401 });
+  const body = await readBoundedJson(request, 2_000_000, "Health-30-Tage-Daten sind zu groß.");
+  if (body instanceof Response) return body;
+  if (!body || typeof body !== "object" || Array.isArray(body)) return NextResponse.json({ error: "Ungültige 30-Tage-Daten.", importId }, { status: 400 });
+  const input = body as Record<string, unknown>;
+  if (typeof input.profileId !== "string" || typeof input.sourceName !== "string" || !input.sourceName.trim()) return NextResponse.json({ error: "Profil oder Datenquelle fehlt.", importId }, { status: 400 });
+  try {
+    const days = new Map<string, DayRows>();
+    parseRows(input.sampleRows, "Energie-Messungen", days, "energy");
+    if (input.stepRows !== undefined && input.stepRows !== "") parseRows(input.stepRows, "Schritt-Messungen", days, "steps");
+    const dates = [...days.keys()].sort();
+    if (dates.length > 30) throw new Error("Maximal 30 Kalendertage senden.");
+    const saved = [];
+    for (const date of dates) {
+      const rows = days.get(date)!;
+      if (!rows.energy.length) continue;
+      const parsed = healthEnergySchema.safeParse({ profileId: input.profileId, date, sourceName: input.sourceName.trim(), sampleRows: rows.energy.join("\n"), ...(rows.steps.length ? { stepRows: rows.steps.join("\n") } : {}) });
+      if (!parsed.success) throw new Error(`${date}: ${parsed.error.issues[0]?.message ?? "ungültig"}`);
+      const result = await storeHealthEnergy(parsed.data);
+      if (!result) return NextResponse.json({ error: "Profil-ID nicht gefunden.", importId }, { status: 404 });
+      saved.push({ date: result.date, activeEnergyKcal: result.activeEnergyKcal, stepCount: result.stepCount });
+    }
+    await writeAdminLog("health.energy.bulk.received", "info", "Apple Health · 30-Tage-Alltag aktualisiert · ohne Wertung.", { importId, profileId: input.profileId, sourceName: input.sourceName, days: saved });
+    return NextResponse.json({ ok: true, importId, savedDays: saved.length, days: saved }, { headers: { "Cache-Control": "no-store" } });
+  } catch (error) {
+    const message = error instanceof Error ? error.message.replaceAll(key, "[SCHLÜSSEL ENTFERNT]") : "Ungültige 30-Tage-Daten.";
+    await writeAdminLog("health.energy.bulk.failed", "error", "Apple Health · 30-Tage-Alltag abgelehnt; nichts gespeichert.", { importId, error: message });
+    return NextResponse.json({ error: message, importId }, { status: 400 });
+  }
+}

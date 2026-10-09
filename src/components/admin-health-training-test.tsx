@@ -50,8 +50,8 @@ export function AdminHealthTrainingTest() {
     {status && <p>Profil-IDs: {status.profiles.map(profile => `${profile.name}: ${profile.id}`).join(" · ")}</p>}
     {notice && <p role="status">{notice}</p>}
     <section className="health-energy-settings" aria-label="Aktive Energie aus Apple Health">
-      <h3>Aktive Energie · täglicher Kurzbefehl</h3>
-      <p>Derselbe Familienschlüssel und deine Profil-ID. Wiederholter Empfang ersetzt den Tageswert, auch bei einer Korrektur nach unten. Keine Umrechnung in Training oder Punkte.</p>
+      <h3>Aktive Energie · täglicher 30-Tage-Kurzbefehl</h3>
+      <p>Der Kurzbefehl überträgt die letzten 30 Kalendertage. FitFamily gruppiert sie nach Tag und ersetzt pro Tag nur den jeweiligen Wert – ohne Training oder Punkte zu ändern.</p>
       <h4>Tagesziele · kcal und Schritte</h4>
       <p>Standard: 500 kcal und 10.000 Schritte pro Profil. Ziele werden manuell in FitFamily gepflegt, nicht aus Apple gelesen. Ohne Wertung.</p>
       {status?.profiles.map(profile => <form className="health-goal-form" key={`${profile.id}:${profile.energyGoalKcal}:${profile.goalSteps}`} onSubmit={async event => {
@@ -77,7 +77,7 @@ export function AdminHealthTrainingTest() {
           <li>Danach den Kurzbefehl bearbeiten und nur die zwei vorbereiteten Textfelder oben ersetzen: bekannter Familienschlüssel und exakter Name einer aktuellen Energie-Datenquelle aus Health. Keine Aktionen selbst anlegen. Der Schlüssel kommt erst nach der Signierung hinein; keinen ausgefüllten Kurzbefehl teilen.</li>
           <li>Mac und iPhone: derselbe Apple-Account, Kurzbefehle → Einstellungen → iCloud-Synchronisierung aktivieren. Dann den fertigen Kurzbefehl auf dem iPhone einmal ausführen und den Empfang hier prüfen.</li>
         </ol>
-        <p>Diese Version überträgt Werte, Einheiten und Quellennamen als Text. Die App summiert nur die ausgewählte Quelle; kein „mal 1“ und keine lokale Zahlenumwandlung. Der Wert kann von Apples bereinigter Gesamtanzeige abweichen. Import/Health-Lauf noch auf deinem iPhone testen. Die tägliche Automation wird einmal auf dem iPhone eingerichtet.</p>
+        <p>Diese Version überträgt Werte, Einheiten, Quellennamen und Datum der letzten 30 Tage als Text. FitFamily gruppiert sie automatisch nach Tag und summiert nur die ausgewählte Quelle. Zuerst einmal auf dem iPhone testen; die tägliche Automation bleibt nur ein einziger Kurzbefehl.</p>
       </section>
       {status?.energyAttempt && <p role={status.energyAttempt.level === "error" ? "alert" : "status"}>{status.energyAttempt.message} {status.energyAttempt.errors?.join(" · ")} · Import-ID {status.energyAttempt.importId}</p>}
       {status?.energyDaily?.length ? <div className="health-test-table"><table><thead><tr><th>Profil</th><th>Tag</th><th>Aktive kcal</th><th>Schritte</th><th>Empfangen</th></tr></thead><tbody>{status.energyDaily.map(day => <tr key={`${day.profile_id}:${day.date}`}><td>{day.profile_name}</td><td>{day.date}</td><td>{day.active_energy_kcal.toLocaleString("de-DE", { maximumFractionDigits: 1 })}</td><td>{day.step_count == null ? "—" : day.step_count.toLocaleString("de-DE")}</td><td>{new Date(day.updated_at.replace(" ", "T") + "Z").toLocaleString("de-DE", { timeZone: "Europe/Berlin" })}</td></tr>)}</tbody></table></div> : <p>Noch keine aktive Energie empfangen.</p>}

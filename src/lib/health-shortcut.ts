@@ -28,18 +28,16 @@ export function buildEnergyShortcut(profileId: string, server: string) {
     actions.push({ WFWorkflowActionIdentifier: `is.workflow.actions.${id}`, WFWorkflowActionParameters: { UUID, ...params } });
     return UUID;
   };
-  action("comment", { WFCommentActionText: "FitFamily Alltag v2: Energie und Schritte ohne Wertung. Schlüssel und exakten Health-Datenquellennamen in den nächsten beiden Textaktionen einfügen. Messwert-Texte werden in benannten Listen gesammelt; nur der Server rechnet. Er summiert ausschließlich die ausgewählte Quelle, nicht Apples quellübergreifend bereinigten Gesamtwert. Zunächst auf dem iPhone manuell testen. Health und Server müssen erreichbar sein. Nicht mit eingefügtem Schlüssel teilen." });
+  action("comment", { WFCommentActionText: "FitFamily Alltag v3: Energie und Schritte der letzten 30 Tage, ohne Wertung. Schlüssel und exakten Health-Datenquellennamen in den nächsten beiden Textaktionen einfügen. Jeder Messwert enthält seinen Kalendertag; FitFamily gruppiert und ersetzt jeden Tag einzeln. Nur die ausgewählte Quelle wird summiert. Zunächst auf dem iPhone manuell testen. Nicht mit eingefügtem Schlüssel teilen." });
   const secret = action("gettext", { WFTextActionText: "FAMILIENSCHLUESSEL_HIER_EINFUEGEN" });
   const source = action("gettext", { WFTextActionText: "EXAKTEN_HEALTH_DATENQUELLENNAMEN_EINFUEGEN" });
-  const now = action("date", { WFDateActionMode: "Current Date" });
-  const date = action("format.date", { WFDate: tokens([ref(now, "Date")]), WFInput: input(ref(now, "Date")), WFDateFormatStyle: "Custom", WFDateFormat: "yyyy-MM-dd", WFTimeFormatStyle: "None" });
   const samples = action("filter.health.quantity", {
     WFContentItemLimitEnabled: false,
     WFContentItemFilter: state("WFContentPredicateTableTemplate", {
       WFActionParameterFilterPrefix: 1, WFContentPredicateBoundedDate: false,
       WFActionParameterFilterTemplates: [
         { Bounded: true, Removable: false, Property: "Type", Operator: 4, Values: { Enumeration: state("WFStringSubstitutableState", "Active Calories") } },
-        { Bounded: true, Removable: false, Property: "Start Date", Operator: 1002, Values: { Number: "7", Unit: 16 } }
+        { Bounded: true, Removable: false, Property: "Start Date", Operator: 1002, Values: { Number: "30", Unit: 16 } }
       ]
     })
   });
@@ -53,7 +51,9 @@ export function buildEnergyShortcut(profileId: string, server: string) {
   const value = action("properties.health.quantity", { WFContentItemPropertyName: "Value", WFInput: input(repeatItem) });
   const unit = action("properties.health.quantity", { WFContentItemPropertyName: "Unit", WFInput: input(repeatItem) });
   const origin = action("properties.health.quantity", { WFContentItemPropertyName: "Source", WFInput: input(repeatItem) });
-  const energyLine = action("gettext", { WFTextActionText: tokens([ref(value, "Value"), "\t", ref(unit, "Unit"), "\t", ref(origin, "Source")]) });
+  const energyStartedAt = action("properties.health.quantity", { WFContentItemPropertyName: "Start Date", WFInput: input(repeatItem) });
+  const energyDay = action("format.date", { WFDate: tokens([ref(energyStartedAt, "Start Date")]), WFInput: input(ref(energyStartedAt, "Start Date")), WFDateFormatStyle: "Custom", WFDateFormat: "yyyy-MM-dd", WFTimeFormatStyle: "None" });
+  const energyLine = action("gettext", { WFTextActionText: tokens([ref(energyDay, "Formatted Date"), "\t", ref(value, "Value"), "\t", ref(unit, "Unit"), "\t", ref(origin, "Source")]) });
   action("appendvariable", { WFVariableName: "Energiezeilen", WFInput: input(ref(energyLine, "Text")) });
   action("repeat.each", { GroupingIdentifier: loop, WFControlFlowMode: 2 });
   // Unlike most actions, Combine Text reads its input from lowercase `text`.
@@ -64,7 +64,7 @@ export function buildEnergyShortcut(profileId: string, server: string) {
       WFActionParameterFilterPrefix: 1, WFContentPredicateBoundedDate: false,
       WFActionParameterFilterTemplates: [
         { Bounded: true, Removable: false, Property: "Type", Operator: 4, Values: { Enumeration: state("WFStringSubstitutableState", "Steps") } },
-        { Bounded: true, Removable: false, Property: "Start Date", Operator: 1002, Values: { Number: "7", Unit: 16 } }
+        { Bounded: true, Removable: false, Property: "Start Date", Operator: 1002, Values: { Number: "30", Unit: 16 } }
       ]
     })
   });
@@ -75,19 +75,20 @@ export function buildEnergyShortcut(profileId: string, server: string) {
   const stepValue = action("properties.health.quantity", { WFContentItemPropertyName: "Value", WFInput: input(repeatItem) });
   const stepUnit = action("properties.health.quantity", { WFContentItemPropertyName: "Unit", WFInput: input(repeatItem) });
   const stepSource = action("properties.health.quantity", { WFContentItemPropertyName: "Source", WFInput: input(repeatItem) });
-  const stepLine = action("gettext", { WFTextActionText: tokens([ref(stepValue, "Value"), "\t", ref(stepUnit, "Unit"), "\t", ref(stepSource, "Source")]) });
+  const stepStartedAt = action("properties.health.quantity", { WFContentItemPropertyName: "Start Date", WFInput: input(repeatItem) });
+  const stepDay = action("format.date", { WFDate: tokens([ref(stepStartedAt, "Start Date")]), WFInput: input(ref(stepStartedAt, "Start Date")), WFDateFormatStyle: "Custom", WFDateFormat: "yyyy-MM-dd", WFTimeFormatStyle: "None" });
+  const stepLine = action("gettext", { WFTextActionText: tokens([ref(stepDay, "Formatted Date"), "\t", ref(stepValue, "Value"), "\t", ref(stepUnit, "Unit"), "\t", ref(stepSource, "Source")]) });
   action("appendvariable", { WFVariableName: "Schrittzeilen", WFInput: input(ref(stepLine, "Text")) });
   action("repeat.each", { GroupingIdentifier: stepLoop, WFControlFlowMode: 2 });
   const stepRows = action("text.combine", { text: input({ Type: "Variable", VariableName: "Schrittzeilen" }), WFTextSeparator: "New Lines" });
   const sent = action("downloadurl", {
-    WFURL: text(`${url.origin}/api/sync/health-energy`), WFHTTPMethod: "POST", WFHTTPBodyType: "JSON",
+    WFURL: text(`${url.origin}/api/sync/health-energy/bulk`), WFHTTPMethod: "POST", WFHTTPBodyType: "JSON",
     WFHTTPHeaders: dictionary([["Authorization", tokens(["Bearer ", ref(secret, "Text")])]]),
-    WFJSONValues: dictionary([["profileId", text(profileId)], ["date", tokens([ref(date, "Formatted Date")])],
-      ["sourceName", tokens([ref(source, "Text")])], ["sampleRows", tokens([ref(rows, "Combined Text")])], ["stepRows", tokens([ref(stepRows, "Combined Text")])]])
+    WFJSONValues: dictionary([["profileId", text(profileId)], ["sourceName", tokens([ref(source, "Text")])], ["sampleRows", tokens([ref(rows, "Combined Text")])], ["stepRows", tokens([ref(stepRows, "Combined Text")])]])
   });
   action("showresult", { Text: tokens(["FitFamily Alltag: ", ref(sent, "Contents of URL")]) });
   return {
-    WFWorkflowName: `FitFamily Alltag v2 · ${profileId}`, WFWorkflowActions: actions,
+    WFWorkflowName: `FitFamily Alltag v3 · ${profileId}`, WFWorkflowActions: actions,
     WFWorkflowClientVersion: "2600.0.0", WFWorkflowMinimumClientVersion: 900,
     WFWorkflowMinimumClientVersionString: "900", WFWorkflowHasOutputFallback: false,
     WFWorkflowIcon: { WFWorkflowIconStartColor: 4282601983, WFWorkflowIconGlyphNumber: 59511 },

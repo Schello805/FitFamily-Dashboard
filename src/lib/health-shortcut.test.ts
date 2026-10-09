@@ -26,7 +26,8 @@ it("builds a complete text-only energy workflow without the looping import dialo
   expect(actions[2].WFWorkflowActionParameters.WFTextActionText).toBe("EXAKTEN_HEALTH_DATENQUELLENNAMEN_EINFUEGEN");
   const uuids = new Set(actions.map(action => action.WFWorkflowActionParameters.UUID));
   for (const match of JSON.stringify(shortcut).matchAll(/"OutputUUID":"([^"]+)"/g)) expect(uuids.has(match[1])).toBe(true);
-  expect(JSON.stringify(shortcut)).toContain("/api/sync/health-energy");
+  expect(JSON.stringify(shortcut)).toContain("/api/sync/health-energy/bulk");
+  expect(JSON.stringify(shortcut)).toContain('"Number":"30"');
   expect(JSON.stringify(shortcut)).toContain("Bearer ");
   expect(JSON.stringify(shortcut)).not.toContain("exerciseMinutes");
   expect(JSON.stringify(shortcut)).not.toContain("stepCount");
@@ -69,6 +70,6 @@ it("serves an authenticated downloadable installer for an existing profile only"
   expect(automatic.status).toBe(200);
   const script = await automatic.text();
   const payload = script.match(/echo '([A-Za-z0-9+/=]+)' \|/)!;
-  expect(Buffer.from(payload[1], "base64").toString()).toContain("http://192.168.1.253:3000/api/sync/health-energy");
+  expect(Buffer.from(payload[1], "base64").toString()).toContain("http://192.168.1.253:3000/api/sync/health-energy/bulk");
   expect((await GET(new Request("http://localhost/api/admin/health-shortcut?profileId=papa&server=http://0.0.0.0:3000"))).status).toBe(400);
 });
