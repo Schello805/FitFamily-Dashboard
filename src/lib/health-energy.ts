@@ -35,7 +35,7 @@ function groupedStepValue(value: string) {
 }
 
 function isStepUnit(unit: string) {
-  return ["count", "steps", "schritte"].includes(unit.trim().toLocaleLowerCase("de-DE"));
+  return ["count", "steps", "schritte", "anzahl"].includes(unit.trim().toLocaleLowerCase("de-DE"));
 }
 
 export function energyDate(now = new Date()) {
