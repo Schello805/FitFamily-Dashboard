@@ -34,6 +34,15 @@ runtime_dir="/run/user/$user_uid"
 [[ -d "$user_home" ]] || fail "Das Home-Verzeichnis der Desktop-Anmeldung fehlt."
 [[ -d "$runtime_dir" ]] || fail "Die grafische Desktop-Sitzung ist noch nicht bereit."
 
+# An earlier privileged launch may have created the dedicated browser profile
+# as root. Repair only these fixed, application-owned directories before the
+# user browser opens them; never touch the user's normal browser profile.
+for app_directory in "$user_home/.config/fitfamily-gymondo" "$user_home/.local/state/fitfamily"; do
+  [[ ! -e "$app_directory" || -d "$app_directory" ]] || fail "Der FitFamily-Gymondo-Ordner ist keine normale Mappe."
+  install -d -o "$target_user" -g "$target_user" -m 0700 "$app_directory"
+  find -P "$app_directory" -xdev -exec chown -h "$target_user:$target_user" {} +
+done
+
 wayland_display="$(find "$runtime_dir" -maxdepth 1 -type s -name 'wayland-*' -printf '%f\n' 2>/dev/null | head -n 1 || true)"
 display=""
 if [[ -n "$session_id" ]]; then
