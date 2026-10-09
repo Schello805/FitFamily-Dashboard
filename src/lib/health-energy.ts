@@ -24,6 +24,20 @@ export const energyKcalSchema = z.union([
     .transform(value => Number(value.replace(",", ".")))
 ]).pipe(z.number().finite().min(0).max(20000));
 
+function groupedStepValue(value: string) {
+  const compact = value.trim().replace(/[\s\u00a0]/g, "");
+  // Health's grouped German display uses a dot as a thousands separator
+  // (for example "3.493"). Steps can never be fractional, so normalize it
+  // before applying the strict quantity parser.
+  if (/^\d{1,3}(?:[.,]\d{3})+$/.test(compact)) return compact.replace(/[.,]/g, "");
+  if (/^\d{1,3}(?:\.\d{3})+,\d+$/.test(compact)) return compact.replaceAll(".", "").replace(",", ".");
+  return compact;
+}
+
+function isStepUnit(unit: string) {
+  return ["count", "steps", "schritte"].includes(unit.trim().toLocaleLowerCase("de-DE"));
+}
+
 export function energyDate(now = new Date()) {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Berlin", year: "numeric", month: "2-digit", day: "2-digit" }).format(now);
 }
@@ -72,8 +86,8 @@ const sampleTextSchema = z.object({
       if (fields.length !== 3) { context.addIssue({ code: "custom", message: "Schritt-Messzeile benötigt Wert, Einheit und Quelle." }); return z.NEVER; }
       const [value, unit, source] = fields.map(field => field.trim());
       if (source !== input.sourceName) continue;
-      const parsed = energyKcalSchema.safeParse(value);
-      if (!parsed.success || !Number.isInteger(parsed.data) || !["count", "steps", "Schritte"].includes(unit)) { context.addIssue({ code: "custom", message: "Schritte benötigen ganze Zahlen und eine Zähleinheit." }); return z.NEVER; }
+      const parsed = energyKcalSchema.safeParse(groupedStepValue(value));
+      if (!parsed.success || !Number.isInteger(parsed.data) || !isStepUnit(unit)) { context.addIssue({ code: "custom", message: "Schritte benötigen ganze Zahlen und eine Zähleinheit." }); return z.NEVER; }
       steps += parsed.data; stepSamples++;
     }
     if (steps > 200000) { context.addIssue({ code: "custom", message: "Schrittsumme ist unplausibel (maximal 200000)." }); return z.NEVER; }
