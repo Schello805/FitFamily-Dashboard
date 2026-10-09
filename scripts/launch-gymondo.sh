@@ -6,7 +6,10 @@ set -euo pipefail
 export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 GYMONDO_URL="https://www.gymondo.com/"
 PROFILE_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/fitfamily-gymondo"
+LOG_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/fitfamily"
+LOG_FILE="$LOG_DIR/gymondo-launch.log"
 mkdir -p "$PROFILE_DIR"
+mkdir -p "$LOG_DIR"
 
 if command -v chromium-browser >/dev/null 2>&1; then
   browser="chromium-browser"
@@ -22,12 +25,21 @@ else
 fi
 
 # Deliberately no --kiosk: the normal window controls make returning to the
-# dashboard as easy as closing this window after the workout.
+# dashboard as easy as closing this window after the workout. The Lenovo uses
+# Wayland; Chromium otherwise often defaults to a missing X11 DISPLAY when it
+# is launched by a system helper.
+browser_flags=(
+  "--user-data-dir=$PROFILE_DIR"
+  --new-window
+  --start-maximized
+  --no-first-run
+  --disable-session-crashed-bubble
+  --hide-crash-restore-bubble
+)
+if [[ -n "${WAYLAND_DISPLAY:-}" ]]; then
+  browser_flags+=(--ozone-platform=wayland)
+fi
+
 nohup "$browser" \
-  --user-data-dir="$PROFILE_DIR" \
-  --new-window \
-  --start-maximized \
-  --no-first-run \
-  --disable-session-crashed-bubble \
-  --hide-crash-restore-bubble \
-  "$GYMONDO_URL" >/dev/null 2>&1 &
+  "${browser_flags[@]}" \
+  "$GYMONDO_URL" >> "$LOG_FILE" 2>&1 &
