@@ -7,6 +7,7 @@ export function AdminHealthTrainingTest() {
   const [status, setStatus] = useState<(TestStatus & {
     energyDaily?: { profile_id: string; profile_name: string; date: string; active_energy_kcal: number; step_count?: number | null; updated_at: string }[];
     energyAttempt?: { level: string; message: string; importId: string; errors?: string[] } | null;
+    latestEnergyImport?: { importId: string; profileId: string; sourceName: string; dates: string[] } | null;
     latestError?: { importId: string; message: string; errors: string[] } | null;
   }) | null>(null);
   const [secret, setSecret] = useState("");
@@ -44,6 +45,18 @@ export function AdminHealthTrainingTest() {
       setNotice("Schlüssel kopiert.");
     } catch { setNotice("Bitte den Schlüssel im Feld auswählen und kopieren."); }
   }
+  async function revertLatestEnergyImport() {
+    const imported = status?.latestEnergyImport;
+    if (!imported) return;
+    const profileName = status?.profiles.find(profile => profile.id === imported.profileId)?.name ?? imported.profileId;
+    if (!window.confirm(`Den letzten Apple-Health-Import bei ${profileName} mit ${imported.dates.length} Tagen löschen? Trainings, Punkte und andere Daten bleiben unverändert.`)) return;
+    setBusy(true); setNotice("");
+    try {
+      const result = await requestJson<{ deleted: number; profileId: string }>("/api/admin/health-training-test", "Health-Import konnte nicht zurückgenommen werden.", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ importId: imported.importId }) });
+      await refresh(); setNotice(`${result.deleted} Apple-Health-Tage bei ${profileName} gelöscht.`);
+    } catch (error) { setNotice(error instanceof Error ? error.message : "Health-Import konnte nicht zurückgenommen werden."); }
+    finally { setBusy(false); }
+  }
   return <article className="wide"><div className="admin-title"><div><h2>Health-Daten empfangen</h2><p>Aktive Energie: separate kcal-Anzeige, ohne Punkte und Trainingsminuten. Aufgezeichnete Trainings: weiterhin 1,5 Punkte pro aktiver Minute.</p></div></div>
     <div className="admin-actions"><button type="button" onClick={() => void createKey()} disabled={busy || !status}>{status?.configured ? "Familienschlüssel ersetzen" : "Familienschlüssel erstellen"}</button><button type="button" onClick={() => void refresh()} disabled={busy}>Empfang prüfen</button></div>
     {secret && <label>Familienschlüssel<input readOnly value={secret} aria-label="Familienschlüssel" onFocus={event => event.currentTarget.select()} /><button type="button" onClick={() => void copyKey()}>Schlüssel kopieren</button></label>}
@@ -80,6 +93,7 @@ export function AdminHealthTrainingTest() {
         <p>Diese Version überträgt Werte, Einheiten, Quellennamen und Datum der letzten 30 Tage als Text. FitFamily gruppiert sie automatisch nach Tag und summiert nur die ausgewählte Quelle. Zuerst einmal auf dem iPhone testen; die tägliche Automation bleibt nur ein einziger Kurzbefehl.</p>
       </section>
       {status?.energyAttempt && <p role={status.energyAttempt.level === "error" ? "alert" : "status"}>{status.energyAttempt.message} {status.energyAttempt.errors?.join(" · ")} · Import-ID {status.energyAttempt.importId}</p>}
+      {status?.latestEnergyImport && <button type="button" onClick={() => void revertLatestEnergyImport()} disabled={busy}>Letzten 30-Tage-Import bei {status.profiles.find(profile => profile.id === status.latestEnergyImport?.profileId)?.name ?? status.latestEnergyImport.profileId} zurücknehmen</button>}
       {status?.energyDaily?.length ? <div className="health-test-table"><table><thead><tr><th>Profil</th><th>Tag</th><th>Aktive kcal</th><th>Schritte</th><th>Empfangen</th></tr></thead><tbody>{status.energyDaily.map(day => <tr key={`${day.profile_id}:${day.date}`}><td>{day.profile_name}</td><td>{day.date}</td><td>{day.active_energy_kcal.toLocaleString("de-DE", { maximumFractionDigits: 1 })}</td><td>{day.step_count == null ? "—" : day.step_count.toLocaleString("de-DE")}</td><td>{new Date(day.updated_at.replace(" ", "T") + "Z").toLocaleString("de-DE", { timeZone: "Europe/Berlin" })}</td></tr>)}</tbody></table></div> : <p>Noch keine aktive Energie empfangen.</p>}
       <details><summary>Fehleranalyse einer alten Tagesversion</summary>
         <ol>
