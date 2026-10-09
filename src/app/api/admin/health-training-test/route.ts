@@ -50,14 +50,30 @@ export async function POST(request: Request) {
 export async function DELETE(request: Request) {
   const error = await verifyAdminPinOrReject(undefined, request);
   if (error) return error;
-  const body = z.object({ importId: z.string().uuid() }).strict().safeParse(await request.json().catch(() => null));
-  if (!body.success) return NextResponse.json({ error: "Ungültige Import-ID." }, { status: 400 });
+  const body = z.union([
+    z.object({ importId: z.string().uuid() }).strict(),
+    z.object({ profileId: z.string().min(1).max(80), date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/) }).strict()
+  ]).safeParse(await request.json().catch(() => null));
+  if (!body.success) return NextResponse.json({ error: "Ungültiger Apple-Health-Tag oder Import-ID." }, { status: 400 });
+  const target = body.data;
   const client = await db();
+  if ("profileId" in target) {
+    const result = await client.execute({
+      sql: "DELETE FROM health_energy_daily WHERE profile_id=? AND date=?",
+      args: [target.profileId, target.date]
+    });
+    const deleted = Number(result.rowsAffected ?? 0);
+    if (!deleted) return NextResponse.json({ error: "Dieser Apple-Health-Tageswert wurde nicht gefunden." }, { status: 404 });
+    await writeAdminLog("health.energy.day.deleted", "info", "Apple Health · Tageswert gelöscht.", {
+      profileId: target.profileId, date: target.date, deleted
+    });
+    return NextResponse.json({ ok: true, deleted, profileId: target.profileId, date: target.date });
+  }
   const receipts = await client.execute({ sql: "SELECT details FROM audit_log WHERE action='health.energy.bulk.received' ORDER BY created_at DESC, rowid DESC LIMIT 100", args: [] });
-  const receipt = receipts.rows.map(row => JSON.parse(String(row.details)) as { importId?: string; profileId?: string; days?: { date?: string }[] }).find(value => value.importId === body.data.importId);
+  const receipt = receipts.rows.map(row => JSON.parse(String(row.details)) as { importId?: string; profileId?: string; days?: { date?: string }[] }).find(value => value.importId === target.importId);
   const dates = [...new Set(receipt?.days?.map(day => day.date).filter((date): date is string => typeof date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(date)) ?? [])];
   if (!receipt?.profileId || !dates.length || dates.length > 31) return NextResponse.json({ error: "Import nicht gefunden oder nicht sicher rückgängig zu machen." }, { status: 404 });
   const result = await client.execute({ sql: `DELETE FROM health_energy_daily WHERE profile_id=? AND date IN (${dates.map(() => "?").join(",")})`, args: [receipt.profileId, ...dates] });
-  await writeAdminLog("health.energy.bulk.reverted", "info", "Apple Health · 30-Tage-Alltag zurückgenommen.", { importId: body.data.importId, profileId: receipt.profileId, dates, deleted: Number(result.rowsAffected ?? 0) });
+  await writeAdminLog("health.energy.bulk.reverted", "info", "Apple Health · 30-Tage-Alltag zurückgenommen.", { importId: target.importId, profileId: receipt.profileId, dates, deleted: Number(result.rowsAffected ?? 0) });
   return NextResponse.json({ ok: true, deleted: Number(result.rowsAffected ?? 0), profileId: receipt.profileId });
 }

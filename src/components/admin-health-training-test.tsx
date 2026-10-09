@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { Trash2 } from "lucide-react";
 import { requestJson } from "@/lib/api-client";
 
 type TestStatus = { configured: boolean; profiles: { id: string; name: string; energyGoalKcal?: number; goalSteps?: number }[]; latest: { at: string; importId: string; profileName: string; mode?: "test" | "book"; saved: number; alreadyReceived: number; conflicts?: number; workouts: { startedAt: string; durationSeconds: number; sourceName: string; minutes: number; testPoints?: number; points?: number; duplicate: boolean; conflict?: boolean; error?: string }[] } | null };
@@ -57,6 +58,18 @@ export function AdminHealthTrainingTest() {
     } catch (error) { setNotice(error instanceof Error ? error.message : "Health-Import konnte nicht zurückgenommen werden."); }
     finally { setBusy(false); }
   }
+  async function deleteEnergyDay(day: { profile_id: string; profile_name: string; date: string }) {
+    if (!window.confirm(`Apple-Health-Daten von ${day.profile_name} am ${day.date} löschen? Energie und Schritte dieses Tages werden entfernt. Trainings und Punkte bleiben unverändert.`)) return;
+    setBusy(true); setNotice("");
+    try {
+      await requestJson<{ deleted: number }>("/api/admin/health-training-test", "Apple-Health-Tag konnte nicht gelöscht werden.", {
+        method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ profileId: day.profile_id, date: day.date })
+      });
+      await refresh();
+      setNotice(`Apple-Health-Daten von ${day.profile_name} am ${day.date} gelöscht.`);
+    } catch (error) { setNotice(error instanceof Error ? error.message : "Apple-Health-Tag konnte nicht gelöscht werden."); }
+    finally { setBusy(false); }
+  }
   return <article className="wide"><div className="admin-title"><div><h2>Health-Daten empfangen</h2><p>Aktive Energie: separate kcal-Anzeige, ohne Punkte und Trainingsminuten. Aufgezeichnete Trainings: weiterhin 1,5 Punkte pro aktiver Minute.</p></div></div>
     <div className="admin-actions"><button type="button" onClick={() => void createKey()} disabled={busy || !status}>{status?.configured ? "Familienschlüssel ersetzen" : "Familienschlüssel erstellen"}</button><button type="button" onClick={() => void refresh()} disabled={busy}>Empfang prüfen</button></div>
     {secret && <label>Familienschlüssel<input readOnly value={secret} aria-label="Familienschlüssel" onFocus={event => event.currentTarget.select()} /><button type="button" onClick={() => void copyKey()}>Schlüssel kopieren</button></label>}
@@ -94,7 +107,7 @@ export function AdminHealthTrainingTest() {
       </section>
       {status?.energyAttempt && <p role={status.energyAttempt.level === "error" ? "alert" : "status"}>{status.energyAttempt.message} {status.energyAttempt.errors?.join(" · ")} · Import-ID {status.energyAttempt.importId}</p>}
       {status?.latestEnergyImport && <button type="button" onClick={() => void revertLatestEnergyImport()} disabled={busy}>Letzten 30-Tage-Import bei {status.profiles.find(profile => profile.id === status.latestEnergyImport?.profileId)?.name ?? status.latestEnergyImport.profileId} zurücknehmen</button>}
-      {status?.energyDaily?.length ? <div className="health-test-table"><table><thead><tr><th>Profil</th><th>Tag</th><th>Aktive kcal</th><th>Schritte</th><th>Empfangen</th></tr></thead><tbody>{status.energyDaily.map(day => <tr key={`${day.profile_id}:${day.date}`}><td>{day.profile_name}</td><td>{day.date}</td><td>{day.active_energy_kcal.toLocaleString("de-DE", { maximumFractionDigits: 1 })}</td><td>{day.step_count == null ? "—" : day.step_count.toLocaleString("de-DE")}</td><td>{new Date(day.updated_at.replace(" ", "T") + "Z").toLocaleString("de-DE", { timeZone: "Europe/Berlin" })}</td></tr>)}</tbody></table></div> : <p>Noch keine aktive Energie empfangen.</p>}
+      {status?.energyDaily?.length ? <div className="health-test-table"><table><thead><tr><th>Profil</th><th>Tag</th><th>Aktive kcal</th><th>Schritte</th><th>Empfangen</th><th><span className="sr-only">Aktion</span></th></tr></thead><tbody>{status.energyDaily.map(day => <tr key={`${day.profile_id}:${day.date}`}><td>{day.profile_name}</td><td>{day.date}</td><td>{day.active_energy_kcal.toLocaleString("de-DE", { maximumFractionDigits: 1 })}</td><td>{day.step_count == null ? "—" : day.step_count.toLocaleString("de-DE")}</td><td>{new Date(day.updated_at.replace(" ", "T") + "Z").toLocaleString("de-DE", { timeZone: "Europe/Berlin" })}</td><td><button type="button" className="icon-button danger" onClick={() => void deleteEnergyDay(day)} disabled={busy} aria-label={`Apple-Health-Daten von ${day.profile_name} am ${day.date} löschen`} title="Apple-Health-Tag löschen"><Trash2 size={16} /></button></td></tr>)}</tbody></table></div> : <p>Noch keine aktive Energie empfangen.</p>}
       <details><summary>Fehleranalyse einer alten Tagesversion</summary>
         <ol>
           <li>„Aktuelles Datum“ → „Datum formatieren“: eigenes Format <code>yyyy-MM-dd</code>. Dieser Tag gehört zum gesuchten Health-Zeitraum (Europe/Berlin).</li>

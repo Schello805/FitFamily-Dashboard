@@ -34,3 +34,18 @@ it("saves both daily goals per profile with a default of 10000 steps", async () 
   fireEvent.click(screen.getByRole("button", { name: "Ziele speichern" }));
   await waitFor(() => expect(requestJson).toHaveBeenCalledWith("/api/admin/health-training-test", expect.any(String), expect.objectContaining({ method: "PATCH", body: JSON.stringify({ profileId: "papa", goalKcal: 500, goalSteps: 8000 }) })));
 });
+
+it("deletes exactly one Apple-Health day after confirmation", async () => {
+  const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
+  vi.mocked(requestJson)
+    .mockResolvedValueOnce({ configured: true, profiles: [{ id: "papa", name: "Papa" }], latest: null, energyDaily: [{ profile_id: "papa", profile_name: "Papa", date: "2026-10-04", active_energy_kcal: 343.39, updated_at: "2026-10-04 12:00:00" }] })
+    .mockResolvedValueOnce({ ok: true, deleted: 1 })
+    .mockResolvedValueOnce({ configured: true, profiles: [{ id: "papa", name: "Papa" }], latest: null, energyDaily: [] });
+  render(<AdminHealthTrainingTest />);
+  const remove = await screen.findByRole("button", { name: "Apple-Health-Daten von Papa am 2026-10-04 löschen" });
+  fireEvent.click(remove);
+  await waitFor(() => expect(requestJson).toHaveBeenCalledWith("/api/admin/health-training-test", expect.any(String), expect.objectContaining({ method: "DELETE", body: JSON.stringify({ profileId: "papa", date: "2026-10-04" }) })));
+  expect(confirm).toHaveBeenCalledOnce();
+  expect(await screen.findByText("Apple-Health-Daten von Papa am 2026-10-04 gelöscht.")).toBeInTheDocument();
+  confirm.mockRestore();
+});

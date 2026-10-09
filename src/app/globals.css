@@ -1915,6 +1915,11 @@ body::before {
 .admin-page :is(input, select, textarea):focus-visible, .admin-edit-modal :is(input, select, textarea):focus-visible { outline: 3px solid color-mix(in srgb, var(--brand) 32%, transparent); outline-offset: 2px; border-color: var(--brand); }
 .admin-page :is(input, select, textarea):disabled { opacity: .55; cursor: not-allowed; }
 .admin-content button:not(.admin-nav-item):not(.modal-close):not(.icon-button), .admin-content .scan-actions a { min-height: 44px; border: 1px solid var(--line-strong); border-radius: 12px; padding: 10px 15px; background: var(--panel-soft); color: var(--text); font: inherit; font-weight: 750; cursor: pointer; }
+.icon-button { width: 38px; height: 38px; display: inline-grid; place-items: center; padding: 0; border: 1px solid var(--line-strong); border-radius: 10px; background: var(--panel-soft); color: var(--muted); cursor: pointer; }
+.icon-button:hover:not(:disabled) { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, var(--line-strong)); }
+.icon-button.danger:hover:not(:disabled) { color: #c2410c; border-color: color-mix(in srgb, #c2410c 48%, var(--line-strong)); background: color-mix(in srgb, #fff7ed 75%, var(--panel-soft)); }
+.icon-button:disabled { opacity: .55; cursor: not-allowed; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 .admin-content button:disabled { opacity: .5; cursor: default; }
 .admin-content button.active, .admin-content button[aria-pressed="true"] { border-color: var(--brand); background: color-mix(in srgb, var(--brand) 16%, var(--panel)); color: var(--brand-bright); }
 .admin-page .night-mode-toggle-wrap { display: flex; align-items: center; gap: 12px; }
