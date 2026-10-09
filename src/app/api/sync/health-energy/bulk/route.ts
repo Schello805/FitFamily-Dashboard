@@ -24,8 +24,13 @@ export function failedDayTranscript(date: string, rows: DayRows) {
   };
 }
 
+export function receivedDaysTranscript(days: Map<string, DayRows>) {
+  return [...days.entries()].sort(([left], [right]) => left.localeCompare(right)).slice(0, BULK_SYNC_MAX_CALENDAR_DAYS)
+    .map(([date, rows]) => failedDayTranscript(date, rows));
+}
+
 class BulkDayValidationError extends Error {
-  constructor(message: string, readonly transcript: ReturnType<typeof failedDayTranscript>) {
+  constructor(message: string, readonly transcript: ReturnType<typeof failedDayTranscript>, readonly receivedDays: ReturnType<typeof receivedDaysTranscript>) {
     super(message);
   }
 }
@@ -70,7 +75,7 @@ export async function POST(request: Request) {
       const rows = days.get(date)!;
       if (!rows.energy.length) continue;
       const parsed = healthEnergySchema.safeParse({ profileId: input.profileId, date, sourceName, sampleRows: rows.energy.join("\n"), ...(rows.steps.length ? { stepRows: rows.steps.join("\n") } : {}) });
-      if (!parsed.success) throw new BulkDayValidationError(`${date}: ${validationMessages(parsed.error).join(" · ")}`, failedDayTranscript(date, rows));
+      if (!parsed.success) throw new BulkDayValidationError(`${date}: ${validationMessages(parsed.error).join(" · ")}`, failedDayTranscript(date, rows), receivedDaysTranscript(days));
       const result = await storeHealthEnergy(parsed.data);
       if (!result) return NextResponse.json({ error: "Profil-ID nicht gefunden.", importId }, { status: 404 });
       saved.push({ date: result.date, activeEnergyKcal: result.activeEnergyKcal, stepCount: result.stepCount });
@@ -79,7 +84,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, importId, savedDays: saved.length, days: saved }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     const message = error instanceof Error ? error.message.replaceAll(key, "[SCHLÜSSEL ENTFERNT]") : "Ungültige 30-Tage-Daten.";
-    const transcript = error instanceof BulkDayValidationError ? { receivedDay: error.transcript } : {};
+    const transcript = error instanceof BulkDayValidationError ? { receivedDay: error.transcript, receivedDays: error.receivedDays } : {};
     await writeAdminLog("health.energy.bulk.failed", "error", "Apple Health · 30-Tage-Alltag abgelehnt; nichts gespeichert.", { importId, error: message, ...transcript });
     return NextResponse.json({ error: message, importId, ...transcript }, { status: 400 });
   }
