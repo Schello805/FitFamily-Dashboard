@@ -7,7 +7,7 @@ set -euo pipefail
 export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 APP_DIR=/opt/fitfamily/current
 fail() { echo "$1" >&2; exit 1; }
-[[ -x "$APP_DIR/scripts/launch-gymondo.sh" ]] || fail "FitFamily-Version enthält keinen ausführbaren Gymondo-Starter."
+[[ -f "$APP_DIR/scripts/launch-gymondo.sh" ]] || fail "FitFamily-Version enthält keinen Gymondo-Starter."
 
 target_user=""
 if [[ -r /etc/fitfamily-kiosk-user ]]; then
@@ -48,4 +48,4 @@ runuser -u "$target_user" -- env \
   DBUS_SESSION_BUS_ADDRESS="unix:path=$runtime_dir/bus" \
   WAYLAND_DISPLAY="$wayland_display" \
   DISPLAY="$display" \
-  setsid "$APP_DIR/scripts/launch-gymondo.sh" || fail "Der Browser konnte nicht für die Desktop-Anmeldung gestartet werden."
+  setsid /bin/bash "$APP_DIR/scripts/launch-gymondo.sh" || fail "Der Browser konnte nicht für die Desktop-Anmeldung gestartet werden."
