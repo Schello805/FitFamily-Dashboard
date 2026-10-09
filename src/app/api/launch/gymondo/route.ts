@@ -22,11 +22,17 @@ export async function POST(request: Request) {
 
   try {
     await new Promise<void>((resolve, reject) => {
-      execFile("sudo", ["-n", HELPER], { timeout: 10000, encoding: "utf8" }, (error) => error ? reject(error) : resolve());
+      execFile("sudo", ["-n", HELPER], { timeout: 10000, encoding: "utf8" }, (error, _stdout, stderr) => {
+        if (!error) return resolve();
+        const detail = stderr.trim().replace(/\s+/g, " ").slice(0, 220);
+        reject(new Error(detail || error.message));
+      });
     });
     await writeAdminLog("dashboard.gymondo.started", "info", "Gymondo wurde in einem eigenen Fenster gestartet.").catch(() => undefined);
     return NextResponse.json({ ok: true, message: "Gymondo wird geöffnet." }, { status: 202, headers: { "Cache-Control": "no-store" } });
-  } catch {
-    return NextResponse.json({ error: "Gymondo konnte nicht gestartet werden. Prüfe die Desktop-Anmeldung und den FitFamily-Systemhelfer." }, { status: 503 });
+  } catch (caught) {
+    const detail = caught instanceof Error ? caught.message : "";
+    const missingPermission = /not allowed|password is required|a password is required/i.test(detail);
+    return NextResponse.json({ error: missingPermission ? "Der Gymondo-Systemhelfer ist noch nicht freigegeben. Bitte die einmalige Einrichtung auf dem Lenovo abschließen." : `Gymondo konnte nicht gestartet werden: ${detail || "Unbekannter Systemfehler."}` }, { status: 503 });
   }
 }

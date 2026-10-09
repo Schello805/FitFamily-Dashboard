@@ -6,7 +6,8 @@ set -euo pipefail
 [[ $EUID -eq 0 && $# -eq 0 ]] || exit 1
 export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 APP_DIR=/opt/fitfamily/current
-[[ -x "$APP_DIR/scripts/launch-gymondo.sh" ]] || exit 1
+fail() { echo "$1" >&2; exit 1; }
+[[ -x "$APP_DIR/scripts/launch-gymondo.sh" ]] || fail "FitFamily-Version enthält keinen ausführbaren Gymondo-Starter."
 
 target_user=""
 if [[ -r /etc/fitfamily-kiosk-user ]]; then
@@ -26,11 +27,12 @@ while read -r candidate_session _ candidate_user _; do
   break
 done < <(loginctl list-sessions --no-legend 2>/dev/null || true)
 
-[[ -n "$target_user" ]] || exit 1
+[[ -n "$target_user" ]] || fail "Keine aktive lokale Desktop-Anmeldung gefunden."
 user_home="$(getent passwd "$target_user" | cut -d: -f6)"
 user_uid="$(id -u "$target_user")"
 runtime_dir="/run/user/$user_uid"
-[[ -d "$user_home" && -d "$runtime_dir" ]] || exit 1
+[[ -d "$user_home" ]] || fail "Das Home-Verzeichnis der Desktop-Anmeldung fehlt."
+[[ -d "$runtime_dir" ]] || fail "Die grafische Desktop-Sitzung ist noch nicht bereit."
 
 wayland_display="$(find "$runtime_dir" -maxdepth 1 -type s -name 'wayland-*' -printf '%f\n' 2>/dev/null | head -n 1 || true)"
 display=""
@@ -46,4 +48,4 @@ runuser -u "$target_user" -- env \
   DBUS_SESSION_BUS_ADDRESS="unix:path=$runtime_dir/bus" \
   WAYLAND_DISPLAY="$wayland_display" \
   DISPLAY="$display" \
-  setsid "$APP_DIR/scripts/launch-gymondo.sh" >/dev/null 2>&1 &
+  setsid "$APP_DIR/scripts/launch-gymondo.sh" || fail "Der Browser konnte nicht für die Desktop-Anmeldung gestartet werden."
