@@ -26,12 +26,15 @@ export const energyKcalSchema = z.union([
 
 function groupedStepValue(value: string) {
   const compact = value.trim().replace(/[\s\u00a0]/g, "");
+  // Get Details may already render the quantity with its localized unit, for
+  // example "3.493Schritte". Keep only the leading numeric quantity.
+  const numeric = compact.match(/^\d[\d.,]*/)?.[0] ?? compact;
   // Health's grouped German display uses a dot as a thousands separator
   // (for example "3.493"). Steps can never be fractional, so normalize it
   // before applying the strict quantity parser.
-  if (/^\d{1,3}(?:[.,]\d{3})+$/.test(compact)) return compact.replace(/[.,]/g, "");
-  if (/^\d{1,3}(?:\.\d{3})+,\d+$/.test(compact)) return compact.replaceAll(".", "").replace(",", ".");
-  return compact;
+  if (/^\d{1,3}(?:[.,]\d{3})+$/.test(numeric)) return numeric.replace(/[.,]/g, "");
+  if (/^\d{1,3}(?:\.\d{3})+,\d+$/.test(numeric)) return numeric.replaceAll(".", "").replace(",", ".");
+  return numeric;
 }
 
 function isStepUnit(unit: string) {
