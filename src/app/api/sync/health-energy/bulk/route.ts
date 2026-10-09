@@ -10,6 +10,12 @@ export type DayRows = { energy: string[]; steps: string[] };
 // today's partial boundary, so it legitimately spans 31 calendar dates.
 export const BULK_SYNC_MAX_CALENDAR_DAYS = 31;
 
+export function validationMessages(error: { issues: { code: string; path: PropertyKey[]; message: string; errors?: { path: PropertyKey[]; message: string }[][] }[] }) {
+  return error.issues.flatMap(issue => issue.code === "invalid_union" && issue.errors
+    ? issue.errors.flat().map(nested => `${nested.path.join(".") || "Daten"}: ${nested.message}`)
+    : [`${issue.path.join(".") || "Daten"}: ${issue.message}`]);
+}
+
 export function parseRows(value: unknown, label: string, target: Map<string, DayRows>, kind: "energy" | "steps", fallbackSource: string) {
   if (typeof value !== "string" || !value.trim()) throw new Error(`${label} fehlen.`);
   const rows = value.trim().split(/\r?\n/);
@@ -50,7 +56,7 @@ export async function POST(request: Request) {
       const rows = days.get(date)!;
       if (!rows.energy.length) continue;
       const parsed = healthEnergySchema.safeParse({ profileId: input.profileId, date, sourceName, sampleRows: rows.energy.join("\n"), ...(rows.steps.length ? { stepRows: rows.steps.join("\n") } : {}) });
-      if (!parsed.success) throw new Error(`${date}: ${parsed.error.issues[0]?.message ?? "ungültig"}`);
+      if (!parsed.success) throw new Error(`${date}: ${validationMessages(parsed.error).join(" · ")}`);
       const result = await storeHealthEnergy(parsed.data);
       if (!result) return NextResponse.json({ error: "Profil-ID nicht gefunden.", importId }, { status: 404 });
       saved.push({ date: result.date, activeEnergyKcal: result.activeEnergyKcal, stepCount: result.stepCount });

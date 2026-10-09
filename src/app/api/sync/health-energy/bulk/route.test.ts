@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { BULK_SYNC_MAX_CALENDAR_DAYS, parseRows, type DayRows } from "./route";
+import { BULK_SYNC_MAX_CALENDAR_DAYS, parseRows, type DayRows, validationMessages } from "./route";
 
 it("uses the selected source for Health values grouped by day", () => {
   const days = new Map<string, DayRows>();
@@ -15,4 +15,9 @@ it("uses the selected source for Health values grouped by day", () => {
 
 it("allows the 31 calendar dates touched by a rolling 30-day period", () => {
   expect(BULK_SYNC_MAX_CALENDAR_DAYS).toBe(31);
+});
+
+it("expands nested union validation errors for a useful shortcut response", () => {
+  expect(validationMessages({ issues: [{ code: "invalid_union", path: [], message: "Invalid input", errors: [[{ path: ["stepRows"], message: "Schritte benötigen ganze Zahlen." }]] }] }))
+    .toEqual(["stepRows: Schritte benötigen ganze Zahlen."]);
 });
