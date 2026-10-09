@@ -18,11 +18,14 @@ export function energyGoalPercent(kcal: number, goal: number) {
 }
 
 // No locale-dependent coercion, thousands separators or arithmetic in Shortcuts.
-export const energyKcalSchema = z.union([
+const numericQuantitySchema = z.union([
   z.number(),
-  z.string().trim().regex(/^\d{1,5}(?:[.,]\d{1,18})?$/, "kcal als Dezimalzahl ohne Tausendertrennzeichen senden.")
+  z.string().trim().regex(/^\d{1,6}(?:[.,]\d{1,18})?$/, "Zahl ohne Tausendertrennzeichen senden.")
     .transform(value => Number(value.replace(",", ".")))
-]).pipe(z.number().finite().min(0).max(20000));
+]).pipe(z.number().finite().min(0));
+
+export const energyKcalSchema = numericQuantitySchema.pipe(z.number().max(20000));
+const stepCountSchema = numericQuantitySchema.pipe(z.number().int().max(200000));
 
 function groupedStepValue(value: string) {
   const compact = value.trim().replace(/[\s\u00a0]/g, "");
@@ -89,8 +92,8 @@ const sampleTextSchema = z.object({
       if (fields.length !== 3) { context.addIssue({ code: "custom", message: "Schritt-Messzeile benötigt Wert, Einheit und Quelle." }); return z.NEVER; }
       const [value, unit, source] = fields.map(field => field.trim());
       if (source !== input.sourceName) continue;
-      const parsed = energyKcalSchema.safeParse(groupedStepValue(value));
-      if (!parsed.success || !Number.isInteger(parsed.data) || !isStepUnit(unit)) { context.addIssue({ code: "custom", message: "Schritte benötigen ganze Zahlen und eine Zähleinheit." }); return z.NEVER; }
+      const parsed = stepCountSchema.safeParse(groupedStepValue(value));
+      if (!parsed.success || !isStepUnit(unit)) { context.addIssue({ code: "custom", message: "Schritte benötigen ganze Zahlen und eine Zähleinheit." }); return z.NEVER; }
       steps += parsed.data; stepSamples++;
     }
     if (steps > 200000) { context.addIssue({ code: "custom", message: "Schrittsumme ist unplausibel (maximal 200000)." }); return z.NEVER; }

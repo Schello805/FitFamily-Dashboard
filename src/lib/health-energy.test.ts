@@ -123,6 +123,8 @@ it("stores steps separately without scoring, replacing rather than adding and pr
   expect((await getDashboardData()).find(p => p.id === profileId)?.healthEnergy?.stepCount).toBe(3493);
   expect((await POST(request({ ...payload, stepRows: "3.493 Schritte\tAnzahl\tWatch" }))).status).toBe(200);
   expect((await getDashboardData()).find(p => p.id === profileId)?.healthEnergy?.stepCount).toBe(3493);
+  expect((await POST(request({ ...payload, stepRows: "21145\tcount\tWatch" }))).status).toBe(200);
+  expect((await getDashboardData()).find(p => p.id === profileId)?.healthEnergy?.stepCount).toBe(21145);
   await (await db()).execute({ sql: "INSERT INTO settings(key,value) VALUES (?,?)", args: [stepGoalKey(profileId), "8000"] });
   expect((await getDashboardData()).find(p => p.id === profileId)?.healthEnergy?.goalSteps).toBe(8000);
   expect(stepGoal("invalid")).toBe(10000);
