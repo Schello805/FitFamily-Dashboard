@@ -37,7 +37,7 @@ export function buildEnergyShortcut(profileId: string, server: string) {
       WFActionParameterFilterPrefix: 1, WFContentPredicateBoundedDate: false,
       WFActionParameterFilterTemplates: [
         { Bounded: true, Removable: false, Property: "Type", Operator: 4, Values: { Enumeration: state("WFStringSubstitutableState", "Active Calories") } },
-        { Bounded: true, Removable: false, Property: "Start Date", Operator: 1002, Values: { Number: "30", Unit: 16 } }
+        { Bounded: true, Removable: false, Property: "Start Date", Operator: 1001, Values: { Number: "30", Unit: 16 } }
       ]
     })
   });
@@ -64,7 +64,7 @@ export function buildEnergyShortcut(profileId: string, server: string) {
       WFActionParameterFilterPrefix: 1, WFContentPredicateBoundedDate: false,
       WFActionParameterFilterTemplates: [
         { Bounded: true, Removable: false, Property: "Type", Operator: 4, Values: { Enumeration: state("WFStringSubstitutableState", "Steps") } },
-        { Bounded: true, Removable: false, Property: "Start Date", Operator: 1002, Values: { Number: "30", Unit: 16 } }
+        { Bounded: true, Removable: false, Property: "Start Date", Operator: 1001, Values: { Number: "30", Unit: 16 } }
       ]
     })
   });
@@ -87,7 +87,7 @@ export function buildEnergyShortcut(profileId: string, server: string) {
       WFActionParameterFilterPrefix: 1, WFContentPredicateBoundedDate: false,
       WFActionParameterFilterTemplates: [
         { Bounded: true, Removable: false, Property: "Type", Operator: 4, Values: { Enumeration: state("WFStringSubstitutableState", "Exercise Minutes") } },
-        { Bounded: true, Removable: false, Property: "Start Date", Operator: 1002, Values: { Number: "30", Unit: 16 } }
+        { Bounded: true, Removable: false, Property: "Start Date", Operator: 1001, Values: { Number: "30", Unit: 16 } }
       ]
     })
   });

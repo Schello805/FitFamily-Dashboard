@@ -30,6 +30,7 @@ it("builds a complete text-only energy workflow without the looping import dialo
   expect(shortcut.WFWorkflowName).toBe("FitFamily Alltag v5 · papa");
   expect(JSON.stringify(shortcut)).toContain("Startdatum innerhalb der letzten 30 Tage");
   expect(JSON.stringify(shortcut)).toContain('"Number":"30"');
+  expect(actions.filter(action => action.WFWorkflowActionIdentifier === "is.workflow.actions.filter.health.quantity").every(action => JSON.stringify(action.WFWorkflowActionParameters).includes('"Operator":1001'))).toBe(true);
   expect(JSON.stringify(shortcut)).toContain("Bearer ");
   expect(JSON.stringify(shortcut)).toContain("Exercise Minutes");
   expect(JSON.stringify(shortcut)).not.toContain("stepCount");
