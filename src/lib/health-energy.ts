@@ -16,6 +16,11 @@ export function energyGoal(value: unknown) {
 export function energyGoalPercent(kcal: number, goal: number) {
   return Math.round(kcal / goal * 100);
 }
+export const trainingGoalKey = (profileId: string) => `training_weekly_goal:${profileId}`;
+export function trainingGoal(value: unknown) {
+  const number = Number(value);
+  return Number.isInteger(number) && number >= 1 && number <= 10000 ? number : null;
+}
 
 // No locale-dependent coercion, thousands separators or arithmetic in Shortcuts.
 const numericQuantitySchema = z.union([

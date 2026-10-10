@@ -3,14 +3,20 @@ import { db, getSetting } from "@/lib/db";
 import { verifyAdminPinOrReject } from "@/lib/security";
 import { createFamilyHealthKey, FAMILY_HEALTH_KEY } from "@/lib/health-training-test";
 import { writeAdminLog } from "@/lib/admin-log";
-import { energyGoal, energyGoalKey, stepGoal, stepGoalKey } from "@/lib/health-energy";
+import { energyGoal, energyGoalKey, stepGoal, stepGoalKey, trainingGoal, trainingGoalKey } from "@/lib/health-energy";
+import { getProfileAge, movementTargetForAge } from "@/lib/domain";
 import { z } from "zod";
+
+function defaultWeeklyTrainingGoal(profileId: string, birthDate: unknown) {
+  const target = movementTargetForAge(getProfileAge(profileId, birthDate == null ? null : String(birthDate)));
+  return target.period === "Woche" ? target.minutes : target.minutes * 7;
+}
 
 export async function GET(request: Request) {
   const error = await verifyAdminPinOrReject(undefined, request);
   if (error) return error;
   const client = await db();
-  const profiles = await client.execute("SELECT p.id, p.name, s.value energy_goal, t.value step_goal FROM profiles p LEFT JOIN settings s ON s.key='health_energy_goal:' || p.id LEFT JOIN settings t ON t.key='health_step_goal:' || p.id ORDER BY p.name");
+  const profiles = await client.execute("SELECT p.id, p.name, p.birth_date, s.value energy_goal, t.value step_goal, u.value training_goal FROM profiles p LEFT JOIN settings s ON s.key='health_energy_goal:' || p.id LEFT JOIN settings t ON t.key='health_step_goal:' || p.id LEFT JOIN settings u ON u.key='training_weekly_goal:' || p.id ORDER BY p.name");
   const latest = await client.execute("SELECT created_at, details FROM audit_log WHERE action IN ('health.training.test.received','health.training.received') ORDER BY created_at DESC, rowid DESC LIMIT 1");
   const attempt = await client.execute("SELECT details FROM audit_log WHERE action IN ('health.training.test.received', 'health.training.test.failed','health.training.received','health.training.failed') ORDER BY created_at DESC, rowid DESC LIMIT 1");
   const lastAttempt = attempt.rows[0] ? JSON.parse(String(attempt.rows[0].details)) : null;
@@ -21,7 +27,7 @@ export async function GET(request: Request) {
   const latestEnergyImport = latestBulkDetails?.importId && latestBulkDetails.profileId && Array.isArray(latestBulkDetails.days)
     ? { importId: latestBulkDetails.importId, profileId: latestBulkDetails.profileId, sourceName: latestBulkDetails.sourceName ?? "", dates: latestBulkDetails.days.map(day => day.date).filter((date): date is string => typeof date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(date)) }
     : null;
-  return NextResponse.json({ configured: Boolean(await getSetting(FAMILY_HEALTH_KEY)), profiles: profiles.rows.map(p => ({ id: p.id, name: p.name, energyGoalKcal: energyGoal(p.energy_goal), goalSteps: stepGoal(p.step_goal) })),
+  return NextResponse.json({ configured: Boolean(await getSetting(FAMILY_HEALTH_KEY)), profiles: profiles.rows.map(p => ({ id: p.id, name: p.name, energyGoalKcal: energyGoal(p.energy_goal), goalSteps: stepGoal(p.step_goal), trainingGoalMinutes: trainingGoal(p.training_goal) ?? defaultWeeklyTrainingGoal(String(p.id), p.birth_date) })),
     energyDaily: energy.rows,
     energyAttempt: energyAttempt.rows[0] ? JSON.parse(String(energyAttempt.rows[0].details)) : null,
     latestEnergyImport,
@@ -32,11 +38,11 @@ export async function GET(request: Request) {
 export async function PATCH(request: Request) {
   const error = await verifyAdminPinOrReject(undefined, request);
   if (error) return error;
-  const body = z.object({ profileId: z.string().min(1).max(80), goalKcal: z.number().int().min(1).max(20000).optional(), goalSteps: z.number().int().min(1).max(100000).optional() }).strict().refine(value => value.goalKcal !== undefined || value.goalSteps !== undefined).safeParse(await request.json().catch(() => null));
-  if (!body.success) return NextResponse.json({ error: "Bitte ein kcal-Ziel zwischen 1 und 20000 oder ein Schritte-Ziel zwischen 1 und 100000 eingeben." }, { status: 400 });
+  const body = z.object({ profileId: z.string().min(1).max(80), goalKcal: z.number().int().min(1).max(20000).optional(), goalSteps: z.number().int().min(1).max(100000).optional(), trainingGoalMinutes: z.number().int().min(1).max(10000).optional() }).strict().refine(value => value.goalKcal !== undefined || value.goalSteps !== undefined || value.trainingGoalMinutes !== undefined).safeParse(await request.json().catch(() => null));
+  if (!body.success) return NextResponse.json({ error: "Bitte ein kcal-, Schritte- oder Wochenziel in gültigem Bereich eingeben." }, { status: 400 });
   const client = await db();
   if (!(await client.execute({ sql: "SELECT id FROM profiles WHERE id=?", args: [body.data.profileId] })).rows.length) return NextResponse.json({ error: "Profil nicht gefunden." }, { status: 404 });
-  const goals = [body.data.goalKcal !== undefined ? [energyGoalKey(body.data.profileId), body.data.goalKcal] as const : null, body.data.goalSteps !== undefined ? [stepGoalKey(body.data.profileId), body.data.goalSteps] as const : null].filter(goal => goal !== null);
+  const goals = [body.data.goalKcal !== undefined ? [energyGoalKey(body.data.profileId), body.data.goalKcal] as const : null, body.data.goalSteps !== undefined ? [stepGoalKey(body.data.profileId), body.data.goalSteps] as const : null, body.data.trainingGoalMinutes !== undefined ? [trainingGoalKey(body.data.profileId), body.data.trainingGoalMinutes] as const : null].filter(goal => goal !== null);
   await client.batch(goals.map(([key, value]) => ({ sql: "INSERT INTO settings(key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value", args: [key, String(value)] })), "write");
   return NextResponse.json({ ok: true });
 }

@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { Trash2 } from "lucide-react";
 import { requestJson } from "@/lib/api-client";
 
-type TestStatus = { configured: boolean; profiles: { id: string; name: string; energyGoalKcal?: number; goalSteps?: number }[]; latest: { at: string; importId: string; profileName: string; mode?: "test" | "book"; saved: number; alreadyReceived: number; conflicts?: number; workouts: { startedAt: string; durationSeconds: number; sourceName: string; minutes: number; testPoints?: number; points?: number; duplicate: boolean; conflict?: boolean; error?: string }[] } | null };
+type TestStatus = { configured: boolean; profiles: { id: string; name: string; energyGoalKcal?: number; goalSteps?: number; trainingGoalMinutes?: number }[]; latest: { at: string; importId: string; profileName: string; mode?: "test" | "book"; saved: number; alreadyReceived: number; conflicts?: number; workouts: { startedAt: string; durationSeconds: number; sourceName: string; minutes: number; testPoints?: number; points?: number; duplicate: boolean; conflict?: boolean; error?: string }[] } | null };
 export function AdminHealthTrainingTest() {
   const [status, setStatus] = useState<(TestStatus & {
     energyDaily?: { profile_id: string; profile_name: string; date: string; active_energy_kcal: number; step_count?: number | null; training_minutes?: number | null; updated_at: string }[];
@@ -80,18 +80,19 @@ export function AdminHealthTrainingTest() {
       <p>Der Kurzbefehl überträgt die letzten 30 Kalendertage: Energie, Schritte und Trainingsminuten. FitFamily gruppiert sie nach Tag und ersetzt pro Tag nur den jeweiligen Wert.</p>
       <h4>Tagesziele · kcal und Schritte</h4>
       <p>Standard: 500 kcal und 10.000 Schritte pro Profil. Ziele werden manuell in FitFamily gepflegt, nicht aus Apple gelesen. Ohne Wertung.</p>
-      {status?.profiles.map(profile => <form className="health-goal-form" key={`${profile.id}:${profile.energyGoalKcal}:${profile.goalSteps}`} onSubmit={async event => {
+      {status?.profiles.map(profile => <form className="health-goal-form" key={`${profile.id}:${profile.energyGoalKcal}:${profile.goalSteps}:${profile.trainingGoalMinutes}`} onSubmit={async event => {
         event.preventDefault();
         const data = new FormData(event.currentTarget);
         const goalKcal = Number(data.get("goalKcal"));
         const goalSteps = Number(data.get("goalSteps"));
+        const trainingGoalMinutes = Number(data.get("trainingGoalMinutes"));
         setBusy(true); setNotice("");
         try {
-          await requestJson("/api/admin/health-training-test", "Ziele konnten nicht gespeichert werden.", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ profileId: profile.id, goalKcal, goalSteps }) });
-          await refresh(); setNotice(`Tagesziele für ${profile.name} gespeichert.`);
+          await requestJson("/api/admin/health-training-test", "Ziele konnten nicht gespeichert werden.", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ profileId: profile.id, goalKcal, goalSteps, trainingGoalMinutes }) });
+          await refresh(); setNotice(`Ziele für ${profile.name} gespeichert.`);
         } catch (error) { setNotice(error instanceof Error ? error.message : "Ziel konnte nicht gespeichert werden."); }
         finally { setBusy(false); }
-      }}><strong>{profile.name}</strong><label>kcal-Ziel<input aria-label={`kcal-Ziel für ${profile.name}`} name="goalKcal" type="number" required min="1" max="20000" step="1" defaultValue={profile.energyGoalKcal ?? 500} /></label><label>Schritte-Ziel<input aria-label={`Schritte-Ziel für ${profile.name}`} name="goalSteps" type="number" required min="1" max="100000" step="1" defaultValue={profile.goalSteps ?? 10000} /></label><button type="submit" disabled={busy}>Ziele speichern</button></form>)}
+      }}><strong>{profile.name}</strong><label>kcal-Ziel<input aria-label={`kcal-Ziel für ${profile.name}`} name="goalKcal" type="number" required min="1" max="20000" step="1" defaultValue={profile.energyGoalKcal ?? 500} /></label><label>Schritte-Ziel<input aria-label={`Schritte-Ziel für ${profile.name}`} name="goalSteps" type="number" required min="1" max="100000" step="1" defaultValue={profile.goalSteps ?? 10000} /></label><label>Trainingsziel / Woche<input aria-label={`Trainingsziel pro Woche für ${profile.name}`} name="trainingGoalMinutes" type="number" required min="1" max="10000" step="1" defaultValue={profile.trainingGoalMinutes ?? 150} /></label><button type="submit" disabled={busy}>Ziele speichern</button></form>)}
       <section className="health-shortcut-download" aria-label="Mac-Kurzbefehl herunterladen">
         <h4>Fertigen Kurzbefehl auf dem Mac erstellen</h4>
         <label>Profil<select value={shortcutProfile || status?.profiles[0]?.id || ""} onChange={event => setShortcutProfile(event.target.value)}>{status?.profiles.map(profile => <option key={profile.id} value={profile.id}>{profile.name}</option>)}</select></label>

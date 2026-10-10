@@ -4,7 +4,7 @@ import { getAvatarProgress, getFitnessStageCount, getProfileAge, movementTargetF
 import { enforceSafetyPauses } from "@/lib/training";
 import { normalizePlanJson } from "@/lib/plan-normalizer";
 import { trainingProgress } from "@/lib/training-progress";
-import { energyDate, energyGoal, energyGoalKey, energyGoalPercent, stepGoal, stepGoalKey } from "@/lib/health-energy";
+import { energyDate, energyGoal, energyGoalKey, energyGoalPercent, stepGoal, stepGoalKey, trainingGoal, trainingGoalKey } from "@/lib/health-energy";
 import { weeklyRecap, type RecapSegment } from "@/lib/weekly-recap";
 
 function calendarDaysBetween(start: string, end: string) {
@@ -70,7 +70,7 @@ export async function getDashboardData(): Promise<DashboardProfile[]> {
     days.set(date, { activeEnergyKcal: Number(row.active_energy_kcal), stepCount: row.step_count == null ? null : Number(row.step_count), sourceName: row.source_name == null ? null : String(row.source_name), updatedAt: String(row.updated_at) });
     recentEnergyByProfile.set(profileId, days);
   }
-  const goalRows = await client.execute("SELECT key,value FROM settings WHERE key LIKE 'health_energy_goal:%' OR key LIKE 'health_step_goal:%'");
+  const goalRows = await client.execute("SELECT key,value FROM settings WHERE key LIKE 'health_energy_goal:%' OR key LIKE 'health_step_goal:%' OR key LIKE 'training_weekly_goal:%'");
   const energyGoals = new Map(goalRows.rows.map(row => [String(row.key), row.value]));
   const trainingMinutesByProfile = new Map<string, Map<string, number>>();
   for (const row of trainingRows.rows) {
@@ -160,7 +160,9 @@ export async function getDashboardData(): Promise<DashboardProfile[]> {
       goal: String(row.goal)
     };
     const age = getProfileAge(profile.id, profile.birthDate, now);
-    const target = movementTargetForAge(age);
+    const defaultTarget = movementTargetForAge(age);
+    const customWeeklyTarget = trainingGoal(energyGoals.get(trainingGoalKey(profileId)));
+    const target = customWeeklyTarget === null ? defaultTarget : { minutes: customWeeklyTarget, period: "Woche" as const };
     const dailyTarget = target.period === "Woche" ? target.minutes / 7 : target.minutes;
     const dailyActivity = new Map(workoutMinutesByProfile.get(profileId) ?? []);
     const effectiveHealthTraining = new Map<string, number>();

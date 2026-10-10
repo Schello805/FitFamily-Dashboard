@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { db } from "./db";
-import { energyDate, energyKcalSchema, healthEnergySchema, storeHealthEnergy, energyGoal, energyGoalPercent, energyGoalKey, stepGoal, stepGoalKey } from "./health-energy";
+import { energyDate, energyKcalSchema, healthEnergySchema, storeHealthEnergy, energyGoal, energyGoalPercent, energyGoalKey, stepGoal, stepGoalKey, trainingGoalKey } from "./health-energy";
 import { getDashboardData } from "./dashboard";
 import { POST, energyTranscript } from "@/app/api/sync/health-energy/route";
 import { DATA_TABLE_SPECS, DATA_IMPORT_ORDER } from "./data-transfer-schema";
@@ -153,6 +153,12 @@ it("counts imported daily training minutes once at factor 1.5 and replaces corre
   expect(dashboard.totalMinutes).toBe(10);
   expect((await (await db()).execute({ sql: "SELECT training_minutes FROM health_energy_daily WHERE profile_id=?", args: [profileId] })).rows[0].training_minutes).toBe(10);
   expect((await POST(request({ ...payload, trainingRows: "1\tkcal\tWatch" }))).status).toBe(400);
+});
+it("uses a saved custom weekly training goal instead of the age-based default", async () => {
+  await (await db()).execute({ sql: "INSERT INTO settings(key,value) VALUES (?,?)", args: [trainingGoalKey(profileId), "200"] });
+  const dashboard = (await getDashboardData()).find(p => p.id === profileId)!;
+  expect(dashboard).toMatchObject({ targetMinutes: 200, targetPeriod: "Woche" });
+  await (await db()).execute({ sql: "DELETE FROM settings WHERE key=?", args: [trainingGoalKey(profileId)] });
 });
 it("keeps all imported days and exposes exactly 30 calendar days with gaps", async () => {
   await storeHealthEnergy({ ...input, date: "2026-09-04", activeEnergyKcal: 50, stepCount: 500 });
