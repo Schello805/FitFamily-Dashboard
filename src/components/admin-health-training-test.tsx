@@ -6,7 +6,7 @@ import { requestJson } from "@/lib/api-client";
 type TestStatus = { configured: boolean; profiles: { id: string; name: string; energyGoalKcal?: number; goalSteps?: number }[]; latest: { at: string; importId: string; profileName: string; mode?: "test" | "book"; saved: number; alreadyReceived: number; conflicts?: number; workouts: { startedAt: string; durationSeconds: number; sourceName: string; minutes: number; testPoints?: number; points?: number; duplicate: boolean; conflict?: boolean; error?: string }[] } | null };
 export function AdminHealthTrainingTest() {
   const [status, setStatus] = useState<(TestStatus & {
-    energyDaily?: { profile_id: string; profile_name: string; date: string; active_energy_kcal: number; step_count?: number | null; updated_at: string }[];
+    energyDaily?: { profile_id: string; profile_name: string; date: string; active_energy_kcal: number; step_count?: number | null; training_minutes?: number | null; updated_at: string }[];
     energyAttempt?: { level: string; message: string; importId: string; errors?: string[] } | null;
     latestEnergyImport?: { importId: string; profileId: string; sourceName: string; dates: string[] } | null;
     latestError?: { importId: string; message: string; errors: string[] } | null;
@@ -59,7 +59,7 @@ export function AdminHealthTrainingTest() {
     finally { setBusy(false); }
   }
   async function deleteEnergyDay(day: { profile_id: string; profile_name: string; date: string }) {
-    if (!window.confirm(`Apple-Health-Daten von ${day.profile_name} am ${day.date} löschen? Energie und Schritte dieses Tages werden entfernt. Trainings und Punkte bleiben unverändert.`)) return;
+    if (!window.confirm(`Apple-Health-Daten von ${day.profile_name} am ${day.date} löschen? Energie, Schritte und Trainingsminuten dieses Tages werden entfernt; die Wertung passt sich sofort an.`)) return;
     setBusy(true); setNotice("");
     try {
       await requestJson<{ deleted: number }>("/api/admin/health-training-test", "Apple-Health-Tag konnte nicht gelöscht werden.", {
@@ -70,14 +70,14 @@ export function AdminHealthTrainingTest() {
     } catch (error) { setNotice(error instanceof Error ? error.message : "Apple-Health-Tag konnte nicht gelöscht werden."); }
     finally { setBusy(false); }
   }
-  return <article className="wide"><div className="admin-title"><div><h2>Health-Daten empfangen</h2><p>Aktive Energie: separate kcal-Anzeige, ohne Punkte und Trainingsminuten. Aufgezeichnete Trainings: weiterhin 1,5 Punkte pro aktiver Minute.</p></div></div>
+  return <article className="wide"><div className="admin-title"><div><h2>Health-Daten empfangen</h2><p>Aktive Energie und Schritte bleiben ohne Wertung. Trainingsminuten aus Health zählen rückwirkend mit Faktor 1,5; bereits in FitFamily erfasste Minuten am selben Tag werden abgezogen.</p></div></div>
     <div className="admin-actions"><button type="button" onClick={() => void createKey()} disabled={busy || !status}>{status?.configured ? "Familienschlüssel ersetzen" : "Familienschlüssel erstellen"}</button><button type="button" onClick={() => void refresh()} disabled={busy}>Empfang prüfen</button></div>
     {secret && <label>Familienschlüssel<input readOnly value={secret} aria-label="Familienschlüssel" onFocus={event => event.currentTarget.select()} /><button type="button" onClick={() => void copyKey()}>Schlüssel kopieren</button></label>}
     {status && <p>Profil-IDs: {status.profiles.map(profile => `${profile.name}: ${profile.id}`).join(" · ")}</p>}
     {notice && <p role="status">{notice}</p>}
     <section className="health-energy-settings" aria-label="Aktive Energie aus Apple Health">
-      <h3>Aktive Energie · täglicher 30-Tage-Kurzbefehl</h3>
-      <p>Der Kurzbefehl überträgt die letzten 30 Kalendertage. FitFamily gruppiert sie nach Tag und ersetzt pro Tag nur den jeweiligen Wert – ohne Training oder Punkte zu ändern.</p>
+      <h3>Apple Health · täglicher 30-Tage-Kurzbefehl</h3>
+      <p>Der Kurzbefehl überträgt die letzten 30 Kalendertage: Energie, Schritte und Trainingsminuten. FitFamily gruppiert sie nach Tag und ersetzt pro Tag nur den jeweiligen Wert.</p>
       <h4>Tagesziele · kcal und Schritte</h4>
       <p>Standard: 500 kcal und 10.000 Schritte pro Profil. Ziele werden manuell in FitFamily gepflegt, nicht aus Apple gelesen. Ohne Wertung.</p>
       {status?.profiles.map(profile => <form className="health-goal-form" key={`${profile.id}:${profile.energyGoalKcal}:${profile.goalSteps}`} onSubmit={async event => {
@@ -99,15 +99,15 @@ export function AdminHealthTrainingTest() {
         {status?.profiles.length ? <a className="health-shortcut-link" href={`/api/admin/health-shortcut?format=app&profileId=${encodeURIComponent(shortcutProfile || status.profiles[0].id)}${shortcutServer ? `&server=${encodeURIComponent(shortcutServer)}` : ""}`} download>Mac-App herunterladen · inklusive Kurzbefehl-Signierung</a> : null}
         <ol>
           <li>Auf dem Mac herunterladen, ZIP entpacken und „FitFamily-Kurzbefehl.app“ per Doppelklick öffnen. Keine Terminaleingabe nötig. Die Mac-App ist nicht notarisiert; macOS kann eine einmalige Freigabe unter Systemeinstellungen → Datenschutz &amp; Sicherheit verlangen. Keine Sicherheitsfunktionen abschalten.</li>
-          <li>Das Skript erzeugt die Vorlage, lässt sie von Apple signieren und öffnet sie in Kurzbefehle. „Kurzbefehl hinzufügen“ bestätigen. Die neue Version heißt <strong>„FitFamily Alltag v4“</strong>; dort muss bei Energie und Schritten jeweils „Startdatum innerhalb der letzten 30 Tage“ stehen.</li>
+          <li>Das Skript erzeugt die Vorlage, lässt sie von Apple signieren und öffnet sie in Kurzbefehle. „Kurzbefehl hinzufügen“ bestätigen. Die neue Version heißt <strong>„FitFamily Alltag v5“</strong>; bei Energie, Schritten und Trainingsminuten muss jeweils „Startdatum innerhalb der letzten 30 Tage“ stehen.</li>
           <li>Danach den Kurzbefehl bearbeiten und nur die zwei vorbereiteten Textfelder oben ersetzen: bekannter Familienschlüssel und exakter Name einer aktuellen Energie-Datenquelle aus Health. Keine Aktionen selbst anlegen. Der Schlüssel kommt erst nach der Signierung hinein; keinen ausgefüllten Kurzbefehl teilen.</li>
-          <li>Mac und iPhone: derselbe Apple-Account, Kurzbefehle → Einstellungen → iCloud-Synchronisierung aktivieren. Bereits importierte ältere Kurzbefehle ändern sich nicht automatisch: nicht mehr ausführen oder löschen. Dann „FitFamily Alltag v4“ auf dem iPhone einmal ausführen und den Empfang hier prüfen.</li>
+          <li>Mac und iPhone: derselbe Apple-Account, Kurzbefehle → Einstellungen → iCloud-Synchronisierung aktivieren. Bereits importierte ältere Kurzbefehle ändern sich nicht automatisch: nicht mehr ausführen oder löschen. Dann „FitFamily Alltag v5“ auf dem iPhone einmal ausführen und den Empfang hier prüfen.</li>
         </ol>
-        <p>Diese Version überträgt Werte, Einheiten, Quellennamen und Datum der letzten 30 Tage als Text. FitFamily gruppiert sie automatisch nach Tag und summiert nur die ausgewählte Quelle. Zuerst einmal auf dem iPhone testen; die tägliche Automation bleibt nur ein einziger Kurzbefehl.</p>
+        <p>Diese Version überträgt Werte, Einheiten, Quellennamen und Datum der letzten 30 Tage als Text. FitFamily gruppiert sie automatisch nach Tag und summiert nur die ausgewählte Quelle. Trainingsminuten werden neutral bewertet, ohne Kraft- oder Ausdauer-Art zu raten.</p>
       </section>
       {status?.energyAttempt && <p role={status.energyAttempt.level === "error" ? "alert" : "status"}>{status.energyAttempt.message} {status.energyAttempt.errors?.join(" · ")} · Import-ID {status.energyAttempt.importId}</p>}
       {status?.latestEnergyImport && <button type="button" onClick={() => void revertLatestEnergyImport()} disabled={busy}>Letzten 30-Tage-Import bei {status.profiles.find(profile => profile.id === status.latestEnergyImport?.profileId)?.name ?? status.latestEnergyImport.profileId} zurücknehmen</button>}
-      {status?.energyDaily?.length ? <div className="health-test-table"><table><thead><tr><th>Profil</th><th>Tag</th><th>Aktive kcal</th><th>Schritte</th><th>Empfangen</th><th><span className="sr-only">Aktion</span></th></tr></thead><tbody>{status.energyDaily.map(day => <tr key={`${day.profile_id}:${day.date}`}><td>{day.profile_name}</td><td>{day.date}</td><td>{day.active_energy_kcal.toLocaleString("de-DE", { maximumFractionDigits: 1 })}</td><td>{day.step_count == null ? "—" : day.step_count.toLocaleString("de-DE")}</td><td>{new Date(day.updated_at.replace(" ", "T") + "Z").toLocaleString("de-DE", { timeZone: "Europe/Berlin" })}</td><td><button type="button" className="icon-button danger" onClick={() => void deleteEnergyDay(day)} disabled={busy} aria-label={`Apple-Health-Daten von ${day.profile_name} am ${day.date} löschen`} title="Apple-Health-Tag löschen"><Trash2 size={16} /></button></td></tr>)}</tbody></table></div> : <p>Noch keine aktive Energie empfangen.</p>}
+      {status?.energyDaily?.length ? <div className="health-test-table"><table><thead><tr><th>Profil</th><th>Tag</th><th>Aktive kcal</th><th>Schritte</th><th>Trainingsmin.</th><th>Empfangen</th><th><span className="sr-only">Aktion</span></th></tr></thead><tbody>{status.energyDaily.map(day => <tr key={`${day.profile_id}:${day.date}`}><td>{day.profile_name}</td><td>{day.date}</td><td>{day.active_energy_kcal.toLocaleString("de-DE", { maximumFractionDigits: 1 })}</td><td>{day.step_count == null ? "—" : day.step_count.toLocaleString("de-DE")}</td><td>{day.training_minutes == null ? "—" : day.training_minutes.toLocaleString("de-DE", { maximumFractionDigits: 1 })}</td><td>{new Date(day.updated_at.replace(" ", "T") + "Z").toLocaleString("de-DE", { timeZone: "Europe/Berlin" })}</td><td><button type="button" className="icon-button danger" onClick={() => void deleteEnergyDay(day)} disabled={busy} aria-label={`Apple-Health-Daten von ${day.profile_name} am ${day.date} löschen`} title="Apple-Health-Tag löschen"><Trash2 size={16} /></button></td></tr>)}</tbody></table></div> : <p>Noch keine aktive Energie empfangen.</p>}
       <details><summary>Fehleranalyse einer alten Tagesversion</summary>
         <ol>
           <li>„Aktuelles Datum“ → „Datum formatieren“: eigenes Format <code>yyyy-MM-dd</code>. Dieser Tag gehört zum gesuchten Health-Zeitraum (Europe/Berlin).</li>

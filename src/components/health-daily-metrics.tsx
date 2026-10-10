@@ -64,7 +64,7 @@ export function HealthDailyMetrics({ value, trend = [], clock = new Date() }: { 
   const receivedCount = openField ? trend.filter(day => day[openField] !== null).length : 0;
   const metricName = openField === "stepCount" ? "Schritte" : "Aktive Energie";
   return <section className="health-daily-metrics" aria-label="Apple Health · Tageskennzahlen ohne Wertung">
-    <div className="health-daily-label"><span>Apple Health · Alltag</span><small>{value ? formatGermanDate(value.date) : "Noch kein Empfang"} · ohne Wertung</small></div>
+    <div className="health-daily-label"><span>Apple Health · Alltag</span><small>{value ? formatGermanDate(value.date) : "Noch kein Empfang"} · ohne Wertung für Energie &amp; Schritte</small></div>
     <div className="health-daily-values">
       <div className="health-metric-card"><HealthTrend days={trend} field="activeEnergyKcal" goal={value?.goalKcal ?? 500} unit="kcal" onOpen={() => openDetails("activeEnergyKcal")} /><span>Aktive Energie</span><strong>{value ? value.activeEnergyKcal.toLocaleString("de-DE", { maximumFractionDigits: 1 }) : "—"} <small>kcal</small></strong>
         {value ? <GoalProgress amount={value.activeEnergyKcal} goal={value.goalKcal ?? 500} unit="kcal" /> : <small>Warten auf Übertragung</small>}

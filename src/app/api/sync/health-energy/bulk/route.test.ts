@@ -9,7 +9,8 @@ it("uses the selected source for Health values grouped by day", () => {
 
   expect(days.get("2026-10-08")).toEqual({
     energy: ["432.5\tkcal\tApple Watch von Michael"],
-    steps: ["7123\tcount\tApple Watch von Michael"]
+    steps: ["7123\tcount\tApple Watch von Michael"],
+    training: []
   });
 });
 
@@ -23,17 +24,17 @@ it("expands nested union validation errors for a useful shortcut response", () =
 });
 
 it("keeps a small, exact transcript of a rejected day", () => {
-  expect(failedDayTranscript("2026-10-05", { energy: ["421.2\tkcal\tApple Watch"], steps: ["3.493 Schritte\tAnzahl\tApple Watch"] }))
-    .toEqual({ date: "2026-10-05", energyRows: ["421.2\tkcal\tApple Watch"], stepRows: ["3.493 Schritte\tAnzahl\tApple Watch"] });
+  expect(failedDayTranscript("2026-10-05", { energy: ["421.2\tkcal\tApple Watch"], steps: ["3.493 Schritte\tAnzahl\tApple Watch"], training: ["30\tmin\tApple Watch"] }))
+    .toEqual({ date: "2026-10-05", energyRows: ["421.2\tkcal\tApple Watch"], stepRows: ["3.493 Schritte\tAnzahl\tApple Watch"], trainingRows: ["30\tmin\tApple Watch"] });
 });
 
 it("lists every received daily group for diagnosing a Health shortcut", () => {
   const days = new Map<string, DayRows>([
-    ["2026-10-06", { energy: ["500\tkcal\tWatch"], steps: ["4000\tcount\tWatch"] }],
-    ["2026-10-05", { energy: ["420\tkcal\tWatch"], steps: ["3000\tcount\tWatch"] }]
+    ["2026-10-06", { energy: ["500\tkcal\tWatch"], steps: ["4000\tcount\tWatch"], training: [] }],
+    ["2026-10-05", { energy: ["420\tkcal\tWatch"], steps: ["3000\tcount\tWatch"], training: [] }]
   ]);
   expect(receivedDaysTranscript(days)).toEqual([
-    { date: "2026-10-05", energyRows: ["420\tkcal\tWatch"], stepRows: ["3000\tcount\tWatch"] },
-    { date: "2026-10-06", energyRows: ["500\tkcal\tWatch"], stepRows: ["4000\tcount\tWatch"] }
+    { date: "2026-10-05", energyRows: ["420\tkcal\tWatch"], stepRows: ["3000\tcount\tWatch"], trainingRows: [] },
+    { date: "2026-10-06", energyRows: ["500\tkcal\tWatch"], stepRows: ["4000\tcount\tWatch"], trainingRows: [] }
   ]);
 });

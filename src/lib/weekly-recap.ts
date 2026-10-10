@@ -15,7 +15,7 @@ export type WeeklyRecapPeriod = {
 
 export type WeeklyRecap = { lastWeek: WeeklyRecapPeriod; previousWeek: WeeklyRecapPeriod };
 export type RecapSegment = { startedAt: string; endedAt: string | null; type: TrainingType; source: "app" | "health"; factor?: number };
-export type RecapHealthDay = { date: string; stepCount: number | null; activeEnergyKcal: number | null };
+export type RecapHealthDay = { date: string; stepCount: number | null; activeEnergyKcal: number | null; trainingMinutes?: number };
 
 function dateKey(date: Date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
@@ -41,6 +41,7 @@ function oneWeek(start: Date, segments: RecapSegment[], healthDays: RecapHealthD
     if (day.date < result.startDate || day.date > result.endDate) continue;
     if (day.stepCount !== null) { result.steps += day.stepCount; result.stepDays += 1; }
     if (day.activeEnergyKcal !== null) { result.activeEnergyKcal += day.activeEnergyKcal; result.energyDays += 1; }
+    if (day.trainingMinutes) result.healthMinutes += day.trainingMinutes;
   }
   for (const field of ["appMinutes", "healthMinutes", "strengthMinutes", "enduranceMinutes", "activeEnergyKcal"] as const) result[field] = Math.round(result[field] * 10) / 10;
   return result;

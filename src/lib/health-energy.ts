@@ -26,6 +26,7 @@ const numericQuantitySchema = z.union([
 
 export const energyKcalSchema = numericQuantitySchema.pipe(z.number().max(20000));
 const stepCountSchema = numericQuantitySchema.pipe(z.number().int().max(200000));
+const trainingMinutesSchema = numericQuantitySchema.pipe(z.number().max(1440));
 
 function groupedStepValue(value: string) {
   const compact = value.trim().replace(/[\s\u00a0]/g, "");
@@ -42,6 +43,10 @@ function groupedStepValue(value: string) {
 
 function isStepUnit(unit: string) {
   return ["count", "steps", "schritte", "anzahl"].includes(unit.trim().toLocaleLowerCase("de-DE"));
+}
+
+function isMinuteUnit(unit: string) {
+  return ["min", "minute", "minutes", "minuten"].includes(unit.trim().toLocaleLowerCase("de-DE"));
 }
 
 export function energyDate(now = new Date()) {
@@ -65,7 +70,8 @@ const sampleTextSchema = z.object({
   ...dailyIdentity,
   sourceName: z.string().trim().min(1).max(200).regex(/^[^\r\n\t]+$/),
   sampleRows: z.string().min(1).max(60000),
-  stepRows: z.string().max(60000).optional()
+  stepRows: z.string().max(60000).optional(),
+  trainingRows: z.string().max(60000).optional()
 }).strict().transform((input, context) => {
   const rows = input.sampleRows.trim().split(/\r?\n/);
   if (rows.length > 2000) { context.addIssue({ code: "custom", message: "Zu viele Energie-Messungen; maximal 2000 pro Tag." }); return z.NEVER; }
@@ -98,7 +104,22 @@ const sampleTextSchema = z.object({
     }
     if (steps > 200000) { context.addIssue({ code: "custom", message: "Schrittsumme ist unplausibel (maximal 200000)." }); return z.NEVER; }
   }
-  return { profileId: input.profileId, date: input.date, activeEnergyKcal: total, unit: "kcal" as const, sourceName: input.sourceName, sampleCount: selected, ...(stepSamples ? { stepCount: steps } : {}) };
+  let trainingMinutes = 0, trainingSamples = 0;
+  if (input.trainingRows?.trim()) {
+    const trainingRows = input.trainingRows.trim().split(/\r?\n/);
+    if (trainingRows.length > 2000) { context.addIssue({ code: "custom", message: "Zu viele Trainingsminuten-Messungen; maximal 2000 pro Tag." }); return z.NEVER; }
+    for (const row of trainingRows) {
+      const fields = row.split("\t");
+      if (fields.length !== 3) { context.addIssue({ code: "custom", message: "Trainingsminuten-Zeile benötigt Wert, Einheit und Quelle." }); return z.NEVER; }
+      const [value, unit, source] = fields.map(field => field.trim());
+      if (source !== input.sourceName) continue;
+      const parsed = trainingMinutesSchema.safeParse(value);
+      if (!parsed.success || !isMinuteUnit(unit)) { context.addIssue({ code: "custom", message: "Trainingsminuten benötigen eine Zahl und die Einheit min." }); return z.NEVER; }
+      trainingMinutes += parsed.data; trainingSamples++;
+    }
+    if (trainingMinutes > 1440) { context.addIssue({ code: "custom", message: "Trainingsminuten-Summe ist unplausibel (maximal 1440 pro Tag)." }); return z.NEVER; }
+  }
+  return { profileId: input.profileId, date: input.date, activeEnergyKcal: total, unit: "kcal" as const, sourceName: input.sourceName, sampleCount: selected, ...(stepSamples ? { stepCount: steps } : {}), ...(trainingSamples ? { trainingMinutes } : {}) };
 });
 export const healthEnergySchema = z.union([dayValueSchema, sampleTextSchema]);
 
@@ -106,13 +127,15 @@ export async function storeHealthEnergy(input: z.infer<typeof healthEnergySchema
   const client = await db();
   const profiles = await client.execute({ sql: "SELECT name FROM profiles WHERE id=?", args: [input.profileId] });
   if (!profiles.rows.length) return null;
+  const trainingMinutes = "trainingMinutes" in input ? input.trainingMinutes : undefined;
   await client.execute({
-    sql: `INSERT INTO health_energy_daily (profile_id,date,active_energy_kcal,step_count,source_name) VALUES (?,?,?,?,?)
-      ON CONFLICT(profile_id,date) DO UPDATE SET active_energy_kcal=excluded.active_energy_kcal, step_count=COALESCE(excluded.step_count,health_energy_daily.step_count), source_name=excluded.source_name, updated_at=CURRENT_TIMESTAMP`,
-    args: [input.profileId, input.date, input.activeEnergyKcal, input.stepCount ?? null, "sourceName" in input ? input.sourceName : null]
+    sql: `INSERT INTO health_energy_daily (profile_id,date,active_energy_kcal,step_count,training_minutes,source_name) VALUES (?,?,?,?,?,?)
+      ON CONFLICT(profile_id,date) DO UPDATE SET active_energy_kcal=excluded.active_energy_kcal, step_count=COALESCE(excluded.step_count,health_energy_daily.step_count), training_minutes=COALESCE(excluded.training_minutes,health_energy_daily.training_minutes), source_name=excluded.source_name, updated_at=CURRENT_TIMESTAMP`,
+    args: [input.profileId, input.date, input.activeEnergyKcal, input.stepCount ?? null, trainingMinutes ?? null, "sourceName" in input ? input.sourceName : null]
   });
   return { profileId: input.profileId, profileName: String(profiles.rows[0].name), date: input.date, activeEnergyKcal: input.activeEnergyKcal,
     ...("sourceName" in input ? { sourceName: input.sourceName, sampleCount: input.sampleCount } : {}),
     ...(input.stepCount !== undefined ? { stepCount: input.stepCount } : {}),
-    unit: "kcal", message: `${input.stepCount !== undefined ? "Aktive Energie und Schritte" : "Aktive Energie"} gespeichert. Tageswert ersetzt, nicht addiert. Keine Trainingsminuten, Punkte oder Level geändert.` };
+    ...(trainingMinutes !== undefined ? { trainingMinutes } : {}),
+    unit: "kcal", message: `${input.stepCount !== undefined ? "Aktive Energie und Schritte" : "Aktive Energie"} gespeichert. Tageswert ersetzt, nicht addiert.${trainingMinutes !== undefined ? " Trainingsminuten werden mit Faktor 1,5 gewertet." : " Keine Trainingsminuten, Punkte oder Level geändert."}` };
 }

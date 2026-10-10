@@ -19,7 +19,7 @@ export function WeeklyRecapCard({ recap }: { recap?: WeeklyRecap }) {
     { label: "Kraft", current: last.strengthMinutes, previous: before.strengthMinutes, unit: "Min.", digits: 1, note: "App + importierte Trainings" },
     { label: "Ausdauer", current: last.enduranceMinutes, previous: before.enduranceMinutes, unit: "Min.", digits: 1, note: "App + importierte Trainings" },
     { label: "Davon FitFamily", current: last.appMinutes, previous: before.appMinutes, unit: "Min.", digits: 1, note: "Direkt in der App" },
-    { label: "Davon Apple Health", current: last.healthMinutes, previous: before.healthMinutes, unit: "Min.", digits: 1, note: "Manuell importierte Trainings" },
+    { label: "Davon Apple Health", current: last.healthMinutes, previous: before.healthMinutes, unit: "Min.", digits: 1, note: "Importierte Trainingsminuten" },
     { label: "Schritte", current: last.steps, previous: before.steps, unit: "Schritte", digits: 0, note: `${last.stepDays}/7 Tage empfangen · ohne Wertung`, comparable: last.stepDays === 7 && before.stepDays === 7 },
     { label: "Aktive Energie", current: last.activeEnergyKcal, previous: before.activeEnergyKcal, unit: "kcal", digits: 1, note: `${last.energyDays}/7 Tage empfangen · ohne Wertung`, comparable: last.energyDays === 7 && before.energyDays === 7 }
   ];

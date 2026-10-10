@@ -56,10 +56,11 @@ export async function getDashboardData(): Promise<DashboardProfile[]> {
   const healthFactors = new Map(healthRows.rows.map(h => [`health:${h.profile_id}:${h.external_id}`, Number(h.duration_seconds) / durationSeconds(String(h.started_at), String(h.ended_at))]));
   const healthActiveSeconds = new Map(healthRows.rows.map(h => [`health:${h.profile_id}:${h.external_id}`, Number(h.duration_seconds)]));
   const factorFor = (id: unknown) => healthFactors.get(String(id)) ?? 1;
-  const [energyRows, latestEnergyRows, lastHealthReceipts] = await Promise.all([
+  const [energyRows, latestEnergyRows, lastHealthReceipts, trainingRows] = await Promise.all([
     client.execute({ sql: "SELECT * FROM health_energy_daily WHERE date BETWEEN ? AND ? ORDER BY date DESC", args: [recentStart, healthToday] }),
     client.execute({ sql: "SELECT e.* FROM health_energy_daily e WHERE e.date = (SELECT MAX(date) FROM health_energy_daily WHERE profile_id=e.profile_id AND date<=?)", args: [healthToday] }),
-    client.execute("SELECT profile_id, MAX(updated_at) received_at FROM health_energy_daily GROUP BY profile_id")
+    client.execute("SELECT profile_id, MAX(updated_at) received_at FROM health_energy_daily GROUP BY profile_id"),
+    client.execute({ sql: "SELECT profile_id,date,training_minutes FROM health_energy_daily WHERE training_minutes IS NOT NULL AND date<=? ORDER BY date ASC", args: [healthToday] })
   ]);
   const recentEnergyByProfile = new Map<string, Map<string, { activeEnergyKcal: number; stepCount: number | null; sourceName: string | null; updatedAt: string }>>();
   for (const row of energyRows.rows) {
@@ -71,6 +72,13 @@ export async function getDashboardData(): Promise<DashboardProfile[]> {
   }
   const goalRows = await client.execute("SELECT key,value FROM settings WHERE key LIKE 'health_energy_goal:%' OR key LIKE 'health_step_goal:%'");
   const energyGoals = new Map(goalRows.rows.map(row => [String(row.key), row.value]));
+  const trainingMinutesByProfile = new Map<string, Map<string, number>>();
+  for (const row of trainingRows.rows) {
+    const profileId = String(row.profile_id);
+    const days = trainingMinutesByProfile.get(profileId) ?? new Map<string, number>();
+    days.set(String(row.date), Math.max(0, Number(row.training_minutes)));
+    trainingMinutesByProfile.set(profileId, days);
+  }
 
   const workoutMinutesByProfile = new Map<string, Map<string, number>>();
   for (const row of segmentsResult.rows) {
@@ -154,7 +162,23 @@ export async function getDashboardData(): Promise<DashboardProfile[]> {
     const age = getProfileAge(profile.id, profile.birthDate, now);
     const target = movementTargetForAge(age);
     const dailyTarget = target.period === "Woche" ? target.minutes / 7 : target.minutes;
-    const dailyActivity = workoutMinutesByProfile.get(profileId) ?? new Map<string, number>();
+    const dailyActivity = new Map(workoutMinutesByProfile.get(profileId) ?? []);
+    const effectiveHealthTraining = new Map<string, number>();
+    const scoreResetDate = profile.scoreResetAt ? energyDate(new Date(profile.scoreResetAt)) : null;
+    for (const [date, importedMinutes] of trainingMinutesByProfile.get(profileId) ?? []) {
+      // Exercise Minutes is a daily Health aggregate. Subtract FitFamily's own
+      // already-recorded minutes for the same day before awarding anything.
+      const effectiveMinutes = Math.max(0, importedMinutes - (dailyActivity.get(date) ?? 0));
+      if (effectiveMinutes <= 0) continue;
+      effectiveHealthTraining.set(date, effectiveMinutes);
+      dailyActivity.set(date, (dailyActivity.get(date) ?? 0) + effectiveMinutes);
+      totalSeconds += effectiveMinutes * 60;
+      completedSeconds += effectiveMinutes * 60;
+      completedSessions.add(`health-daily:${date}`);
+      if (!scoreResetDate || date >= scoreResetDate) points += effectiveMinutes * 1.5;
+      if (date === healthToday) { todaySeconds += effectiveMinutes * 60; targetTodaySeconds += effectiveMinutes * 60; }
+      if (date >= energyDate(weekStartDate)) targetWeekSeconds += effectiveMinutes * 60;
+    }
     const observedDates = [...dailyActivity.keys()].sort();
     const firstObservedDate = observedDates[0];
     const monthlyStartMonth = new Date(monthlyStartDate.getFullYear(), monthlyStartDate.getMonth(), 1);
@@ -254,13 +278,14 @@ export async function getDashboardData(): Promise<DashboardProfile[]> {
         type: String(segment.type) as TrainingType,
         source: String(segment.session_id).startsWith("health:") ? "health" : "app",
         factor: factorFor(segment.session_id)
-      } satisfies RecapSegment)), [...(recentEnergyByProfile.get(profileId)?.entries() ?? [])].map(([date, day]) => ({ date, stepCount: day.stepCount, activeEnergyKcal: day.activeEnergyKcal }))),
+      } satisfies RecapSegment)), [...(recentEnergyByProfile.get(profileId)?.entries() ?? [])].map(([date, day]) => ({ date, stepCount: day.stepCount, activeEnergyKcal: day.activeEnergyKcal, trainingMinutes: effectiveHealthTraining.get(date) }))),
       healthEnergy: energy ? { date: String(energy.date), activeEnergyKcal: Number(energy.active_energy_kcal), stepCount: energy.step_count == null ? null : Number(energy.step_count), updatedAt: String(energy.updated_at), latestReceivedAt: String(lastHealthReceipts.rows.find(receipt => String(receipt.profile_id) === profileId)?.received_at ?? energy.updated_at), sourceName: energy.source_name == null ? null : String(energy.source_name), goalKcal: energyGoal(energyGoals.get(energyGoalKey(String(row.id)))), goalSteps: stepGoal(energyGoals.get(stepGoalKey(String(row.id)))), goalPercent: energyGoalPercent(Number(energy.active_energy_kcal), energyGoal(energyGoals.get(energyGoalKey(String(row.id))))) } : null,
       healthDailyTrend: recentDates.map(date => {
         const day = recentEnergyByProfile.get(profileId)?.get(date);
         return { date, activeEnergyKcal: day?.activeEnergyKcal ?? null, stepCount: day?.stepCount ?? null, sourceName: day?.sourceName ?? null, updatedAt: day?.updatedAt ?? null };
       }),
       ...avatarProgress,
+      trainingMinutes: Math.floor(totalSeconds / 60 + 1e-9),
       trainingProgress: trainingProgress(completedSeconds / 60, completedSessions.size),
       score: Math.floor(profile.scoreBaseline + points + 1e-9),
       totalMinutes: Math.floor(totalSeconds / 60 + 1e-9),

@@ -19,7 +19,7 @@ it("builds a complete text-only energy workflow without the looping import dialo
   expect(identifiers).not.toContain("is.workflow.actions.conditional");
   expect(identifiers).not.toContain("is.workflow.actions.exit");
   expect(identifiers).toContain("is.workflow.actions.showresult");
-  expect(actions.filter(action => action.WFWorkflowActionIdentifier === "is.workflow.actions.appendvariable").map(action => action.WFWorkflowActionParameters.WFVariableName)).toEqual(["Energiezeilen", "Schrittzeilen"]);
+  expect(actions.filter(action => action.WFWorkflowActionIdentifier === "is.workflow.actions.appendvariable").map(action => action.WFWorkflowActionParameters.WFVariableName)).toEqual(["Energiezeilen", "Schrittzeilen", "Trainingsminutenzeilen"]);
   expect(combine.WFWorkflowActionParameters.WFInput).toBeUndefined();
   expect(shortcut.WFWorkflowImportQuestions).toEqual([]);
   expect(actions[1].WFWorkflowActionParameters.WFTextActionText).toBe("FAMILIENSCHLUESSEL_HIER_EINFUEGEN");
@@ -27,15 +27,16 @@ it("builds a complete text-only energy workflow without the looping import dialo
   const uuids = new Set(actions.map(action => action.WFWorkflowActionParameters.UUID));
   for (const match of JSON.stringify(shortcut).matchAll(/"OutputUUID":"([^"]+)"/g)) expect(uuids.has(match[1])).toBe(true);
   expect(JSON.stringify(shortcut)).toContain("/api/sync/health-energy/bulk");
-  expect(shortcut.WFWorkflowName).toBe("FitFamily Alltag v4 · papa");
+  expect(shortcut.WFWorkflowName).toBe("FitFamily Alltag v5 · papa");
   expect(JSON.stringify(shortcut)).toContain("Startdatum innerhalb der letzten 30 Tage");
   expect(JSON.stringify(shortcut)).toContain('"Number":"30"');
   expect(JSON.stringify(shortcut)).toContain("Bearer ");
-  expect(JSON.stringify(shortcut)).not.toContain("exerciseMinutes");
+  expect(JSON.stringify(shortcut)).toContain("Exercise Minutes");
   expect(JSON.stringify(shortcut)).not.toContain("stepCount");
   expect(JSON.stringify(shortcut)).toContain("stepRows");
+  expect(JSON.stringify(shortcut)).toContain("trainingRows");
   expect(JSON.stringify(shortcut)).toContain('"Value":"Steps"');
-  expect(actions.filter(action => action.WFWorkflowActionIdentifier === "is.workflow.actions.text.combine")).toHaveLength(2);
+  expect(actions.filter(action => action.WFWorkflowActionIdentifier === "is.workflow.actions.text.combine")).toHaveLength(3);
   expect(plist("<&\"")).toBe("<string>&lt;&amp;&quot;</string>");
 });
 it("rejects injection and builds a self-contained Mac installer with no real secret", () => {

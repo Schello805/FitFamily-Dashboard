@@ -5,7 +5,7 @@ import { healthEnergySchema, storeHealthEnergy } from "@/lib/health-energy";
 import { readBoundedJson } from "@/lib/request-body";
 import { writeAdminLog } from "@/lib/admin-log";
 
-export type DayRows = { energy: string[]; steps: string[] };
+export type DayRows = { energy: string[]; steps: string[]; training: string[] };
 // A rolling 30 × 24-hour interval can touch yesterday's partial boundary and
 // today's partial boundary, so it legitimately spans 31 calendar dates.
 export const BULK_SYNC_MAX_CALENDAR_DAYS = 31;
@@ -20,7 +20,8 @@ export function failedDayTranscript(date: string, rows: DayRows) {
   return {
     date,
     energyRows: rows.energy.slice(0, 8).map(row => row.slice(0, 500)),
-    stepRows: rows.steps.slice(0, 8).map(row => row.slice(0, 500))
+    stepRows: rows.steps.slice(0, 8).map(row => row.slice(0, 500)),
+    trainingRows: rows.training.slice(0, 8).map(row => row.slice(0, 500))
   };
 }
 
@@ -35,7 +36,7 @@ class BulkDayValidationError extends Error {
   }
 }
 
-export function parseRows(value: unknown, label: string, target: Map<string, DayRows>, kind: "energy" | "steps", fallbackSource: string) {
+export function parseRows(value: unknown, label: string, target: Map<string, DayRows>, kind: "energy" | "steps" | "training", fallbackSource: string) {
   if (typeof value !== "string" || !value.trim()) throw new Error(`${label} fehlen.`);
   const rows = value.trim().split(/\r?\n/);
   if (rows.length > 60000) throw new Error(`Zu viele ${label}; maximal 60.000.`);
@@ -48,7 +49,7 @@ export function parseRows(value: unknown, label: string, target: Map<string, Day
     const [date, valuePart, unit, rowSource] = fields.map(field => field.trim());
     const source = rowSource || fallbackSource;
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !valuePart || !unit || !source) throw new Error(`${label} enthalten eine unvollständige Zeile.`);
-    const day = target.get(date) ?? { energy: [], steps: [] };
+    const day = target.get(date) ?? { energy: [], steps: [], training: [] };
     day[kind].push(`${valuePart}\t${unit}\t${source}`);
     target.set(date, day);
   }
@@ -68,19 +69,20 @@ export async function POST(request: Request) {
     const sourceName = input.sourceName.trim();
     parseRows(input.sampleRows, "Energie-Messungen", days, "energy", sourceName);
     if (input.stepRows !== undefined && input.stepRows !== "") parseRows(input.stepRows, "Schritt-Messungen", days, "steps", sourceName);
+    if (input.trainingRows !== undefined && input.trainingRows !== "") parseRows(input.trainingRows, "Trainingsminuten-Messungen", days, "training", sourceName);
     const dates = [...days.keys()].sort();
     if (dates.length > BULK_SYNC_MAX_CALENDAR_DAYS) throw new Error(`Maximal ${BULK_SYNC_MAX_CALENDAR_DAYS} Kalendertage senden.`);
     const saved = [];
     for (const date of dates) {
       const rows = days.get(date)!;
       if (!rows.energy.length) continue;
-      const parsed = healthEnergySchema.safeParse({ profileId: input.profileId, date, sourceName, sampleRows: rows.energy.join("\n"), ...(rows.steps.length ? { stepRows: rows.steps.join("\n") } : {}) });
+      const parsed = healthEnergySchema.safeParse({ profileId: input.profileId, date, sourceName, sampleRows: rows.energy.join("\n"), ...(rows.steps.length ? { stepRows: rows.steps.join("\n") } : {}), ...(rows.training.length ? { trainingRows: rows.training.join("\n") } : {}) });
       if (!parsed.success) throw new BulkDayValidationError(`${date}: ${validationMessages(parsed.error).join(" · ")}`, failedDayTranscript(date, rows), receivedDaysTranscript(days));
       const result = await storeHealthEnergy(parsed.data);
       if (!result) return NextResponse.json({ error: "Profil-ID nicht gefunden.", importId }, { status: 404 });
-      saved.push({ date: result.date, activeEnergyKcal: result.activeEnergyKcal, stepCount: result.stepCount });
+      saved.push({ date: result.date, activeEnergyKcal: result.activeEnergyKcal, stepCount: result.stepCount, trainingMinutes: result.trainingMinutes });
     }
-    await writeAdminLog("health.energy.bulk.received", "info", "Apple Health · 30-Tage-Alltag aktualisiert · ohne Wertung.", { importId, profileId: input.profileId, sourceName: input.sourceName, days: saved });
+    await writeAdminLog("health.energy.bulk.received", "info", "Apple Health · 30-Tage-Alltag mit Trainingsminuten aktualisiert.", { importId, profileId: input.profileId, sourceName: input.sourceName, days: saved });
     return NextResponse.json({ ok: true, importId, savedDays: saved.length, days: saved }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     const message = error instanceof Error ? error.message.replaceAll(key, "[SCHLÜSSEL ENTFERNT]") : "Ungültige 30-Tage-Daten.";

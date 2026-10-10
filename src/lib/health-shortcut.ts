@@ -28,7 +28,7 @@ export function buildEnergyShortcut(profileId: string, server: string) {
     actions.push({ WFWorkflowActionIdentifier: `is.workflow.actions.${id}`, WFWorkflowActionParameters: { UUID, ...params } });
     return UUID;
   };
-  action("comment", { WFCommentActionText: "FitFamily Alltag v4: Energie und Schritte der letzten 30 Tage, ohne Wertung. Beide Health-Suchen müssen ‚Startdatum innerhalb der letzten 30 Tage‘ anzeigen. Schlüssel und exakten Health-Datenquellennamen in den nächsten beiden Textaktionen einfügen. Jeder Messwert enthält seinen Kalendertag; FitFamily gruppiert und ersetzt jeden Tag einzeln. Nur die ausgewählte Quelle wird summiert. Zunächst auf dem iPhone manuell testen. Nicht mit eingefügtem Schlüssel teilen." });
+  action("comment", { WFCommentActionText: "FitFamily Alltag v5: Energie, Schritte und Trainingsminuten der letzten 30 Tage. Alle drei Health-Suchen müssen ‚Startdatum innerhalb der letzten 30 Tage‘ anzeigen. Schlüssel und exakten Health-Datenquellennamen in den nächsten beiden Textaktionen einfügen. Jeder Messwert enthält seinen Kalendertag; FitFamily gruppiert und ersetzt jeden Tag einzeln. Nur die ausgewählte Quelle wird summiert. Trainingsminuten zählen mit Faktor 1,5; bereits über FitFamily erfasste Minuten am selben Tag werden abgezogen. Zunächst auf dem iPhone manuell testen. Nicht mit eingefügtem Schlüssel teilen." });
   const secret = action("gettext", { WFTextActionText: "FAMILIENSCHLUESSEL_HIER_EINFUEGEN" });
   const source = action("gettext", { WFTextActionText: "EXAKTEN_HEALTH_DATENQUELLENNAMEN_EINFUEGEN" });
   const samples = action("filter.health.quantity", {
@@ -81,14 +81,37 @@ export function buildEnergyShortcut(profileId: string, server: string) {
   action("appendvariable", { WFVariableName: "Schrittzeilen", WFInput: input(ref(stepLine, "Text")) });
   action("repeat.each", { GroupingIdentifier: stepLoop, WFControlFlowMode: 2 });
   const stepRows = action("text.combine", { text: input({ Type: "Variable", VariableName: "Schrittzeilen" }), WFTextSeparator: "New Lines" });
+  const trainingSamples = action("filter.health.quantity", {
+    WFContentItemLimitEnabled: false,
+    WFContentItemFilter: state("WFContentPredicateTableTemplate", {
+      WFActionParameterFilterPrefix: 1, WFContentPredicateBoundedDate: false,
+      WFActionParameterFilterTemplates: [
+        { Bounded: true, Removable: false, Property: "Type", Operator: 4, Values: { Enumeration: state("WFStringSubstitutableState", "Exercise Minutes") } },
+        { Bounded: true, Removable: false, Property: "Start Date", Operator: 1002, Values: { Number: "30", Unit: 16 } }
+      ]
+    })
+  });
+  const emptyTraining = action("nothing");
+  action("setvariable", { WFVariableName: "Trainingsminutenzeilen", WFInput: input(ref(emptyTraining, "Nothing")) });
+  const trainingLoop = randomUUID().toUpperCase();
+  action("repeat.each", { GroupingIdentifier: trainingLoop, WFControlFlowMode: 0, WFInput: input(ref(trainingSamples, "Health Samples")) });
+  const trainingValue = action("properties.health.quantity", { WFContentItemPropertyName: "Value", WFInput: input(repeatItem) });
+  const trainingUnit = action("properties.health.quantity", { WFContentItemPropertyName: "Unit", WFInput: input(repeatItem) });
+  const trainingSource = action("properties.health.quantity", { WFContentItemPropertyName: "Source", WFInput: input(repeatItem) });
+  const trainingStartedAt = action("properties.health.quantity", { WFContentItemPropertyName: "Start Date", WFInput: input(repeatItem) });
+  const trainingDay = action("format.date", { WFDate: tokens([ref(trainingStartedAt, "Start Date")]), WFInput: input(ref(trainingStartedAt, "Start Date")), WFDateFormatStyle: "Custom", WFDateFormat: "yyyy-MM-dd", WFTimeFormatStyle: "None" });
+  const trainingLine = action("gettext", { WFTextActionText: tokens([ref(trainingDay, "Formatted Date"), "\t", ref(trainingValue, "Value"), "\t", ref(trainingUnit, "Unit"), "\t", ref(trainingSource, "Source")]) });
+  action("appendvariable", { WFVariableName: "Trainingsminutenzeilen", WFInput: input(ref(trainingLine, "Text")) });
+  action("repeat.each", { GroupingIdentifier: trainingLoop, WFControlFlowMode: 2 });
+  const trainingRows = action("text.combine", { text: input({ Type: "Variable", VariableName: "Trainingsminutenzeilen" }), WFTextSeparator: "New Lines" });
   const sent = action("downloadurl", {
     WFURL: text(`${url.origin}/api/sync/health-energy/bulk`), WFHTTPMethod: "POST", WFHTTPBodyType: "JSON",
     WFHTTPHeaders: dictionary([["Authorization", tokens(["Bearer ", ref(secret, "Text")])]]),
-    WFJSONValues: dictionary([["profileId", text(profileId)], ["sourceName", tokens([ref(source, "Text")])], ["sampleRows", tokens([ref(rows, "Combined Text")])], ["stepRows", tokens([ref(stepRows, "Combined Text")])]])
+    WFJSONValues: dictionary([["profileId", text(profileId)], ["sourceName", tokens([ref(source, "Text")])], ["sampleRows", tokens([ref(rows, "Combined Text")])], ["stepRows", tokens([ref(stepRows, "Combined Text")])], ["trainingRows", tokens([ref(trainingRows, "Combined Text")])]])
   });
   action("showresult", { Text: tokens(["FitFamily Alltag: ", ref(sent, "Contents of URL")]) });
   return {
-    WFWorkflowName: `FitFamily Alltag v4 · ${profileId}`, WFWorkflowActions: actions,
+    WFWorkflowName: `FitFamily Alltag v5 · ${profileId}`, WFWorkflowActions: actions,
     WFWorkflowClientVersion: "2600.0.0", WFWorkflowMinimumClientVersion: 900,
     WFWorkflowMinimumClientVersionString: "900", WFWorkflowHasOutputFallback: false,
     WFWorkflowIcon: { WFWorkflowIconStartColor: 4282601983, WFWorkflowIconGlyphNumber: 59511 },

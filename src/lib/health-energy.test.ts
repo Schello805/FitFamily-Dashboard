@@ -139,6 +139,21 @@ it("stores steps separately without scoring, replacing rather than adding and pr
   await POST(request({ ...payload, stepRows: "" }));
   expect((await getDashboardData()).find(p => p.id === profileId)?.healthEnergy?.stepCount).toBe(0);
 });
+it("counts imported daily training minutes once at factor 1.5 and replaces corrections", async () => {
+  const payload = { profileId, date: input.date, sourceName: "Watch", sampleRows: "12\tkcal\tWatch", trainingRows: "20\tmin\tWatch\n10\tminutes\tWatch\n5\tmin\tiPhone" };
+  expect((await POST(request(payload))).status).toBe(200);
+  let dashboard = (await getDashboardData()).find(p => p.id === profileId)!;
+  expect(dashboard.score).toBe(45);
+  expect(dashboard.totalMinutes).toBe(30);
+  expect(dashboard.todayMinutes).toBe(30);
+  expect(dashboard.trainingProgress).toMatchObject({ xp: 30 });
+  expect((await POST(request({ ...payload, trainingRows: "10\tmin\tWatch" }))).status).toBe(200);
+  dashboard = (await getDashboardData()).find(p => p.id === profileId)!;
+  expect(dashboard.score).toBe(15);
+  expect(dashboard.totalMinutes).toBe(10);
+  expect((await (await db()).execute({ sql: "SELECT training_minutes FROM health_energy_daily WHERE profile_id=?", args: [profileId] })).rows[0].training_minutes).toBe(10);
+  expect((await POST(request({ ...payload, trainingRows: "1\tkcal\tWatch" }))).status).toBe(400);
+});
 it("keeps all imported days and exposes exactly 30 calendar days with gaps", async () => {
   await storeHealthEnergy({ ...input, date: "2026-09-04", activeEnergyKcal: 50, stepCount: 500 });
   await storeHealthEnergy({ ...input, date: "2026-09-05", activeEnergyKcal: 0, stepCount: 0 });

@@ -46,7 +46,7 @@ export function ActivityTrendChart({ points, targetMinutes, targetPeriod, profil
   const firstDailyIndex = points.findIndex((point) => point.resolution === "Tag");
   const yearIndex = points.findIndex((point) => point.resolution === "Jahr");
   const marker = (index: number) => index < 0 ? 0 : (254 * index) / Math.max(1, points.length - 1) + 3;
-  const explanation = `Zeitauflösung: ältere Daten je Jahr, danach je Monat, die letzten 30 Tage täglich. Ist = die Summe der abgeschlossenen FitFamily-Trainingsminuten pro Tag. Monats- und Jahreswerte sind Durchschnittswerte pro Tag aus den Tagen, für die Daten vorliegen. Soll: ${targetLabel}. Tage ohne abgeschlossene Trainings bleiben Lücken.`;
+  const explanation = `Zeitauflösung: ältere Daten je Jahr, danach je Monat, die letzten 30 Tage täglich. Ist = die Summe der abgeschlossenen FitFamily- und Apple-Health-Trainingsminuten pro Tag. Monats- und Jahreswerte sind Durchschnittswerte pro Tag aus den Tagen, für die Daten vorliegen. Tage ohne abgeschlossene Trainings bleiben Lücken. Soll: ${targetLabel}.`;
 
   const chart = (large = false) => <div className={`dashboard-history-chart${large ? " dashboard-history-chart-large" : ""}`} title={explanation} aria-label={large ? explanation : `Trainingsverlauf${profileName ? ` von ${profileName}` : ""} öffnen`}
     {...(!large ? { role: "button", tabIndex: 0, "aria-haspopup": "dialog" as const, "aria-expanded": detailsOpen, onClick: () => setDetailsOpen(true), onKeyDown: (event: React.KeyboardEvent<HTMLDivElement>) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setDetailsOpen(true); } } } : {})}>
