@@ -30,6 +30,17 @@ export function receivedDaysTranscript(days: Map<string, DayRows>) {
     .map(([date, rows]) => failedDayTranscript(date, rows));
 }
 
+function stepDiagnostics(date: string, rows: DayRows, sourceName: string) {
+  const selectedRows = rows.steps.filter(row => row.split("\t")[2] === sourceName);
+  return {
+    date,
+    selectedStepSamples: selectedRows.length,
+    // Enough to compare the selected Health samples without returning a full
+    // 30-day raw health transcript to the phone response.
+    stepSamples: selectedRows.slice(0, 12)
+  };
+}
+
 class BulkDayValidationError extends Error {
   constructor(message: string, readonly transcript: ReturnType<typeof failedDayTranscript>, readonly receivedDays: ReturnType<typeof receivedDaysTranscript>) {
     super(message);
@@ -83,7 +94,9 @@ export async function POST(request: Request) {
       saved.push({ date: result.date, activeEnergyKcal: result.activeEnergyKcal, stepCount: result.stepCount, trainingMinutes: result.trainingMinutes });
     }
     await writeAdminLog("health.energy.bulk.received", "info", "Apple Health · 30-Tage-Alltag mit Trainingsminuten aktualisiert.", { importId, profileId: input.profileId, sourceName: input.sourceName, days: saved });
-    return NextResponse.json({ ok: true, importId, savedDays: saved.length, days: saved }, { headers: { "Cache-Control": "no-store" } });
+    const newestDate = dates.at(-1);
+    return NextResponse.json({ ok: true, importId, savedDays: saved.length, days: saved,
+      ...(newestDate ? { stepDiagnostics: stepDiagnostics(newestDate, days.get(newestDate)!, sourceName) } : {}) }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     const message = error instanceof Error ? error.message.replaceAll(key, "[SCHLÜSSEL ENTFERNT]") : "Ungültige 30-Tage-Daten.";
     const transcript = error instanceof BulkDayValidationError ? { receivedDay: error.transcript, receivedDays: error.receivedDays } : {};
