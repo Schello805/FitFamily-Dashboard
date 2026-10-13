@@ -56,6 +56,17 @@ export function HealthDailyMetrics({ value, trend = [], clock = new Date() }: { 
   const lastReceived = value?.latestReceivedAt ?? value?.updatedAt;
   const lastReceivedDate = lastReceived ? new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Berlin", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(`${lastReceived.replace(" ", "T")}Z`)) : null;
   const daysBehind = lastReceivedDate ? Math.max(0, Math.round((Date.parse(`${today}T00:00:00Z`) - Date.parse(`${lastReceivedDate}T00:00:00Z`)) / 86400000)) : null;
+  // The standard automation may run late in the evening. On the following
+  // morning, yesterday's successful receipt is still current; only two
+  // missed calendar days need the family's attention.
+  const syncNeedsAttention = daysBehind !== null && daysBehind > 1;
+  const syncLabel = !value
+    ? "Für dieses Profil wurden noch keine Apple-Health-Daten empfangen."
+    : daysBehind === 0
+      ? `Letzte erfolgreiche Synchronisierung: heute · ${formatGermanLogTimestamp(lastReceived!)}`
+      : daysBehind === 1
+        ? `Letzte erfolgreiche Synchronisierung: gestern · ${formatGermanLogTimestamp(lastReceived!)}`
+        : `Übertragung prüfen: seit ${daysBehind} Tagen keine erfolgreiche Synchronisierung · zuletzt ${formatGermanLogTimestamp(lastReceived!)}`;
   const openDetails = (field: HealthField) => {
     setSelectedDate([...trend].reverse().find(day => day[field] !== null)?.date ?? trend.at(-1)?.date ?? null);
     setOpenField(field);
@@ -71,7 +82,7 @@ export function HealthDailyMetrics({ value, trend = [], clock = new Date() }: { 
       </div>
       <div className="health-metric-card"><HealthTrend days={trend} field="stepCount" goal={value?.goalSteps ?? 10000} unit="Schritte" onOpen={() => openDetails("stepCount")} /><span>Schritte</span><strong>{value?.stepCount != null ? value.stepCount.toLocaleString("de-DE") : "—"}</strong>{value?.stepCount != null ? <GoalProgress amount={value.stepCount} goal={value.goalSteps ?? 10000} unit="Schritte" /> : <small>Noch nicht übertragen</small>}</div>
     </div>
-    <p className={`health-sync-status${daysBehind === null || daysBehind > 0 || (value && value.date !== today) ? " is-stale" : ""}`} role="status">{value ? daysBehind === 0 ? `Heute übertragen · ${formatGermanLogTimestamp(lastReceived!)}` : `Seit ${daysBehind} ${daysBehind === 1 ? "Tag" : "Tagen"} keine Übertragung · zuletzt ${formatGermanLogTimestamp(lastReceived!)}` : "Noch keine Health-Daten empfangen"}{value && value.date !== today ? ` · letzter Tageswert ${formatGermanDate(value.date)}` : ""}{value && value.stepCount == null ? " · Schritte fehlen" : ""}</p>
+    <p className={`health-sync-status${syncNeedsAttention || !value ? " is-stale" : " is-current"}`} role="status">{syncLabel}{value && value.date !== today ? ` · letzter Tageswert ${formatGermanDate(value.date)}` : ""}{value && value.stepCount == null ? " · Schritte fehlen" : ""}</p>
     {openField && <Modal onClose={() => setOpenField(null)}><section className="health-trend-dialog" role="dialog" aria-modal="true" aria-labelledby="health-trend-title"><div className="health-trend-dialog-head"><div><small>Apple Health · 30 Tage</small><h2 id="health-trend-title">{metricName}</h2><p>{receivedCount} von 30 Tagen übertragen · Lücken sind keine Nullwerte</p></div><button type="button" onClick={() => setOpenField(null)} aria-label="Verlauf schließen">×</button></div><div className="health-trend-dialog-body"><div className="health-trend-day-list" aria-label="Tageswerte">{[...trend].reverse().map(day => <button type="button" key={day.date} className={day.date === selectedDate ? "is-selected" : ""} aria-pressed={day.date === selectedDate} onClick={() => setSelectedDate(day.date)}><span>{formatGermanDate(day.date)}</span><strong>{day[openField] === null ? "Keine Daten" : `${day[openField]?.toLocaleString("de-DE", { maximumFractionDigits: openField === "stepCount" ? 0 : 1 })} ${openField === "stepCount" ? "Schritte" : "kcal"}`}</strong></button>)}</div><div className="health-trend-day-detail"><small>Ausgewählter Tag</small><h3>{selectedDay ? formatGermanDate(selectedDay.date, { weekday: "long" }) : "Kein Tag ausgewählt"}</h3><dl><div><dt>Aktive Energie</dt><dd>{selectedDay?.activeEnergyKcal == null ? "Nicht übertragen" : `${selectedDay.activeEnergyKcal.toLocaleString("de-DE", { maximumFractionDigits: 1 })} kcal`}</dd></div><div><dt>Schritte</dt><dd>{selectedDay?.stepCount == null ? "Nicht übertragen" : selectedDay.stepCount.toLocaleString("de-DE")}</dd></div><div><dt>Quelle</dt><dd>{selectedDay?.activeEnergyKcal == null ? "Keine Übertragung" : selectedDay.sourceName ?? "Bei älterem Import nicht gespeichert"}</dd></div><div><dt>Empfangen</dt><dd>{selectedDay?.updatedAt ? formatGermanLogTimestamp(selectedDay.updatedAt) : "—"}</dd></div></dl></div></div></section></Modal>}
   </section>;
 }

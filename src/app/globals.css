@@ -3903,7 +3903,9 @@ body::before {
 .health-trend circle { fill: color-mix(in srgb, #0998be 45%, transparent); }
 .health-trend-open { position: absolute; right: 6px; bottom: 2px; font-size: 8px !important; color: var(--muted); }
 .health-trend-empty { padding: 50px 6px 0; font-size: 9px; }
-.health-sync-status, .health-sync-status.is-stale { margin: 5px 2px 0; padding: 0; border: 0; color: var(--muted); background: none; font-size: 9px; font-weight: 400; font-style: italic; line-height: 1.25; }
+.health-sync-status { margin: 5px 2px 0; padding: 0; border: 0; background: none; font-size: 9px; font-weight: 400; font-style: italic; line-height: 1.25; }
+.health-sync-status.is-current { color: color-mix(in srgb, var(--muted) 82%, #0f766e); }
+.health-sync-status.is-stale { color: color-mix(in srgb, var(--muted) 55%, #b45309); }
 .health-trend-dialog { width: min(760px, 94vw); max-height: 88dvh; display: flex; flex-direction: column; overflow: hidden; border-radius: 18px; background: var(--panel); color: var(--text); box-shadow: var(--card-shadow); }
 .health-trend-dialog-head { display: flex; justify-content: space-between; gap: 16px; padding: 20px 22px; border-bottom: 1px solid var(--line); }
 .health-trend-dialog-head small { color: var(--muted); font-size: 11px; font-weight: 800; }
