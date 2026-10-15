@@ -93,7 +93,7 @@ export async function POST(request: Request) {
       if (!result) return NextResponse.json({ error: "Profil-ID nicht gefunden.", importId }, { status: 404 });
       saved.push({ date: result.date, activeEnergyKcal: result.activeEnergyKcal, stepCount: result.stepCount, trainingMinutes: result.trainingMinutes });
     }
-    await writeAdminLog("health.energy.bulk.received", "info", "Apple Health · 30-Tage-Alltag mit Trainingsminuten aktualisiert.", { importId, profileId: input.profileId, sourceName: input.sourceName, days: saved });
+    await writeAdminLog("health.energy.bulk.received", "info", "Apple Health · 30-Tage-Alltag aktualisiert; Bewegungsminuten ohne Wertung.", { importId, profileId: input.profileId, sourceName: input.sourceName, days: saved });
     const newestDate = dates.at(-1);
     return NextResponse.json({ ok: true, importId, savedDays: saved.length, days: saved,
       ...(newestDate ? { stepDiagnostics: stepDiagnostics(newestDate, days.get(newestDate)!, sourceName) } : {}) }, { headers: { "Cache-Control": "no-store" } });

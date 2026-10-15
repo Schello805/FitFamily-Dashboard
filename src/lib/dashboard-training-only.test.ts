@@ -23,6 +23,7 @@ describe("FitFamily training without Health contributions", () => {
       ], "write");
     }
     await client.execute({ sql: "INSERT INTO apple_health_daily (profile_id, date, exercise_minutes, move_calories) VALUES (?, '2026-10-03', 999, 777)", args: [profileId] });
+    await client.execute({ sql: "INSERT INTO health_energy_daily (profile_id, date, active_energy_kcal, step_count, training_minutes) VALUES (?, '2026-10-03', 777, 9999, 32)", args: [profileId] });
   });
   afterEach(async () => {
     vi.useRealTimers();
@@ -31,16 +32,18 @@ describe("FitFamily training without Health contributions", () => {
       { sql: "DELETE FROM training_segments WHERE session_id IN (SELECT id FROM training_sessions WHERE profile_id = ?)", args: [profileId] },
       { sql: "DELETE FROM training_sessions WHERE profile_id = ?", args: [profileId] },
       { sql: "DELETE FROM apple_health_daily WHERE profile_id = ?", args: [profileId] },
+      { sql: "DELETE FROM health_energy_daily WHERE profile_id = ?", args: [profileId] },
       { sql: "DELETE FROM profiles WHERE id = ?", args: [profileId] }
     ], "write");
   });
-  it("uses only local training for score, minutes, fitness progress, target and trend", async () => {
+  it("uses only actual FitFamily training for score, minutes, fitness progress, target and trend", async () => {
     const profile = (await getDashboardData()).find(entry => entry.id === profileId)!;
     expect(profile).toMatchObject({ score: 55, totalMinutes: 35, todayMinutes: 35, strengthMinutes: 15, enduranceMinutes: 20, trainingMinutes: 35, targetPercent: 23 });
     expect(profile).not.toHaveProperty("appleHealthRings");
     expect(profile.activityTrend.find(day => day.date === "2026-10-03")?.activityMinutes).toBe(35);
     const client = await db();
     expect((await client.execute({ sql: "SELECT exercise_minutes FROM apple_health_daily WHERE profile_id = ?", args: [profileId] })).rows[0]?.exercise_minutes).toBe(999);
+    expect((await client.execute({ sql: "SELECT training_minutes FROM health_energy_daily WHERE profile_id = ?", args: [profileId] })).rows[0]?.training_minutes).toBe(32);
   });
   it("hides archived imported workouts in history without deleting them", async () => {
     const response = await history(new Request("http://localhost"), { params: Promise.resolve({ profileId }) });

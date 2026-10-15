@@ -142,5 +142,5 @@ export async function storeHealthEnergy(input: z.infer<typeof healthEnergySchema
     ...("sourceName" in input ? { sourceName: input.sourceName, sampleCount: input.sampleCount } : {}),
     ...(input.stepCount !== undefined ? { stepCount: input.stepCount } : {}),
     ...(trainingMinutes !== undefined ? { trainingMinutes } : {}),
-    unit: "kcal", message: `${input.stepCount !== undefined ? "Aktive Energie und Schritte" : "Aktive Energie"} gespeichert. Tageswert ersetzt, nicht addiert.${trainingMinutes !== undefined ? " Trainingsminuten werden mit Faktor 1,5 gewertet." : " Keine Trainingsminuten, Punkte oder Level geändert."}` };
+    unit: "kcal", message: `${input.stepCount !== undefined ? "Aktive Energie und Schritte" : "Aktive Energie"} gespeichert. Tageswert ersetzt, nicht addiert.${trainingMinutes !== undefined ? " Apple-Bewegungsminuten werden nur gespeichert, nicht gewertet." : " Keine Trainingsminuten, Punkte oder Level geändert."}` };
 }
