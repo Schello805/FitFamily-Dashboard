@@ -1,0 +1,10 @@
+[Unit]
+Description=FitFamily Dashboard-Watchdog
+After=network-online.target fitfamily.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+ExecStart=/usr/local/libexec/fitfamily-watchdog

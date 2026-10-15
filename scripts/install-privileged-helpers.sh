@@ -9,6 +9,11 @@ install -o root -g root -m 0755 "$source_dir/scripts/request-update.sh" /usr/loc
 install -o root -g root -m 0755 "$source_dir/scripts/mount-nas.py" /usr/local/libexec/fitfamily-mount
 install -o root -g root -m 0755 "$source_dir/scripts/restore-db.sh" /usr/local/libexec/fitfamily-restore
 install -o root -g root -m 0755 "$source_dir/scripts/gymondo-request.sh" /usr/local/libexec/fitfamily-gymondo-request
+install -o root -g root -m 0755 "$source_dir/scripts/watchdog.sh" /usr/local/libexec/fitfamily-watchdog
+install -o root -g root -m 0644 "$source_dir/deploy/systemd/fitfamily-watchdog.service" /etc/systemd/system/fitfamily-watchdog.service
+install -o root -g root -m 0644 "$source_dir/deploy/systemd/fitfamily-watchdog.timer" /etc/systemd/system/fitfamily-watchdog.timer
+systemctl daemon-reload
+systemctl enable --now fitfamily-watchdog.timer
 sudoers_file="$(mktemp /etc/sudoers.d/.fitfamily.XXXXXXXX)"
 trap 'rm -f "$sudoers_file"' EXIT
 printf '%s\n' 'fitfamily ALL=(root) NOPASSWD: /usr/local/libexec/fitfamily-update-request "", /usr/local/libexec/fitfamily-mount "", /usr/local/libexec/fitfamily-gymondo-request ""' > "$sudoers_file"

@@ -120,6 +120,21 @@ sudo systemctl restart fitfamily
 sudo journalctl -u fitfamily -n 100 --no-pager
 ```
 
+### Automatischer Watchdog
+
+Der Watchdog prüft alle zwei Minuten, ob das Dashboard lokal antwortet. Erst nach zwei fehlgeschlagenen Prüfungen startet er ausschließlich `fitfamily.service` neu; während eines Updates greift er nicht ein. Bei einer bestehenden Installation nach einem Update einmalig aktivieren:
+
+```bash
+sudo /opt/fitfamily/current/scripts/install-privileged-helpers.sh
+sudo systemctl status fitfamily-watchdog.timer --no-pager
+```
+
+Seine Ereignisse stehen bei Bedarf hier:
+
+```bash
+sudo journalctl -t fitfamily-watchdog -n 30 --no-pager
+```
+
 ## Aktualisieren (Updates einspielen)
 
 FitFamily bietet zwei bequeme Möglichkeiten für Updates. Bei beiden Methoden wird **vorab automatisch eine Sicherungskopie der SQLite-Datenbank** unter `backups/` gespeichert.

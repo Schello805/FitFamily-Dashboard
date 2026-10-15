@@ -32,8 +32,11 @@ fi
 install -m 0644 deploy/systemd/fitfamily.service /etc/systemd/system/fitfamily.service
 install -m 0644 deploy/systemd/fitfamily-backup.service /etc/systemd/system/fitfamily-backup.service
 install -m 0644 deploy/systemd/fitfamily-backup.timer /etc/systemd/system/fitfamily-backup.timer
+install -m 0644 deploy/systemd/fitfamily-watchdog.service /etc/systemd/system/fitfamily-watchdog.service
+install -m 0644 deploy/systemd/fitfamily-watchdog.timer /etc/systemd/system/fitfamily-watchdog.timer
 systemctl daemon-reload
 systemctl enable fitfamily.service
 /usr/local/libexec/fitfamily-update --install-local
 systemctl enable --now fitfamily-backup.timer
+systemctl enable --now fitfamily-watchdog.timer
 echo "FitFamily läuft auf Port 3000."

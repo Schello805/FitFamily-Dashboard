@@ -38,13 +38,26 @@ describe("deployment helpers", () => {
   }, 15000);
 
   it("has valid shell syntax and grants only no-argument root-owned request helpers", async () => {
-    const scripts = ["update.sh", "request-update.sh", "release-state.sh", "install-privileged-helpers.sh", "restore-db.sh", "gymondo-request.sh", "launch-gymondo.sh", "install-ubuntu.sh", "install-pi.sh", "repair.sh", "setup-https.sh", "setup-kiosk-autostart.sh"];
+    const scripts = ["update.sh", "request-update.sh", "release-state.sh", "install-privileged-helpers.sh", "restore-db.sh", "gymondo-request.sh", "watchdog.sh", "launch-gymondo.sh", "install-ubuntu.sh", "install-pi.sh", "repair.sh", "setup-https.sh", "setup-kiosk-autostart.sh"];
     for (const filename of scripts) execFileSync("bash", ["-n", path.join(scriptRoot, filename)]);
     const installer = await readFile(path.join(scriptRoot, "install-privileged-helpers.sh"), "utf8");
     expect(installer).toContain('fitfamily-update-request ""');
     expect(installer).toContain('fitfamily-mount ""');
     expect(installer).toContain('fitfamily-gymondo-request ""');
+    expect(installer).toContain('fitfamily-watchdog.timer');
     expect(installer).not.toMatch(/NOPASSWD:.*(?:\/bin\/systemctl|\/bin\/chown|\/bin\/rm|\/opt\/fitfamily\/scripts)/);
+  });
+
+  it("uses a root-owned local watchdog which skips release updates and restarts only after two failed checks", async () => {
+    const source = await readFile(path.join(scriptRoot, "watchdog.sh"), "utf8");
+    const service = await readFile(path.resolve("deploy/systemd/fitfamily-watchdog.service"), "utf8");
+    const timer = await readFile(path.resolve("deploy/systemd/fitfamily-watchdog.timer"), "utf8");
+    expect(source).toContain("/run/lock/fitfamily-update.lock");
+    expect(source).toContain("if ! flock -n 9");
+    expect(source).toContain("http://127.0.0.1:3000/api/dashboard");
+    expect(source.indexOf("sleep 5")).toBeLessThan(source.indexOf("systemctl restart fitfamily.service"));
+    expect(service).toContain("ExecStart=/usr/local/libexec/fitfamily-watchdog");
+    expect(timer).toContain("OnUnitActiveSec=2min");
   });
 
   it("quiesces writes before the rollback snapshot and checks real dashboard data", async () => {
@@ -144,7 +157,7 @@ describe("deployment helpers", () => {
       const destination = path.join(directory, "helpers");
       await mkdir(path.join(release, "scripts"), { recursive: true });
       await mkdir(destination);
-      const names = { "update.sh": "fitfamily-update", "release-state.sh": "fitfamily-release-state", "request-update.sh": "fitfamily-update-request", "mount-nas.py": "fitfamily-mount", "restore-db.sh": "fitfamily-restore", "gymondo-request.sh": "fitfamily-gymondo-request" };
+      const names = { "update.sh": "fitfamily-update", "release-state.sh": "fitfamily-release-state", "request-update.sh": "fitfamily-update-request", "mount-nas.py": "fitfamily-mount", "restore-db.sh": "fitfamily-restore", "gymondo-request.sh": "fitfamily-gymondo-request", "watchdog.sh": "fitfamily-watchdog" };
       const source = await readFile(path.join(scriptRoot, "release-state.sh"), "utf8");
       // Redirect every privileged destination into the temporary fixture. Simulate
       // root metadata and HTTPS; exercise real file preparation/replacement/undo.

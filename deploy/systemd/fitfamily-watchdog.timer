@@ -1,0 +1,12 @@
+[Unit]
+Description=Regelmäßige Erreichbarkeitsprüfung für FitFamily
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=2min
+AccuracySec=15s
+Persistent=true
+Unit=fitfamily-watchdog.service
+
+[Install]
+WantedBy=timers.target
