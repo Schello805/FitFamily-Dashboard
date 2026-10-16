@@ -9,7 +9,8 @@ it("shows weekly pace behind real progress and hides orange as soon as the preci
   const props = { value: 7, color: "#22d3ee", targetMinutes: 150, targetPeriod: "Woche" as const, clock: new Date("2026-10-05T12:00:00Z"), timeZone: "Europe/Berlin" };
   const { container, rerender } = render(<GoalRing {...props} actualMinutes={10} />);
   expect(Number(container.querySelector(".goal-ring-expected")?.getAttribute("stroke-dashoffset"))).toBeCloseTo(100 - 100 / 7);
-  expect(screen.getByText("Bis heute: 21,4 Min.")).toBeTruthy();
+  expect(screen.getByText("IST 10 / 150 MIN.")).toBeTruthy();
+  expect(screen.getByText("Tempo-Soll: 21,4 Min.")).toBeTruthy();
   rerender(<GoalRing {...props} value={14} actualMinutes={21.5} />);
   expect(container.querySelector(".goal-ring-expected")).toBeNull();
 });
@@ -17,9 +18,9 @@ it("uses the selected timezone at the Sunday to Monday boundary and keeps daily 
   const props = { value: 20, color: "#22d3ee", targetMinutes: 150, targetPeriod: "Woche" as const, clock: new Date("2026-10-04T22:30:00Z") };
   const { container, rerender } = render(<GoalRing {...props} timeZone="America/New_York" />);
   expect(container.querySelector(".goal-ring-expected")?.getAttribute("stroke-dashoffset")).toBe("0");
-  expect(screen.getByText("Bis heute: 150 Min.")).toBeTruthy();
+  expect(screen.getByText("Tempo-Soll: 150 Min.")).toBeTruthy();
   rerender(<GoalRing {...props} timeZone="Europe/Berlin" />);
-  expect(screen.getByText("Bis heute: 21,4 Min.")).toBeTruthy();
+  expect(screen.getByText("Tempo-Soll: 21,4 Min.")).toBeTruthy();
   expect(container.querySelector(".goal-ring-expected")).toBeNull();
   rerender(<GoalRing {...props} targetPeriod="Tag" targetMinutes={90} />);
   expect(container.querySelector(".goal-ring-pace")).toBeNull();

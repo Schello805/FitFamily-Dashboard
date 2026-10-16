@@ -54,20 +54,25 @@ function useClock() {
 
 
 export function GoalRing({ value, color, targetMinutes, targetPeriod, actualMinutes, clock, timeZone }: { value: number; color: string; targetMinutes: number; targetPeriod: "Tag" | "Woche"; actualMinutes?: number; clock?: Date; timeZone?: string }) {
-  const rawProgress = actualMinutes !== undefined && Number.isFinite(actualMinutes) ? actualMinutes / targetMinutes * 100 : value;
+  const actual = actualMinutes !== undefined && Number.isFinite(actualMinutes)
+    ? Math.max(0, actualMinutes)
+    : Math.max(0, targetMinutes * value / 100);
+  const rawProgress = actual / targetMinutes * 100;
   const progress = Math.max(0, Math.min(100, Number.isFinite(rawProgress) ? rawProgress : 0));
   const expected = targetPeriod === "Woche" && clock ? weeklyTargetFraction(clock, timeZone) * 100 : 0;
+  const actualMinutesLabel = new Intl.NumberFormat("de-DE", { maximumFractionDigits: 1 }).format(actual);
   const expectedMinutes = new Intl.NumberFormat("de-DE", { maximumFractionDigits: 1 }).format(targetMinutes * expected / 100);
-  const paceExplanation = expected ? ` Bis einschließlich heute: ${expectedMinutes} Minuten. Orange zeigt den noch fehlenden Fortschritt bis zum heutigen Soll; dein Trainingsfortschritt liegt darüber.` : "";
+  const actualExplanation = ` Wochenstand: ${actualMinutesLabel} von ${targetMinutes} Minuten.`;
+  const paceExplanation = expected ? ` Tempo-Soll bis heute: ${expectedMinutes} Minuten. Orange zeigt den noch fehlenden Fortschritt bis zum heutigen Soll; dein Trainingsfortschritt liegt darüber.` : "";
   return (
-    <div className="goal-ring-summary" role="img" aria-label={`Trainingsziel: ${value} Prozent von ${targetMinutes} Minuten pro ${targetPeriod.toLowerCase()}.${paceExplanation}`} title={`Dein ${targetPeriod === "Tag" ? "Tagesziel" : "Wochenziel"}: ${targetMinutes} Trainingsminuten. Erfasste App- und Apple-Health-Trainingsminuten füllen den Kreis; nach Ablauf des Zeitraums beginnt er neu. Ein Punkte-Reset verändert den Zielkreis und Trainingslevel nicht.${paceExplanation}`}>
+    <div className="goal-ring-summary" role="img" aria-label={`Trainingsziel: ${value} Prozent von ${targetMinutes} Minuten pro ${targetPeriod.toLowerCase()}.${actualExplanation}${paceExplanation}`} title={`Dein ${targetPeriod === "Tag" ? "Tagesziel" : "Wochenziel"}: ${targetMinutes} Trainingsminuten.${actualExplanation} Erfasste App- und Apple-Health-Trainingsminuten füllen den Kreis; nach Ablauf des Zeitraums beginnt er neu. Ein Punkte-Reset verändert den Zielkreis und Trainingslevel nicht.${paceExplanation}`}>
       <span className={`goal-ring ${value >= 100 ? "goal-reached" : ""}`} aria-hidden="true" style={{ "--profile": color } as React.CSSProperties}>
         <svg className="goal-ring-visual" viewBox="0 0 100 100"><circle className="goal-ring-track" cx="50" cy="50" r="44" />{progress < expected && <circle className="goal-ring-expected" cx="50" cy="50" r="44" pathLength="100" strokeDasharray="100" strokeDashoffset={100 - expected} />}<circle className="goal-ring-fill" cx="50" cy="50" r="44" pathLength="100" strokeDasharray="100" strokeDashoffset={100 - progress} /></svg>
         <strong>{value}%</strong>
         <small>ZIEL</small>
       </span>
-      <span className="goal-ring-target">SOLL {targetMinutes} Minuten/{targetPeriod === "Tag" ? "Tag" : "Woche"}</span>
-      {expected > 0 && <span className="goal-ring-pace" title={paceExplanation}>Bis heute: {expectedMinutes} Min.</span>}
+      <span className="goal-ring-target" title={`Ist: ${actualMinutesLabel} von ${targetMinutes} Minuten`}>IST {actualMinutesLabel} / {targetMinutes} MIN.</span>
+      {expected > 0 && <span className="goal-ring-pace" title={paceExplanation}>Tempo-Soll: {expectedMinutes} Min.</span>}
     </div>
   );
 }
