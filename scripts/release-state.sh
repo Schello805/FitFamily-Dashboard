@@ -53,12 +53,20 @@ for source in helpers:
 with tempfile.TemporaryDirectory(prefix='.fitfamily-helpers-', dir=destination) as work:
     work = pathlib.Path(work)
     replaced = []
+    previous = set()
     for source, (name, mode) in helpers.items():
         target = destination / name
-        metadata = target.lstat()
-        if not stat.S_ISREG(metadata.st_mode) or metadata.st_uid != 0 or metadata.st_mode & 0o022:
-            raise RuntimeError('Untrusted installed helper: ' + name)
-        shutil.copy2(target, work / (name + '.old'))
+        try:
+            metadata = target.lstat()
+        except FileNotFoundError:
+            # A newly introduced helper must not make an otherwise healthy
+            # application release roll back. It is installed atomically below.
+            pass
+        else:
+            if not stat.S_ISREG(metadata.st_mode) or metadata.st_uid != 0 or metadata.st_mode & 0o022:
+                raise RuntimeError('Untrusted installed helper: ' + name)
+            shutil.copy2(target, work / (name + '.old'))
+            previous.add(name)
         shutil.copyfile(release / 'scripts' / source, work / name)
         os.chmod(work / name, mode)
     try:
@@ -67,7 +75,10 @@ with tempfile.TemporaryDirectory(prefix='.fitfamily-helpers-', dir=destination) 
             replaced.append(name)
     except BaseException:
         for name in reversed(replaced):
-            os.replace(work / (name + '.old'), destination / name)
+            if name in previous:
+                os.replace(work / (name + '.old'), destination / name)
+            else:
+                (destination / name).unlink(missing_ok=True)
         raise
 PY
 }

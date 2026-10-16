@@ -170,7 +170,15 @@ for attempt in $(seq 1 30); do
       sleep 1
       continue
     fi
-    refresh_release_helpers "$STAGE" "$NEW_COMMIT"
+    # The web app itself has passed both availability and revision checks.
+    # A later helper refresh must be reported, but must never roll the working
+    # application back (for example when a newly introduced helper is missing).
+    if ! refresh_release_helpers "$STAGE" "$NEW_COMMIT"; then
+      echo 'Warnung: Update erfolgreich, Aktualisierung der Systemhelfer fehlgeschlagen.' >&2
+      write_status success 'Update installiert; Dashboard und Revision geprüft. Systemhelfer konnten nicht aktualisiert werden.'
+      trap - EXIT
+      exit 0
+    fi
     # Pruning is deliberately post-health-check and must never roll back a
     # healthy deployment. The active release and two predecessors are retained.
     if curl --fail --silent --show-error --max-time 15 "https://raw.githubusercontent.com/Schello805/FitFamily-Dashboard/$NEW_COMMIT/scripts/cleanup-update-artifacts.py" | cmp - "$STAGE/scripts/cleanup-update-artifacts.py" &&
