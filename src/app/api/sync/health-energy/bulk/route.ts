@@ -93,12 +93,21 @@ export async function POST(request: Request) {
       if (!result) return NextResponse.json({ error: "Profil-ID nicht gefunden.", importId }, { status: 404 });
       saved.push({ date: result.date, activeEnergyKcal: result.activeEnergyKcal, stepCount: result.stepCount, trainingMinutes: result.trainingMinutes });
     }
-    await writeAdminLog("health.energy.bulk.received", "info", "Apple Health · 30-Tage-Alltag aktualisiert; Bewegungsminuten ohne Wertung.", { importId, profileId: input.profileId, sourceName: input.sourceName, days: saved });
     const newestDate = dates.at(-1);
+    const latestStepDiagnostics = newestDate ? stepDiagnostics(newestDate, days.get(newestDate)!, sourceName) : undefined;
+    // Keep the exact current-day shortcut input in the administration log as
+    // well. The displayed iOS result may omit fields after a long 30-day list.
+    await writeAdminLog("health.energy.bulk.received", "info", "Apple Health · 30-Tage-Alltag aktualisiert; Bewegungsminuten ohne Wertung.", {
+      importId,
+      profileId: input.profileId,
+      sourceName: input.sourceName,
+      ...(latestStepDiagnostics ? { stepDiagnostics: latestStepDiagnostics } : {}),
+      days: saved
+    });
     // iOS Shortcuts may shorten a long result view. Keep the diagnostic before
     // the 30-day list, so the current-day samples stay visible for support.
     return NextResponse.json({ ok: true, importId, savedDays: saved.length,
-      ...(newestDate ? { stepDiagnostics: stepDiagnostics(newestDate, days.get(newestDate)!, sourceName) } : {}), days: saved }, { headers: { "Cache-Control": "no-store" } });
+      ...(latestStepDiagnostics ? { stepDiagnostics: latestStepDiagnostics } : {}), days: saved }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     const message = error instanceof Error ? error.message.replaceAll(key, "[SCHLÜSSEL ENTFERNT]") : "Ungültige 30-Tage-Daten.";
     const transcript = error instanceof BulkDayValidationError ? { receivedDay: error.transcript, receivedDays: error.receivedDays } : {};
