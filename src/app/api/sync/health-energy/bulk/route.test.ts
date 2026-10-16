@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { BULK_SYNC_MAX_CALENDAR_DAYS, failedDayTranscript, parseRows, receivedDaysTranscript, type DayRows, validationMessages } from "./route";
+import { BULK_SYNC_MAX_CALENDAR_DAYS, failedDayTranscript, parseRows, receivedDaysTranscript, stepDiagnostics, type DayRows, validationMessages } from "./route";
 
 it("uses the selected source for Health values grouped by day", () => {
   const days = new Map<string, DayRows>();
@@ -37,4 +37,17 @@ it("lists every received daily group for diagnosing a Health shortcut", () => {
     { date: "2026-10-05", energyRows: ["420\tkcal\tWatch"], stepRows: ["3000\tcount\tWatch"], trainingRows: [] },
     { date: "2026-10-06", energyRows: ["500\tkcal\tWatch"], stepRows: ["4000\tcount\tWatch"], trainingRows: [] }
   ]);
+});
+
+it("keeps the selected current-day samples available for a shortened iPhone result", () => {
+  const rows: DayRows = {
+    energy: ["500\tkcal\tApple Watch"],
+    steps: ["1200\tcount\tApple Watch", "99\tcount\tiPhone"],
+    training: []
+  };
+  expect(stepDiagnostics("2026-10-16", rows, "Apple Watch")).toEqual({
+    date: "2026-10-16",
+    selectedStepSamples: 1,
+    stepSamples: ["1200\tcount\tApple Watch"]
+  });
 });

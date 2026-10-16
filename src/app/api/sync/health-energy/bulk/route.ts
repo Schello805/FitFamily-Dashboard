@@ -30,7 +30,7 @@ export function receivedDaysTranscript(days: Map<string, DayRows>) {
     .map(([date, rows]) => failedDayTranscript(date, rows));
 }
 
-function stepDiagnostics(date: string, rows: DayRows, sourceName: string) {
+export function stepDiagnostics(date: string, rows: DayRows, sourceName: string) {
   const selectedRows = rows.steps.filter(row => row.split("\t")[2] === sourceName);
   return {
     date,
@@ -95,8 +95,10 @@ export async function POST(request: Request) {
     }
     await writeAdminLog("health.energy.bulk.received", "info", "Apple Health · 30-Tage-Alltag aktualisiert; Bewegungsminuten ohne Wertung.", { importId, profileId: input.profileId, sourceName: input.sourceName, days: saved });
     const newestDate = dates.at(-1);
-    return NextResponse.json({ ok: true, importId, savedDays: saved.length, days: saved,
-      ...(newestDate ? { stepDiagnostics: stepDiagnostics(newestDate, days.get(newestDate)!, sourceName) } : {}) }, { headers: { "Cache-Control": "no-store" } });
+    // iOS Shortcuts may shorten a long result view. Keep the diagnostic before
+    // the 30-day list, so the current-day samples stay visible for support.
+    return NextResponse.json({ ok: true, importId, savedDays: saved.length,
+      ...(newestDate ? { stepDiagnostics: stepDiagnostics(newestDate, days.get(newestDate)!, sourceName) } : {}), days: saved }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     const message = error instanceof Error ? error.message.replaceAll(key, "[SCHLÜSSEL ENTFERNT]") : "Ungültige 30-Tage-Daten.";
     const transcript = error instanceof BulkDayValidationError ? { receivedDay: error.transcript, receivedDays: error.receivedDays } : {};
