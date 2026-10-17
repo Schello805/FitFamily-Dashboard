@@ -56,10 +56,14 @@ export async function getDashboardData(): Promise<DashboardProfile[]> {
   const healthFactors = new Map(healthRows.rows.map(h => [`health:${h.profile_id}:${h.external_id}`, Number(h.duration_seconds) / durationSeconds(String(h.started_at), String(h.ended_at))]));
   const healthActiveSeconds = new Map(healthRows.rows.map(h => [`health:${h.profile_id}:${h.external_id}`, Number(h.duration_seconds)]));
   const factorFor = (id: unknown) => healthFactors.get(String(id)) ?? 1;
-  const [energyRows, latestEnergyRows, lastHealthReceipts] = await Promise.all([
+  const [energyRows, latestEnergyRows, lastHealthReceipts, movementRows] = await Promise.all([
     client.execute({ sql: "SELECT * FROM health_energy_daily WHERE date BETWEEN ? AND ? ORDER BY date DESC", args: [recentStart, healthToday] }),
     client.execute({ sql: "SELECT e.* FROM health_energy_daily e WHERE e.date = (SELECT MAX(date) FROM health_energy_daily WHERE profile_id=e.profile_id AND date<=?)", args: [healthToday] }),
-    client.execute("SELECT profile_id, MAX(updated_at) received_at FROM health_energy_daily GROUP BY profile_id")
+    client.execute("SELECT profile_id, MAX(updated_at) received_at FROM health_energy_daily GROUP BY profile_id"),
+    // Unlike kcal and steps, movement minutes take part in the score. Read the
+    // complete history so corrections from a 30-day import are reflected
+    // retroactively instead of being permanently added at import time.
+    client.execute("SELECT profile_id, date, training_minutes FROM health_energy_daily WHERE training_minutes IS NOT NULL AND training_minutes > 0")
   ]);
   const recentEnergyByProfile = new Map<string, Map<string, { activeEnergyKcal: number; stepCount: number | null; sourceName: string | null; updatedAt: string }>>();
   for (const row of energyRows.rows) {
@@ -71,6 +75,13 @@ export async function getDashboardData(): Promise<DashboardProfile[]> {
   }
   const goalRows = await client.execute("SELECT key,value FROM settings WHERE key LIKE 'health_energy_goal:%' OR key LIKE 'health_step_goal:%' OR key LIKE 'training_weekly_goal:%'");
   const energyGoals = new Map(goalRows.rows.map(row => [String(row.key), row.value]));
+  const healthMovementMinutesByProfile = new Map<string, Map<string, number>>();
+  for (const row of movementRows.rows) {
+    const profileId = String(row.profile_id);
+    const days = healthMovementMinutesByProfile.get(profileId) ?? new Map<string, number>();
+    days.set(String(row.date), Number(row.training_minutes));
+    healthMovementMinutesByProfile.set(profileId, days);
+  }
 
   const workoutMinutesByProfile = new Map<string, Map<string, number>>();
   for (const row of segmentsResult.rows) {
@@ -156,11 +167,35 @@ export async function getDashboardData(): Promise<DashboardProfile[]> {
     const customWeeklyTarget = trainingGoal(energyGoals.get(trainingGoalKey(profileId)));
     const target = customWeeklyTarget === null ? defaultTarget : { minutes: customWeeklyTarget, period: "Woche" as const };
     const dailyTarget = target.period === "Woche" ? target.minutes / 7 : target.minutes;
-    const dailyActivity = new Map(workoutMinutesByProfile.get(profileId) ?? []);
-    // Apple Health's daily "Exercise Minutes" include brisk everyday movement.
-    // They are kept as an unscored health diagnostic, never treated as a
-    // deliberate training session. Only FitFamily sessions and imported Health
-    // workouts above are allowed to affect points, goals or the timeline.
+    const workoutMinutes = workoutMinutesByProfile.get(profileId) ?? new Map<string, number>();
+    const movementExtras = new Map<string, number>();
+    const healthMovementMinutes = healthMovementMinutesByProfile.get(profileId) ?? new Map<string, number>();
+    const scoreResetDate = profile.scoreResetAt ? energyDate(new Date(profile.scoreResetAt)) : null;
+    const weekStartKey = energyDate(weekStartDate);
+
+    // Health reports a daily total while imported workouts can describe part of
+    // the same activity. Count only the part not already represented by a
+    // workout. This makes a daily Health correction replace the old value and
+    // prevents points from being awarded twice.
+    for (const [date, minutes] of healthMovementMinutes) {
+      const extraMinutes = Math.max(0, minutes - (workoutMinutes.get(date) ?? 0));
+      if (extraMinutes <= 0) continue;
+      movementExtras.set(date, extraMinutes);
+      const seconds = extraMinutes * 60;
+      totalSeconds += seconds;
+      enduranceMinutes += extraMinutes;
+      completedSeconds += seconds;
+      completedSessions.add(`health-movement:${date}`);
+      if (!scoreResetDate || date > scoreResetDate) points += extraMinutes * 1.5;
+      if (date === healthToday) {
+        todaySeconds += seconds;
+        targetTodaySeconds += seconds;
+      }
+      if (date >= weekStartKey && date <= healthToday) targetWeekSeconds += seconds;
+    }
+
+    const dailyActivity = new Map(workoutMinutes);
+    for (const [date, minutes] of movementExtras) dailyActivity.set(date, (dailyActivity.get(date) ?? 0) + minutes);
     const observedDates = [...dailyActivity.keys()].sort();
     const firstObservedDate = observedDates[0];
     const monthlyStartMonth = new Date(monthlyStartDate.getFullYear(), monthlyStartDate.getMonth(), 1);
@@ -265,7 +300,10 @@ export async function getDashboardData(): Promise<DashboardProfile[]> {
         type: String(segment.type) as TrainingType,
         source: String(segment.session_id).startsWith("health:") ? "health" : "app",
         factor: factorFor(segment.session_id)
-      } satisfies RecapSegment)), [...(recentEnergyByProfile.get(profileId)?.entries() ?? [])].map(([date, day]) => ({ date, stepCount: day.stepCount, activeEnergyKcal: day.activeEnergyKcal }))),
+      } satisfies RecapSegment)), [...(recentEnergyByProfile.get(profileId)?.entries() ?? [])].map(([date, day]) => ({
+        date, stepCount: day.stepCount, activeEnergyKcal: day.activeEnergyKcal,
+        trainingMinutes: movementExtras.get(date) ?? 0
+      }))),
       healthEnergy: energy ? { date: String(energy.date), activeEnergyKcal: Number(energy.active_energy_kcal), stepCount: energy.step_count == null ? null : Number(energy.step_count), updatedAt: String(energy.updated_at), latestReceivedAt: String(lastHealthReceipts.rows.find(receipt => String(receipt.profile_id) === profileId)?.received_at ?? energy.updated_at), sourceName: energy.source_name == null ? null : String(energy.source_name), goalKcal: energyGoal(energyGoals.get(energyGoalKey(String(row.id)))), goalSteps: stepGoal(energyGoals.get(stepGoalKey(String(row.id)))), goalPercent: energyGoalPercent(Number(energy.active_energy_kcal), energyGoal(energyGoals.get(energyGoalKey(String(row.id))))) } : null,
       healthDailyTrend: recentDates.map(date => {
         const day = recentEnergyByProfile.get(profileId)?.get(date);

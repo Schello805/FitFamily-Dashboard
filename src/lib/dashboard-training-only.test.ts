@@ -7,7 +7,7 @@ import { GET as history } from "@/app/api/history/[profileId]/route";
 const profileId = `training-only-${randomUUID()}`;
 const now = new Date("2026-10-03T12:00:00Z");
 
-describe("FitFamily training without Health contributions", () => {
+describe("FitFamily training with scored Health movement minutes", () => {
   beforeEach(async () => {
     vi.useFakeTimers();
     vi.setSystemTime(now);
@@ -23,7 +23,7 @@ describe("FitFamily training without Health contributions", () => {
       ], "write");
     }
     await client.execute({ sql: "INSERT INTO apple_health_daily (profile_id, date, exercise_minutes, move_calories) VALUES (?, '2026-10-03', 999, 777)", args: [profileId] });
-    await client.execute({ sql: "INSERT INTO health_energy_daily (profile_id, date, active_energy_kcal, step_count, training_minutes) VALUES (?, '2026-10-03', 777, 9999, 32)", args: [profileId] });
+    await client.execute({ sql: "INSERT INTO health_energy_daily (profile_id, date, active_energy_kcal, step_count, training_minutes) VALUES (?, '2026-10-03', 777, 9999, 70)", args: [profileId] });
   });
   afterEach(async () => {
     vi.useRealTimers();
@@ -36,14 +36,16 @@ describe("FitFamily training without Health contributions", () => {
       { sql: "DELETE FROM profiles WHERE id = ?", args: [profileId] }
     ], "write");
   });
-  it("uses only actual FitFamily training for score, minutes, fitness progress, target and trend", async () => {
+  it("adds daily Health movement minutes once, with 1.5 points per minute", async () => {
     const profile = (await getDashboardData()).find(entry => entry.id === profileId)!;
-    expect(profile).toMatchObject({ score: 55, totalMinutes: 35, todayMinutes: 35, strengthMinutes: 15, enduranceMinutes: 20, trainingMinutes: 35, targetPercent: 23, targetActualMinutes: 35 });
+    // The 35 app minutes are already covered by the 70 minute Health daily
+    // total, so only the remaining 35 minutes are added at 1.5 points/min.
+    expect(profile).toMatchObject({ score: 107, totalMinutes: 70, todayMinutes: 70, strengthMinutes: 15, enduranceMinutes: 55, trainingMinutes: 70, targetPercent: 47, targetActualMinutes: 70 });
     expect(profile).not.toHaveProperty("appleHealthRings");
-    expect(profile.activityTrend.find(day => day.date === "2026-10-03")?.activityMinutes).toBe(35);
+    expect(profile.activityTrend.find(day => day.date === "2026-10-03")?.activityMinutes).toBe(70);
     const client = await db();
     expect((await client.execute({ sql: "SELECT exercise_minutes FROM apple_health_daily WHERE profile_id = ?", args: [profileId] })).rows[0]?.exercise_minutes).toBe(999);
-    expect((await client.execute({ sql: "SELECT training_minutes FROM health_energy_daily WHERE profile_id = ?", args: [profileId] })).rows[0]?.training_minutes).toBe(32);
+    expect((await client.execute({ sql: "SELECT training_minutes FROM health_energy_daily WHERE profile_id = ?", args: [profileId] })).rows[0]?.training_minutes).toBe(70);
   });
   it("hides archived imported workouts in history without deleting them", async () => {
     const response = await history(new Request("http://localhost"), { params: Promise.resolve({ profileId }) });
@@ -59,7 +61,7 @@ describe("FitFamily training without Health contributions", () => {
     await client.execute({ sql: "UPDATE profiles SET score_reset_at = ?, target_reset_at = ? WHERE id = ?", args: [new Date().toISOString(), new Date().toISOString(), profileId] });
     const profile = (await getDashboardData()).find(entry => entry.id === profileId)!;
     expect(profile.score).toBe(0);
-    expect(profile.targetPercent).toBe(23);
-    expect(profile.trainingProgress?.xp).toBe(35);
+    expect(profile.targetPercent).toBe(47);
+    expect(profile.trainingProgress?.xp).toBe(70);
   });
 });

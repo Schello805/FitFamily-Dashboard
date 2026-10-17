@@ -65,7 +65,7 @@ export function GoalRing({ value, color, targetMinutes, targetPeriod, actualMinu
   const actualMinutesLabel = new Intl.NumberFormat("de-DE", { maximumFractionDigits: 1 }).format(actual);
   const actualExplanation = ` Wochenstand: ${actualMinutesLabel} von ${targetMinutes} Minuten.`;
   return (
-    <div className="goal-ring-summary" role="img" aria-label={`Trainingsziel: ${displayedPercent} Prozent von ${targetMinutes} Minuten pro ${targetPeriod.toLowerCase()}.${actualExplanation}`} title={`Dein ${targetPeriod === "Tag" ? "Tagesziel" : "Wochenziel"}: ${targetMinutes} Trainingsminuten.${actualExplanation} Erfasste App- und importierte Health-Trainings füllen den Kreis; nach Ablauf des Zeitraums beginnt er neu. Ein Punkte-Reset verändert den Zielkreis und Trainingslevel nicht.`}>
+    <div className="goal-ring-summary" role="img" aria-label={`Trainingsziel: ${displayedPercent} Prozent von ${targetMinutes} Minuten pro ${targetPeriod.toLowerCase()}.${actualExplanation}`} title={`Dein ${targetPeriod === "Tag" ? "Tagesziel" : "Wochenziel"}: ${targetMinutes} Trainingsminuten.${actualExplanation} App- und Apple-Health-Trainingsminuten füllen den Kreis; nach Ablauf des Zeitraums beginnt er neu. Ein Punkte-Reset verändert den Zielkreis und Trainingslevel nicht.`}>
       <span className={`goal-ring ${displayedPercent >= 100 ? "goal-reached" : ""}`} aria-hidden="true" style={{ "--profile": color } as React.CSSProperties}>
         <svg className="goal-ring-visual" viewBox="0 0 100 100"><circle className="goal-ring-track" cx="50" cy="50" r="44" /><circle className="goal-ring-fill" cx="50" cy="50" r="44" pathLength="100" strokeDasharray="100" strokeDashoffset={100 - progress} /></svg>
         <strong>{displayedPercent}%</strong>
@@ -90,7 +90,7 @@ function ProfileDashboardCard({ profile, clock }: { profile: DashboardProfile; c
       </div>
 
       <div className="score-row">
-        <div className="score" title="Trainingspunkte: Kraft 1, Ausdauer 2, importierte Health-Trainings 1,5 Punkte/Minute. Aktive kcal zählen nicht als Punkte. Nach einem Punkte-Reset zählen nur neue Trainingsminuten."><Trophy size={22} /><div><strong key={profile.score} className="score-value">{profile.score.toLocaleString("de-DE")}</strong><span>{profile.scoreResetAt ? "Punkte seit Reset" : "Gesamtpunkte"}</span></div></div>
+        <div className="score" title="Trainingspunkte: Kraft 1, Ausdauer 2, Apple-Health-Trainingsminuten 1,5 Punkte/Minute. Aktive kcal und Schritte zählen nicht als Punkte. Nach einem Punkte-Reset zählen nur neue Trainingsminuten."><Trophy size={22} /><div><strong key={profile.score} className="score-value">{profile.score.toLocaleString("de-DE")}</strong><span>{profile.scoreResetAt ? "Punkte seit Reset" : "Gesamtpunkte"}</span></div></div>
         <div className="today"><strong>{profile.todayMinutes}</strong><span>Minuten heute</span></div>
       </div>
       <HealthDailyMetrics value={profile.healthEnergy} trend={profile.healthDailyTrend} clock={clock} />
