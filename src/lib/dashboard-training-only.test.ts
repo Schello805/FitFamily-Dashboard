@@ -38,7 +38,7 @@ describe("FitFamily training without Health contributions", () => {
   });
   it("uses only actual FitFamily training for score, minutes, fitness progress, target and trend", async () => {
     const profile = (await getDashboardData()).find(entry => entry.id === profileId)!;
-    expect(profile).toMatchObject({ score: 55, totalMinutes: 35, todayMinutes: 35, strengthMinutes: 15, enduranceMinutes: 20, trainingMinutes: 35, targetPercent: 23 });
+    expect(profile).toMatchObject({ score: 55, totalMinutes: 35, todayMinutes: 35, strengthMinutes: 15, enduranceMinutes: 20, trainingMinutes: 35, targetPercent: 23, targetActualMinutes: 35 });
     expect(profile).not.toHaveProperty("appleHealthRings");
     expect(profile.activityTrend.find(day => day.date === "2026-10-03")?.activityMinutes).toBe(35);
     const client = await db();

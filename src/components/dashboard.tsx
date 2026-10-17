@@ -59,13 +59,16 @@ export function GoalRing({ value, color, targetMinutes, targetPeriod, actualMinu
     : Math.max(0, targetMinutes * value / 100);
   const rawProgress = actual / targetMinutes * 100;
   const progress = Math.max(0, Math.min(100, Number.isFinite(rawProgress) ? rawProgress : 0));
+  // The numeric label and the ring use the same real amount. This avoids a
+  // misleading 0 % label next to an already filled weekly total.
+  const displayedPercent = Math.max(0, Math.round(Number.isFinite(rawProgress) ? rawProgress : 0));
   const actualMinutesLabel = new Intl.NumberFormat("de-DE", { maximumFractionDigits: 1 }).format(actual);
   const actualExplanation = ` Wochenstand: ${actualMinutesLabel} von ${targetMinutes} Minuten.`;
   return (
-    <div className="goal-ring-summary" role="img" aria-label={`Trainingsziel: ${value} Prozent von ${targetMinutes} Minuten pro ${targetPeriod.toLowerCase()}.${actualExplanation}`} title={`Dein ${targetPeriod === "Tag" ? "Tagesziel" : "Wochenziel"}: ${targetMinutes} Trainingsminuten.${actualExplanation} Erfasste App- und Apple-Health-Trainingsminuten füllen den Kreis; nach Ablauf des Zeitraums beginnt er neu. Ein Punkte-Reset verändert den Zielkreis und Trainingslevel nicht.`}>
-      <span className={`goal-ring ${value >= 100 ? "goal-reached" : ""}`} aria-hidden="true" style={{ "--profile": color } as React.CSSProperties}>
+    <div className="goal-ring-summary" role="img" aria-label={`Trainingsziel: ${displayedPercent} Prozent von ${targetMinutes} Minuten pro ${targetPeriod.toLowerCase()}.${actualExplanation}`} title={`Dein ${targetPeriod === "Tag" ? "Tagesziel" : "Wochenziel"}: ${targetMinutes} Trainingsminuten.${actualExplanation} Erfasste App- und importierte Health-Trainings füllen den Kreis; nach Ablauf des Zeitraums beginnt er neu. Ein Punkte-Reset verändert den Zielkreis und Trainingslevel nicht.`}>
+      <span className={`goal-ring ${displayedPercent >= 100 ? "goal-reached" : ""}`} aria-hidden="true" style={{ "--profile": color } as React.CSSProperties}>
         <svg className="goal-ring-visual" viewBox="0 0 100 100"><circle className="goal-ring-track" cx="50" cy="50" r="44" /><circle className="goal-ring-fill" cx="50" cy="50" r="44" pathLength="100" strokeDasharray="100" strokeDashoffset={100 - progress} /></svg>
-        <strong>{value}%</strong>
+        <strong>{displayedPercent}%</strong>
         <small>ZIEL</small>
       </span>
       <span className="goal-ring-target" title={`Ist: ${actualMinutesLabel} von ${targetMinutes} Minuten`}>IST {actualMinutesLabel} / {targetMinutes} MIN.</span>

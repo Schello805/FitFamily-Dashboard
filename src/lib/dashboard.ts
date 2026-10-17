@@ -39,7 +39,7 @@ export async function getDashboardData(): Promise<DashboardProfile[]> {
     client.execute(`SELECT ts.profile_id, ts.id session_id, ts.status, sg.type, sg.started_at, sg.ended_at, p.target_reset_at, p.score_reset_at
       FROM training_segments sg JOIN training_sessions ts ON ts.id = sg.session_id
       JOIN profiles p ON p.id = ts.profile_id
-      WHERE COALESCE(ts.source, '') <> 'apple_health' AND ts.recording_mode='app'
+      WHERE COALESCE(ts.source, '') <> 'apple_health' AND COALESCE(ts.recording_mode, 'app')='app'
       UNION ALL SELECT h.profile_id, 'health:' || h.profile_id || ':' || h.external_id, 'completed', h.training_type, h.started_at, h.ended_at,
         p.target_reset_at, p.score_reset_at FROM health_workouts h JOIN profiles p ON p.id=h.profile_id WHERE h.deleted_at IS NULL`),
     client.execute(`SELECT ts.profile_id, ts.id session_id, ts.started_at session_started_at, ts.recording_mode,
@@ -210,7 +210,12 @@ export async function getDashboardData(): Promise<DashboardProfile[]> {
       const value = dailyActivity.get(date);
       activityTrend.push({ date, label, resolution: "Tag", activityMinutes: value === undefined ? null : Math.round(value * 10) / 10, targetMinutes: dailyTarget, measuredDays: value === undefined ? 0 : 1, periodDays: 1 });
     }
-    const targetActualMinutes = (target.period === "Tag" ? targetTodaySeconds : targetWeekSeconds) / 60;
+    // A session counted as "today" necessarily belongs to the current week.
+    // Keep the weekly target robust for legacy/imported rows whose timestamps
+    // previously made the two summaries disagree.
+    const targetActualMinutes = (target.period === "Tag"
+      ? targetTodaySeconds
+      : Math.max(targetWeekSeconds, targetTodaySeconds)) / 60;
     const avatarProgress = getAvatarProgress(profile.startingFitness, strengthMinutes, enduranceMinutes, getFitnessStageCount(profile.id, profile.birthDate));
     const plan = plansResult.rows.find((item) => String(item.profile_id) === profileId);
     let nextTrainingText: string | null = null;
